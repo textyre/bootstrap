@@ -1,0 +1,53 @@
+
+# ---- Temporary files ----
+*.log
+*.tmp
+*.swp
+*.bak
+*~
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ---- Node ----
+node_modules/
+
+# ---- Editor / IDE ----
+.vscode/
+.idea/
+*.code-workspace
+
+# ---- Build artifacts ----
+dist/
+build/
+*.egg-info/
+
+# ---- Archives ----
+*.zip
+*.tar.gz
+
+# ---- Xorg test logs (temporary) ----
+/tmp/Xorg.*.log
+
+# ---- Script output (project-specific) ----
+packages_tree.txt
+full_dependencies.txt
+
+# ---- Personal / local overrides ----
+windows/config/
+windows/.env
+
+# ---- Sensitive keys ----
+*.pem
+*.key
+id_rsa*
+
+# ---- Runtime state ----
+scripts/state/
+

@@ -1,0 +1,7 @@
+# chezmoi cache and state
+.chezmoi.yaml
+.chezmoi.yaml.tmpl
+
+# Git
+.git/
+
