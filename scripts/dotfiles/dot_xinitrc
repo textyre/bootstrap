@@ -1,10 +1,6 @@
 #!/bin/bash
 # Start screen locker helpers and exec i3
 
-# [DISPLAY_CONFIG_START]
-# Display configuration will be injected here by display manager
-# [DISPLAY_CONFIG_END]
-
 if command -v xss-lock >/dev/null 2>&1; then
   xss-lock -- slock &
 fi

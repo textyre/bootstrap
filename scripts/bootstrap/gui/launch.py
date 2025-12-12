@@ -3,7 +3,7 @@
 from typing import Optional
 
 import argparse
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 from bootstrap.gui.deploy_dotfiles import DotfilesInstaller
 from bootstrap.gui.check_required_bins import BinaryChecker
 from bootstrap.gui.display.manager import DisplayManager
@@ -61,10 +61,10 @@ def main(argv: Optional[list] = None) -> int:
         if deploy_rc != 0:
             return deploy_rc
 
-        # logger.info("Configuring display resolution...")
-        # display_manager = DisplayManager()
-        # if not display_manager.deploy_all():
-        #     logger.warning("Failed to configure display, continuing anyway...")
+        logger.info("Configuring display resolution...")
+        display_manager = DisplayManager()
+        if not display_manager.deploy_all():
+            logger.warning("Failed to configure display, continuing anyway...")
 
         return start_gui.main() or 0
     

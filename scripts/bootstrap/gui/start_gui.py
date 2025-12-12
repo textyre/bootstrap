@@ -3,7 +3,7 @@
 from typing import Optional
 
 import subprocess
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 
 logger = Logger(__name__)
 

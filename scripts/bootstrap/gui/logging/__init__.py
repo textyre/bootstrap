@@ -31,40 +31,7 @@ class Logger:
         self._setup_handlers(log_file)
 
     def _set_level(self, level: Union[str, int]) -> None:
-        if isinstance(level, int):
-            level_value = level
-        else:
+        from bootstrap.logging import Logger
+
+        __all__ = ["Logger"]
             level_value = logging.getLevelName(level)
-            if isinstance(level_value, str):
-                level_value = logging.INFO
-        self.logger.setLevel(level_value)
-
-    def _setup_handlers(self, log_file: Optional[str]) -> None:
-        for handler in list(self.logger.handlers):
-            self.logger.removeHandler(handler)
-
-        console_format = "[%(levelname)s] %(name)s: %(message)s"
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(ColoredFormatter(console_format))
-        self.logger.addHandler(console_handler)
-
-        if log_file:
-            file_format = "%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(logging.Formatter(file_format))
-            self.logger.addHandler(file_handler)
-
-    def debug(self, msg: str, *args, **kwargs) -> None:
-        self.logger.debug(msg, *args, **kwargs)
-
-    def info(self, msg: str, *args, **kwargs) -> None:
-        self.logger.info(msg, *args, **kwargs)
-
-    def warning(self, msg: str, *args, **kwargs) -> None:
-        self.logger.warning(msg, *args, **kwargs)
-
-    def error(self, msg: str, *args, **kwargs) -> None:
-        self.logger.error(msg, *args, **kwargs)
-
-    def critical(self, msg: str, *args, **kwargs) -> None:
-        self.logger.critical(msg, *args, **kwargs)

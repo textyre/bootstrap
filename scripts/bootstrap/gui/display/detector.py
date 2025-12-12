@@ -5,7 +5,7 @@ import os
 import glob
 from dataclasses import dataclass
 from typing import List, Optional, Dict
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 
 logger = Logger(__name__)
 

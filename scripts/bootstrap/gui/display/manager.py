@@ -8,7 +8,7 @@ from .detector import DisplayDetector
 from .generator import XrandrCommandGenerator
 from .modeutils import ModeUtils
 from .xinitrc_strategy import XinitrcDeployStrategy
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 
 logger = Logger(__name__)
 

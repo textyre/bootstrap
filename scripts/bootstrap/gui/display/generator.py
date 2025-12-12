@@ -4,7 +4,7 @@ import math
 from typing import List, Optional
 from .detector import DisplayDetector, Monitor, Resolution
 from .modeutils import ModeUtils
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 
 logger = Logger(__name__)
 

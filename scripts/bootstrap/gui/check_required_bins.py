@@ -4,7 +4,7 @@ from typing import Optional
 
 import shutil
 import argparse
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 
 logger = Logger(__name__)
 

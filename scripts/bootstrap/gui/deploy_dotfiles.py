@@ -4,7 +4,7 @@ from typing import Optional
 
 import subprocess
 import argparse
-from bootstrap.gui.logging import Logger
+from bootstrap.logging import Logger
 from bootstrap.gui.path_utils import PathResolver
 from bootstrap.gui.user_utils import UserContext
 
