@@ -61,11 +61,6 @@ def main(argv: Optional[list] = None) -> int:
         if deploy_rc != 0:
             return deploy_rc
 
-        logger.info("Configuring display resolution...")
-        display_manager = DisplayManager()
-        if not display_manager.deploy_all():
-            logger.warning("Failed to configure display, continuing anyway...")
-
         return start_gui.main() or 0
     
     return 0
