@@ -7,6 +7,7 @@ import argparse
 from bootstrap.logging import Logger
 from bootstrap.gui.path_utils import PathResolver
 from bootstrap.gui.user_utils import UserContext
+from bootstrap.gui.display.display_manager import DisplayDotfilesManager
 
 logger = Logger(__name__)
 
@@ -31,17 +32,15 @@ class DotfilesInstaller:
         if system_deploy_code != 0:
             return system_deploy_code
 
-        return self._verify_display_files(dotfiles_path, user)
+        manager = DisplayDotfilesManager()
+        ok = manager.validate(dotfiles_path, user)
+        return 0 if ok else 1
 
     def _deploy_user_dotfiles(self, user: str, dotfiles_path) -> int:
         try:
             logger.info("deploying user dotfiles for %s", user)
             subprocess.run(
-                ["sudo", "-u", user, "chezmoi", "init", "--source", str(dotfiles_path)],
-                check=True
-            )
-            subprocess.run(
-                ["sudo", "-u", user, "chezmoi", "apply", "--exclude", "etc/**"],
+                ["sudo", "-u", user, "chezmoi", "apply", "--source", str(dotfiles_path), "--exclude", "etc/**"],
                 check=True
             )
             return 0
@@ -53,11 +52,7 @@ class DotfilesInstaller:
         try:
             logger.info("deploying system files")
             subprocess.run(
-                ["sudo", "chezmoi", "init", "--source", str(dotfiles_path)],
-                check=True
-            )
-            subprocess.run(
-                ["sudo", "chezmoi", "apply", "--include", "etc/**"],
+                ["sudo", "chezmoi", "apply", "--source", str(dotfiles_path), "--include", "etc/**"],
                 check=True
             )
             return 0
@@ -65,35 +60,7 @@ class DotfilesInstaller:
             logger.exception("system files deploy failed")
             return e.returncode or 1
 
-    def _verify_display_files(self, dotfiles_path, user: str) -> int:
-        from bootstrap.gui.display.file_writer import PrivilegedFileWriter
-        from bootstrap.gui.display.lightdm_hook_strategy import LightDMHookDeployStrategy
-        from bootstrap.gui.display.lightdm_config_strategy import LightDMConfigDeployStrategy
-
-        writer = PrivilegedFileWriter()
-        hook_strategy = LightDMHookDeployStrategy()
-        config_strategy = LightDMConfigDeployStrategy()
-
-        hook_ok = hook_strategy.deploy(
-            source_root=dotfiles_path,
-            user=user,
-            path_resolver=self.path_resolver,
-            writer=writer
-        )
-
-        config_ok = config_strategy.deploy(
-            source_root=dotfiles_path,
-            user=user,
-            path_resolver=self.path_resolver,
-            writer=writer
-        )
-
-        if not (hook_ok and config_ok):
-            logger.error("display files verification/fix failed")
-            return 1
-
-        logger.info("display files verified and fixed")
-        return 0
+    
 
     def _resolve_user_and_home(self, target_user: Optional[str]) -> Tuple[str, Optional[str]]:
         user = target_user or self.user_context.get_current_user()
