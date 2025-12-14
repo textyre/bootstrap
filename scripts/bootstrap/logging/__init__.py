@@ -68,3 +68,6 @@ class Logger:
 
     def critical(self, msg: str, *args, **kwargs) -> None:
         self.logger.critical(msg, *args, **kwargs)
+
+    def exception(self, msg: str, *args, **kwargs) -> None:
+        self.logger.exception(msg, *args, **kwargs)

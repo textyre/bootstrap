@@ -9,6 +9,18 @@ from bootstrap.gui.path_utils import PathResolver
 from bootstrap.gui.user_utils import UserContext
 from bootstrap.gui.display.display_manager import DisplayDotfilesManager
 
+# Explicit source paths for user-level chezmoi apply. Adjust as needed.
+USER_SOURCE_PATHS = [
+    "dot_xinitrc",
+    "dot_config",
+]
+
+# Explicit source paths for system-level chezmoi apply.
+SYSTEM_SOURCE_PATHS = [
+    "etc/lightdm",
+    "etc/X11",
+]
+
 logger = Logger(__name__)
 
 
@@ -39,10 +51,12 @@ class DotfilesInstaller:
     def _deploy_user_dotfiles(self, user: str, dotfiles_path) -> int:
         try:
             logger.info("deploying user dotfiles for %s", user)
-            subprocess.run(
-                ["sudo", "-u", user, "chezmoi", "apply", "--source", str(dotfiles_path), "--exclude", "etc/**"],
-                check=True
-            )
+            cmd = ["sudo", "-u", user, "chezmoi", "apply", "--source", str(dotfiles_path)]
+            # Use relative source-paths and run chezmoi with cwd set to the repo so
+            # sudo doesn't affect how chezmoi resolves entries in the source tree.
+            for sp in USER_SOURCE_PATHS:
+                cmd += ["--source-path", sp]
+            subprocess.run(cmd, check=True, cwd=str(dotfiles_path))
             return 0
         except subprocess.CalledProcessError as e:
             logger.exception("user dotfiles deploy failed")
@@ -51,10 +65,12 @@ class DotfilesInstaller:
     def _deploy_system_files(self, dotfiles_path) -> int:
         try:
             logger.info("deploying system files")
-            subprocess.run(
-                ["sudo", "chezmoi", "apply", "--source", str(dotfiles_path), "--include", "etc/**"],
-                check=True
-            )
+            cmd = ["sudo", "chezmoi", "apply", "--source", str(dotfiles_path), "--destination", "/"]
+            # Use relative source-paths and set cwd to the dotfiles repo so chezmoi
+            # resolves entries against the repository regardless of sudo behavior.
+            for sp in SYSTEM_SOURCE_PATHS:
+                cmd += ["--source-path", sp]
+            subprocess.run(cmd, check=True, cwd=str(dotfiles_path))
             return 0
         except subprocess.CalledProcessError as e:
             logger.exception("system files deploy failed")

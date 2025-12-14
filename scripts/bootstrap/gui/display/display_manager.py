@@ -55,22 +55,58 @@ class DisplayDotfilesManager:
         return True
 
     def validate(self, source_root: Path, user: str) -> bool:
-        ok = True
-
+        # Initial checks
         source_hook = source_root / DisplayConfig.SOURCE_LIGHTDM_HOOK_FILE
         target_hook = DisplayConfig.TARGET_LIGHTDM_HOOK_FILE
-        hook_ok = self._check_file(source_hook, target_hook, DisplayConfig.LIGHTDM_HOOK_MODE, DisplayConfig.LIGHTDM_HOOK_OWNER, DisplayConfig.LIGHTDM_HOOK_GROUP)
-        if not hook_ok:
-            ok = False
-            self.logger.info("Deploying LightDM hook to fix issues")
-            self.hook_strategy.deploy(source_root=source_root, user=user, path_resolver=self.path_resolver, writer=self.writer)
+        hook_ok = self._check_file(
+            source_hook,
+            target_hook,
+            DisplayConfig.LIGHTDM_HOOK_MODE,
+            DisplayConfig.LIGHTDM_HOOK_OWNER,
+            DisplayConfig.LIGHTDM_HOOK_GROUP,
+        )
 
         source_conf = source_root / DisplayConfig.SOURCE_LIGHTDM_CONFIG_FILE
         target_conf = DisplayConfig.TARGET_LIGHTDM_CONFIG_FILE
-        conf_ok = self._check_file(source_conf, target_conf, DisplayConfig.LIGHTDM_CONFIG_MODE, DisplayConfig.LIGHTDM_CONFIG_OWNER, DisplayConfig.LIGHTDM_CONFIG_GROUP)
+        conf_ok = self._check_file(
+            source_conf,
+            target_conf,
+            DisplayConfig.LIGHTDM_CONFIG_MODE,
+            DisplayConfig.LIGHTDM_CONFIG_OWNER,
+            DisplayConfig.LIGHTDM_CONFIG_GROUP,
+        )
+
+        # If everything is already fine, return True
+        if hook_ok and conf_ok:
+            return True
+
+        # Deploy any missing/incorrect pieces
+        if not hook_ok:
+            self.logger.info("Deploying LightDM hook to fix issues")
+            self.hook_strategy.deploy(source_root=source_root, user=user, path_resolver=self.path_resolver, writer=self.writer)
+
         if not conf_ok:
-            ok = False
             self.logger.info("Deploying LightDM config to fix issues")
             self.config_strategy.deploy(source_root=source_root, user=user, path_resolver=self.path_resolver, writer=self.writer)
 
-        return ok
+        # Re-check after attempted deployment; only return True if both now match
+        hook_ok = self._check_file(
+            source_hook,
+            target_hook,
+            DisplayConfig.LIGHTDM_HOOK_MODE,
+            DisplayConfig.LIGHTDM_HOOK_OWNER,
+            DisplayConfig.LIGHTDM_HOOK_GROUP,
+        )
+        conf_ok = self._check_file(
+            source_conf,
+            target_conf,
+            DisplayConfig.LIGHTDM_CONFIG_MODE,
+            DisplayConfig.LIGHTDM_CONFIG_OWNER,
+            DisplayConfig.LIGHTDM_CONFIG_GROUP,
+        )
+
+        if hook_ok and conf_ok:
+            return True
+
+        # Still not okay
+        return False
