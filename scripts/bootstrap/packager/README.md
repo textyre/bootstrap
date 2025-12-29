@@ -1,35 +1,41 @@
 Packager
-========
+```text
+Packager (Python)
+------------------
 
-This directory contains distro-specific wrappers that expose two functions:
-
-- `pm_update [root]`  — update package database, optionally targeting `root`
-- `pm_install [root] pkg...` — install packages, optionally targeting `root`
-
-Supported distros (official): `arch`, `ubuntu`, `fedora`, `gentoo`.
+This directory contains a Python-based packager implementing an OOP design and
+common patterns (factory, strategy). It replaces the old shell-based
+implementation.
 
 Usage
 -----
 
-In scripts that need to perform package operations, source the top-level
-`packager.sh` (it will auto-select the correct distro script):
+Run the installer module. Example:
 
 ```
-. scripts/bootstrap/packager/packager.sh  # will define pm_update/pm_install
-pm_update "/path/to/root"              # updates packages DB in root
-pm_install "/path/to/root" pkg1 pkg2   # installs into root
+python -m packager.install --distro arch --groups common arch
 ```
 
-If you prefer to execute `packager.sh` directly, it also supports a small
-CLI: `packager.sh update [root]` and `packager.sh install [root] [packages...]`.
+Options
+-------
 
-Notes
+- `--distro` (`-d`): target distribution (arch, ubuntu, fedora, gentoo)
+- `--groups` (`-g`): package groups defined in `packages.py` (default: `common`)
+- `--dry-run`: show commands without executing them
+- `--no-sudo`: run commands without `sudo`
+- `--no-update`: skip update step
+
+Files
 -----
-- For Arch we use `pacman --root` with `--dbpath`/`--cachedir` so the target
-  root maintains its own package DB.
-- For Ubuntu/Debian we run `apt` inside a `chroot` when a `root` is provided —
-  this requires a prepared chroot (debootstrap) or a reachable `/bin/sh` in
-  the target root.
-- For Fedora we use `dnf --installroot`.
-- For Gentoo we attempt `emerge --root` where available; full Portage
-  configuration in the target is typically required.
+
+- `core.py`: abstract `Packager` and concrete implementations
+- `factory.py`: factory returning proper packager by distro
+- `packages.py`: package group definitions and loader
+- `install.py`: CLI entrypoint
+
+Extensibility
+-------------
+
+To add a new distro, implement `Packager` in `core.py` and register it in
+`factory.py`. Add new package groups to `packages.py`.
+```

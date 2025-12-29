@@ -1,0 +1,13 @@
+---
+reflector_countries: "US"
+reflector_args: "--protocol https --latest 10 --sort rate"
+reflector_timer_schedule: "daily"
+reflector_template_threads: "{{ [ (ansible_facts.processor_vcpus | default(1) | int) // 4, 1 ] | max }}"
+reflector_conf_path: "/etc/xdg/reflector/reflector.conf"
+mirrorlist_path: "/etc/pacman.d/mirrorlist"
+backup_mirrorlist: true
+reflector_retries: 3
+reflector_retry_delay: 5
+reflector_connection_timeout: 10
+reflector_download_timeout: 30
+reflector_proxy: ""

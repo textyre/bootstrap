@@ -13,16 +13,16 @@ packages=(
 	# i3 group: window manager and helpers
 	i3                         # i3 window manager group (i3-wm, i3status)
 
+	# Visuals and helpers
+	picom                      # compositor (shadows, transparency)
+	dmenu                      # minimal launcher menu
+
 	# Graphics drivers
 	mesa                        # OpenGL/GLX (Intel/AMD)
 
 	# Session / greeter
 	lightdm                    # display manager (optional)
-	lightdm-gtk-greeter        # greeter for LightDM
-
-	# Visuals and helpers
-	picom                      # compositor (shadows, transparency)
-	dmenu                      # minimal launcher menu
+	lightdm-gtk-greeter        # greeter for LightDM	
 
 	# Terminal
 	alacritty                  # modern GPU-accelerated terminal
@@ -38,4 +38,12 @@ packages=(
 
 	# Fonts
 	ttf-jetbrains-mono        # JetBrains Mono (only font requested)
+
+	# IDE
+	vim
+)
+
+
+aur_packages=(
+	i3-rounded-border-patch-git 4.22.r31.gd06f97c4-1            # i3 rounded border patch
 )

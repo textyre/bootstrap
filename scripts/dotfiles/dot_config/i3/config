@@ -60,5 +60,16 @@ bindsym $mod+shift+q kill
 bindsym $mod+shift+c reload
 bindsym $mod+shift+r restart
 
+# gaps
+gaps inner 10
+gaps outer 10
+smart_gaps on
+
+# bind for gaps
+bindsym $mod+Ctrl+minus gaps inner current minus 5
+bindsym $mod+Ctrl+plus gaps inner current plus 5
+bindsym $mod+Shift+Ctrl+minus gaps outer current minus 5
+bindsym $mod+Shift+Ctrl+plus gaps outer current plus 5
+
 # Font
 font pango:monospace 10
