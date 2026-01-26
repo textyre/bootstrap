@@ -53,16 +53,20 @@ tasks:
       - 'echo "✓ Lint check passed"'
 
   test:
-    desc: "Run molecule tests (isolated environment)"
+    desc: "Run molecule tests (ИЗМЕНИТ систему! Создайте снапшот VM)"
     deps: [_ensure-venv]
     dir: roles/reflector
+    env:
+      PATH: "{{.TASKFILE_DIR}}/{{.VENV}}/bin:{{.PATH}}"
     cmds:
-      - 'echo "==> Running molecule tests..."'
-      - "../../{{.MOLECULE}} test"
-      - 'echo "✓ Tests passed"'
+      - 'echo "⚠️  WARNING: This will modify your system!"'
+      - 'echo "==> Applying role and verifying..."'
+      - molecule test
+      - 'echo "✅ Tests passed!"'
 
   test-full:
     desc: "Run all tests (check + lint + molecule)"
+    prompt: "Molecule test will modify your system. Create VM snapshot first?"
     cmds:
       - task: check
       - task: lint

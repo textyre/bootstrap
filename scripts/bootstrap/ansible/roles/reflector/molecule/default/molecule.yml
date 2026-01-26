@@ -1,6 +1,15 @@
 ---
 # Molecule configuration for reflector role testing
-# Uses delegated driver to test on localhost
+#
+# DELEGATED DRIVER: Применяет роль к localhost (вашей Arch Linux VM)
+#
+# ВНИМАНИЕ: Этот тест РЕАЛЬНО изменяет систему!
+#   - Устанавливает reflector
+#   - Настраивает systemd таймер
+#   - Обновляет /etc/pacman.d/mirrorlist
+#
+# Перед запуском: Создайте снапшот VM в VirtualBox!
+# После теста: Откатите снапшот или оставьте изменения
 
 dependency:
   name: galaxy
@@ -9,9 +18,9 @@ dependency:
     ignore-errors: true
 
 driver:
-  name: delegated
+  name: delegated  # Не создает контейнеры, работает с localhost
   options:
-    managed: false
+    managed: false  # Molecule не управляет инфраструктурой
     ansible_connection_options:
       ansible_connection: local
 
@@ -25,11 +34,11 @@ provisioner:
   inventory:
     group_vars:
       all:
-        # Test with safe defaults
+        # Test with safe defaults (небольшие значения для быстрого теста)
         reflector_countries: "US,DE"
         reflector_latest: 5
         reflector_age: 24
-        backup_mirrorlist: true
+        reflector_backup_mirrorlist: true
   playbooks:
     converge: converge.yml
     verify: verify.yml

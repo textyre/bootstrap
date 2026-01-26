@@ -1,6 +1,6 @@
 ---
 # Molecule verify playbook
-# Validates that the reflector role applied correctly
+# Проверяет что роль правильно применилась к системе
 
 - name: Verify
   hosts: all
@@ -67,8 +67,9 @@
     - name: Show test results
       ansible.builtin.debug:
         msg:
+          - "✅ All checks passed!"
           - "✓ reflector package installed"
           - "✓ reflector.conf exists and valid"
           - "✓ timer override configured"
           - "✓ reflector.timer enabled and active"
-          - "✓ mirrorlist generated with {{ reflector_server_count.stdout }} servers"
+          - "✓ mirrorlist updated with {{ reflector_server_count.stdout }} servers"
