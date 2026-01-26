@@ -1,0 +1,61 @@
+---
+# Molecule configuration for reflector role testing
+# Uses delegated driver to test on localhost
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    ignore-errors: true
+
+driver:
+  name: delegated
+  options:
+    managed: false
+    ansible_connection_options:
+      ansible_connection: local
+
+platforms:
+  - name: localhost
+    groups:
+      - arch_hosts
+
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        # Test with safe defaults
+        reflector_countries: "US,DE"
+        reflector_latest: 5
+        reflector_age: 24
+        backup_mirrorlist: true
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+      stdout_callback: yaml
+  env:
+    ANSIBLE_VERBOSITY: "1"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - syntax
+    - converge
+    - idempotence
+    - verify
+  create_sequence:
+    - dependency
+  check_sequence:
+    - dependency
+    - syntax
+  converge_sequence:
+    - dependency
+    - converge
+  destroy_sequence: []

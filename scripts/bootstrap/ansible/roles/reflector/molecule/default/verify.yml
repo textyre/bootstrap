@@ -1,0 +1,74 @@
+---
+# Molecule verify playbook
+# Validates that the reflector role applied correctly
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check that reflector is installed
+      ansible.builtin.package:
+        name: reflector
+        state: present
+      check_mode: true
+      register: reflector_installed
+      failed_when: reflector_installed is changed
+
+    - name: Check that reflector config exists
+      ansible.builtin.stat:
+        path: /etc/xdg/reflector/reflector.conf
+      register: reflector_conf
+      failed_when: not reflector_conf.stat.exists
+
+    - name: Validate reflector config content
+      ansible.builtin.slurp:
+        src: /etc/xdg/reflector/reflector.conf
+      register: reflector_conf_content
+      failed_when: >
+        '--save' not in (reflector_conf_content.content | b64decode) or
+        '--protocol' not in (reflector_conf_content.content | b64decode)
+
+    - name: Check that timer override exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/reflector.timer.d/override.conf
+      register: reflector_timer_override
+      failed_when: not reflector_timer_override.stat.exists
+
+    - name: Check that reflector.timer is enabled
+      ansible.builtin.systemd:
+        name: reflector.timer
+        enabled: true
+      check_mode: true
+      register: reflector_timer_enabled
+      failed_when: reflector_timer_enabled is changed
+
+    - name: Check that reflector.timer is active
+      ansible.builtin.systemd:
+        name: reflector.timer
+      register: reflector_timer_status
+      failed_when: reflector_timer_status.status.ActiveState != 'active'
+
+    - name: Check that mirrorlist exists and is not empty
+      ansible.builtin.stat:
+        path: /etc/pacman.d/mirrorlist
+      register: reflector_mirrorlist
+      failed_when: >
+        not reflector_mirrorlist.stat.exists or
+        reflector_mirrorlist.stat.size == 0
+
+    - name: Validate mirrorlist contains Server entries
+      ansible.builtin.command: grep -c '^Server = ' /etc/pacman.d/mirrorlist
+      register: reflector_server_count
+      changed_when: false
+      failed_when: reflector_server_count.stdout | int < 1
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "✓ reflector package installed"
+          - "✓ reflector.conf exists and valid"
+          - "✓ timer override configured"
+          - "✓ reflector.timer enabled and active"
+          - "✓ mirrorlist generated with {{ reflector_server_count.stdout }} servers"

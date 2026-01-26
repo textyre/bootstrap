@@ -7,7 +7,7 @@
     fail_msg: "This role supports Arch Linux only"
 
 - name: Install reflector package
-  ansible.builtin.pacman:
+  community.general.pacman:
     name: reflector
     state: present
   tags: ['install']
@@ -52,20 +52,19 @@
   tags: ['service']
 
 - name: Update pacman cache
-  ansible.builtin.pacman:
+  community.general.pacman:
     update_cache: yes
   tags: ['update']
 
 - name: Read current mirrorlist (if present)
   ansible.builtin.slurp:
-    src: "{{ mirrorlist_path }}"
-  register: old_mirror
+    src: "{{ reflector_mirrorlist_path }}"
+  register: reflector_old_mirror
   ignore_errors: yes
   tags: ['update']
 
 - name: Run reflector to update mirrorlist now (with retries)
-  ansible.builtin.command: >
-    reflector {{ reflector_args }} --threads {{ reflector_template_threads }} --connection-timeout {{ reflector_connection_timeout }} --download-timeout {{ reflector_download_timeout }} --save {{ mirrorlist_path }}
+  ansible.builtin.command: reflector --config {{ reflector_conf_path }}
   register: reflector_run
   retries: "{{ reflector_retries }}"
   delay: "{{ reflector_retry_delay }}"
@@ -78,27 +77,28 @@
 
 - name: Read new mirrorlist
   ansible.builtin.slurp:
-    src: "{{ mirrorlist_path }}"
-  register: new_mirror
-  failed_when: new_mirror is not defined
+    src: "{{ reflector_mirrorlist_path }}"
+  register: reflector_new_mirror
+  failed_when: reflector_new_mirror is not defined
   tags: ['update']
 
 - name: Compare mirrorlists and set fact if changed
   ansible.builtin.set_fact:
-    mirrorlist_changed: "{{ (old_mirror.content | default('')) != (new_mirror.content | default('')) }}"
+    reflector_mirrorlist_changed: "{{ (reflector_old_mirror.content | default('')) != (reflector_new_mirror.content | default('')) }}"
   tags: ['update']
 
 - name: Backup old mirrorlist if changed
   ansible.builtin.copy:
     remote_src: yes
-    src: "{{ mirrorlist_path }}"
-    dest: "{{ mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] | default( lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') ) }}"
-  when: mirrorlist_changed and backup_mirrorlist
+    src: "{{ reflector_mirrorlist_path }}"
+    dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] | default(lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ')) }}"
+    mode: '0644'
+  when: reflector_mirrorlist_changed and reflector_backup_mirrorlist
   tags: ['update']
 
 - name: Report reflector run
   ansible.builtin.debug:
-    msg: "reflector rc={{ reflector_run.rc }}, changed={{ mirrorlist_changed }}"
+    msg: "reflector rc={{ reflector_run.rc }}, changed={{ reflector_mirrorlist_changed }}"
   tags: ['update']
 
 - name: Fail if reflector failed
@@ -109,6 +109,6 @@
 
 - name: Mark changed when mirrorlist updated
   ansible.builtin.command: /bin/true
-  changed_when: mirrorlist_changed
-  when: mirrorlist_changed
+  changed_when: reflector_mirrorlist_changed
+  when: reflector_mirrorlist_changed
   tags: ['update']

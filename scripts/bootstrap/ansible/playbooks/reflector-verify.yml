@@ -1,6 +1,7 @@
 ---
 - name: Run reflector role and show whether mirrorlist changed
   hosts: localhost
+  connection: local
   become: true
   gather_facts: true
   roles:
@@ -9,8 +10,9 @@
 
 - name: Show mirrorlist change result
   hosts: localhost
+  connection: local
   gather_facts: false
   tasks:
-    - name: Show mirrorlist_changed fact
+    - name: Show reflector_mirrorlist_changed fact
       ansible.builtin.debug:
-        var: hostvars['localhost'].mirrorlist_changed
+        var: hostvars['localhost'].reflector_mirrorlist_changed

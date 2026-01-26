@@ -1,11 +1,30 @@
 ---
-reflector_countries: "US"
-reflector_args: "--protocol https --latest 10 --sort rate"
+# === ЕДИНЫЙ ИСТОЧНИК КОНФИГУРАЦИИ ===
+# Все параметры определены здесь и используются в template
+# Template генерирует /etc/xdg/reflector/reflector.conf
+# Этот файл используется везде: и при первом запуске, и в timer
+
+# Страны для зеркал (приоритет для региона Казахстана)
+reflector_countries: "KZ,RU,DE,NL,FR"
+
+# Параметры reflector
+reflector_protocol: "https"
+reflector_latest: 20  # Количество зеркал
+reflector_sort: "rate"  # Сортировка по скорости
+reflector_age: 12  # Только зеркала свежее 12 часов
+
+# Расписание автообновления
 reflector_timer_schedule: "daily"
-reflector_template_threads: "{{ [ (ansible_facts.processor_vcpus | default(1) | int) // 4, 1 ] | max }}"
+
+# Потоки (автоматически 1/4 от CPU, минимум 1)
+reflector_threads: "{{ [(ansible_facts.processor_vcpus | default(1) | int) // 4, 1] | max }}"
+
+# Пути
 reflector_conf_path: "/etc/xdg/reflector/reflector.conf"
-mirrorlist_path: "/etc/pacman.d/mirrorlist"
-backup_mirrorlist: true
+reflector_mirrorlist_path: "/etc/pacman.d/mirrorlist"
+
+# Опции выполнения
+reflector_backup_mirrorlist: true
 reflector_retries: 3
 reflector_retry_delay: 5
 reflector_connection_timeout: 10

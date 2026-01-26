@@ -1,0 +1,28 @@
+---
+# Ansible-lint configuration
+profile: production
+
+# Exclude paths
+exclude_paths:
+  - .venv/
+  - .molecule/
+  - .cache/
+
+# Enable specific rules
+enable_list:
+  - no-changed-when
+  - no-handler
+  - no-jinja-when
+  - no-relative-paths
+
+# Skip specific rules if needed
+skip_list:
+  - yaml[line-length]  # We use 120 chars
+
+# Set warning level for some rules
+warn_list:
+  - name[casing]  # Warn but don't fail on task name casing
+  - experimental  # Warn on experimental features
+
+# Use offline mode to avoid external calls
+offline: false

@@ -1,0 +1,119 @@
+version: '3'
+
+# Variables
+vars:
+  PLAYBOOK: playbooks/mirrors-update.yml
+  VENV: .venv
+  PYTHON: "{{.VENV}}/bin/python"
+  PIP: "{{.VENV}}/bin/pip"
+  ANSIBLE: "{{.VENV}}/bin/ansible-playbook"
+  ANSIBLE_LINT: "{{.VENV}}/bin/ansible-lint"
+  MOLECULE: "{{.VENV}}/bin/molecule"
+
+# Default task
+tasks:
+  default:
+    desc: "Show available commands"
+    cmds:
+      - task --list
+    silent: true
+
+  bootstrap:
+    desc: "Install all dependencies (run once on fresh system)"
+    cmds:
+      - 'echo "==> Updating package database..."'
+      - cmd: sudo pacman -Syy
+        ignore_error: true
+      - 'echo "==> Installing system dependencies..."'
+      - cmd: sudo pacman -S --needed --noconfirm python python-pip
+        ignore_error: true
+      - 'echo "==> Creating Python virtual environment..."'
+      - python -m venv {{.VENV}}
+      - 'echo "==> Installing Python dependencies..."'
+      - "{{.PIP}} install --upgrade pip"
+      - "{{.PIP}} install -r requirements.txt"
+      - 'echo "✓ Bootstrap complete! You can now run: task check, task test, task run"'
+
+  check:
+    desc: "Validate syntax of all playbooks (fast)"
+    deps: [_ensure-venv]
+    cmds:
+      - 'echo "==> Checking playbook syntax..."'
+      - "{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check"
+      - "{{.ANSIBLE}} playbooks/reflector-setup.yml --syntax-check"
+      - "{{.ANSIBLE}} playbooks/reflector-verify.yml --syntax-check"
+      - 'echo "✓ Syntax check passed"'
+
+  lint:
+    desc: "Run ansible-lint for best practices"
+    deps: [_ensure-venv]
+    cmds:
+      - 'echo "==> Running ansible-lint..."'
+      - "{{.ANSIBLE_LINT}} playbooks/ roles/"
+      - 'echo "✓ Lint check passed"'
+
+  test:
+    desc: "Run molecule tests (isolated environment)"
+    deps: [_ensure-venv]
+    dir: roles/reflector
+    cmds:
+      - 'echo "==> Running molecule tests..."'
+      - "../../{{.MOLECULE}} test"
+      - 'echo "✓ Tests passed"'
+
+  test-full:
+    desc: "Run all tests (check + lint + molecule)"
+    cmds:
+      - task: check
+      - task: lint
+      - task: test
+      - 'echo "✓ All tests passed!"'
+
+  dry-run:
+    desc: "Dry run - show what would be changed without applying"
+    deps: [_ensure-venv]
+    cmds:
+      - 'echo "==> Running in check mode (dry run)..."'
+      - "{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff -v"
+
+  run:
+    desc: "Apply playbook to localhost (real execution)"
+    deps: [_ensure-venv]
+    prompt: "This will make real changes to your system. Continue?"
+    cmds:
+      - 'echo "==> Running playbook..."'
+      - "{{.ANSIBLE}} {{.PLAYBOOK}} -v"
+
+  verify:
+    desc: "Verify that changes were applied correctly"
+    deps: [_ensure-venv]
+    cmds:
+      - 'echo "==> Verifying configuration..."'
+      - "{{.ANSIBLE}} playbooks/reflector-verify.yml -v"
+
+  all:
+    desc: "Run all checks (quick validation)"
+    cmds:
+      - task: check
+      - task: lint
+      - 'echo "✓ All checks passed!"'
+
+  clean:
+    desc: "Remove virtual environment and cache files"
+    cmds:
+      - 'echo "==> Cleaning up..."'
+      - rm -rf {{.VENV}}
+      - find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+      - find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+      - find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+      - find . -type d -name ".molecule" -exec rm -rf {} + 2>/dev/null || true
+      - 'echo "✓ Cleanup complete"'
+
+  # Internal tasks (prefixed with _)
+  _ensure-venv:
+    internal: true
+    status:
+      - test -d {{.VENV}}
+    cmds:
+      - 'echo "Virtual environment not found. Run ''task bootstrap'' first"'
+      - exit 1

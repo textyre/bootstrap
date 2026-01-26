@@ -1,11 +1,9 @@
 ---
-- name: Setup reflector and refresh pacman mirrorlist (role)
+- name: Setup reflector and refresh pacman mirrorlist
   hosts: localhost
+  connection: local
   become: true
   gather_facts: true
-  vars:
-    reflector_countries: "US"
-    reflector_args: "--protocol https --latest 10 --sort rate"
   roles:
     - role: reflector
       tags: ['reflector']

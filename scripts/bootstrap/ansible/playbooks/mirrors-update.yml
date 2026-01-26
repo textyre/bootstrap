@@ -1,0 +1,10 @@
+---
+# Простой playbook для обновления зеркал Pacman после установки ОС
+# Использование: ansible-playbook mirrors-update.yml
+- name: Update Pacman mirrors for Kazakhstan region
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - reflector
