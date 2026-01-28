@@ -3,7 +3,12 @@
     "allow": [
       "Bash(chmod:*)",
       "Bash(git log:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "WebFetch(domain:taskfile.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:man.archlinux.org)"
     ]
   }
 }

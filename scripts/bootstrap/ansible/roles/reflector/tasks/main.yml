@@ -3,13 +3,13 @@
   ansible.builtin.assert:
     that:
       - ansible_facts['os_family'] is defined
-      - ansible_facts['os_family'] == 'Arch'
+      - ansible_facts['os_family'] == 'Archlinux'
     fail_msg: "This role supports Arch Linux only"
 
-- name: Install reflector package
+- name: Install reflector package (latest version)
   community.general.pacman:
     name: reflector
-    state: present
+    state: latest
   tags: ['install']
 
 - name: Deploy reflector config
@@ -56,20 +56,39 @@
     update_cache: yes
   tags: ['update']
 
-- name: Read current mirrorlist (if present)
+- name: Read current mirrorlist (for comparison)
   ansible.builtin.slurp:
     src: "{{ reflector_mirrorlist_path }}"
   register: reflector_old_mirror
-  ignore_errors: yes
+  ignore_errors: true  # File may not exist on fresh install
+  tags: ['update']
+
+- name: Backup current mirrorlist BEFORE update
+  ansible.builtin.copy:
+    remote_src: yes
+    src: "{{ reflector_mirrorlist_path }}"
+    dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] | default(lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ')) }}"
+    mode: '0644'
+  when: reflector_backup_mirrorlist and reflector_old_mirror is succeeded
   tags: ['update']
 
 - name: Run reflector to update mirrorlist now (with retries)
-  ansible.builtin.command: reflector --config {{ reflector_conf_path }}
+  ansible.builtin.command: >-
+    reflector
+    --country {{ reflector_countries }}
+    --protocol {{ reflector_protocol }}
+    --latest {{ reflector_latest }}
+    --sort {{ reflector_sort }}
+    --age {{ reflector_age }}
+    --connection-timeout {{ reflector_connection_timeout }}
+    --download-timeout {{ reflector_download_timeout }}
+    --threads {{ reflector_threads }}
+    --save {{ reflector_mirrorlist_path }}
   register: reflector_run
   retries: "{{ reflector_retries }}"
   delay: "{{ reflector_retry_delay }}"
   until: reflector_run.rc == 0
-  changed_when: false
+  changed_when: false  # Change tracked via mirrorlist comparison below
   failed_when: reflector_run.rc != 0
   check_mode: no
   environment: "{{ {'http_proxy': reflector_proxy, 'https_proxy': reflector_proxy} if reflector_proxy | length > 0 else {} }}"
@@ -79,36 +98,15 @@
   ansible.builtin.slurp:
     src: "{{ reflector_mirrorlist_path }}"
   register: reflector_new_mirror
-  failed_when: reflector_new_mirror is not defined
   tags: ['update']
 
-- name: Compare mirrorlists and set fact if changed
+- name: Determine if mirrorlist changed
   ansible.builtin.set_fact:
     reflector_mirrorlist_changed: "{{ (reflector_old_mirror.content | default('')) != (reflector_new_mirror.content | default('')) }}"
   tags: ['update']
 
-- name: Backup old mirrorlist if changed
-  ansible.builtin.copy:
-    remote_src: yes
-    src: "{{ reflector_mirrorlist_path }}"
-    dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] | default(lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ')) }}"
-    mode: '0644'
-  when: reflector_mirrorlist_changed and reflector_backup_mirrorlist
-  tags: ['update']
-
-- name: Report reflector run
+- name: Report reflector result
   ansible.builtin.debug:
-    msg: "reflector rc={{ reflector_run.rc }}, changed={{ reflector_mirrorlist_changed }}"
-  tags: ['update']
-
-- name: Fail if reflector failed
-  ansible.builtin.fail:
-    msg: "reflector execution failed: {{ reflector_run.stderr | default(reflector_run.stdout) }}"
-  when: reflector_run.rc != 0
-  tags: ['update']
-
-- name: Mark changed when mirrorlist updated
-  ansible.builtin.command: /bin/true
+    msg: "Reflector completed. Mirrorlist changed: {{ reflector_mirrorlist_changed }}"
   changed_when: reflector_mirrorlist_changed
-  when: reflector_mirrorlist_changed
   tags: ['update']
