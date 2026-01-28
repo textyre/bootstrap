@@ -1,0 +1,47 @@
+---
+# Molecule verify playbook
+# Проверяет что yay корректно установлен
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check that build dependencies are installed
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      check_mode: true
+      register: _dep_check
+      failed_when: _dep_check is changed
+      loop:
+        - base-devel
+        - git
+
+    - name: Check that yay binary exists
+      ansible.builtin.command: which yay
+      changed_when: false
+      register: _yay_path
+
+    - name: Check that yay is executable
+      ansible.builtin.command: yay --version
+      changed_when: false
+      register: _yay_version
+
+    - name: Check that temp build directory was cleaned up
+      ansible.builtin.find:
+        paths: /tmp
+        patterns: "yay_build_*"
+        file_type: directory
+      register: _yay_build_dirs
+      failed_when: _yay_build_dirs.matched > 0
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "yay binary: {{ _yay_path.stdout }}"
+          - "yay version: {{ _yay_version.stdout }}"
+          - "Build dependencies: installed"
+          - "Temp build dirs: cleaned up"

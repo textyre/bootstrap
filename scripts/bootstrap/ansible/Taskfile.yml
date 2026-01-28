@@ -50,6 +50,18 @@ tasks:
       - '{{.PREFIX}} molecule test'
       - 'echo "✅ Reflector tests passed!"'
 
+  test-yay:
+    desc: "Run molecule tests for yay (modifies system! Create VM snapshot first)"
+    deps: [_ensure-venv]
+    dir: roles/yay
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "⚠️  WARNING: This will build and install yay on your system!"'
+      - 'echo "==> Applying yay role and verifying..."'
+      - '{{.PREFIX}} molecule test'
+      - 'echo "✅ Yay tests passed!"'
+
   test-packages:
     desc: "Run molecule tests for packages (modifies system! Create VM snapshot first)"
     deps: [_ensure-venv]
@@ -69,6 +81,7 @@ tasks:
       - task: check
       - task: lint
       - task: test
+      - task: test-yay
       - task: test-packages
       - 'echo "✓ All tests passed!"'
 

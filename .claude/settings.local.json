@@ -8,7 +8,10 @@
       "Bash(scp:*)",
       "WebFetch(domain:taskfile.dev)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:man.archlinux.org)"
+      "WebFetch(domain:man.archlinux.org)",
+      "Bash(.venv/bin/ansible-lint:*)",
+      "Bash(.venv/bin/yamllint roles/yay/molecule/)",
+      "Bash(python3:*)"
     ]
   }
 }

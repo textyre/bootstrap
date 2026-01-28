@@ -1,0 +1,42 @@
+---
+# Molecule configuration for yay role testing
+#
+# DELEGATED DRIVER: Применяет роль к localhost
+#
+# ВНИМАНИЕ: Этот тест РЕАЛЬНО собирает и устанавливает yay!
+#   - Устанавливает base-devel и git
+#   - Клонирует и собирает yay из AUR
+#
+# Перед запуском: Создайте снапшот VM!
+
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: localhost
+
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+        ansible_become_password: "{{ lookup('env', 'MOLECULE_SUDO_PASS') | default(omit) }}"
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - converge
+    - idempotence
+    - verify
