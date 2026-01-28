@@ -1,0 +1,20 @@
+---
+# Полная настройка рабочей станции после установки ОС
+# Использование: ansible-playbook playbooks/workstation.yml --ask-become-pass
+#
+# Переопределение списка пакетов:
+#   ansible-playbook playbooks/workstation.yml -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'
+#
+# Только установка пакетов (без зеркал):
+#   ansible-playbook playbooks/workstation.yml --tags install
+- name: Setup workstation
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - role: reflector
+      when: ansible_os_family == 'Archlinux'
+    - role: yay
+      when: ansible_os_family == 'Archlinux'
+    - packages

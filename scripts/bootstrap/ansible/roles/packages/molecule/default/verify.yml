@@ -1,0 +1,42 @@
+---
+# Molecule verify playbook
+# Проверяет что пакеты установлены корректно
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check that base packages are installed
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      check_mode: true
+      register: _pkg_check
+      failed_when: _pkg_check is changed
+      loop:
+        - git
+        - curl
+        - vim
+
+    - name: Check that jq is installed
+      ansible.builtin.package:
+        name: jq
+        state: present
+      check_mode: true
+      register: _jq_check
+      failed_when: _jq_check is changed
+
+    - name: Verify git is executable
+      ansible.builtin.command: git --version
+      changed_when: false
+      register: _git_version
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "git: {{ _git_version.stdout }}"
+          - "Base packages: installed"
+          - "Tools packages: installed"

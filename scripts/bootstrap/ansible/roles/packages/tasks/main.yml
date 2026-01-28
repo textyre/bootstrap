@@ -1,0 +1,104 @@
+---
+# === Установка пакетов на рабочую станцию ===
+# Поддержка: Arch Linux (pacman + AUR), Debian/Ubuntu (apt)
+
+# ---- Сбор всех пакетов в единый список ----
+
+- name: Build combined package list
+  ansible.builtin.set_fact:
+    _packages_all: >-
+      {{ packages_base
+         + packages_editors
+         + packages_docker
+         + packages_xorg
+         + packages_wm
+         + packages_graphics
+         + packages_session
+         + packages_terminal
+         + packages_fonts
+         + packages_dotfiles
+         + packages_search
+         + packages_viewers
+         + (packages_distro[ansible_os_family] | default([])) }}
+  tags: ['install']
+
+# ---- Arch Linux (pacman) ----
+
+- name: Install packages (Arch Linux / pacman)
+  community.general.pacman:
+    name: "{{ _packages_all }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Archlinux'
+  tags: ['install']
+
+- name: Check if yay is installed
+  ansible.builtin.command: which yay
+  register: _yay_check
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == 'Archlinux' and packages_aur | length > 0
+  tags: ['install', 'aur']
+
+- name: Install AUR packages via yay
+  become: true
+  become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+  ansible.builtin.command: >
+    yay -S --needed --noconfirm {{ item }}
+  loop: "{{ packages_aur }}"
+  register: _yay_install
+  changed_when: "'there is nothing to do' not in _yay_install.stdout | default('')"
+  when:
+    - ansible_os_family == 'Archlinux'
+    - _yay_check.rc == 0
+    - packages_aur | length > 0
+  tags: ['install', 'aur']
+
+- name: Warn if yay not found (AUR packages skipped)
+  ansible.builtin.debug:
+    msg: "yay не найден — AUR пакеты пропущены: {{ packages_aur | join(', ') }}"
+  when:
+    - ansible_os_family == 'Archlinux'
+    - _yay_check.rc is defined
+    - _yay_check.rc != 0
+    - packages_aur | length > 0
+  tags: ['install', 'aur']
+
+# ---- Debian / Ubuntu (apt) ----
+
+- name: Install packages (Debian / apt)
+  ansible.builtin.apt:
+    name: "{{ _packages_all }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+  tags: ['install']
+
+# ---- Post-install: сервисы и группы ----
+
+- name: Enable and start services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ packages_enable_services }}"
+  tags: ['service']
+
+- name: Add user to groups
+  ansible.builtin.user:
+    name: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+    groups: "{{ packages_user_groups }}"
+    append: true
+  when: packages_user_groups | length > 0
+  tags: ['configure']
+
+- name: Report installed packages
+  ansible.builtin.debug:
+    msg:
+      - "Установлено пакетов: {{ _packages_all | length }}"
+      - "AUR пакетов: {{ packages_aur | length }}"
+      - "Сервисов активировано: {{ packages_enable_services | join(', ') }}"
+      - "Группы пользователя: {{ packages_user_groups | join(', ') }}"
+  tags: ['install']

@@ -1,0 +1,89 @@
+---
+# Molecule configuration for packages role testing
+#
+# DELEGATED DRIVER: Применяет роль к localhost
+#
+# ВНИМАНИЕ: Этот тест РЕАЛЬНО устанавливает пакеты в систему!
+#   - Устанавливает пакеты из всех packages_* групп
+#   - Включает systemd сервисы
+#   - Добавляет пользователя в группы
+#
+# Перед запуском: Создайте снапшот VM!
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    ignore-errors: true
+
+driver:
+  name: delegated
+  options:
+    managed: false
+    ansible_connection_options:
+      ansible_connection: local
+
+platforms:
+  - name: localhost
+    groups:
+      - workstations
+
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        # Минимальный набор для тестирования (не ставим тяжёлые пакеты)
+        packages_base:
+          - git
+          - curl
+        packages_editors:
+          - vim
+        packages_docker: []
+        packages_xorg: []
+        packages_wm: []
+        packages_graphics: []
+        packages_session: []
+        packages_terminal: []
+        packages_fonts: []
+        packages_dotfiles: []
+        packages_search: []
+        packages_viewers:
+          - jq
+        packages_distro:
+          Archlinux:
+            - base-devel
+          Debian:
+            - build-essential
+        packages_aur: []
+        packages_enable_services: []
+        packages_user_groups: []
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+      stdout_callback: yaml
+  env:
+    ANSIBLE_VERBOSITY: "1"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - syntax
+    - converge
+    - idempotence
+    - verify
+  create_sequence:
+    - dependency
+  check_sequence:
+    - dependency
+    - syntax
+  converge_sequence:
+    - dependency
+    - converge
+  destroy_sequence: []

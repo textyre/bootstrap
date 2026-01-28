@@ -42,6 +42,7 @@ tasks:
       - "{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check"
       - "{{.ANSIBLE}} playbooks/reflector-setup.yml --syntax-check"
       - "{{.ANSIBLE}} playbooks/reflector-verify.yml --syntax-check"
+      - "{{.ANSIBLE}} playbooks/workstation.yml --syntax-check"
       - 'echo "✓ Syntax check passed"'
 
   lint:
@@ -53,24 +54,37 @@ tasks:
       - 'echo "✓ Lint check passed"'
 
   test:
-    desc: "Run molecule tests (ИЗМЕНИТ систему! Создайте снапшот VM)"
+    desc: "Run molecule tests for reflector (ИЗМЕНИТ систему! Создайте снапшот VM)"
     deps: [_ensure-venv]
     dir: roles/reflector
     env:
       PATH: "{{.TASKFILE_DIR}}/{{.VENV}}/bin:{{.PATH}}"
     cmds:
       - 'echo "⚠️  WARNING: This will modify your system!"'
-      - 'echo "==> Applying role and verifying..."'
+      - 'echo "==> Applying reflector role and verifying..."'
       - molecule test
-      - 'echo "✅ Tests passed!"'
+      - 'echo "✅ Reflector tests passed!"'
+
+  test-packages:
+    desc: "Run molecule tests for packages (ИЗМЕНИТ систему! Создайте снапшот VM)"
+    deps: [_ensure-venv]
+    dir: roles/packages
+    env:
+      PATH: "{{.TASKFILE_DIR}}/{{.VENV}}/bin:{{.PATH}}"
+    cmds:
+      - 'echo "⚠️  WARNING: This will install packages on your system!"'
+      - 'echo "==> Applying packages role and verifying..."'
+      - molecule test
+      - 'echo "✅ Packages tests passed!"'
 
   test-full:
-    desc: "Run all tests (check + lint + molecule)"
+    desc: "Run all tests (check + lint + molecule for all roles)"
     prompt: "Molecule test will modify your system. Create VM snapshot first?"
     cmds:
       - task: check
       - task: lint
       - task: test
+      - task: test-packages
       - 'echo "✓ All tests passed!"'
 
   dry-run:
@@ -87,6 +101,14 @@ tasks:
     cmds:
       - 'echo "==> Running playbook..."'
       - "{{.ANSIBLE}} {{.PLAYBOOK}} -v"
+
+  workstation:
+    desc: "Setup full workstation (mirrors + packages)"
+    deps: [_ensure-venv]
+    prompt: "This will install all packages and configure your system. Continue?"
+    cmds:
+      - 'echo "==> Setting up workstation..."'
+      - "{{.ANSIBLE}} playbooks/workstation.yml -v"
 
   verify:
     desc: "Verify that changes were applied correctly"
