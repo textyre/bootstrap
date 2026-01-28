@@ -84,9 +84,6 @@ task dry-run
 
 # Применить playbook (реальные изменения!)
 task run
-
-# Проверить что все применилось корректно
-task verify
 ```
 
 ### Что делает каждая команда
@@ -119,7 +116,6 @@ task verify
    ```bash
    task dry-run    # Сначала посмотреть что изменится
    task run        # Применить реально
-   task verify     # Проверить результат
    ```
 
 ### Структура тестов
@@ -179,7 +175,6 @@ ansible-playbook playbooks/mirrors-update.yml \
 ## Доступные playbooks
 
 - **mirrors-update.yml** - Обновление зеркал Pacman (основной playbook)
-- **reflector-verify.yml** - Проверка и верификация настройки зеркал
 
 ## Параметры конфигурации
 
@@ -197,5 +192,9 @@ ansible-playbook playbooks/mirrors-update.yml \
 
 1. Все параметры определены в [defaults/main.yml](roles/reflector/defaults/main.yml)
 2. Template [reflector.conf.j2](roles/reflector/templates/reflector.conf.j2) генерирует `/etc/xdg/reflector/reflector.conf`
-3. Конфиг используется **systemd timer** для автоматического обновления зеркал
-4. При первом запуске через Ansible параметры передаются напрямую в командной строке (reflector не имеет флага `--config`)
+3. **systemd timer** использует этот конфиг через response file синтаксис:
+   ```
+   ExecStart=/usr/bin/reflector @/etc/xdg/reflector/reflector.conf
+   ```
+   `@file` — стандартная фича Python argparse: читает аргументы из файла
+4. При первом запуске через Ansible параметры передаются в командной строке напрямую

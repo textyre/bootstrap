@@ -40,7 +40,6 @@ tasks:
     cmds:
       - 'echo "==> Checking playbook syntax..."'
       - "{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check"
-      - "{{.ANSIBLE}} playbooks/reflector-verify.yml --syntax-check"
       - 'echo "✓ Syntax check passed"'
 
   lint:
@@ -106,13 +105,6 @@ tasks:
     cmds:
       - 'echo "==> Running playbook..."'
       - "{{.ANSIBLE}} {{.PLAYBOOK}} -v"
-
-  verify:
-    desc: "Verify that changes were applied correctly"
-    deps: [_ensure-venv]
-    cmds:
-      - 'echo "==> Verifying configuration..."'
-      - "{{.ANSIBLE}} playbooks/reflector-verify.yml -v"
 
   all:
     desc: "Run all checks (quick validation)"

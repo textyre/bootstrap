@@ -60,7 +60,6 @@
   ansible.builtin.slurp:
     src: "{{ reflector_mirrorlist_path }}"
   register: reflector_old_mirror
-  ignore_errors: true
   tags: ['update']
 
 - name: Backup current mirrorlist BEFORE update
