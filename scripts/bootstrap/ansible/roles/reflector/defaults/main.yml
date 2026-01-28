@@ -16,8 +16,8 @@ reflector_age: 12  # Только зеркала свежее 12 часов
 # Расписание автообновления
 reflector_timer_schedule: "daily"
 
-# Потоки (автоматически 1/4 от CPU, минимум 1)
-reflector_threads: "{{ [(ansible_facts.processor_vcpus | default(1) | int) // 4, 1] | max }}"
+# Потоки для параллельных запросов (reflector default: 5)
+reflector_threads: 4
 
 # Пути
 reflector_conf_path: "/etc/xdg/reflector/reflector.conf"

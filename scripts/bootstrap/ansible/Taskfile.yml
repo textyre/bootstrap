@@ -40,7 +40,6 @@ tasks:
     cmds:
       - 'echo "==> Checking playbook syntax..."'
       - "{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check"
-      - "{{.ANSIBLE}} playbooks/reflector-setup.yml --syntax-check"
       - "{{.ANSIBLE}} playbooks/reflector-verify.yml --syntax-check"
       - 'echo "✓ Syntax check passed"'
 
@@ -53,20 +52,40 @@ tasks:
       - 'echo "✓ Lint check passed"'
 
   test:
-    desc: "Run molecule tests (ИЗМЕНИТ систему! Создайте снапшот VM)"
+    desc: "Run molecule tests (use MOLECULE_SUDO_PASS=xxx or run as root)"
     deps: [_ensure-venv]
     dir: roles/reflector
     env:
-      PATH: "{{.TASKFILE_DIR}}/{{.VENV}}/bin:{{.PATH}}"
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
     cmds:
       - 'echo "⚠️  WARNING: This will modify your system!"'
       - 'echo "==> Applying role and verifying..."'
-      - molecule test
+      - bash -c 'source ~/.bashrc 2>/dev/null; export PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH" && molecule test'
+      - 'echo "✅ Tests passed!"'
+
+  test-root:
+    desc: "Run molecule tests as root (no sudo password needed)"
+    deps: [_ensure-venv]
+    dir: roles/reflector
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "⚠️  WARNING: This will modify your system!"'
+      - 'echo "==> Running as root..."'
+      - bash -c 'export PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH" && sudo -E molecule test'
       - 'echo "✅ Tests passed!"'
 
   test-full:
     desc: "Run all tests (check + lint + molecule)"
-    prompt: "Molecule test will modify your system. Create VM snapshot first?"
+    prompt: "⚠️  Molecule test will modify your system! Have you created a VM snapshot? (y/N)"
+    cmds:
+      - task: check
+      - task: lint
+      - task: test
+      - 'echo "✓ All tests passed!"'
+
+  test-full-force:
+    desc: "Run all tests WITHOUT safety prompt (use with caution!)"
     cmds:
       - task: check
       - task: lint

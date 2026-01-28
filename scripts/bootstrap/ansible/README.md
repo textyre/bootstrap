@@ -16,6 +16,51 @@ cd scripts/bootstrap/ansible
 
 **Важно:** В Arch Linux команда называется `go-task`, но скрипт создает alias `task` для удобства.
 
+### Troubleshooting: "Ansible is being run in a world writable directory"
+
+Если при запуске `task check` или других команд вы видите ошибку:
+```
+[WARNING]: Ansible is being run in a world writable directory, ignoring it as an ansible.cfg source
+[ERROR]: the role 'reflector' was not found
+```
+
+**Причина:** Ansible отказывается читать ansible.cfg из директории с небезопасными правами доступа.
+
+**Решение:** Исправьте права доступа на директорию ansible:
+
+```bash
+# Убедитесь, что директория не доступна для записи всем пользователям
+cd ~/bootstrap/bootstrap  # или ваш путь к проекту
+chmod -R o-w ansible      # Убрать права записи для "others"
+
+# Проверьте права (должно быть drwxr-xr-x, а не drwxrwxrwx)
+ls -la | grep ansible
+```
+
+После этого команды `task check` и `task test-full` должны работать корректно.
+
+### Troubleshooting: "Failed to find driver delegated"
+
+Если при запуске `task test` вы видите ошибку:
+```
+ERROR    Failed to find driver delegated. Please ensure that the driver is correctly installed.
+```
+
+**Причина:** Пакет `molecule-plugins` не установлен или установлен некорректно.
+
+**Решение:** Переустановите зависимости Python:
+
+```bash
+cd ~/bootstrap/bootstrap/ansible  # или ваш путь к проекту
+.venv/bin/pip install --upgrade -r requirements.txt --force-reinstall molecule-plugins
+```
+
+Или полная переустановка окружения:
+```bash
+task clean      # Удалить venv
+task bootstrap  # Переустановить все зависимости
+```
+
 ### Команды разработки (как npm scripts)
 
 ```bash
@@ -52,6 +97,9 @@ task verify
   - ⚠️ **ИЗМЕНЯЕТ вашу систему!** Создайте снапшот VM перед запуском
   - Применяет роль к localhost
   - Автоматически проверяет результат (systemd timer, mirrorlist, конфиги)
+- **task test-full** - запускает все проверки (check + lint + test) с подтверждением
+  - Требует нажать **y** для продолжения, **N** отменяет выполнение
+- **task test-full-force** - то же что test-full, но БЕЗ подтверждения (для CI/CD)
 - **task all** - запускает check + lint (быстрая валидация перед коммитом)
 - **task run** - применяет playbook к вашей системе (РЕАЛЬНЫЕ изменения!)
 
@@ -130,9 +178,8 @@ ansible-playbook playbooks/mirrors-update.yml \
 
 ## Доступные playbooks
 
-- **mirrors-update.yml** - Обновление зеркал Pacman (основной для использования)
-- **reflector-setup.yml** - То же самое (альтернативное имя)
-- **reflector-verify.yml** - Проверка и верификация зеркал
+- **mirrors-update.yml** - Обновление зеркал Pacman (основной playbook)
+- **reflector-verify.yml** - Проверка и верификация настройки зеркал
 
 ## Параметры конфигурации
 
@@ -150,7 +197,5 @@ ansible-playbook playbooks/mirrors-update.yml \
 
 1. Все параметры определены в [defaults/main.yml](roles/reflector/defaults/main.yml)
 2. Template [reflector.conf.j2](roles/reflector/templates/reflector.conf.j2) генерирует `/etc/xdg/reflector/reflector.conf`
-3. Этот config файл используется **везде**:
-   - При первом запуске: `reflector --config /etc/xdg/reflector/reflector.conf`
-   - В systemd timer: автоматически использует этот же файл
-4. **Нет дублирования** - одна конфигурация для всех запусков
+3. Конфиг используется **systemd timer** для автоматического обновления зеркал
+4. При первом запуске через Ansible параметры передаются напрямую в командной строке (reflector не имеет флага `--config`)

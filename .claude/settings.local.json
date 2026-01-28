@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "WebFetch(domain:taskfile.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:man.archlinux.org)"
     ]
   }
 }
