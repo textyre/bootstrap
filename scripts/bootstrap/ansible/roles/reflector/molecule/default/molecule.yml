@@ -1,30 +1,18 @@
 ---
 # Molecule configuration for reflector role testing
 #
-# DELEGATED DRIVER: Применяет роль к localhost (вашей Arch Linux VM)
+# DELEGATED DRIVER: Applies role to localhost (your Arch Linux VM)
 #
-# ВНИМАНИЕ: Этот тест РЕАЛЬНО изменяет систему!
-#   - Устанавливает reflector
-#   - Настраивает systemd таймер
-#   - Обновляет /etc/pacman.d/mirrorlist
-#
-# Перед запуском: Создайте снапшот VM в VirtualBox!
-# После теста: Откатите снапшот или оставьте изменения
-
-dependency:
-  name: galaxy
-  options:
-    requirements-file: requirements.yml
+# WARNING: This test ACTUALLY modifies your system!
+# Before running: Create a VM snapshot in VirtualBox!
 
 driver:
-  name: default  # Встроенный драйвер для molecule 25.x
+  name: default
   options:
-    managed: false  # Molecule не управляет инфраструктурой
+    managed: false
 
 platforms:
   - name: localhost
-    groups:
-      - arch_hosts
 
 provisioner:
   name: ansible
@@ -33,42 +21,20 @@ provisioner:
       localhost:
         ansible_connection: local
         ansible_become_password: "{{ lookup('env', 'MOLECULE_SUDO_PASS') | default(omit) }}"
-    group_vars:
-      all:
-        # Test with safe defaults (небольшие значения для быстрого теста)
-        reflector_countries: "US,DE"
-        reflector_latest: 5
-        reflector_age: 24
-        reflector_backup_mirrorlist: true
   playbooks:
     converge: converge.yml
     verify: verify.yml
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-      stdout_callback: default
-      result_format: yaml
   env:
-    ANSIBLE_VERBOSITY: "1"
-    # Абсолютный путь к директории roles через переменную окружения из Taskfile
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
 
 verifier:
   name: ansible
 
 scenario:
-  # Note: idempotence skipped - reflector returns different mirrors each time
   test_sequence:
-    - dependency
     - syntax
     - converge
     - verify
-  create_sequence:
-    - dependency
-  check_sequence:
-    - dependency
-    - syntax
-  converge_sequence:
-    - dependency
-    - converge
-  destroy_sequence: []

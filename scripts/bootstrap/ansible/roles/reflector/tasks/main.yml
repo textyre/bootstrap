@@ -6,10 +6,10 @@
       - ansible_facts['os_family'] == 'Archlinux'
     fail_msg: "This role supports Arch Linux only"
 
-- name: Install reflector package
+- name: Install reflector package (latest version)
   community.general.pacman:
     name: reflector
-    state: present
+    state: latest
   tags: ['install']
 
 - name: Deploy reflector config
@@ -60,6 +60,7 @@
   ansible.builtin.slurp:
     src: "{{ reflector_mirrorlist_path }}"
   register: reflector_old_mirror
+  ignore_errors: true  # File may not exist on fresh install
   tags: ['update']
 
 - name: Backup current mirrorlist BEFORE update
@@ -87,6 +88,7 @@
   retries: "{{ reflector_retries }}"
   delay: "{{ reflector_retry_delay }}"
   until: reflector_run.rc == 0
+  changed_when: false  # Change tracked via mirrorlist comparison below
   failed_when: reflector_run.rc != 0
   check_mode: no
   environment: "{{ {'http_proxy': reflector_proxy, 'https_proxy': reflector_proxy} if reflector_proxy | length > 0 else {} }}"
