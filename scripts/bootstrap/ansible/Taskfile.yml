@@ -39,6 +39,17 @@ tasks:
       - '{{.PREFIX}} ansible-lint playbooks/ roles/'
 
   test:
+    desc: "Run all tests (check + lint + molecule for all roles)"
+    prompt: "Molecule test will modify your system. Create VM snapshot first?"
+    cmds:
+      - task: check
+      - task: lint
+      - task: test-reflector
+      - task: test-yay
+      - task: test-packages
+      - 'echo "✓ All tests passed!"'
+
+  test-reflector:
     desc: "Run molecule tests for reflector (modifies system! Create VM snapshot first)"
     deps: [_ensure-venv]
     dir: roles/reflector
@@ -73,17 +84,6 @@ tasks:
       - 'echo "==> Applying packages role and verifying..."'
       - '{{.PREFIX}} molecule test'
       - 'echo "✅ Packages tests passed!"'
-
-  test-full:
-    desc: "Run all tests (check + lint + molecule for all roles)"
-    prompt: "Molecule test will modify your system. Create VM snapshot first?"
-    cmds:
-      - task: check
-      - task: lint
-      - task: test
-      - task: test-yay
-      - task: test-packages
-      - 'echo "✓ All tests passed!"'
 
   dry-run:
     desc: "Show what would change without applying"

@@ -13,11 +13,12 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: _dep_check
-      failed_when: _dep_check is changed
+      register: yay_dep_check
+      failed_when: yay_dep_check is changed
       loop:
         - base-devel
         - git
+        - go
 
     - name: Check that yay binary exists
       ansible.builtin.command: which yay

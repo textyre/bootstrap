@@ -19,10 +19,13 @@
     name:
       - base-devel
       - git
+      - go
     state: present
   when: _yay_exists.rc != 0
 
 - name: Create temp build directory
+  become: true
+  become_user: "{{ yay_build_user }}"
   ansible.builtin.tempfile:
     state: directory
     prefix: yay_build_
@@ -36,14 +39,30 @@
     repo: "{{ yay_aur_url }}"
     dest: "{{ _yay_build_dir.path }}/yay"
     depth: 1
+    version: master
   when: _yay_exists.rc != 0
 
-- name: Build and install yay
+- name: Build yay package
   become: true
   become_user: "{{ yay_build_user }}"
   ansible.builtin.command:
-    cmd: makepkg -si --noconfirm
+    cmd: makepkg --noconfirm
     chdir: "{{ _yay_build_dir.path }}/yay"
+  changed_when: true
+  when: _yay_exists.rc != 0
+
+- name: Find built yay package
+  ansible.builtin.find:
+    paths: "{{ _yay_build_dir.path }}/yay"
+    patterns: "yay-*.pkg.tar.*"
+    excludes: "*-debug-*"
+  register: _yay_pkg
+  when: _yay_exists.rc != 0
+
+- name: Install yay package
+  community.general.pacman:
+    name: "{{ _yay_pkg.files[0].path }}"
+    state: present
   when: _yay_exists.rc != 0
 
 - name: Clean up build directory

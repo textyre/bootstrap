@@ -34,7 +34,7 @@
 
 - name: Check if yay is installed
   ansible.builtin.command: which yay
-  register: _yay_check
+  register: packages_yay_check
   changed_when: false
   failed_when: false
   when: ansible_os_family == 'Archlinux' and packages_aur | length > 0
@@ -46,11 +46,11 @@
   ansible.builtin.command: >
     yay -S --needed --noconfirm {{ item }}
   loop: "{{ packages_aur }}"
-  register: _yay_install
-  changed_when: "'there is nothing to do' not in _yay_install.stdout | default('')"
+  register: packages_yay_install
+  changed_when: "'there is nothing to do' not in packages_yay_install.stdout | default('')"
   when:
     - ansible_os_family == 'Archlinux'
-    - _yay_check.rc == 0
+    - packages_yay_check.rc == 0
     - packages_aur | length > 0
   tags: ['install', 'aur']
 
@@ -59,8 +59,8 @@
     msg: "yay не найден — AUR пакеты пропущены: {{ packages_aur | join(', ') }}"
   when:
     - ansible_os_family == 'Archlinux'
-    - _yay_check.rc is defined
-    - _yay_check.rc != 0
+    - packages_yay_check.rc is defined
+    - packages_yay_check.rc != 0
     - packages_aur | length > 0
   tags: ['install', 'aur']
 

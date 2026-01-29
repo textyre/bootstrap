@@ -17,11 +17,9 @@ dependency:
     ignore-errors: true
 
 driver:
-  name: delegated
+  name: default
   options:
     managed: false
-    ansible_connection_options:
-      ansible_connection: local
 
 platforms:
   - name: localhost
@@ -31,6 +29,10 @@ platforms:
 provisioner:
   name: ansible
   inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+        ansible_become_password: "{{ lookup('env', 'MOLECULE_SUDO_PASS') | default(omit) }}"
     group_vars:
       all:
         # Минимальный набор для тестирования (не ставим тяжёлые пакеты)
@@ -64,8 +66,8 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-      stdout_callback: yaml
   env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
     ANSIBLE_VERBOSITY: "1"
 
 verifier:
