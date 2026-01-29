@@ -42,25 +42,44 @@ PATH:
 
 ---
 
-## 2. Sudo пароль для Molecule
+## 2. Sudo пароль для Ansible (Ansible Vault)
 
-**Задача:** Ansible требует sudo пароль для задач с `become: true`.
+**Задача:** Ansible требует sudo пароль для задач с `become: true`. Нужно безопасное решение, работающее через SSH сессии.
 
-**Сделали:**
-- Переменная `MOLECULE_SUDO_PASS` в `~/.bashrc` **ДО** строки `[[ $- != *i* ]] && return`
-- В molecule.yml: `ansible_become_password: "{{ lookup('env', 'MOLECULE_SUDO_PASS') | default(omit) }}"`
+**Сделали:** Ansible Vault — пароль зашифрован (AES-256), безопасен для git.
+
+1. `inventory/group_vars/all/vault.yml` — зашифрованный файл с `ansible_become_password`
+2. `vault-pass.sh` — каскадный скрипт для vault пароля: `pass` → `~/.vault-pass` → ошибка
+3. `ansible.cfg` → `vault_password_file = ./vault-pass.sh`
+4. Molecule: `config_options.defaults.vault_password_file` + `vars_files` в converge/verify
 
 ```bash
-# ~/.bashrc
-export MOLECULE_SUDO_PASS="password"  # ПЕРВАЯ строка!
-[[ $- != *i* ]] && return
+# Первоначальная настройка (один раз):
+echo 'vault_password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+ansible-vault create inventory/group_vars/all/vault.yml
+# Содержимое: ansible_become_password: "your_sudo_password"
+
+# Запуск тестов — пароль не нужен:
+task test
+
+# После bootstrap: vault пароль можно перенести в pass
+pass insert ansible/vault-password
 ```
 
-**Пробовали:** Добавить в конец `.bashrc`
+**Пробовали:**
+1. `MOLECULE_SUDO_PASS` в `~/.bashrc` — не работает через SSH (non-interactive shell), небезопасно
+2. `sudo -v` + keep-alive — не сохраняется между SSH сессиями
+3. Environment variable — не персистентна, требует `.bashrc` хаки
 
-**Не получилось:** Строка `[[ $- != *i* ]] && return` прерывает выполнение для non-interactive shell.
+**Почему Ansible Vault:**
+- Шифрование AES-256, безопасен для git
+- Работает через SSH (файл на диске, не в памяти)
+- Разделение паролей (vault пароль ≠ sudo пароль)
+- CI/CD: `ANSIBLE_VAULT_PASSWORD_FILE` env var
+- Enterprise стандарт (Red Hat, AWS)
 
 **Ресурсы:**
+- [Ansible Vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html)
 - [Ansible become password](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_privilege_escalation.html)
 
 ---
@@ -223,16 +242,21 @@ scenario:
 ```
 ansible/
 ├── Taskfile.yml           # PREFIX для PATH
+├── ansible.cfg            # vault_password_file = ./vault-pass.sh
+├── vault-pass.sh          # Каскадный resolver: pass → ~/.vault-pass → error
 ├── requirements.txt       # Без molecule-plugins
+├── inventory/
+│   ├── hosts.ini
+│   └── group_vars/all/
+│       └── vault.yml      # Зашифрованный ansible_become_password (Ansible Vault)
 ├── playbooks/
-│   └── mirrors-update.yml # Единственный playbook
-└── roles/reflector/
-    ├── defaults/main.yml  # Статичные значения (без Jinja)
-    ├── tasks/main.yml     # state: latest, бэкап ДО reflector
-    ├── templates/
-    │   └── reflector.conf.j2
+│   ├── mirrors-update.yml
+│   └── workstation.yml
+└── roles/*/
+    ├── defaults/main.yml
+    ├── tasks/main.yml
     └── molecule/default/
-        ├── molecule.yml   # managed: false, без group_vars
-        ├── converge.yml
-        └── verify.yml
+        ├── molecule.yml   # vault_password_file в config_options
+        ├── converge.yml   # vars_files → vault.yml
+        └── verify.yml     # vars_files → vault.yml
 ```

@@ -24,9 +24,17 @@ task run         # Применить playbook
 ## Тестирование
 
 ```bash
-export MOLECULE_SUDO_PASS="your_password"
+# Первоначальная настройка vault (один раз):
+echo 'your_vault_password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+ansible-vault create inventory/group_vars/all/vault.yml
+# В редакторе добавьте: ansible_become_password: "your_sudo_password"
+
+# Запуск тестов:
 task test
 ```
+
+Sudo пароль хранится зашифрованным в `inventory/group_vars/all/vault.yml` (Ansible Vault, AES-256).
+Vault пароль читается из `~/.vault-pass` или `pass show ansible/vault-password`.
 
 **Внимание:** `task test` изменяет систему! Создайте снапшот VM перед запуском.
 

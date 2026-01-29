@@ -1,6 +1,11 @@
 ---
 # Полная настройка рабочей станции после установки ОС
-# Использование: ansible-playbook playbooks/workstation.yml --ask-become-pass
+#
+# Использование:
+#   Через bootstrap: ./bootstrap.sh  (vault пароль запрашивается один раз)
+#   Вручную: task workstation
+#   Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
+#   Vault password: ~/.vault-pass или pass show ansible/vault-password
 #
 # Переопределение списка пакетов:
 #   ansible-playbook playbooks/workstation.yml -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'

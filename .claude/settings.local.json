@@ -11,7 +11,9 @@
       "WebFetch(domain:man.archlinux.org)",
       "Bash(.venv/bin/ansible-lint:*)",
       "Bash(.venv/bin/yamllint roles/yay/molecule/)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:docs.ansible.com)",
+      "WebFetch(domain:der-jd.de)"
     ]
   }
 }

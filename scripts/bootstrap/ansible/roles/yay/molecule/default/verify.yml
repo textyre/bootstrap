@@ -6,6 +6,8 @@
   hosts: all
   become: true
   gather_facts: false
+  vars_files:
+    - ../../../../inventory/group_vars/all/vault.yml
 
   tasks:
     - name: Check that build dependencies are installed

@@ -48,6 +48,10 @@ windows/.env
 *.key
 id_rsa*
 
+# ---- Ansible Vault password (NOT the encrypted vault file) ----
+.vault-pass
+*.vault-pass
+
 # ---- Runtime state ----
 scripts/state/
 

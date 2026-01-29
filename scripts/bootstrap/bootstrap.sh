@@ -26,7 +26,24 @@ CHECK_PYTHON_SCRIPT="$SCRIPT_DIR/check-python.sh"
 . "$SCRIPT_DIR/parse-args.sh"
 parse_bootstrap_args "$@"
 
-log_info "Bootstrap started with: DO_INSTALL=$DO_INSTALL, DO_DEPLOY=$DO_DEPLOY, EXTERNALS_ROOT=${EXTERNALS_ROOT:-<host>}"
+# Default DO_ANSIBLE if not set by parse-args.sh
+: ${DO_ANSIBLE:=1}
+
+log_info "Bootstrap started with: DO_INSTALL=$DO_INSTALL, DO_DEPLOY=$DO_DEPLOY, DO_ANSIBLE=$DO_ANSIBLE, EXTERNALS_ROOT=${EXTERNALS_ROOT:-<host>}"
+
+# ============================================================================
+# VAULT PASSWORD: needed for Ansible become password decryption
+# ============================================================================
+VAULT_PASS_FILE="${HOME}/.vault-pass"
+if [ "$DO_ANSIBLE" = 1 ] && [ ! -f "$VAULT_PASS_FILE" ]; then
+  log_info "Vault password file not found at $VAULT_PASS_FILE"
+  read -s -p "Enter Ansible vault password: " _vault_pass
+  echo ""
+  echo "$_vault_pass" > "$VAULT_PASS_FILE"
+  chmod 600 "$VAULT_PASS_FILE"
+  unset _vault_pass
+  log_info "Vault password saved to $VAULT_PASS_FILE (chmod 600)"
+fi
 
 # Validate all required scripts exist and are executable
 if [ ! -x "$INSTALL_SCRIPT" ]; then
@@ -98,6 +115,24 @@ if [ "$DO_DEPLOY" = 1 ]; then
   "$GUI_LAUNCHER"
 else
   log_info "Deploy phase skipped. Environment configuration not performed."
+fi
+
+# ============================================================================
+# PHASE 3: ANSIBLE WORKSTATION SETUP
+# ============================================================================
+if [ "$DO_ANSIBLE" = 1 ]; then
+  log_info "Starting Ansible workstation setup"
+  ANSIBLE_DIR="$SCRIPT_DIR/ansible"
+
+  if [ ! -d "$ANSIBLE_DIR/.venv" ]; then
+    log_info "Bootstrapping Ansible environment..."
+    (cd "$ANSIBLE_DIR" && task bootstrap)
+  fi
+
+  log_info "Applying workstation playbook..."
+  (cd "$ANSIBLE_DIR" && task workstation)
+else
+  log_info "Ansible phase skipped."
 fi
 
 log_info "Bootstrap completed successfully"

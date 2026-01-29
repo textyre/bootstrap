@@ -51,7 +51,7 @@ tasks:
 
   test-reflector:
     desc: "Run molecule tests for reflector (modifies system! Create VM snapshot first)"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     dir: roles/reflector
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
@@ -63,7 +63,7 @@ tasks:
 
   test-yay:
     desc: "Run molecule tests for yay (modifies system! Create VM snapshot first)"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     dir: roles/yay
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
@@ -75,7 +75,7 @@ tasks:
 
   test-packages:
     desc: "Run molecule tests for packages (modifies system! Create VM snapshot first)"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     dir: roles/packages
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
@@ -87,13 +87,13 @@ tasks:
 
   dry-run:
     desc: "Show what would change without applying"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     cmds:
       - '{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff'
 
   run:
     desc: "Apply playbook (real changes!)"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     prompt: "This will modify your system. Continue?"
     cmds:
       - 'echo "==> Running playbook..."'
@@ -101,7 +101,7 @@ tasks:
 
   workstation:
     desc: "Setup full workstation (mirrors + packages)"
-    deps: [_ensure-venv]
+    deps: [_ensure-venv, _check-vault]
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:
       - 'echo "==> Setting up workstation..."'
@@ -125,3 +125,13 @@ tasks:
     cmds:
       - echo "Run 'task bootstrap' first"
       - exit 1
+
+  _check-vault:
+    internal: true
+    silent: true
+    preconditions:
+      - sh: '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml >/dev/null 2>&1'
+        msg: |
+          Cannot decrypt vault. Setup vault password:
+            1. echo 'password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+            2. pass insert ansible/vault-password

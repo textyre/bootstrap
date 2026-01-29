@@ -18,6 +18,10 @@ __pycache__/
 *.retry
 .ansible/
 
+# Vault password (NOT the encrypted vault files — those are safe to commit)
+.vault-pass
+*.vault-pass
+
 # Testing
 .pytest_cache/
 .tox/

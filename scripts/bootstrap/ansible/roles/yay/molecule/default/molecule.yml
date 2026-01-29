@@ -19,17 +19,17 @@ platforms:
 
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
+      callbacks_enabled: profile_tasks
   inventory:
     host_vars:
       localhost:
         ansible_connection: local
-        ansible_become_password: "{{ lookup('env', 'MOLECULE_SUDO_PASS') | default(omit) }}"
   playbooks:
     converge: converge.yml
     verify: verify.yml
-  config_options:
-    defaults:
-      callbacks_enabled: profile_tasks
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
 

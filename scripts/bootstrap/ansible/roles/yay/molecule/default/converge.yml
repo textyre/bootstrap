@@ -6,6 +6,8 @@
   hosts: all
   become: true
   gather_facts: true
+  vars_files:
+    - ../../../../inventory/group_vars/all/vault.yml
 
   pre_tasks:
     - name: Ensure we're running on Arch Linux
