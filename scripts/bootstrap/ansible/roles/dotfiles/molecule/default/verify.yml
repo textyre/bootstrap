@@ -1,0 +1,114 @@
+---
+# Molecule verify playbook
+# Проверяет что дотфайлы развёрнуты корректно
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../../../inventory/group_vars/all/vault.yml
+
+  vars:
+    _verify_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+  tasks:
+    - name: Get target user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ _verify_user }}"
+
+    - name: Set user home for verification
+      ansible.builtin.set_fact:
+        _verify_home: "{{ getent_passwd[_verify_user][4] }}"
+
+    # ---- User-level файлы ----
+
+    - name: Check .xinitrc exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.xinitrc"
+      register: _verify_xinitrc
+
+    - name: Assert .xinitrc deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_xinitrc.stat.exists
+          - _verify_xinitrc.stat.pw_name == _verify_user
+        fail_msg: ".xinitrc не найден или неверный владелец"
+
+    - name: Check i3 config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/i3/config"
+      register: _verify_i3
+
+    - name: Assert i3 config deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_i3.stat.exists
+          - _verify_i3.stat.pw_name == _verify_user
+        fail_msg: "i3 config не найден или неверный владелец"
+
+    - name: Check picom.conf exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/picom.conf"
+      register: _verify_picom
+
+    - name: Assert picom.conf deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_picom.stat.exists
+          - _verify_picom.stat.pw_name == _verify_user
+        fail_msg: "picom.conf не найден или неверный владелец"
+
+    # ---- System-level файлы ----
+
+    - name: Check LightDM config exists
+      ansible.builtin.stat:
+        path: "/etc/lightdm/lightdm.conf.d/10-config.conf"
+      register: _verify_lightdm_conf
+
+    - name: Assert LightDM config deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_lightdm_conf.stat.exists
+          - _verify_lightdm_conf.stat.pw_name == 'root'
+          - _verify_lightdm_conf.stat.mode == '0644'
+        fail_msg: "LightDM config не найден или неверные права"
+
+    - name: Check LightDM hook script exists
+      ansible.builtin.stat:
+        path: "/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+      register: _verify_lightdm_hook
+
+    - name: Assert LightDM hook deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_lightdm_hook.stat.exists
+          - _verify_lightdm_hook.stat.mode == '0755'
+        fail_msg: "LightDM hook не найден или неверные права"
+
+    - name: Check Xorg monitor config exists
+      ansible.builtin.stat:
+        path: "/etc/X11/xorg.conf.d/10-monitor.conf"
+      register: _verify_xorg
+
+    - name: Assert Xorg config deployed
+      ansible.builtin.assert:
+        that:
+          - _verify_xorg.stat.exists
+          - _verify_xorg.stat.pw_name == 'root'
+          - _verify_xorg.stat.mode == '0644'
+        fail_msg: "Xorg config не найден или неверные права"
+
+    # ---- Отчёт ----
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "Все проверки пройдены!"
+          - ".xinitrc: OK"
+          - "i3 config: OK"
+          - "picom.conf: OK"
+          - "LightDM config: OK (root:root 0644)"
+          - "LightDM hook: OK (0755)"
+          - "Xorg config: OK (root:root 0644)"

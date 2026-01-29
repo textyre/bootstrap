@@ -1,0 +1,101 @@
+---
+# === Развёртывание дотфайлов (user + system) ===
+# Источник файлов: scripts/dotfiles/
+# User-level файлы копируются от имени dotfiles_user.
+# System-level файлы копируются от root с явными owner/group/mode.
+
+# ---- Резолв абсолютного пути к репозиторию дотфайлов ----
+
+- name: Resolve dotfiles source directory
+  ansible.builtin.stat:
+    path: "{{ dotfiles_source_dir }}"
+  register: _dotfiles_src_stat
+  tags: ['dotfiles']
+
+- name: Ensure dotfiles source directory exists
+  ansible.builtin.assert:
+    that:
+      - _dotfiles_src_stat.stat.exists
+      - _dotfiles_src_stat.stat.isdir
+    fail_msg: "Директория дотфайлов не найдена: {{ dotfiles_source_dir }}"
+  tags: ['dotfiles']
+
+- name: Resolve absolute dotfiles path
+  ansible.builtin.set_fact:
+    _dotfiles_abs: "{{ _dotfiles_src_stat.stat.path }}"
+  tags: ['dotfiles']
+
+# ---- Определение home-директории пользователя ----
+
+- name: Get target user home directory
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ dotfiles_user }}"
+  tags: ['dotfiles']
+
+- name: Set user home path
+  ansible.builtin.set_fact:
+    _dotfiles_user_home: "{{ getent_passwd[dotfiles_user][4] }}"
+  tags: ['dotfiles']
+
+# ---- Создание директорий для user-level файлов ----
+
+- name: Ensure user config directories exist
+  ansible.builtin.file:
+    path: "{{ _dotfiles_user_home }}/{{ item.dest | dirname }}"
+    state: directory
+    owner: "{{ dotfiles_user }}"
+    group: "{{ dotfiles_user }}"
+    mode: "0755"
+  loop: "{{ dotfiles_user_files }}"
+  when: item.dest | dirname | length > 0
+  tags: ['dotfiles', 'configure']
+
+# ---- Развёртывание user-level дотфайлов ----
+
+- name: Deploy user dotfiles
+  ansible.builtin.copy:
+    src: "{{ _dotfiles_abs }}/{{ item.src }}"
+    dest: "{{ _dotfiles_user_home }}/{{ item.dest }}"
+    owner: "{{ dotfiles_user }}"
+    group: "{{ dotfiles_user }}"
+    mode: "0644"
+    remote_src: true
+  loop: "{{ dotfiles_user_files }}"
+  tags: ['dotfiles', 'configure']
+
+# ---- Создание директорий для system-level файлов ----
+
+- name: Ensure system config directories exist
+  ansible.builtin.file:
+    path: "{{ item.dest | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ dotfiles_system_files }}"
+  tags: ['dotfiles', 'configure']
+
+# ---- Развёртывание system-level конфигов ----
+
+- name: Deploy system config files
+  ansible.builtin.copy:
+    src: "{{ _dotfiles_abs }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    remote_src: true
+  loop: "{{ dotfiles_system_files }}"
+  tags: ['dotfiles', 'configure']
+
+# ---- Отчёт ----
+
+- name: Report deployed dotfiles
+  ansible.builtin.debug:
+    msg:
+      - "Пользователь: {{ dotfiles_user }} (home: {{ _dotfiles_user_home }})"
+      - "User-level файлов: {{ dotfiles_user_files | length }}"
+      - "System-level файлов: {{ dotfiles_system_files | length }}"
+      - "Источник: {{ _dotfiles_abs }}"
+  tags: ['dotfiles']

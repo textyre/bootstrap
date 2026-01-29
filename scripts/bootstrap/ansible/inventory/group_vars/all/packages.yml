@@ -80,10 +80,6 @@ packages_fonts:
   - ttf-font-awesome
   - noto-fonts
 
-# --- Dotfiles ---
-packages_dotfiles:
-  - chezmoi           # dotfiles manager (https://www.chezmoi.io/)
-
 # --- Поиск (fuzzy finder + grep замена) ---
 packages_search:
   - fzf               # интерактивный fuzzy finder

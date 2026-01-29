@@ -16,7 +16,6 @@
          + packages_session
          + packages_terminal
          + packages_fonts
-         + packages_dotfiles
          + packages_search
          + packages_viewers
          + (packages_distro[ansible_os_family] | default([])) }}

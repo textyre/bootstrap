@@ -1,0 +1,55 @@
+---
+# Molecule configuration for dotfiles role testing
+#
+# DELEGATED DRIVER: Применяет роль к localhost
+#
+# ВНИМАНИЕ: Этот тест РЕАЛЬНО деплоит дотфайлы в систему!
+#   - Копирует user-level конфиги в $HOME
+#   - Копирует system-level конфиги в /etc
+#
+# Перед запуском: Создайте снапшот VM!
+
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: localhost
+    groups:
+      - workstations
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
+      callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+    group_vars:
+      all: {}
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    ANSIBLE_VERBOSITY: "1"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - converge
+    - idempotence
+    - verify
+  create_sequence: []
+  check_sequence:
+    - syntax
+  converge_sequence:
+    - converge
+  destroy_sequence: []

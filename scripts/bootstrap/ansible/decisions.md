@@ -1,6 +1,6 @@
-# Decisions Log: Molecule Testing для Reflector Role
+# Decisions Log
 
-## Дата: 2026-01-28
+## Дата: 2026-01-28 — 2026-01-29
 
 ---
 
@@ -271,6 +271,111 @@ scenario:
 
 ---
 
+## 10. Миграция дотфайлов из кастомного Python-кода в Ansible роль
+
+**Дата:** 2026-01-29
+
+**Задача:** Развёртывание дотфайлов выполнялось кастомным Python-кодом (`scripts/bootstrap/gui/`, 15 файлов, ~500 LOC). Нужно перенести в Ansible для единообразия и удалить кастомный код.
+
+**Проблема:**
+- Phase 2 (DEPLOY) в `bootstrap.sh` запускала Python-модуль через `gui/launch.sh`
+- Python-код дублировал то, что Ansible делает нативно: копирование файлов, установка owner/group/mode, создание директорий
+- chezmoi использовался только как файловый копировальщик (без шаблонов, `.chezmoi.toml.tmpl` пуст)
+- Кастомные стратегии (Strategy pattern, 6 файлов в `display/`) для задачи, решаемой одним `ansible.builtin.copy`
+- Зависимость от Python 3 на этапе deploy, хотя Ansible уже доступен
+
+**Сделали:** Новая роль `roles/dotfiles` заменяет весь Python-код:
+
+```yaml
+# roles/dotfiles/tasks/main.yml (ключевые задачи)
+
+# User-level: copy с become_user
+- name: Deploy user dotfiles
+  ansible.builtin.copy:
+    src: "{{ _dotfiles_abs }}/{{ item.src }}"
+    dest: "{{ _dotfiles_user_home }}/{{ item.dest }}"
+    owner: "{{ dotfiles_user }}"
+    group: "{{ dotfiles_user }}"
+    mode: "0644"
+    remote_src: true
+  loop: "{{ dotfiles_user_files }}"
+
+# System-level: copy с явными owner/group/mode
+- name: Deploy system config files
+  ansible.builtin.copy:
+    src: "{{ _dotfiles_abs }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    remote_src: true
+  loop: "{{ dotfiles_system_files }}"
+```
+
+**Конфигурация через `defaults/main.yml`:**
+```yaml
+dotfiles_user_files:
+  - { src: "xinitrc",           dest: ".xinitrc" }
+  - { src: "config/i3/config",  dest: ".config/i3/config" }
+  - { src: "config/picom.conf", dest: ".config/picom.conf" }
+
+dotfiles_system_files:
+  - src: "etc/lightdm/lightdm.conf.d/10-config.conf"
+    dest: "/etc/lightdm/lightdm.conf.d/10-config.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  - src: "etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    dest: "/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    owner: lightdm
+    group: lightdm
+    mode: "0755"
+  - src: "etc/X11/xorg.conf.d/10-monitor.conf"
+    dest: "/etc/X11/xorg.conf.d/10-monitor.conf"
+    owner: root
+    group: root
+    mode: "0644"
+```
+
+**Что удалили:**
+1. `scripts/bootstrap/gui/` — 15 Python-файлов (deploy_dotfiles.py, display strategies, launch.py/sh, check_required_bins.py, start_gui.py, path_utils.py, user_utils.py)
+2. Phase 2 (DEPLOY) из `bootstrap.sh` — Python-проверки, GUI launcher
+3. `packages_dotfiles` (chezmoi) из `packages.yml` — зависимость больше не нужна
+4. chezmoi-именование: `dot_xinitrc` → `xinitrc`, `dot_config/` → `config/`
+
+**Что было избыточным в Python-коде:**
+- `check_required_bins.py` — проверка Xorg/i3/alacritty/lightdm → роль `packages` уже ставит их
+- `start_gui.py` — `systemctl enable --now lightdm` → `packages_enable_services` уже включает lightdm
+- `display/` (Strategy pattern) — 6 файлов для копирования 2 файлов с правами → `ansible.builtin.copy`
+
+**Почему Ansible `copy`, а не chezmoi:**
+- chezmoi шаблонизация не использовалась (`.chezmoi.toml.tmpl` пуст)
+- Ansible `copy` нативно поддерживает owner/group/mode — нет нужды в `sudo tee` + `sudo chmod` + `sudo chown`
+- Идемпотентность встроена — Ansible сравнивает content + metadata перед копированием
+- Одна система (Ansible) вместо двух (Ansible + chezmoi)
+- `remote_src: true` — файлы уже на диске в `scripts/dotfiles/`, не нужно тянуть из role `files/`
+
+**Почему `remote_src: true` вместо role `files/`:**
+- Исходные дотфайлы живут в `scripts/dotfiles/` — standalone директория с README
+- Роль ссылается на них через `dotfiles_source_dir` переменную
+- Нет дублирования файлов между `scripts/dotfiles/` и `roles/dotfiles/files/`
+- Путь параметризуем: можно переопределить через `-e` или `host_vars`
+
+**Новый bootstrap flow:**
+```
+Phase 0: Externals (опционально)
+Phase 1: Install (mirror search + packages via shell)
+Phase 2: Ansible (reflector → yay → packages → dotfiles)
+```
+
+**Ресурсы:**
+- [Ansible copy module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html)
+- [Ansible file module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html)
+- [Jeff Geerling — Ansible for DevOps](https://www.ansiblefordevops.com/)
+- [TechDufus/dotfiles](https://github.com/TechDufus/dotfiles) — Ansible-only dotfiles management
+
+---
+
 ## Итоговая структура
 
 ```
@@ -286,11 +391,13 @@ ansible/
 │       └── packages.yml   # Центральный реестр пакетов (data layer)
 ├── playbooks/
 │   ├── mirrors-update.yml
-│   └── workstation.yml
-└── roles/*/
-    ├── tasks/main.yml
-    └── molecule/default/
-        ├── molecule.yml   # vault_password_file + group_vars для тестов
-        ├── converge.yml   # vars_files → vault.yml
-        └── verify.yml     # vars_files → vault.yml
+│   └── workstation.yml    # reflector → yay → packages → dotfiles
+└── roles/
+    ├── reflector/         # Зеркала pacman
+    ├── yay/               # AUR helper
+    ├── packages/          # Установка пакетов + сервисы + группы
+    └── dotfiles/          # Развёртывание дотфайлов (user + system)
+        ├── defaults/main.yml    # dotfiles_user, source_dir, file mappings
+        ├── tasks/main.yml       # copy user + system files
+        └── molecule/default/    # converge + verify
 ```

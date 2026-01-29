@@ -1,0 +1,37 @@
+---
+# === Развёртывание дотфайлов ===
+# Источник: scripts/dotfiles/ (рядом с ansible/)
+# Пользовательские файлы деплоятся от имени целевого пользователя,
+# системные — от root с явными owner/group/mode.
+
+# Пользователь, для которого разворачиваются дотфайлы
+dotfiles_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Путь к директории с исходными дотфайлами (относительно playbook_dir)
+dotfiles_source_dir: "{{ playbook_dir }}/../../dotfiles"
+
+# --- Пользовательские дотфайлы ---
+# Каждый элемент: src (относительно dotfiles_source_dir) → dest (относительно $HOME)
+dotfiles_user_files:
+  - { src: "xinitrc",           dest: ".xinitrc" }
+  - { src: "config/i3/config",  dest: ".config/i3/config" }
+  - { src: "config/picom.conf", dest: ".config/picom.conf" }
+
+# --- Системные конфиги ---
+# Каждый элемент: src → dest (абсолютный путь), owner, group, mode
+dotfiles_system_files:
+  - src: "etc/lightdm/lightdm.conf.d/10-config.conf"
+    dest: "/etc/lightdm/lightdm.conf.d/10-config.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  - src: "etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    dest: "/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    owner: lightdm
+    group: lightdm
+    mode: "0755"
+  - src: "etc/X11/xorg.conf.d/10-monitor.conf"
+    dest: "/etc/X11/xorg.conf.d/10-monitor.conf"
+    owner: root
+    group: root
+    mode: "0644"

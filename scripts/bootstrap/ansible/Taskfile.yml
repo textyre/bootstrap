@@ -47,6 +47,7 @@ tasks:
       - task: test-reflector
       - task: test-yay
       - task: test-packages
+      - task: test-dotfiles
       - 'echo "✓ All tests passed!"'
 
   test-reflector:
@@ -84,6 +85,18 @@ tasks:
       - 'echo "==> Applying packages role and verifying..."'
       - '{{.PREFIX}} molecule test'
       - 'echo "✅ Packages tests passed!"'
+
+  test-dotfiles:
+    desc: "Run molecule tests for dotfiles (modifies system! Create VM snapshot first)"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/dotfiles
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "⚠️  WARNING: This will deploy dotfiles on your system!"'
+      - 'echo "==> Applying dotfiles role and verifying..."'
+      - '{{.PREFIX}} molecule test'
+      - 'echo "✅ Dotfiles tests passed!"'
 
   dry-run:
     desc: "Show what would change without applying"
