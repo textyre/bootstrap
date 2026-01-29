@@ -16,10 +16,7 @@
 
 - name: Install build dependencies
   community.general.pacman:
-    name:
-      - base-devel
-      - git
-      - go
+    name: "{{ yay_build_deps }}"
     state: present
   when: _yay_exists.rc != 0
 

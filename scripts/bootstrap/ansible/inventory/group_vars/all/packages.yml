@@ -1,7 +1,33 @@
 ---
-# === ЕДИНЫЙ СПИСОК СОФТА ДЛЯ РАБОЧЕЙ СТАНЦИИ ===
-# Все пакеты определены здесь. Ansible устанавливает их через нужный пакетный менеджер.
-# Переопределяйте через -e или group_vars/host_vars по необходимости.
+# === ЦЕНТРАЛЬНЫЙ РЕЕСТР ПАКЕТОВ И КОНФИГУРАЦИИ ===
+# Единственный источник данных для всех ролей (data layer).
+# Роли содержат только логику; данные живут здесь.
+#
+# Переопределение:
+#   Per-host:    inventory/host_vars/<hostname>/packages.yml
+#   Per-runtime: ansible-playbook ... -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'
+#
+# Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
+
+# ============================================================
+#  yay (AUR helper) — роль roles/yay
+# ============================================================
+
+# URL репозитория yay в AUR
+yay_aur_url: "https://aur.archlinux.org/yay.git"
+
+# Пользователь для сборки (makepkg не работает от root)
+yay_build_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Зависимости для сборки yay из исходников
+yay_build_deps:
+  - base-devel
+  - git
+  - go
+
+# ============================================================
+#  Пакеты рабочей станции — роль roles/packages
+# ============================================================
 
 # --- Базовые утилиты ---
 packages_base:

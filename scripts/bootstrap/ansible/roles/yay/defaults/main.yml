@@ -1,9 +1,0 @@
----
-# === Установка yay (AUR helper) ===
-# yay собирается из исходников, т.к. его нет в официальных репозиториях
-
-# URL репозитория yay в AUR
-yay_aur_url: "https://aur.archlinux.org/yay.git"
-
-# Пользователь для сборки (makepkg не работает от root)
-yay_build_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"

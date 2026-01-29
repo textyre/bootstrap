@@ -27,6 +27,14 @@ provisioner:
     host_vars:
       localhost:
         ansible_connection: local
+    group_vars:
+      all:
+        yay_aur_url: "https://aur.archlinux.org/yay.git"
+        yay_build_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+        yay_build_deps:
+          - base-devel
+          - git
+          - go
   playbooks:
     converge: converge.yml
     verify: verify.yml

@@ -237,6 +237,40 @@ scenario:
 
 ---
 
+## 9. Централизация пакетов в group_vars/all/packages.yml
+
+**Задача:** Убрать дублирование пакетов между ролями и отделить данные от логики.
+
+**Проблема:**
+- `base-devel`, `git` — дублировались в `packages/defaults/main.yml` и хардкод в `yay/tasks/main.yml`
+- `go` — хардкод в `yay/tasks/main.yml` без переменной
+- Все данные привязаны к роли `packages`, нет разделения "код vs данные"
+
+**Сделали:** Перенесли все пакетные переменные в `inventory/group_vars/all/packages.yml`:
+1. `packages_*` переменные (из `roles/packages/defaults/main.yml` — файл удалён)
+2. `yay_*` переменные (из `roles/yay/defaults/main.yml` — файл удалён)
+3. `yay_build_deps` — новая переменная, заменила хардкод в `yay/tasks/main.yml`
+
+**Как роли работают standalone:**
+- `ansible.cfg` задаёт `inventory = ./inventory/hosts.ini`
+- Ansible автоматически подхватывает `inventory/group_vars/all/*.yml`
+- Molecule: переменные задаются в `molecule.yml` provisioner `group_vars`
+
+**Почему `group_vars/all/`:**
+- Ansible-стандартное место для "data layer" (данные отдельно от логики)
+- Precedence уровень 4: выше role defaults (2), ниже host_vars (8) и `-e` (22)
+- Per-host override: создать `inventory/host_vars/<hostname>/packages.yml`
+
+**Почему reflector не тронули:**
+- Пакет `reflector` = идентичность роли, параметризация бессмысленна
+
+**Ресурсы:**
+- [Ansible Sample Setup](https://docs.ansible.com/projects/ansible/latest/tips_tricks/sample_setup.html)
+- [Red Hat CoP — Good Practices](https://redhat-cop.github.io/automation-good-practices/)
+- [Ansible Variable Precedence](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_variables.html)
+
+---
+
 ## Итоговая структура
 
 ```
@@ -248,15 +282,15 @@ ansible/
 ├── inventory/
 │   ├── hosts.ini
 │   └── group_vars/all/
-│       └── vault.yml      # Зашифрованный ansible_become_password (Ansible Vault)
+│       ├── vault.yml      # Зашифрованный ansible_become_password (Ansible Vault)
+│       └── packages.yml   # Центральный реестр пакетов (data layer)
 ├── playbooks/
 │   ├── mirrors-update.yml
 │   └── workstation.yml
 └── roles/*/
-    ├── defaults/main.yml
     ├── tasks/main.yml
     └── molecule/default/
-        ├── molecule.yml   # vault_password_file в config_options
+        ├── molecule.yml   # vault_password_file + group_vars для тестов
         ├── converge.yml   # vars_files → vault.yml
         └── verify.yml     # vars_files → vault.yml
 ```

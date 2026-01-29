@@ -17,10 +17,7 @@
       check_mode: true
       register: yay_dep_check
       failed_when: yay_dep_check is changed
-      loop:
-        - base-devel
-        - git
-        - go
+      loop: "{{ yay_build_deps }}"
 
     - name: Check that yay binary exists
       ansible.builtin.command: which yay
