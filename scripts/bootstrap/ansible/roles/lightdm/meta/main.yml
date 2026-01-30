@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: lightdm
+  author: textyre
+  description: Конфигурация LightDM (display manager, greeter, resolution)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+  galaxy_tags: [lightdm, display, greeter, xorg]
+dependencies: []

@@ -1,0 +1,67 @@
+---
+# === Глобальная конфигурация Git ===
+
+- name: Set git user.name
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: user.name
+    value: "{{ git_user_name }}"
+    scope: global
+  when: git_user_name | length > 0
+  tags: ['git', 'configure']
+
+- name: Set git user.email
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: user.email
+    value: "{{ git_user_email }}"
+    scope: global
+  when: git_user_email | length > 0
+  tags: ['git', 'configure']
+
+- name: Set git init.defaultBranch
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: init.defaultBranch
+    value: "{{ git_default_branch }}"
+    scope: global
+  tags: ['git', 'configure']
+
+- name: Set git core.editor
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: core.editor
+    value: "{{ git_editor }}"
+    scope: global
+  tags: ['git', 'configure']
+
+- name: Set git pull.rebase
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: pull.rebase
+    value: "{{ git_pull_rebase | string | lower }}"
+    scope: global
+  tags: ['git', 'configure']
+
+- name: Set git push.autoSetupRemote
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: push.autoSetupRemote
+    value: "{{ git_push_autosetup_remote | string | lower }}"
+    scope: global
+  tags: ['git', 'configure']
+
+- name: Set git core.autocrlf
+  become: true
+  become_user: "{{ git_target_user }}"
+  community.general.git_config:
+    name: core.autocrlf
+    value: "{{ git_core_autocrlf }}"
+    scope: global
+  tags: ['git', 'configure']

@@ -1,0 +1,12 @@
+---
+# === Деплой дотфайлов через chezmoi ===
+# Установка chezmoi, инициализация и применение из локального источника
+
+# Целевой пользователь
+chezmoi_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Путь к исходным дотфайлам (scripts/dotfiles/)
+chezmoi_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+
+# Метод установки: pacman или script
+chezmoi_install_method: pacman

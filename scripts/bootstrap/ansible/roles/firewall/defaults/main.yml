@@ -1,0 +1,15 @@
+---
+# === Базовый firewall (nftables) ===
+# Минимальный набор правил для рабочей станции
+
+# Включить firewall
+firewall_enabled: true
+
+# Разрешить SSH (порт 22)
+firewall_allow_ssh: true
+
+# Дополнительные TCP-порты для входящих
+firewall_allow_tcp_ports: []
+
+# Дополнительные UDP-порты для входящих
+firewall_allow_udp_ports: []

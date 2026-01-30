@@ -1,0 +1,45 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check chezmoi is installed
+      ansible.builtin.command: which chezmoi
+      register: _verify_chezmoi_bin
+      changed_when: false
+      failed_when: _verify_chezmoi_bin.rc != 0
+
+    - name: Set user home
+      ansible.builtin.set_fact:
+        _verify_home: "{{ ansible_env.HOME }}"
+
+    - name: Check .xinitrc exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.xinitrc"
+      register: _verify_xinitrc
+      failed_when: not _verify_xinitrc.stat.exists
+
+    - name: Check .config/i3/config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/i3/config"
+      register: _verify_i3_config
+      failed_when: not _verify_i3_config.stat.exists
+
+    - name: Check .config/picom.conf exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/picom.conf"
+      register: _verify_picom
+      failed_when: not _verify_picom.stat.exists
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "chezmoi installed"
+          - ".xinitrc deployed"
+          - ".config/i3/config deployed"
+          - ".config/picom.conf deployed"

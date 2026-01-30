@@ -1,0 +1,72 @@
+---
+# === Деплой дотфайлов через chezmoi ===
+# Установка, инициализация, применение
+
+# ---- Установка chezmoi ----
+
+- name: Install chezmoi via pacman
+  community.general.pacman:
+    name: chezmoi
+    state: present
+  when:
+    - ansible_os_family == 'Archlinux'
+    - chezmoi_install_method == 'pacman'
+  tags: ['chezmoi', 'dotfiles', 'install']
+
+- name: Install chezmoi via official script
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  ansible.builtin.shell: |
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
+  args:
+    creates: "{{ _chezmoi_user_home }}/.local/bin/chezmoi"
+  when: chezmoi_install_method == 'script'
+  tags: ['chezmoi', 'dotfiles', 'install']
+
+# ---- Resolve paths ----
+
+- name: Get user home directory
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ chezmoi_user }}"
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Set user home fact
+  ansible.builtin.set_fact:
+    _chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Resolve chezmoi source directory
+  ansible.builtin.stat:
+    path: "{{ chezmoi_source_dir }}"
+  register: _chezmoi_source_stat
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Assert chezmoi source directory exists
+  ansible.builtin.assert:
+    that:
+      - _chezmoi_source_stat.stat.exists
+      - _chezmoi_source_stat.stat.isdir
+    fail_msg: "Директория с дотфайлами не найдена: {{ chezmoi_source_dir }}"
+  tags: ['chezmoi', 'dotfiles']
+
+# ---- Инициализация и применение ----
+
+- name: Initialize chezmoi from local source
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  ansible.builtin.command: >
+    chezmoi init --source "{{ chezmoi_source_dir }}" --apply
+  args:
+    chdir: "{{ _chezmoi_user_home }}"
+  register: _chezmoi_apply
+  changed_when: _chezmoi_apply.rc == 0
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Report chezmoi deployment
+  ansible.builtin.debug:
+    msg:
+      - "Пользователь: {{ chezmoi_user }}"
+      - "Источник: {{ chezmoi_source_dir }}"
+      - "chezmoi init --apply выполнен"
+  tags: ['chezmoi', 'dotfiles']

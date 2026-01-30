@@ -1,0 +1,30 @@
+---
+# === Базовый firewall (nftables) ===
+# Минимальный набор правил для рабочей станции
+
+- name: Ensure nftables is installed
+  community.general.pacman:
+    name: nftables
+    state: present
+  when: ansible_os_family == 'Archlinux'
+  tags: ['firewall', 'install']
+
+- name: Deploy nftables configuration
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart nftables
+  when: firewall_enabled
+  tags: ['firewall', 'configure']
+
+- name: Enable and start nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: firewall_enabled
+  tags: ['firewall', 'service']

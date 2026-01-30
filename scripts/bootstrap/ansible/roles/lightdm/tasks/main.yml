@@ -1,0 +1,60 @@
+---
+# === Конфигурация LightDM ===
+# Display manager: конфиг, скрипт резолюции, сервис
+
+- name: Resolve dotfiles source directory
+  ansible.builtin.stat:
+    path: "{{ lightdm_source_dir }}"
+  register: _lightdm_source_stat
+  tags: ['lightdm', 'display']
+
+- name: Assert dotfiles source directory exists
+  ansible.builtin.assert:
+    that:
+      - _lightdm_source_stat.stat.exists
+      - _lightdm_source_stat.stat.isdir
+    fail_msg: "Директория с исходниками не найдена: {{ lightdm_source_dir }}"
+  tags: ['lightdm', 'display']
+
+# ---- Создание директорий ----
+
+- name: Create LightDM config directories
+  ansible.builtin.file:
+    path: "{{ item.dest | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ lightdm_system_files }}"
+  tags: ['lightdm', 'display']
+
+# ---- Деплой конфигов ----
+
+- name: Deploy LightDM configuration files
+  ansible.builtin.copy:
+    src: "{{ lightdm_source_dir }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    remote_src: true
+  loop: "{{ lightdm_system_files }}"
+  tags: ['lightdm', 'display']
+
+# ---- Сервис ----
+
+- name: Enable and start LightDM service
+  ansible.builtin.systemd:
+    name: lightdm
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: lightdm_enable_service
+  tags: ['lightdm', 'display', 'service']
+
+- name: Report LightDM configuration
+  ansible.builtin.debug:
+    msg:
+      - "Файлов развёрнуто: {{ lightdm_system_files | length }}"
+      - "Сервис: {{ 'enabled' if lightdm_enable_service else 'disabled' }}"
+  tags: ['lightdm']

@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: xorg
+  author: textyre
+  description: Конфигурация X11 (Xorg) — деплой /etc/X11/xorg.conf.d/
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+  galaxy_tags: [xorg, x11, display, monitor]
+dependencies: []

@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: base_system
+  author: textyre
+  description: Базовая настройка системы (локаль, таймзона, hostname, pacman)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+  galaxy_tags: [system, arch, locale, timezone, hostname, pacman]
+dependencies: []

@@ -1,0 +1,16 @@
+---
+# === Управление пользователем ===
+# Создание пользователя, sudo, группы
+
+# Имя пользователя (по умолчанию — тот, кто запустил sudo)
+user_name: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Логин-шелл
+user_shell: /bin/bash
+
+# Группы пользователя (wheel для sudo)
+user_groups:
+  - wheel
+
+# Создать правило sudo для группы wheel
+user_create_sudo_rule: true

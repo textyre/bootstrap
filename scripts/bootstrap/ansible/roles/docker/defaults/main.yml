@@ -1,0 +1,18 @@
+---
+# === Конфигурация Docker ===
+# Daemon, сервис, группа пользователя
+
+# Целевой пользователь (добавляется в группу docker)
+docker_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Добавить пользователя в группу docker
+docker_add_user_to_group: true
+
+# Включить и запустить сервис
+docker_enable_service: true
+
+# Конфигурация daemon.json
+docker_log_driver: "json-file"
+docker_log_max_size: "10m"
+docker_log_max_file: "3"
+docker_storage_driver: ""

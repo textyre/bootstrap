@@ -1,0 +1,22 @@
+---
+# === Конфигурация LightDM ===
+# Display manager: конфиг, greeter, resolution script
+
+# Путь к исходным файлам (scripts/dotfiles/)
+lightdm_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+
+# Включить и запустить сервис
+lightdm_enable_service: true
+
+# Системные файлы для деплоя
+lightdm_system_files:
+  - src: "etc/lightdm/lightdm.conf.d/10-config.conf"
+    dest: "/etc/lightdm/lightdm.conf.d/10-config.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  - src: "etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    dest: "/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh"
+    owner: lightdm
+    group: lightdm
+    mode: "0755"

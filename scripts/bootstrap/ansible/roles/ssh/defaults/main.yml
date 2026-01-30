@@ -1,0 +1,19 @@
+---
+# === Настройка SSH ===
+# Генерация ключей, клиентский конфиг, hardening sshd
+
+# Целевой пользователь
+ssh_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Генерация SSH-ключа
+ssh_generate_key: true
+ssh_key_type: ed25519
+ssh_key_comment: "{{ ssh_user }}@{{ ansible_hostname }}"
+
+# Hardening sshd
+ssh_harden_sshd: true
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_x11_forwarding: "no"
+ssh_max_auth_tries: 3

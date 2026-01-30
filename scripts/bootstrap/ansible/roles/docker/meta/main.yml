@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: docker
+  author: textyre
+  description: Конфигурация Docker (daemon, сервис, группа пользователя)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+  galaxy_tags: [docker, container, service]
+dependencies: []

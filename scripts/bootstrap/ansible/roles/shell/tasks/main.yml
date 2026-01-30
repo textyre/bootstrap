@@ -1,0 +1,67 @@
+---
+# === Конфигурация shell-окружения ===
+# Установка шелла, деплой конфига, алиасы, PATH
+
+- name: Get user home directory
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ shell_user }}"
+  tags: ['shell']
+
+- name: Set user home fact
+  ansible.builtin.set_fact:
+    _shell_user_home: "{{ getent_passwd[shell_user][4] }}"
+  tags: ['shell']
+
+# ---- Установка шелла ----
+
+- name: Install shell package
+  community.general.pacman:
+    name: "{{ shell_type }}"
+    state: present
+  when: ansible_os_family == 'Archlinux' and shell_type != 'bash'
+  tags: ['shell', 'install']
+
+# ---- Создание ~/.local/bin ----
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ _shell_user_home }}/.local/bin"
+    state: directory
+    owner: "{{ shell_user }}"
+    group: "{{ shell_user }}"
+    mode: '0755'
+  tags: ['shell', 'configure']
+
+# ---- Деплой конфига шелла ----
+
+- name: Deploy shell configuration (bash)
+  ansible.builtin.template:
+    src: bashrc.j2
+    dest: "{{ _shell_user_home }}/.bashrc"
+    owner: "{{ shell_user }}"
+    group: "{{ shell_user }}"
+    mode: '0644'
+    backup: true
+  when: shell_type == 'bash'
+  tags: ['shell', 'configure']
+
+- name: Deploy shell configuration (zsh)
+  ansible.builtin.template:
+    src: zshrc.j2
+    dest: "{{ _shell_user_home }}/.zshrc"
+    owner: "{{ shell_user }}"
+    group: "{{ shell_user }}"
+    mode: '0644'
+    backup: true
+  when: shell_type == 'zsh'
+  tags: ['shell', 'configure']
+
+- name: Report shell configuration
+  ansible.builtin.debug:
+    msg:
+      - "Shell: {{ shell_type }}"
+      - "User: {{ shell_user }}"
+      - "Aliases: {{ shell_aliases | length }}"
+      - "PATH additions: {{ shell_path_additions | join(':') }}"
+  tags: ['shell']

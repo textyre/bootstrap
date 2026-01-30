@@ -4,7 +4,7 @@ vars:
   VENV: .venv
   PREFIX: 'env PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH"'
   ANSIBLE: '{{.PREFIX}} ansible-playbook'
-  PLAYBOOK: playbooks/mirrors-update.yml
+  PLAYBOOK: playbooks/workstation.yml
 
 tasks:
   default:
@@ -28,9 +28,9 @@ tasks:
     deps: [_ensure-venv]
     cmds:
       - 'echo "==> Checking playbook syntax..."'
-      - "{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check"
+      - "{{.ANSIBLE}} playbooks/mirrors-update.yml --syntax-check"
       - "{{.ANSIBLE}} playbooks/workstation.yml --syntax-check"
-      - 'echo "✓ Syntax check passed"'
+      - 'echo "Syntax check passed"'
 
   lint:
     desc: "Run ansible-lint"
@@ -40,63 +40,158 @@ tasks:
 
   test:
     desc: "Run all tests (check + lint + molecule for all roles)"
-    prompt: "Molecule test will modify your system. Create VM snapshot first?"
+    prompt: "Molecule tests will modify your system. Create VM snapshot first?"
     cmds:
       - task: check
       - task: lint
+      - task: test-base-system
       - task: test-reflector
       - task: test-yay
       - task: test-packages
-      - task: test-dotfiles
-      - 'echo "✓ All tests passed!"'
+      - task: test-user
+      - task: test-ssh
+      - task: test-git
+      - task: test-shell
+      - task: test-docker
+      - task: test-firewall
+      - task: test-xorg
+      - task: test-lightdm
+      - task: test-chezmoi
+      - 'echo "All tests passed!"'
+
+  # --- Individual role tests ---
+
+  test-base-system:
+    desc: "Run molecule tests for base_system"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/base_system
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing base_system role..."'
+      - '{{.PREFIX}} molecule test'
 
   test-reflector:
-    desc: "Run molecule tests for reflector (modifies system! Create VM snapshot first)"
+    desc: "Run molecule tests for reflector"
     deps: [_ensure-venv, _check-vault]
     dir: roles/reflector
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
     cmds:
-      - 'echo "⚠️  WARNING: This will modify your system!"'
-      - 'echo "==> Applying reflector role and verifying..."'
+      - 'echo "==> Testing reflector role..."'
       - '{{.PREFIX}} molecule test'
-      - 'echo "✅ Reflector tests passed!"'
 
   test-yay:
-    desc: "Run molecule tests for yay (modifies system! Create VM snapshot first)"
+    desc: "Run molecule tests for yay"
     deps: [_ensure-venv, _check-vault]
     dir: roles/yay
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
     cmds:
-      - 'echo "⚠️  WARNING: This will build and install yay on your system!"'
-      - 'echo "==> Applying yay role and verifying..."'
+      - 'echo "==> Testing yay role..."'
       - '{{.PREFIX}} molecule test'
-      - 'echo "✅ Yay tests passed!"'
 
   test-packages:
-    desc: "Run molecule tests for packages (modifies system! Create VM snapshot first)"
+    desc: "Run molecule tests for packages"
     deps: [_ensure-venv, _check-vault]
     dir: roles/packages
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
     cmds:
-      - 'echo "⚠️  WARNING: This will install packages on your system!"'
-      - 'echo "==> Applying packages role and verifying..."'
+      - 'echo "==> Testing packages role..."'
       - '{{.PREFIX}} molecule test'
-      - 'echo "✅ Packages tests passed!"'
 
-  test-dotfiles:
-    desc: "Run molecule tests for dotfiles (modifies system! Create VM snapshot first)"
+  test-user:
+    desc: "Run molecule tests for user"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/dotfiles
+    dir: roles/user
     env:
       MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
     cmds:
-      - 'echo "⚠️  WARNING: This will deploy dotfiles on your system!"'
-      - 'echo "==> Applying dotfiles role and verifying..."'
+      - 'echo "==> Testing user role..."'
       - '{{.PREFIX}} molecule test'
-      - 'echo "✅ Dotfiles tests passed!"'
+
+  test-ssh:
+    desc: "Run molecule tests for ssh"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/ssh
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing ssh role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-git:
+    desc: "Run molecule tests for git"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/git
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing git role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-shell:
+    desc: "Run molecule tests for shell"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/shell
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing shell role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-docker:
+    desc: "Run molecule tests for docker"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/docker
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing docker role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-firewall:
+    desc: "Run molecule tests for firewall"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/firewall
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing firewall role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-xorg:
+    desc: "Run molecule tests for xorg"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/xorg
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing xorg role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-lightdm:
+    desc: "Run molecule tests for lightdm"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/lightdm
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing lightdm role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-chezmoi:
+    desc: "Run molecule tests for chezmoi"
+    deps: [_ensure-venv, _check-vault]
+    dir: roles/chezmoi
+    env:
+      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+    cmds:
+      - 'echo "==> Testing chezmoi role..."'
+      - '{{.PREFIX}} molecule test'
+
+  # --- Playbook execution ---
 
   dry-run:
     desc: "Show what would change without applying"
@@ -113,7 +208,7 @@ tasks:
       - "{{.ANSIBLE}} {{.PLAYBOOK}} -v"
 
   workstation:
-    desc: "Setup full workstation (mirrors + packages)"
+    desc: "Setup full workstation (all 13 roles)"
     deps: [_ensure-venv, _check-vault]
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:
@@ -130,6 +225,8 @@ tasks:
     desc: "Remove venv and cache"
     cmds:
       - rm -rf {{.VENV}} .molecule __pycache__
+
+  # --- Internal tasks ---
 
   _ensure-venv:
     internal: true

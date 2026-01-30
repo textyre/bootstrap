@@ -1,0 +1,44 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check nftables is installed
+      ansible.builtin.package:
+        name: nftables
+        state: present
+      check_mode: true
+      register: _verify_nftables
+      failed_when: _verify_nftables is changed
+
+    - name: Check /etc/nftables.conf exists
+      ansible.builtin.stat:
+        path: /etc/nftables.conf
+      register: _verify_nftables_conf
+      failed_when: not _verify_nftables_conf.stat.exists
+
+    - name: Check nftables config contains filter table
+      ansible.builtin.command: grep 'table inet filter' /etc/nftables.conf
+      register: _verify_nftables_table
+      changed_when: false
+      failed_when: _verify_nftables_table.rc != 0
+
+    - name: Check nftables service is enabled
+      ansible.builtin.systemd:
+        name: nftables
+        enabled: true
+      check_mode: true
+      register: _verify_nftables_enabled
+      failed_when: _verify_nftables_enabled is changed
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "nftables installed"
+          - "Configuration deployed with filter table"
+          - "Service enabled"

@@ -1,0 +1,15 @@
+---
+# === Установка yay AUR helper ===
+# Значения по умолчанию. Переопределяются в group_vars/all/packages.yml
+
+# URL репозитория yay в AUR
+yay_aur_url: "https://aur.archlinux.org/yay.git"
+
+# Пользователь для сборки (makepkg не работает от root)
+yay_build_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Зависимости для сборки yay из исходников
+yay_build_deps:
+  - base-devel
+  - git
+  - go

@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+# ~/.bashrc — managed by Ansible (role: shell)
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+# ---- History ----
+HISTSIZE={{ shell_history_size }}
+HISTFILESIZE={{ shell_history_size }}
+HISTCONTROL={{ shell_histcontrol }}
+shopt -s histappend
+
+# ---- Shell options ----
+shopt -s checkwinsize
+shopt -s globstar 2>/dev/null
+shopt -s cdspell 2>/dev/null
+
+# ---- PATH ----
+{% for path in shell_path_additions %}
+[[ ":$PATH:" != *":{{ path }}:"* ]] && export PATH="{{ path }}:$PATH"
+{% endfor %}
+
+# ---- Environment variables ----
+{% for key, value in shell_env_vars.items() %}
+export {{ key }}="{{ value }}"
+{% endfor %}
+
+# ---- Aliases ----
+{% for alias, command in shell_aliases.items() %}
+alias {{ alias }}='{{ command }}'
+{% endfor %}
+
+# ---- Prompt ----
+PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+# ---- Completions ----
+if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+fi
+
+# ---- FZF integration ----
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --bash 2>/dev/null)" || true
+fi

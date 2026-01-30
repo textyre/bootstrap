@@ -1,7 +1,10 @@
 ---
-# === ЦЕНТРАЛЬНЫЙ РЕЕСТР ПАКЕТОВ И КОНФИГУРАЦИИ ===
-# Единственный источник данных для всех ролей (data layer).
+# === ЦЕНТРАЛЬНЫЙ РЕЕСТР ПАКЕТОВ ===
+# Единственный источник данных для ролей packages, yay.
 # Роли содержат только логику; данные живут здесь.
+#
+# Сервисы (docker, lightdm) → соответствующие роли docker/lightdm
+# Группы пользователя → роль user (system.yml)
 #
 # Переопределение:
 #   Per-host:    inventory/host_vars/<hostname>/packages.yml
@@ -37,6 +40,9 @@ packages_base:
   - tmux
   - unzip
   - rsync
+  - openssh          # SSH клиент/сервер (для роли ssh)
+  - chezmoi          # Менеджер дотфайлов (для роли chezmoi)
+  - nftables         # Firewall (для роли firewall)
 
 # --- Редакторы ---
 packages_editors:
@@ -103,12 +109,3 @@ packages_distro:
 # yay устанавливается отдельной ролью (roles/yay)
 packages_aur:
   - i3-rounded-border-patch-git 4.22.r31.gd06f97c4-1    # i3 с патчем скруглённых рамок
-
-# --- Systemd сервисы для активации после установки ---
-packages_enable_services:
-  - docker
-  - lightdm
-
-# --- Добавить текущего пользователя в эти группы ---
-packages_user_groups:
-  - docker

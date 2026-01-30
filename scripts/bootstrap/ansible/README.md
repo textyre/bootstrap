@@ -1,11 +1,13 @@
-# Ansible Playbooks для Bootstrap
+# Ansible Workstation Bootstrap
+
+13 модульных ролей для полной настройки Arch Linux рабочей станции.
 
 ## Быстрый старт
 
 ```bash
 cd scripts/bootstrap/ansible
-task bootstrap   # Установить зависимости (один раз)
-task run         # Применить playbook
+task bootstrap   # Установить Python зависимости (один раз)
+task workstation # Применить все 13 ролей
 ```
 
 ## Команды
@@ -13,54 +15,66 @@ task run         # Применить playbook
 | Команда | Описание |
 |---------|----------|
 | `task bootstrap` | Установить Python зависимости |
-| `task check` | Проверить синтаксис |
-| `task lint` | Проверить best practices |
-| `task test` | Запустить molecule тесты |
+| `task check` | Проверить синтаксис playbooks |
+| `task lint` | ansible-lint best practices |
+| `task test` | Все molecule тесты (13 ролей) |
+| `task test-<role>` | Тест конкретной роли |
 | `task dry-run` | Показать изменения без применения |
-| `task run` | Применить playbook |
+| `task workstation` | Применить полный playbook |
 | `task all` | check + lint |
 | `task clean` | Удалить venv |
+
+## Роли
+
+### System Foundation
+- **base_system** — локаль, таймзона, hostname, pacman.conf
+- **reflector** — оптимизация зеркал (Arch only)
+
+### Package Infrastructure
+- **yay** — AUR helper (Arch only)
+- **packages** — установка всех пакетов
+
+### User & Access
+- **user** — пользователь, sudo, группы
+- **ssh** — SSH ключи, hardening sshd
+
+### Development Tools
+- **git** — глобальная конфигурация git
+- **shell** — bash/zsh, алиасы, PATH
+
+### Services
+- **docker** — daemon.json, сервис, группа
+- **firewall** — базовый nftables
+
+### Desktop Environment
+- **xorg** — конфигурация X11 мониторов
+- **lightdm** — display manager
+- **chezmoi** — деплой дотфайлов
 
 ## Тестирование
 
 ```bash
-# Первоначальная настройка vault (один раз):
+# Настройка vault (один раз)
 echo 'your_vault_password' > ~/.vault-pass && chmod 600 ~/.vault-pass
-ansible-vault create inventory/group_vars/all/vault.yml
-# В редакторе добавьте: ansible_become_password: "your_sudo_password"
 
-# Запуск тестов:
-task test
+# Запуск тестов
+task test                 # Все роли
+task test-base-system     # Конкретная роль
 ```
 
-Sudo пароль хранится зашифрованным в `inventory/group_vars/all/vault.yml` (Ansible Vault, AES-256).
-Vault пароль читается из `~/.vault-pass` или `pass show ansible/vault-password`.
+**Внимание:** Molecule тесты изменяют систему! Создайте снапшот VM.
 
-**Внимание:** `task test` изменяет систему! Создайте снапшот VM перед запуском.
+## Переменные
 
-## Конфигурация зеркал
+- `inventory/group_vars/all/packages.yml` — реестр пакетов
+- `inventory/group_vars/all/system.yml` — системные переменные
+- `inventory/group_vars/all/vault.yml` — зашифрованный sudo пароль
 
-По умолчанию настроено для Казахстана. Для других регионов:
+## Теги
 
 ```bash
-# Европа
-task run -- -e "reflector_countries=DE,FR,NL"
-
-# США
-task run -- -e "reflector_countries=US"
+# Выборочный запуск
+ansible-playbook playbooks/workstation.yml --tags packages
+ansible-playbook playbooks/workstation.yml --tags "docker,ssh,firewall"
+ansible-playbook playbooks/workstation.yml --skip-tags firewall
 ```
-
-## Параметры
-
-См. [defaults/main.yml](roles/reflector/defaults/main.yml):
-
-- `reflector_countries` — список стран (KZ,RU,DE,NL,FR)
-- `reflector_latest` — количество зеркал (20)
-- `reflector_age` — максимальный возраст в часах (12)
-- `reflector_sort` — сортировка: rate или age
-
-## Архитектура
-
-1. Параметры в `defaults/main.yml`
-2. Template генерирует `/etc/xdg/reflector/reflector.conf`
-3. systemd timer использует конфиг: `reflector @/etc/xdg/reflector/reflector.conf`

@@ -1,0 +1,62 @@
+---
+# Molecule verify playbook for base_system role
+# Проверяет что базовая настройка системы применена корректно
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check timezone is set
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: _verify_timezone
+      changed_when: false
+      failed_when: _verify_timezone.stdout | length == 0
+
+    - name: Check locale.conf exists
+      ansible.builtin.stat:
+        path: /etc/locale.conf
+      register: _verify_locale_conf
+      failed_when: not _verify_locale_conf.stat.exists
+
+    - name: Check locale.conf content
+      ansible.builtin.slurp:
+        src: /etc/locale.conf
+      register: _verify_locale_content
+      failed_when: "'LANG=' not in (_verify_locale_content.content | b64decode)"
+
+    - name: Check hostname is set
+      ansible.builtin.command: hostname
+      register: _verify_hostname
+      changed_when: false
+      failed_when: _verify_hostname.stdout | length == 0
+
+    - name: Check /etc/hosts contains hostname entry
+      ansible.builtin.command: grep '127.0.1.1' /etc/hosts
+      register: _verify_hosts
+      changed_when: false
+      failed_when: _verify_hosts.rc != 0
+
+    - name: Check pacman.conf has ParallelDownloads
+      ansible.builtin.command: grep '^ParallelDownloads' /etc/pacman.conf
+      register: _verify_pacman_parallel
+      changed_when: false
+      failed_when: _verify_pacman_parallel.rc != 0
+
+    - name: Check pacman.conf has Color
+      ansible.builtin.command: grep '^Color' /etc/pacman.conf
+      register: _verify_pacman_color
+      changed_when: false
+      failed_when: _verify_pacman_color.rc != 0
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "Timezone: {{ _verify_timezone.stdout }}"
+          - "Hostname: {{ _verify_hostname.stdout }}"
+          - "locale.conf exists and valid"
+          - "pacman.conf configured (ParallelDownloads, Color)"

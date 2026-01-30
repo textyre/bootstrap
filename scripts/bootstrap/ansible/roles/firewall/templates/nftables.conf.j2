@@ -1,0 +1,46 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+# Базовый firewall для рабочей станции
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Разрешить loopback
+        iifname "lo" accept
+
+        # Разрешить установленные соединения
+        ct state established,related accept
+
+        # Разрешить ICMP (ping)
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+{% if firewall_allow_ssh %}
+        # SSH
+        tcp dport 22 accept
+{% endif %}
+{% for port in firewall_allow_tcp_ports %}
+        tcp dport {{ port }} accept
+{% endfor %}
+{% for port in firewall_allow_udp_ports %}
+        udp dport {{ port }} accept
+{% endfor %}
+
+        # Логировать и отбросить остальное
+        log prefix "[nftables] drop: " counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # Docker bridge forwarding
+        ct state established,related accept
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}

@@ -376,28 +376,125 @@ Phase 2: Ansible (reflector → yay → packages → dotfiles)
 
 ---
 
+## 11. Полная миграция на 13 модульных Ansible ролей
+
+**Дата:** 2026-01-30
+
+**Задача:** Проект использовал смесь shell-скриптов и 4 Ansible ролей. Нужно перейти на полностью автоматизированный Ansible bootstrap с DevOps best practices: маленькие, модульные, тестируемые, заменяемые роли.
+
+**Проблема:**
+- Старый `scripts/bootstrap/bootstrap.sh` — 3-фазный оркестратор (externals → install → deploy) со сложной логикой парсинга аргументов
+- `scripts/bootstrap/externals/externals.sh` — pacman cache setup дублировал то, что делает `ansible.builtin.file`
+- `scripts/lib/log.sh` — кастомное логирование, не нужное при Ansible
+- `roles/dotfiles/` — монолитная роль для user-level + system-level файлов (нарушает single responsibility)
+- `roles/packages/` — содержала управление сервисами и группами пользователей (не её зона ответственности)
+- Только 4 роли покрывали систему, а настройка SSH, git, shell, docker, firewall, user — вне Ansible
+
+**Сделали:** 13 модульных ролей, каждая с Galaxy-совместимой структурой:
+
+```
+base_system → reflector → yay → packages → user → ssh → git → shell → docker → firewall → xorg → lightdm → chezmoi
+```
+
+Каждая роль имеет:
+- `defaults/main.yml` — переменные с namespace `<role>_*`
+- `tasks/main.yml` — задачи с FQCN и тегами
+- `meta/main.yml` — Galaxy metadata
+- `molecule/default/{molecule.yml, converge.yml, verify.yml}` — тесты
+
+**Новые роли (9):**
+1. `base_system` — locale, timezone, hostname, pacman.conf, external cache
+2. `user` — создание пользователя, sudo, wheel group
+3. `ssh` — генерация Ed25519 ключей, hardening sshd
+4. `git` — глобальная конфигурация через `community.general.git_config`
+5. `shell` — bash/zsh конфигурация, aliases, PATH, templates
+6. `docker` — daemon.json, docker group, systemd service
+7. `firewall` — nftables правила, template, service
+8. `xorg` — X11 конфигурация мониторов из `scripts/dotfiles/etc/X11/`
+9. `lightdm` — display manager + resolution script из `scripts/dotfiles/etc/lightdm/`
+
+**Замена `roles/dotfiles/` на 3 роли:**
+- `xorg` — system-level `/etc/X11/` файлы (root:root)
+- `lightdm` — system-level `/etc/lightdm/` файлы (root/lightdm)
+- `chezmoi` — user-level дотфайлы через chezmoi (ansible → chezmoi → dotfiles pipeline)
+
+Причина: system-level файлы требуют `become: true` с root ownership, а user-level — `become_user`. chezmoi обеспечивает шаблонизацию и кроссплатформенность для $HOME файлов.
+
+**Изменения в существующих ролях:**
+- `packages` — удалено управление сервисами (`packages_enable_services`) и группами (`packages_user_groups`), перенесено в `docker`, `lightdm`, `user` роли
+- `reflector`, `yay` — добавлены `meta/main.yml`, теги
+
+**Оркестрация:**
+- `inventory/group_vars/all/system.yml` — новый файл с переменными для 9 ролей
+- `packages.yml` — убраны `packages_enable_services`, `packages_user_groups`; добавлены openssh, chezmoi, nftables
+- `playbooks/workstation.yml` — 13 ролей в 7 фазах с тегами
+- `Taskfile.yml` — 13 test-* задач, обновлённая `test` задача
+
+**Entry point:**
+- Новый `bootstrap.sh` в корне проекта — минимальный: проверка Arch, установка ansible + go-task, vault password, venv, запуск playbook
+- Передача всех аргументов в `ansible-playbook` (--tags, --check, --skip-tags, -e)
+
+**Что удалили:**
+- `scripts/bootstrap/bootstrap.sh` — старый 3-фазный оркестратор
+- `scripts/bootstrap/externals/` — absorbed в `base_system`
+- `scripts/bootstrap/ansible/bootstrap.sh` — absorbed в корневой `bootstrap.sh`
+- `scripts/lib/log.sh` и `scripts/lib/` — не нужны
+- `scripts/bootstrap/gui/` и `scripts/bootstrap/logging/` — __pycache__ remnants
+- `roles/dotfiles/` — заменена тремя ролями
+
+**DevOps tooling:**
+- `.github/workflows/lint.yml` — CI: yamllint, ansible-lint, syntax-check
+- `.pre-commit-config.yaml` — pre-commit hooks
+
+**Ресурсы:**
+- [Ansible Galaxy Role Structure](https://docs.ansible.com/ansible/latest/galaxy/dev_guide.html)
+- [Ansible Best Practices](https://docs.ansible.com/ansible/latest/tips_tricks/ansible_tips_tricks.html)
+- [Red Hat CoP — Automation Good Practices](https://redhat-cop.github.io/automation-good-practices/)
+- [Jeff Geerling — Ansible for DevOps](https://www.ansiblefordevops.com/)
+- [Molecule Documentation](https://docs.ansible.com/projects/molecule/configuration/)
+
+---
+
 ## Итоговая структура
 
 ```
-ansible/
-├── Taskfile.yml           # PREFIX для PATH
-├── ansible.cfg            # vault_password_file = ./vault-pass.sh
-├── vault-pass.sh          # Каскадный resolver: pass → ~/.vault-pass → error
-├── requirements.txt       # Без molecule-plugins
-├── inventory/
-│   ├── hosts.ini
-│   └── group_vars/all/
-│       ├── vault.yml      # Зашифрованный ansible_become_password (Ansible Vault)
-│       └── packages.yml   # Центральный реестр пакетов (data layer)
-├── playbooks/
-│   ├── mirrors-update.yml
-│   └── workstation.yml    # reflector → yay → packages → dotfiles
-└── roles/
-    ├── reflector/         # Зеркала pacman
-    ├── yay/               # AUR helper
-    ├── packages/          # Установка пакетов + сервисы + группы
-    └── dotfiles/          # Развёртывание дотфайлов (user + system)
-        ├── defaults/main.yml    # dotfiles_user, source_dir, file mappings
-        ├── tasks/main.yml       # copy user + system files
-        └── molecule/default/    # converge + verify
+bootstrap/
+├── bootstrap.sh                           # Единственная точка входа
+├── .pre-commit-config.yaml                # Pre-commit hooks
+├── .github/workflows/lint.yml             # CI pipeline
+├── scripts/
+│   ├── bootstrap/ansible/                 # Ansible project
+│   │   ├── ansible.cfg                    # vault_password_file = ./vault-pass.sh
+│   │   ├── Taskfile.yml                   # Task runner (PREFIX для PATH)
+│   │   ├── vault-pass.sh                  # Каскадный resolver: pass → ~/.vault-pass → error
+│   │   ├── requirements.txt               # Python deps
+│   │   ├── inventory/
+│   │   │   ├── hosts.ini
+│   │   │   └── group_vars/all/
+│   │   │       ├── packages.yml           # Реестр пакетов (data layer)
+│   │   │       ├── system.yml             # Системные переменные (9 ролей)
+│   │   │       └── vault.yml              # Encrypted sudo password (AES-256)
+│   │   ├── playbooks/
+│   │   │   ├── workstation.yml            # 13 ролей в 7 фазах
+│   │   │   └── mirrors-update.yml         # Только зеркала
+│   │   └── roles/                         # 13 модульных ролей
+│   │       ├── base_system/               # Locale, timezone, hostname, pacman.conf
+│   │       ├── reflector/                 # Зеркала pacman
+│   │       ├── yay/                       # AUR helper
+│   │       ├── packages/                  # Установка пакетов
+│   │       ├── user/                      # Пользователь, sudo, groups
+│   │       ├── ssh/                       # SSH ключи, sshd hardening
+│   │       ├── git/                       # Git global config
+│   │       ├── shell/                     # Bash/Zsh конфигурация
+│   │       ├── docker/                    # Docker daemon, service
+│   │       ├── firewall/                  # nftables firewall
+│   │       ├── xorg/                      # X11 конфигурация
+│   │       ├── lightdm/                   # Display manager
+│   │       └── chezmoi/                   # Дотфайлы через chezmoi
+│   ├── dotfiles/                          # Исходные дотфайлы (chezmoi source)
+│   ├── ci/                                # CI скрипты
+│   ├── show_installed_packages.sh         # Анализ пакетов
+│   └── show_all_dependencies.sh           # Дерево зависимостей
+├── windows/                               # Windows SSH/sync утилиты
+└── docs/                                  # Документация
 ```

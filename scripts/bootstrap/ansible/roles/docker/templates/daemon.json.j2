@@ -1,0 +1,10 @@
+{
+  "log-driver": "{{ docker_log_driver }}",
+  "log-opts": {
+    "max-size": "{{ docker_log_max_size }}",
+    "max-file": "{{ docker_log_max_file }}"
+  }{% if docker_storage_driver | length > 0 %},
+  "storage-driver": "{{ docker_storage_driver }}"
+{% endif %}
+
+}

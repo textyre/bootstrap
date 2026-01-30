@@ -2,25 +2,72 @@
 # Полная настройка рабочей станции после установки ОС
 #
 # Использование:
-#   Через bootstrap: ./bootstrap.sh  (vault пароль запрашивается один раз)
+#   Через bootstrap: ./bootstrap.sh
 #   Вручную: task workstation
-#   Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
-#   Vault password: ~/.vault-pass или pass show ansible/vault-password
+#   Dry-run: task dry-run
 #
-# Переопределение списка пакетов:
+# Переопределение переменных:
 #   ansible-playbook playbooks/workstation.yml -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'
 #
-# Только установка пакетов (без зеркал):
-#   ansible-playbook playbooks/workstation.yml --tags install
+# Выборочный запуск по тегам:
+#   ansible-playbook playbooks/workstation.yml --tags packages
+#   ansible-playbook playbooks/workstation.yml --tags "docker,firewall"
+#
+# Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
+# Vault password: ~/.vault-pass или pass show ansible/vault-password
+
 - name: Setup workstation
   hosts: localhost
   connection: local
   become: true
   gather_facts: true
+
   roles:
+    # --- Phase 1: System foundation ---
+    - role: base_system
+      tags: [base, system]
+
     - role: reflector
+      tags: [mirrors, reflector]
       when: ansible_os_family == 'Archlinux'
+
+    # --- Phase 2: Package infrastructure ---
     - role: yay
+      tags: [aur, yay]
       when: ansible_os_family == 'Archlinux'
-    - packages
-    - dotfiles
+
+    - role: packages
+      tags: [packages, install]
+
+    # --- Phase 3: User & access ---
+    - role: user
+      tags: [user]
+
+    - role: ssh
+      tags: [ssh, security]
+
+    # --- Phase 4: Development tools ---
+    - role: git
+      tags: [git]
+
+    - role: shell
+      tags: [shell]
+
+    # --- Phase 5: Services ---
+    - role: docker
+      tags: [docker]
+
+    - role: firewall
+      tags: [firewall, security]
+
+    # --- Phase 6: Desktop environment ---
+    - role: xorg
+      tags: [xorg, display]
+      when: ansible_os_family == 'Archlinux'
+
+    - role: lightdm
+      tags: [lightdm, display]
+
+    # --- Phase 7: User dotfiles ---
+    - role: chezmoi
+      tags: [chezmoi, dotfiles]

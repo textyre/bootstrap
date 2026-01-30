@@ -7,7 +7,7 @@
   become: true
   gather_facts: false
   vars_files:
-    - ../../../../inventory/group_vars/all/vault.yml
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
     - name: Check that build dependencies are installed

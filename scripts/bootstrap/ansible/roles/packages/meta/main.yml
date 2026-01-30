@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: packages
+  author: textyre
+  description: Установка пакетов рабочей станции (pacman, apt, AUR)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+  galaxy_tags: [packages, pacman, apt, workstation]
+dependencies: []

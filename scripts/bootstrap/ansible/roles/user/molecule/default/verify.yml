@@ -1,0 +1,39 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ user_name | default(ansible_env.SUDO_USER | default(ansible_user_id)) }}"
+      register: _verify_user
+
+    - name: Check user is in wheel group
+      ansible.builtin.command: "groups {{ user_name | default(ansible_env.SUDO_USER | default(ansible_user_id)) }}"
+      register: _verify_groups
+      changed_when: false
+      failed_when: "'wheel' not in _verify_groups.stdout"
+
+    - name: Check sudoers.d/wheel exists
+      ansible.builtin.stat:
+        path: /etc/sudoers.d/wheel
+      register: _verify_sudoers
+      failed_when: not _verify_sudoers.stat.exists
+
+    - name: Validate sudoers.d/wheel syntax
+      ansible.builtin.command: /usr/sbin/visudo -cf /etc/sudoers.d/wheel
+      register: _verify_sudoers_syntax
+      changed_when: false
+      failed_when: _verify_sudoers_syntax.rc != 0
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "User exists and in wheel group"
+          - "sudoers.d/wheel is valid"

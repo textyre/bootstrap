@@ -1,0 +1,45 @@
+---
+# === Конфигурация Docker ===
+# daemon.json, сервис, группа пользователя
+
+# ---- Конфигурация daemon ----
+
+- name: Ensure /etc/docker directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['docker', 'configure']
+
+- name: Deploy Docker daemon.json
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart docker
+  tags: ['docker', 'configure']
+
+# ---- Группа пользователя ----
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ docker_user }}"
+    groups: docker
+    append: true
+  when: docker_add_user_to_group
+  tags: ['docker', 'configure']
+
+# ---- Сервис ----
+
+- name: Enable and start docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: docker_enable_service
+  tags: ['docker', 'service']

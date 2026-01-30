@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: yay
+  author: textyre
+  description: Сборка и установка yay AUR helper из исходников
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Archlinux
+      versions: [all]
+  galaxy_tags: [archlinux, aur, yay]
+dependencies: []

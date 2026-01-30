@@ -1,0 +1,18 @@
+---
+# === Глобальная конфигурация Git ===
+
+# Целевой пользователь
+git_target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Основные настройки (пустые = не устанавливать)
+git_user_name: ""
+git_user_email: ""
+
+# Настройки по умолчанию
+git_default_branch: "main"
+git_editor: "vim"
+
+# Дополнительные настройки
+git_pull_rebase: true
+git_push_autosetup_remote: true
+git_core_autocrlf: "input"

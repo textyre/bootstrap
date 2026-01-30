@@ -1,0 +1,21 @@
+---
+# === Базовая настройка системы ===
+# Локаль, таймзона, hostname, конфигурация pacman
+
+# Локаль системы
+base_system_locale: "en_US.UTF-8"
+
+# Таймзона
+base_system_timezone: "Asia/Almaty"
+
+# Hostname
+base_system_hostname: "archbox"
+
+# Конфигурация pacman.conf
+base_system_pacman_parallel_downloads: 5
+base_system_pacman_color: true
+base_system_pacman_verbose_pkg_lists: true
+
+# Внешний кэш pacman (опционально, для externals)
+base_system_setup_pacman_cache: false
+base_system_pacman_cache_root: ""

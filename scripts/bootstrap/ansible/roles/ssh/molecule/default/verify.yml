@@ -1,0 +1,50 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check openssh is installed
+      ansible.builtin.package:
+        name: openssh
+        state: present
+      check_mode: true
+      register: _verify_openssh
+      failed_when: _verify_openssh is changed
+
+    - name: Check SSH key exists
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
+      register: _verify_ssh_key
+      failed_when: not _verify_ssh_key.stat.exists
+
+    - name: Check SSH key permissions
+      ansible.builtin.stat:
+        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
+      register: _verify_ssh_key_perms
+      failed_when: _verify_ssh_key_perms.stat.mode != '0600'
+
+    - name: Check sshd is enabled and running
+      ansible.builtin.systemd:
+        name: sshd
+      register: _verify_sshd
+      failed_when: >
+        _verify_sshd.status.ActiveState != 'active' or
+        _verify_sshd.status.UnitFileState != 'enabled'
+
+    - name: Check sshd config has hardened settings
+      ansible.builtin.command: grep '^PermitRootLogin no' /etc/ssh/sshd_config
+      register: _verify_sshd_root
+      changed_when: false
+      failed_when: _verify_sshd_root.rc != 0
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "openssh installed"
+          - "SSH key generated (ed25519, mode 0600)"
+          - "sshd enabled, running, and hardened"

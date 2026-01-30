@@ -1,0 +1,43 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check git init.defaultBranch
+      become: true
+      become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      community.general.git_config:
+        name: init.defaultBranch
+        scope: global
+      register: _verify_git_branch
+      failed_when: _verify_git_branch.config_value != 'main'
+
+    - name: Check git core.editor
+      become: true
+      become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      community.general.git_config:
+        name: core.editor
+        scope: global
+      register: _verify_git_editor
+      failed_when: _verify_git_editor.config_value != 'vim'
+
+    - name: Check git pull.rebase
+      become: true
+      become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      community.general.git_config:
+        name: pull.rebase
+        scope: global
+      register: _verify_git_rebase
+      failed_when: _verify_git_rebase.config_value != 'true'
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "init.defaultBranch = main"
+          - "core.editor = vim"
+          - "pull.rebase = true"

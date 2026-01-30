@@ -1,0 +1,36 @@
+---
+# === Конфигурация shell-окружения ===
+# Настройка bash/zsh, алиасы, PATH, переменные окружения
+
+# Целевой пользователь
+shell_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Тип шелла (bash или zsh)
+shell_type: bash
+
+# Дополнения к PATH
+shell_path_additions:
+  - "$HOME/.local/bin"
+
+# Алиасы
+shell_aliases:
+  ll: "ls -lah --color=auto"
+  la: "ls -A --color=auto"
+  l: "ls -CF --color=auto"
+  grep: "grep --color=auto"
+  df: "df -h"
+  du: "du -h"
+  free: "free -h"
+  gs: "git status"
+  gl: "git log --oneline -20"
+  gd: "git diff"
+
+# Переменные окружения
+shell_env_vars:
+  EDITOR: "vim"
+  VISUAL: "vim"
+  LANG: "en_US.UTF-8"
+
+# Опции шелла
+shell_history_size: 10000
+shell_histcontrol: "ignoreboth:erasedups"

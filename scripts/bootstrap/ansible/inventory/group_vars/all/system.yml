@@ -1,0 +1,80 @@
+---
+# === СИСТЕМНАЯ КОНФИГУРАЦИЯ ===
+# Переменные для ролей: base_system, user, ssh, git, shell, docker, firewall, chezmoi
+#
+# Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
+
+# ============================================================
+#  base_system — роль roles/base_system
+# ============================================================
+
+base_system_locale: "en_US.UTF-8"
+base_system_timezone: "Asia/Almaty"
+base_system_hostname: "archbox"
+base_system_pacman_parallel_downloads: 5
+base_system_pacman_color: true
+base_system_pacman_verbose_pkg_lists: true
+
+# Внешний кэш pacman (опционально)
+base_system_setup_pacman_cache: false
+base_system_pacman_cache_root: ""
+
+# ============================================================
+#  user — роль roles/user
+# ============================================================
+
+user_name: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+user_shell: /bin/bash
+user_groups:
+  - wheel
+user_create_sudo_rule: true
+
+# ============================================================
+#  ssh — роль roles/ssh
+# ============================================================
+
+ssh_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+ssh_generate_key: true
+ssh_key_type: ed25519
+ssh_harden_sshd: true
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+
+# ============================================================
+#  git — роль roles/git
+# ============================================================
+
+git_target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+git_user_name: ""
+git_user_email: ""
+git_default_branch: "main"
+git_editor: "vim"
+
+# ============================================================
+#  shell — роль roles/shell
+# ============================================================
+
+shell_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+shell_type: bash
+
+# ============================================================
+#  docker — роль roles/docker
+# ============================================================
+
+docker_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+docker_enable_service: true
+docker_add_user_to_group: true
+
+# ============================================================
+#  firewall — роль roles/firewall
+# ============================================================
+
+firewall_enabled: true
+firewall_allow_ssh: true
+
+# ============================================================
+#  chezmoi — роль roles/chezmoi
+# ============================================================
+
+chezmoi_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+chezmoi_install_method: pacman

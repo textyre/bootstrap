@@ -1,0 +1,17 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  pre_tasks:
+    - name: Ensure we're running on Arch Linux
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Archlinux'
+        fail_msg: "This test requires Arch Linux"
+
+  roles:
+    - role: firewall

@@ -1,0 +1,42 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check /etc/docker/daemon.json exists
+      ansible.builtin.stat:
+        path: /etc/docker/daemon.json
+      register: _verify_daemon_json
+      failed_when: not _verify_daemon_json.stat.exists
+
+    - name: Check daemon.json is valid JSON
+      ansible.builtin.command: python3 -c "import json; json.load(open('/etc/docker/daemon.json'))"
+      register: _verify_json_valid
+      changed_when: false
+      failed_when: _verify_json_valid.rc != 0
+
+    - name: Check user is in docker group
+      ansible.builtin.command: "groups {{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      register: _verify_docker_group
+      changed_when: false
+      failed_when: "'docker' not in _verify_docker_group.stdout"
+
+    - name: Check docker service is enabled and running
+      ansible.builtin.systemd:
+        name: docker
+      register: _verify_docker_service
+      failed_when: >
+        _verify_docker_service.status.ActiveState != 'active' or
+        _verify_docker_service.status.UnitFileState != 'enabled'
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All checks passed!"
+          - "daemon.json exists and valid"
+          - "User in docker group"
+          - "Docker service enabled and running"

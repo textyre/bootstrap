@@ -1,6 +1,7 @@
 ---
 # === Установка пакетов на рабочую станцию ===
 # Поддержка: Arch Linux (pacman + AUR), Debian/Ubuntu (apt)
+# Только установка пакетов. Сервисы → docker/lightdm роли. Группы → user роль.
 
 # ---- Сбор всех пакетов в единый список ----
 
@@ -74,30 +75,11 @@
   when: ansible_os_family == 'Debian'
   tags: ['install']
 
-# ---- Post-install: сервисы и группы ----
-
-- name: Enable and start services
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    enabled: true
-    state: started
-    daemon_reload: true
-  loop: "{{ packages_enable_services }}"
-  tags: ['service']
-
-- name: Add user to groups
-  ansible.builtin.user:
-    name: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
-    groups: "{{ packages_user_groups }}"
-    append: true
-  when: packages_user_groups | length > 0
-  tags: ['configure']
+# ---- Отчёт ----
 
 - name: Report installed packages
   ansible.builtin.debug:
     msg:
       - "Установлено пакетов: {{ _packages_all | length }}"
       - "AUR пакетов: {{ packages_aur | length }}"
-      - "Сервисов активировано: {{ packages_enable_services | join(', ') }}"
-      - "Группы пользователя: {{ packages_user_groups | join(', ') }}"
   tags: ['install']

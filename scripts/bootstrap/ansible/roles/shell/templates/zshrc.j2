@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+# ~/.zshrc — managed by Ansible (role: shell)
+
+# ---- History ----
+HISTSIZE={{ shell_history_size }}
+SAVEHIST={{ shell_history_size }}
+HISTFILE=~/.zsh_history
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+
+# ---- Shell options ----
+setopt AUTO_CD
+setopt CORRECT
+setopt GLOB_DOTS
+
+# ---- PATH ----
+{% for path in shell_path_additions %}
+[[ ":$PATH:" != *":{{ path }}:"* ]] && export PATH="{{ path }}:$PATH"
+{% endfor %}
+
+# ---- Environment variables ----
+{% for key, value in shell_env_vars.items() %}
+export {{ key }}="{{ value }}"
+{% endfor %}
+
+# ---- Aliases ----
+{% for alias, command in shell_aliases.items() %}
+alias {{ alias }}='{{ command }}'
+{% endfor %}
+
+# ---- Prompt ----
+PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%# '
+
+# ---- Completions ----
+autoload -Uz compinit && compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+
+# ---- FZF integration ----
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --zsh 2>/dev/null)" || true
+fi

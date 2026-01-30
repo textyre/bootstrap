@@ -1,0 +1,14 @@
+---
+# === Конфигурация X11 (Xorg) ===
+# Деплой системных файлов /etc/X11/xorg.conf.d/
+
+# Путь к исходным файлам (scripts/dotfiles/)
+xorg_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+
+# Системные файлы для деплоя
+xorg_system_files:
+  - src: "etc/X11/xorg.conf.d/10-monitor.conf"
+    dest: "/etc/X11/xorg.conf.d/10-monitor.conf"
+    owner: root
+    group: root
+    mode: "0644"
