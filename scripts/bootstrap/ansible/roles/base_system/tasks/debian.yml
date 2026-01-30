@@ -1,0 +1,8 @@
+---
+# === Debian/Ubuntu: системная конфигурация ===
+# Заглушка для будущей реализации
+
+- name: Debian system configuration placeholder
+  ansible.builtin.debug:
+    msg: "Debian/Ubuntu system configuration — not yet implemented"
+  tags: ['system']

@@ -7,3 +7,4 @@
   border_size   = 1
   corner_radius = 10
   bar_height    = 32
+  network_interface_type = "wired"

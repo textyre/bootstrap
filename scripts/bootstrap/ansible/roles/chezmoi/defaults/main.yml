@@ -6,7 +6,10 @@
 chezmoi_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
 
 # Путь к исходным дотфайлам (scripts/dotfiles/)
-chezmoi_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+chezmoi_source_dir: "{{ dotfiles_base_dir | default(role_path ~ '/../../../dotfiles') }}"
 
 # Метод установки: pacman или script
 chezmoi_install_method: pacman
+
+# Тема по умолчанию (передаётся в chezmoi через --promptChoice)
+chezmoi_theme_name: "dracula"

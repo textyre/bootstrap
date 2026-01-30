@@ -1,0 +1,9 @@
+#!/bin/bash
+# Picom launch script (kill-wait-start, same pattern as polybar)
+# Used by i3 exec_always so picom restarts on i3 reload/restart
+
+killall -q picom
+
+while pgrep -u "$UID" -x picom >/dev/null; do sleep 0.2; done
+
+picom --config ~/.config/picom.conf -b

@@ -1,0 +1,9 @@
+---
+# === Arch Linux: установка chezmoi ===
+
+- name: Install chezmoi via pacman
+  community.general.pacman:
+    name: chezmoi
+    state: present
+  when: chezmoi_install_method == 'pacman'
+  tags: ['chezmoi', 'dotfiles', 'install']

@@ -1,0 +1,8 @@
+---
+# === Debian/Ubuntu: установка nftables ===
+
+- name: Ensure nftables is installed (apt)
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+  tags: ['firewall', 'install']

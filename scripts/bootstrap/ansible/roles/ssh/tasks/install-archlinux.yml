@@ -1,0 +1,8 @@
+---
+# === Arch Linux: установка openssh ===
+
+- name: Ensure openssh is installed (pacman)
+  community.general.pacman:
+    name: openssh
+    state: present
+  tags: ['ssh', 'install']

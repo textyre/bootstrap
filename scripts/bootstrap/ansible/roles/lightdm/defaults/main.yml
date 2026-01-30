@@ -3,7 +3,7 @@
 # Display manager: конфиг, greeter, resolution script
 
 # Путь к исходным файлам (scripts/dotfiles/)
-lightdm_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+lightdm_source_dir: "{{ dotfiles_base_dir | default(role_path ~ '/../../../dotfiles') }}"
 
 # Включить и запустить сервис
 lightdm_enable_service: true

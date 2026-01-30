@@ -1,0 +1,12 @@
+---
+# === Debian/Ubuntu: установка chezmoi ===
+# chezmoi не в стандартных репозиториях Debian — устанавливаем через snap или скрипт
+
+- name: Install chezmoi via official script (Debian)
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  ansible.builtin.shell: |
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
+  args:
+    creates: "{{ _chezmoi_user_home | default('~') }}/.local/bin/chezmoi"
+  tags: ['chezmoi', 'dotfiles', 'install']

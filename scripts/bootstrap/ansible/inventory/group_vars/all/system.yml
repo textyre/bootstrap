@@ -5,6 +5,17 @@
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
 
 # ============================================================
+#  Общие переменные (используются всеми ролями)
+# ============================================================
+
+# Единый целевой пользователь — все роли ссылаются на эту переменную
+target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
+# Базовая директория дотфайлов (scripts/dotfiles/)
+# inventory_dir → up 3 levels → scripts/ → dotfiles/
+dotfiles_base_dir: "{{ inventory_dir }}/../../../dotfiles"
+
+# ============================================================
 #  base_system — роль roles/base_system
 # ============================================================
 
@@ -23,7 +34,7 @@ base_system_pacman_cache_root: ""
 #  user — роль roles/user
 # ============================================================
 
-user_name: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+user_name: "{{ target_user }}"
 user_shell: /bin/bash
 user_groups:
   - wheel
@@ -33,7 +44,7 @@ user_create_sudo_rule: true
 #  ssh — роль roles/ssh
 # ============================================================
 
-ssh_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+ssh_user: "{{ target_user }}"
 ssh_generate_key: true
 ssh_key_type: ed25519
 ssh_harden_sshd: true
@@ -44,7 +55,7 @@ ssh_password_authentication: "no"
 #  git — роль roles/git
 # ============================================================
 
-git_target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+git_target_user: "{{ target_user }}"
 git_user_name: ""
 git_user_email: ""
 git_default_branch: "main"
@@ -54,14 +65,16 @@ git_editor: "vim"
 #  shell — роль roles/shell
 # ============================================================
 
-shell_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+shell_user: "{{ target_user }}"
 shell_type: bash
+# chezmoi управляет .zshrc — shell role не деплоит конфиг
+shell_deploy_config: false
 
 # ============================================================
 #  docker — роль roles/docker
 # ============================================================
 
-docker_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+docker_user: "{{ target_user }}"
 docker_enable_service: true
 docker_add_user_to_group: true
 
@@ -76,5 +89,5 @@ firewall_allow_ssh: true
 #  chezmoi — роль roles/chezmoi
 # ============================================================
 
-chezmoi_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+chezmoi_user: "{{ target_user }}"
 chezmoi_install_method: pacman

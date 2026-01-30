@@ -1,6 +1,11 @@
 ---
 # === Базовая настройка системы ===
-# Локаль, таймзона, hostname, конфигурация pacman
+# Локаль, таймзона, hostname, конфигурация пакетного менеджера
+
+# Поддерживаемые OS families (для include_tasks)
+_base_system_supported_os:
+  - Archlinux
+  - Debian
 
 # Локаль системы
 base_system_locale: "en_US.UTF-8"
@@ -11,7 +16,7 @@ base_system_timezone: "Asia/Almaty"
 # Hostname
 base_system_hostname: "archbox"
 
-# Конфигурация pacman.conf
+# Конфигурация pacman.conf (Arch Linux only)
 base_system_pacman_parallel_downloads: 5
 base_system_pacman_color: true
 base_system_pacman_verbose_pkg_lists: true

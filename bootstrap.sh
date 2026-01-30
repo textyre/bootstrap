@@ -29,7 +29,7 @@ fi
 # --- Step 2: Install Ansible if missing ---
 if ! command -v ansible-playbook &>/dev/null; then
     echo "==> Installing Ansible..."
-    sudo pacman -Sy --needed --noconfirm ansible
+    sudo pacman -Syu --needed --noconfirm ansible
 fi
 
 # --- Step 3: Install go-task if missing ---
@@ -64,7 +64,11 @@ if [[ ! -d "${ANSIBLE_DIR}/.venv" ]]; then
     "${ANSIBLE_DIR}/.venv/bin/pip" install -r "${ANSIBLE_DIR}/requirements.txt"
 fi
 
-# --- Step 6: Run workstation playbook ---
+# --- Step 6: Install Ansible Galaxy collections ---
+echo "==> Installing Galaxy collections..."
+ansible-galaxy collection install -r "${ANSIBLE_DIR}/requirements.yml"
+
+# --- Step 7: Run workstation playbook ---
 echo "==> Running workstation playbook..."
 cd "${ANSIBLE_DIR}"
 ansible-playbook playbooks/workstation.yml -v "$@"

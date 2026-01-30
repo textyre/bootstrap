@@ -8,6 +8,10 @@ shell_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
 # Тип шелла (bash или zsh)
 shell_type: bash
 
+# Деплоить конфиг шелла (.bashrc/.zshrc)?
+# false если chezmoi управляет дотфайлами (избегаем бесполезную перезапись)
+shell_deploy_config: true
+
 # Дополнения к PATH
 shell_path_additions:
   - "$HOME/.local/bin"

@@ -2,12 +2,9 @@
 # === Управление пользователем ===
 # Создание/настройка пользователя, sudo, группы
 
-- name: Ensure sudo is installed
-  community.general.pacman:
-    name: sudo
-    state: present
-  when: ansible_os_family == 'Archlinux'
-  tags: ['user', 'sudo']
+- name: Install sudo (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
+  tags: ['user', 'sudo', 'install']
 
 - name: Ensure user exists with correct shell and groups
   ansible.builtin.user:
@@ -18,7 +15,7 @@
     create_home: true
   tags: ['user']
 
-- name: Ensure wheel group has passwordless sudo (development)
+- name: Ensure wheel group has sudo access
   ansible.builtin.copy:
     dest: /etc/sudoers.d/wheel
     content: "%wheel ALL=(ALL:ALL) ALL\n"

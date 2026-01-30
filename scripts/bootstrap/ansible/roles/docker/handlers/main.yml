@@ -1,6 +1,10 @@
 ---
-- name: Restart docker
+- name: Reload service manager
   ansible.builtin.systemd:
+    daemon_reload: true
+  when: ansible_service_mgr == 'systemd'
+
+- name: Restart docker
+  ansible.builtin.service:
     name: docker
     state: restarted
-    daemon_reload: true

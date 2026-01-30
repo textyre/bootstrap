@@ -1,0 +1,9 @@
+---
+# === Arch Linux: установка shell ===
+
+- name: Install shell package (pacman)
+  community.general.pacman:
+    name: "{{ shell_type }}"
+    state: present
+  when: shell_type != 'bash'
+  tags: ['shell', 'install']

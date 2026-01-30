@@ -2,15 +2,23 @@
 # === Деплой дотфайлов через chezmoi ===
 # Установка, инициализация, применение
 
-# ---- Установка chezmoi ----
+# ---- Resolve paths (нужно до install для script метода) ----
 
-- name: Install chezmoi via pacman
-  community.general.pacman:
-    name: chezmoi
-    state: present
-  when:
-    - ansible_os_family == 'Archlinux'
-    - chezmoi_install_method == 'pacman'
+- name: Get user home directory
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ chezmoi_user }}"
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Set user home fact
+  ansible.builtin.set_fact:
+    _chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
+  tags: ['chezmoi', 'dotfiles']
+
+# ---- Установка chezmoi (OS-specific) ----
+
+- name: Install chezmoi (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
   tags: ['chezmoi', 'dotfiles', 'install']
 
 - name: Install chezmoi via official script
@@ -23,18 +31,7 @@
   when: chezmoi_install_method == 'script'
   tags: ['chezmoi', 'dotfiles', 'install']
 
-# ---- Resolve paths ----
-
-- name: Get user home directory
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ chezmoi_user }}"
-  tags: ['chezmoi', 'dotfiles']
-
-- name: Set user home fact
-  ansible.builtin.set_fact:
-    _chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
-  tags: ['chezmoi', 'dotfiles']
+# ---- Validate source ----
 
 - name: Resolve chezmoi source directory
   ansible.builtin.stat:
@@ -85,7 +82,10 @@
   become: true
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command: >
-    chezmoi init --source "{{ chezmoi_source_dir }}" --apply
+    chezmoi init
+    --source "{{ chezmoi_source_dir }}"
+    --promptChoice "Choose color theme={{ chezmoi_theme_name }}"
+    --apply
   args:
     chdir: "{{ _chezmoi_user_home }}"
   register: _chezmoi_apply

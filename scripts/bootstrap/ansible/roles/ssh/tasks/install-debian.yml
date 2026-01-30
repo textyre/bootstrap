@@ -1,0 +1,8 @@
+---
+# === Debian/Ubuntu: установка openssh ===
+
+- name: Ensure openssh is installed (apt)
+  ansible.builtin.apt:
+    name: openssh-server
+    state: present
+  tags: ['ssh', 'install']

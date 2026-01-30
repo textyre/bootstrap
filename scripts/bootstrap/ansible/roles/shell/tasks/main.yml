@@ -13,13 +13,10 @@
     _shell_user_home: "{{ getent_passwd[shell_user][4] }}"
   tags: ['shell']
 
-# ---- Установка шелла ----
+# ---- Установка шелла (OS-specific) ----
 
-- name: Install shell package
-  community.general.pacman:
-    name: "{{ shell_type }}"
-    state: present
-  when: ansible_os_family == 'Archlinux' and shell_type != 'bash'
+- name: Install shell package (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
   tags: ['shell', 'install']
 
 # ---- Создание ~/.local/bin ----
@@ -43,7 +40,7 @@
     group: "{{ shell_user }}"
     mode: '0644'
     backup: true
-  when: shell_type == 'bash'
+  when: shell_type == 'bash' and shell_deploy_config
   tags: ['shell', 'configure']
 
 - name: Deploy shell configuration (zsh)
@@ -54,7 +51,7 @@
     group: "{{ shell_user }}"
     mode: '0644'
     backup: true
-  when: shell_type == 'zsh'
+  when: shell_type == 'zsh' and shell_deploy_config
   tags: ['shell', 'configure']
 
 - name: Report shell configuration

@@ -15,10 +15,11 @@
 #
 # Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
 # Vault password: ~/.vault-pass или pass show ansible/vault-password
+#
+# Тип подключения определяется в inventory/hosts.ini (local или ssh)
 
 - name: Setup workstation
-  hosts: localhost
-  connection: local
+  hosts: workstations
   become: true
   gather_facts: true
 

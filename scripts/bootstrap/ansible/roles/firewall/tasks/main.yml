@@ -2,11 +2,8 @@
 # === Базовый firewall (nftables) ===
 # Минимальный набор правил для рабочей станции
 
-- name: Ensure nftables is installed
-  community.general.pacman:
-    name: nftables
-    state: present
-  when: ansible_os_family == 'Archlinux'
+- name: Install nftables (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
   tags: ['firewall', 'install']
 
 - name: Deploy nftables configuration
@@ -21,10 +18,9 @@
   tags: ['firewall', 'configure']
 
 - name: Enable and start nftables service
-  ansible.builtin.systemd:
+  ansible.builtin.service:
     name: nftables
     enabled: true
     state: started
-    daemon_reload: true
   when: firewall_enabled
   tags: ['firewall', 'service']

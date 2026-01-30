@@ -455,6 +455,78 @@ base_system → reflector → yay → packages → user → ssh → git → shel
 
 ---
 
+## 12. Рефакторинг: безопасность, DRY, мульти-дистро абстракция
+
+**Дата:** 2026-01-30
+
+**Задача:** Исправить проблемы безопасности, устранить DRY-нарушения, подготовить архитектуру для мульти-дистро расширения (ARM, Gentoo, macOS), обеспечить SSH-доступ для удалённого управления.
+
+**Проблемы (найдены при code review):**
+1. **Безопасность:** `pacman -Sy` (partial sync) в bootstrap.sh, отсутствие `ct state invalid drop` в nftables, неполный SSH hardening, ICMP без rate-limit
+2. **DRY:** 6 переменных `*_user` с одинаковым значением, хрупкий путь к dotfiles через `role_path | dirname | dirname | dirname | dirname`
+3. **Архитектура:** Hardcoded pacman вызовы в ролях, `ansible.builtin.systemd` вместо портативного `service`, `hosts: localhost` + `connection: local` в playbook, отсутствие Galaxy collections requirements
+4. **Расширяемость:** `assert Archlinux` в base_system блокирует non-Arch дистрибутивы
+
+**Сделали:**
+
+### Безопасность
+- `pacman -Sy` → `pacman -Syu` в bootstrap.sh
+- nftables: добавлен `ct state invalid drop`, ICMP rate limiting `limit rate 10/second`
+- SSH: добавлены `ClientAliveInterval 300`, `ClientAliveCountMax 2`, `LoginGraceTime 60`
+- Исправлено название задачи sudoers ("passwordless" → "sudo access", контент был correct)
+
+### DRY
+- Единая `target_user` переменная в system.yml, все `*_user` ссылаются на неё
+- `dotfiles_base_dir` в system.yml (`{{ inventory_dir }}/../../../dotfiles`), роли используют fallback
+- Исправлен daemon.json.j2 (лишняя пустая строка)
+
+### Мульти-дистро абстракция
+- **Паттерн:** `include_tasks: "install-{{ ansible_os_family | lower }}.yml"` в каждой роли
+- **base_system:** Разбит на common main.yml + OS-specific archlinux.yml/debian.yml
+- **user, ssh, firewall, shell, chezmoi:** OS-specific install файлы (archlinux.yml + debian.yml заглушки)
+- **Сервисы:** `ansible.builtin.systemd` → `ansible.builtin.service` (портативно: systemd/openrc/launchd)
+- **Handlers:** `daemon_reload` с `when: ansible_service_mgr == 'systemd'`
+- reflector и yay остались Arch-only (assert) — это OS-идентичность
+
+### Инфраструктура
+- Inventory: `[local]` → `[workstations]` (готово для multi-host)
+- Playbook: `hosts: localhost` + `connection: local` → `hosts: workstations` (connection из inventory)
+- ansible.cfg: комментарий про host_key_checking
+- requirements.yml: пинование community.general >=9.0.0, community.crypto >=2.0.0
+- bootstrap.sh + Taskfile: установка Galaxy collections
+
+**Новые файлы (13):**
+```
+roles/base_system/tasks/archlinux.yml
+roles/base_system/tasks/debian.yml
+roles/user/tasks/install-archlinux.yml
+roles/user/tasks/install-debian.yml
+roles/ssh/tasks/install-archlinux.yml
+roles/ssh/tasks/install-debian.yml
+roles/firewall/tasks/install-archlinux.yml
+roles/firewall/tasks/install-debian.yml
+roles/shell/tasks/install-archlinux.yml
+roles/shell/tasks/install-debian.yml
+roles/chezmoi/tasks/install-archlinux.yml
+roles/chezmoi/tasks/install-debian.yml
+requirements.yml
+```
+
+**Как добавить новый дистрибутив:**
+1. Создать `install-<os_family>.yml` в каждой роли (6 файлов)
+2. Создать `<os_family>.yml` в base_system/tasks/ (1 файл)
+3. Добавить OS family в `_base_system_supported_os` список
+4. Добавить пакеты в packages.yml (distro-specific секция)
+5. Добавить хост в inventory/hosts.ini
+
+**Ресурсы:**
+- [Ansible include_tasks](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html)
+- [Ansible service module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html) — портативная альтернатива systemd
+- [Arch Wiki: Partial Upgrades](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported)
+- [nftables: ct state invalid](https://wiki.nftables.org/wiki-nftables/index.php/Matching_connection_tracking_stateful_metainformation)
+
+---
+
 ## Итоговая структура
 
 ```
@@ -468,6 +540,7 @@ bootstrap/
 │   │   ├── Taskfile.yml                   # Task runner (PREFIX для PATH)
 │   │   ├── vault-pass.sh                  # Каскадный resolver: pass → ~/.vault-pass → error
 │   │   ├── requirements.txt               # Python deps
+│   │   ├── requirements.yml              # Galaxy collections
 │   │   ├── inventory/
 │   │   │   ├── hosts.ini
 │   │   │   └── group_vars/all/

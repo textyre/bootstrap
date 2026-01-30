@@ -1,0 +1,8 @@
+---
+# === Arch Linux: установка nftables ===
+
+- name: Ensure nftables is installed (pacman)
+  community.general.pacman:
+    name: nftables
+    state: present
+  tags: ['firewall', 'install']

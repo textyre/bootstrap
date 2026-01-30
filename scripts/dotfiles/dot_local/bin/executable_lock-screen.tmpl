@@ -6,9 +6,10 @@
 set -euo pipefail
 
 TMPIMG="/tmp/lock-screen-$$.png"
+trap 'rm -f "$TMPIMG"' EXIT
 
-# Capture screenshot and blur
-import -window root "$TMPIMG"
+# Capture screenshot (maim is ~10x faster than import) and blur
+maim "$TMPIMG"
 convert "$TMPIMG" -blur 0x8 -modulate 60 "$TMPIMG"
 
 # Lock with i3lock-color
@@ -43,6 +44,3 @@ i3lock \
     --verif-text="..." \
     --wrong-text="!" \
     --nofork
-
-# Cleanup
-rm -f "$TMPIMG"

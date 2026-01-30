@@ -44,11 +44,10 @@
 # ---- Сервис ----
 
 - name: Enable and start LightDM service
-  ansible.builtin.systemd:
+  ansible.builtin.service:
     name: lightdm
     enabled: true
     state: started
-    daemon_reload: true
   when: lightdm_enable_service
   tags: ['lightdm', 'display', 'service']
 

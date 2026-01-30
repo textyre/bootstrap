@@ -1,0 +1,66 @@
+---
+# === Arch Linux: конфигурация pacman ===
+
+# ---- Pacman configuration ----
+
+- name: Enable ParallelDownloads in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*ParallelDownloads'
+    line: "ParallelDownloads = {{ base_system_pacman_parallel_downloads }}"
+  tags: ['system', 'pacman']
+
+- name: Enable Color in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*Color'
+    line: "Color"
+  when: base_system_pacman_color
+  tags: ['system', 'pacman']
+
+- name: Enable VerbosePkgLists in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*VerbosePkgLists'
+    line: "VerbosePkgLists"
+  when: base_system_pacman_verbose_pkg_lists
+  tags: ['system', 'pacman']
+
+# ---- Внешний кэш pacman (опционально) ----
+
+- name: Setup external pacman cache
+  when: base_system_setup_pacman_cache and base_system_pacman_cache_root | length > 0
+  tags: ['system', 'pacman-cache']
+  block:
+    - name: Create pacman cache directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - "{{ base_system_pacman_cache_root }}/var/lib/pacman/sync"
+        - "{{ base_system_pacman_cache_root }}/var/cache/pacman/pkg"
+        - "{{ base_system_pacman_cache_root }}/etc/pacman.d"
+
+    - name: Check if alpm user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: alpm
+      register: _base_system_alpm_user
+      failed_when: false
+
+    - name: Set alpm group ownership on pacman cache dirs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: alpm
+        mode: '2775'
+        recurse: true
+      loop:
+        - "{{ base_system_pacman_cache_root }}/var"
+        - "{{ base_system_pacman_cache_root }}/etc"
+      when: >
+        _base_system_alpm_user.ansible_facts.getent_passwd is defined
+        and 'alpm' in _base_system_alpm_user.ansible_facts.getent_passwd

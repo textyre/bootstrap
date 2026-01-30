@@ -3,7 +3,7 @@
 # Деплой системных файлов /etc/X11/xorg.conf.d/
 
 # Путь к исходным файлам (scripts/dotfiles/)
-xorg_source_dir: "{{ role_path | dirname | dirname | dirname | dirname }}/dotfiles"
+xorg_source_dir: "{{ dotfiles_base_dir | default(role_path ~ '/../../../dotfiles') }}"
 
 # Системные файлы для деплоя
 xorg_system_files:

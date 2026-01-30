@@ -21,6 +21,8 @@ tasks:
       - echo "==> Installing Python dependencies..."
       - '{{.PREFIX}} pip install --upgrade pip'
       - '{{.PREFIX}} pip install -r requirements.txt'
+      - echo "==> Installing Ansible Galaxy collections..."
+      - '{{.PREFIX}} ansible-galaxy collection install -r requirements.yml'
       - echo "Bootstrap complete! Run 'task check' or 'task test'"
 
   check:

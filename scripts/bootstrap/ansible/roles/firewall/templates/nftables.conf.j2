@@ -11,12 +11,15 @@ table inet filter {
         # Разрешить loopback
         iifname "lo" accept
 
+        # Отбросить пакеты с невалидным состоянием
+        ct state invalid drop
+
         # Разрешить установленные соединения
         ct state established,related accept
 
-        # Разрешить ICMP (ping)
-        ip protocol icmp accept
-        ip6 nexthdr icmpv6 accept
+        # Разрешить ICMP с rate limiting (защита от flood)
+        ip protocol icmp limit rate 10/second accept
+        ip6 nexthdr icmpv6 limit rate 10/second accept
 
 {% if firewall_allow_ssh %}
         # SSH

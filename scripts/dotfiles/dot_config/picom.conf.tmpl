@@ -69,15 +69,40 @@ blur-background-exclude = [
   "_GTK_FRAME_EXTENTS@:c"
 ];
 
-# === ANIMATIONS (picom >= 12.5) ===
-animations = true;
-animation-stiffness = 200;
-animation-dampening = 25;
-animation-window-mass = 1;
-animation-clamping = true;
-animation-for-open-window = "zoom";
-animation-for-close-window = "zoom";
-animation-for-transient-window = "slide-down";
+# === ANIMATIONS (mainline picom v12+) ===
+animations = (
+  {
+    triggers = ["open", "show"];
+    preset = "appear";
+    duration = 0.3;
+    scale = 0.95;
+  },
+  {
+    triggers = ["close", "hide"];
+    preset = "disappear";
+    duration = 0.2;
+    scale = 0.95;
+  },
+  {
+    triggers = ["open"];
+    match = "window_type = 'dialog' || window_type = 'popup_menu' || window_type = 'dropdown_menu'";
+    preset = "slide-in";
+    direction = "down";
+    duration = 0.2;
+  },
+  {
+    triggers = ["close"];
+    match = "window_type = 'dialog' || window_type = 'popup_menu' || window_type = 'dropdown_menu'";
+    preset = "slide-out";
+    direction = "down";
+    duration = 0.15;
+  },
+  {
+    triggers = ["geometry"];
+    preset = "geometry-change";
+    duration = 0.15;
+  }
+);
 
 # === FADING ===
 fading = true;

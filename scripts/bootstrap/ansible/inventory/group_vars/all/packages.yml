@@ -64,7 +64,7 @@ packages_xorg:
 # --- Оконный менеджер: визуал и хелперы ---
 # i3 ставится из AUR (i3-rounded-border-patch-git)
 packages_wm:
-  - picom             # композитор (тени, прозрачность, анимации)
+  # picom ставится из AUR (picom-ftlabs-git) — нужен для анимаций
   - dmenu             # минимальный лаунчер (фолбэк)
   - polybar           # статус-бар
   - rofi              # лаунчер приложений и меню
@@ -95,6 +95,7 @@ packages_desktop:
   - xdg-utils         # xdg-open и другие
   - xdg-user-dirs     # ~/Documents, ~/Downloads, ...
   - xss-lock          # автоблокировка экрана
+  - maim              # быстрый захват экрана (lock screen)
   - imagemagick       # блюр для lock screen
   - lxappearance      # GTK тема (GUI)
 
@@ -149,6 +150,7 @@ packages_distro:
 # yay устанавливается отдельной ролью (roles/yay)
 packages_aur:
   - i3-rounded-border-patch-git   # i3 с патчем скруглённых рамок
+  - picom-ftlabs-git              # picom fork с анимациями (zoom, slide-down)
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема

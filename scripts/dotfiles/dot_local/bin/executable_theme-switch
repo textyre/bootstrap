@@ -12,7 +12,7 @@ die() { echo "Error: $1" >&2; exit 1; }
 if [[ $# -ne 1 ]]; then
     echo "Usage: theme-switch <theme_name>"
     echo "Available themes:"
-    chezmoi data --format=json | grep -oP '"themes":\{"\K[^"]+' | tr ',' '\n' | sed 's/^/  /'
+    chezmoi data --format=json | jq -r '.themes | keys[]' | sed 's/^/  /'
     exit 1
 fi
 
@@ -22,12 +22,7 @@ THEME="$1"
 [[ -f "$CHEZMOI_CONFIG" ]] || die "Chezmoi config not found at $CHEZMOI_CONFIG"
 
 # --- Validate theme exists in chezmoi data ---
-AVAILABLE_THEMES=$(chezmoi data --format=json 2>/dev/null | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-themes = data.get('themes', {})
-print(' '.join(themes.keys()))
-" 2>/dev/null || echo "")
+AVAILABLE_THEMES=$(chezmoi data --format=json 2>/dev/null | jq -r '.themes | keys[]' 2>/dev/null | tr '\n' ' ')
 
 if [[ -z "$AVAILABLE_THEMES" ]]; then
     die "Could not read available themes from chezmoi data"
@@ -67,12 +62,18 @@ if [[ -x "$HOME/.config/polybar/launch.sh" ]]; then
     "$HOME/.config/polybar/launch.sh" &
 fi
 
-# Dunst
-if pgrep -x dunst >/dev/null 2>&1; then
-    killall dunst 2>/dev/null || true
-    dunst &
-    disown
+# Picom (reloads config with new theme colors)
+if [[ -x "$HOME/.local/bin/launch-picom" ]]; then
+    "$HOME/.local/bin/launch-picom" &
 fi
+
+# Dunst (no reload support — kill, wait, restart)
+if pgrep -x dunst >/dev/null 2>&1; then
+    killall -q dunst 2>/dev/null
+    while pgrep -x dunst >/dev/null; do sleep 0.1; done
+fi
+dunst &
+disown
 
 notify-send -u low "Theme Switched" "Active theme: $THEME"
 echo "Theme switched to: $THEME"

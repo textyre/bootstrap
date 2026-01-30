@@ -181,7 +181,7 @@ bindsym $mod+n exec --no-startup-id thunar
 
 # === AUTOSTART ===
 exec_always --no-startup-id ~/.config/polybar/launch.sh
-exec --no-startup-id picom --config ~/.config/picom.conf -b
+exec_always --no-startup-id ~/.local/bin/launch-picom
 exec --no-startup-id dunst
 exec --no-startup-id nm-applet
 exec --no-startup-id greenclip daemon

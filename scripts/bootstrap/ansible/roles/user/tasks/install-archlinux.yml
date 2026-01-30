@@ -1,0 +1,8 @@
+---
+# === Arch Linux: установка sudo ===
+
+- name: Ensure sudo is installed (pacman)
+  community.general.pacman:
+    name: sudo
+    state: present
+  tags: ['user', 'sudo', 'install']

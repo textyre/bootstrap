@@ -24,6 +24,8 @@
   magenta         = "#ff79c6"
   cyan            = "#8be9fd"
   orange          = "#ffb86c"
+  gtk_theme       = "Dracula"
+  bat_theme       = "Dracula"
 
 [themes.monochrome]
   bg              = "#1a1a1a"
@@ -47,3 +49,5 @@
   magenta         = "#b267e6"
   cyan            = "#00b7c3"
   orange          = "#d18616"
+  gtk_theme       = "Adwaita-dark"
+  bat_theme       = "base16"

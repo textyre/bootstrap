@@ -1,0 +1,9 @@
+---
+# Galaxy collections used by roles
+# Install: ansible-galaxy collection install -r requirements.yml
+
+collections:
+  - name: community.general
+    version: ">=9.0.0"
+  - name: community.crypto
+    version: ">=2.0.0"

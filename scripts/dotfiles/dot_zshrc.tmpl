@@ -28,6 +28,7 @@ export VISUAL="nvim"
 export TERMINAL="alacritty"
 export BROWSER="firefox"
 export LANG="en_US.UTF-8"
+export BAT_THEME="{{ $t.bat_theme }}"
 
 # ---- Key bindings ----
 bindkey -e
@@ -53,7 +54,7 @@ alias free='free -h'
 alias gs='git status'
 alias gl='git log --oneline -20'
 alias gd='git diff'
-alias cat='bat --paging=never'
+alias cat='bat --paging=never --style=plain'
 alias vim='nvim'
 
 # ---- Plugins ----

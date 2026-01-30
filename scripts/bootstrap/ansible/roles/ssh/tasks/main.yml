@@ -2,13 +2,10 @@
 # === Настройка SSH ===
 # Генерация ключей, hardening sshd
 
-# ---- Установка openssh ----
+# ---- Установка openssh (OS-specific) ----
 
-- name: Ensure openssh is installed
-  community.general.pacman:
-    name: openssh
-    state: present
-  when: ansible_os_family == 'Archlinux'
+- name: Install openssh (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
   tags: ['ssh', 'install']
 
 # ---- Генерация SSH-ключа ----
@@ -59,12 +56,15 @@
     - { regexp: '^#?\s*PubkeyAuthentication', line: "PubkeyAuthentication {{ ssh_pubkey_authentication }}" }
     - { regexp: '^#?\s*X11Forwarding', line: "X11Forwarding {{ ssh_x11_forwarding }}" }
     - { regexp: '^#?\s*MaxAuthTries', line: "MaxAuthTries {{ ssh_max_auth_tries }}" }
+    - { regexp: '^#?\s*ClientAliveInterval', line: "ClientAliveInterval {{ ssh_client_alive_interval }}" }
+    - { regexp: '^#?\s*ClientAliveCountMax', line: "ClientAliveCountMax {{ ssh_client_alive_count_max }}" }
+    - { regexp: '^#?\s*LoginGraceTime', line: "LoginGraceTime {{ ssh_login_grace_time }}" }
   when: ssh_harden_sshd
   notify: Restart sshd
   tags: ['ssh', 'security']
 
 - name: Enable and start sshd
-  ansible.builtin.systemd:
+  ansible.builtin.service:
     name: sshd
     enabled: true
     state: started
