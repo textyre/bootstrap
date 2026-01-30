@@ -1,0 +1,63 @@
+{{- $t := index .themes .theme_name -}}
+/* Rofi Theme Switcher — Cyberpunk Theme */
+
+* {
+    bg:      {{ $t.bg }}ee;
+    bg-alt:  {{ $t.bg_light }}cc;
+    fg:      {{ $t.fg }};
+    fg-dim:  {{ $t.fg_dim }};
+    accent:  {{ $t.accent }};
+    border:  {{ $t.border_active }};
+
+    background-color: transparent;
+    text-color: @fg;
+    font: "{{ .font.mono }} {{ .font.mono_size }}";
+}
+
+window {
+    width: 350px;
+    transparency: "real";
+    background-color: @bg;
+    border: 1px;
+    border-color: @border;
+    border-radius: {{ .layout.corner_radius }}px;
+    padding: 20px;
+}
+
+mainbox {
+    spacing: 12px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    children: [ prompt ];
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+prompt {
+    text-color: @accent;
+}
+
+listview {
+    lines: 4;
+    columns: 1;
+    fixed-height: false;
+    spacing: 4px;
+    scrollbar: false;
+}
+
+element {
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+
+element selected {
+    background-color: @bg-alt;
+    text-color: @accent;
+}
+
+element-text {
+    vertical-align: 0.5;
+}

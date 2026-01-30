@@ -50,6 +50,35 @@
     fail_msg: "Директория с дотфайлами не найдена: {{ chezmoi_source_dir }}"
   tags: ['chezmoi', 'dotfiles']
 
+# ---- Подготовка: обои ----
+
+- name: Check wallpapers source directory
+  ansible.builtin.stat:
+    path: "{{ chezmoi_source_dir }}/wallpapers"
+  register: _chezmoi_wallpapers_dir
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Ensure wallpapers directory exists
+  ansible.builtin.file:
+    path: "{{ _chezmoi_user_home }}/.local/share/wallpapers"
+    state: directory
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_user }}"
+    mode: '0755'
+  when: _chezmoi_wallpapers_dir.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Deploy wallpapers
+  ansible.builtin.copy:
+    src: "{{ chezmoi_source_dir }}/wallpapers/"
+    dest: "{{ _chezmoi_user_home }}/.local/share/wallpapers/"
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_user }}"
+    mode: '0644'
+    remote_src: true
+  when: _chezmoi_wallpapers_dir.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
 # ---- Инициализация и применение ----
 
 - name: Initialize chezmoi from local source

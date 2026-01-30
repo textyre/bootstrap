@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Theme switcher for chezmoi-managed dotfiles
+# Usage: theme-switch <theme_name>
+
+set -euo pipefail
+
+CHEZMOI_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi/chezmoi.toml"
+
+die() { echo "Error: $1" >&2; exit 1; }
+
+# --- Validate arguments ---
+if [[ $# -ne 1 ]]; then
+    echo "Usage: theme-switch <theme_name>"
+    echo "Available themes:"
+    chezmoi data --format=json | grep -oP '"themes":\{"\K[^"]+' | tr ',' '\n' | sed 's/^/  /'
+    exit 1
+fi
+
+THEME="$1"
+
+# --- Check chezmoi config exists ---
+[[ -f "$CHEZMOI_CONFIG" ]] || die "Chezmoi config not found at $CHEZMOI_CONFIG"
+
+# --- Validate theme exists in chezmoi data ---
+AVAILABLE_THEMES=$(chezmoi data --format=json 2>/dev/null | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+themes = data.get('themes', {})
+print(' '.join(themes.keys()))
+" 2>/dev/null || echo "")
+
+if [[ -z "$AVAILABLE_THEMES" ]]; then
+    die "Could not read available themes from chezmoi data"
+fi
+
+FOUND=0
+for t in $AVAILABLE_THEMES; do
+    [[ "$t" == "$THEME" ]] && FOUND=1 && break
+done
+[[ $FOUND -eq 1 ]] || die "Unknown theme '$THEME'. Available: $AVAILABLE_THEMES"
+
+# --- Update chezmoi.toml ---
+if grep -q 'theme_name' "$CHEZMOI_CONFIG"; then
+    sed -i "s/theme_name = .*/theme_name = \"$THEME\"/" "$CHEZMOI_CONFIG"
+else
+    # Append to [data] section
+    if grep -q '^\[data\]' "$CHEZMOI_CONFIG"; then
+        sed -i "/^\[data\]/a\\  theme_name = \"$THEME\"" "$CHEZMOI_CONFIG"
+    else
+        printf '\n[data]\n  theme_name = "%s"\n' "$THEME" >> "$CHEZMOI_CONFIG"
+    fi
+fi
+
+echo "Switching to theme: $THEME"
+
+# --- Apply chezmoi ---
+chezmoi apply
+
+# --- Reload running services ---
+# i3
+if pgrep -x i3 >/dev/null 2>&1; then
+    i3-msg reload >/dev/null 2>&1 || true
+fi
+
+# Polybar
+if [[ -x "$HOME/.config/polybar/launch.sh" ]]; then
+    "$HOME/.config/polybar/launch.sh" &
+fi
+
+# Dunst
+if pgrep -x dunst >/dev/null 2>&1; then
+    killall dunst 2>/dev/null || true
+    dunst &
+    disown
+fi
+
+notify-send -u low "Theme Switched" "Active theme: $THEME"
+echo "Theme switched to: $THEME"

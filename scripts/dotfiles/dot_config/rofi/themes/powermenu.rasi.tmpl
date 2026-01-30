@@ -1,0 +1,60 @@
+{{- $t := index .themes .theme_name -}}
+/* Rofi Power Menu — Cyberpunk Theme */
+
+* {
+    bg:      {{ $t.bg }}ee;
+    fg:      {{ $t.fg }};
+    fg-dim:  {{ $t.fg_dim }};
+    accent:  {{ $t.accent }};
+    urgent:  {{ $t.urgent }};
+    border:  {{ $t.border_active }};
+
+    background-color: transparent;
+    text-color: @fg;
+    font: "{{ .font.icon }} 28";
+}
+
+window {
+    width: 500px;
+    transparency: "real";
+    background-color: @bg;
+    border: 1px;
+    border-color: @border;
+    border-radius: {{ .layout.corner_radius }}px;
+    padding: 30px;
+}
+
+mainbox {
+    children: [ message, listview ];
+    spacing: 20px;
+}
+
+message {
+    padding: 10px;
+}
+
+textbox {
+    font: "{{ .font.mono }} {{ .font.mono_size }}";
+    horizontal-align: 0.5;
+    text-color: @accent;
+}
+
+listview {
+    lines: 1;
+    columns: 5;
+    spacing: 15px;
+    cycle: true;
+    fixed-height: true;
+    scrollbar: false;
+}
+
+element {
+    padding: 20px;
+    border-radius: 10px;
+    horizontal-align: 0.5;
+}
+
+element selected {
+    background-color: @accent;
+    text-color: @bg;
+}

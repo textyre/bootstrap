@@ -1,0 +1,9 @@
+# === Шрифты ===
+# Доступ из шаблонов: {{ .font.mono }}, {{ .font.mono_size }}
+
+[font]
+  mono      = "JetBrainsMono Nerd Font"
+  mono_size = 11
+  bar_size  = 10
+  icon      = "Symbols Nerd Font"
+  icon_size = 12

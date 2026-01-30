@@ -1,0 +1,48 @@
+{{- $t := index .themes .theme_name -}}
+#!/usr/bin/env bash
+# Lock screen with blurred screenshot + i3lock-color
+# Themed via chezmoi
+
+set -euo pipefail
+
+TMPIMG="/tmp/lock-screen-$$.png"
+
+# Capture screenshot and blur
+import -window root "$TMPIMG"
+convert "$TMPIMG" -blur 0x8 -modulate 60 "$TMPIMG"
+
+# Lock with i3lock-color
+i3lock \
+    --image="$TMPIMG" \
+    --color="{{ $t.bg }}ff" \
+    --inside-color="{{ $t.bg }}cc" \
+    --ring-color="{{ $t.accent }}ff" \
+    --ringver-color="{{ $t.success }}ff" \
+    --ringwrong-color="{{ $t.urgent }}ff" \
+    --line-uses-ring \
+    --keyhl-color="{{ $t.accent2 }}ff" \
+    --bshl-color="{{ $t.urgent }}ff" \
+    --separator-color="{{ $t.bg }}ff" \
+    --verif-color="{{ $t.fg }}ff" \
+    --wrong-color="{{ $t.urgent }}ff" \
+    --modif-color="{{ $t.fg_dim }}ff" \
+    --layout-color="{{ $t.fg_dim }}ff" \
+    --time-color="{{ $t.fg }}ff" \
+    --date-color="{{ $t.fg_dim }}ff" \
+    --time-font="{{ .font.mono }}" \
+    --date-font="{{ .font.mono }}" \
+    --verif-font="{{ .font.mono }}" \
+    --wrong-font="{{ .font.mono }}" \
+    --clock \
+    --time-str="%H:%M" \
+    --date-str="%a, %d %b" \
+    --indicator \
+    --radius=120 \
+    --ring-width=8 \
+    --noinput-text="" \
+    --verif-text="..." \
+    --wrong-text="!" \
+    --nofork
+
+# Cleanup
+rm -f "$TMPIMG"

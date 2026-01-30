@@ -1,0 +1,9 @@
+# === Параметры раскладки ===
+# Доступ из шаблонов: {{ .layout.gaps_inner }}, {{ .layout.border_size }}
+
+[layout]
+  gaps_inner    = 4
+  gaps_outer    = 8
+  border_size   = 1
+  corner_radius = 10
+  bar_height    = 32

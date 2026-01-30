@@ -1,0 +1,76 @@
+{{- $t := index .themes .theme_name -}}
+/* Rofi App Launcher — Cyberpunk Theme */
+
+* {
+    bg:       {{ $t.bg }}ee;
+    bg-alt:   {{ $t.bg_light }}cc;
+    fg:       {{ $t.fg }};
+    fg-dim:   {{ $t.fg_dim }};
+    accent:   {{ $t.accent }};
+    accent2:  {{ $t.accent2 }};
+    urgent:   {{ $t.urgent }};
+    border:   {{ $t.border_active }};
+
+    background-color: transparent;
+    text-color: @fg;
+    font: "{{ .font.mono }} {{ .font.mono_size }}";
+}
+
+window {
+    width: 600px;
+    transparency: "real";
+    background-color: @bg;
+    border: 1px;
+    border-color: @border;
+    border-radius: {{ .layout.corner_radius }}px;
+    padding: 20px;
+}
+
+mainbox {
+    spacing: 15px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+prompt {
+    text-color: @accent;
+    padding: 0 8px 0 0;
+}
+
+entry {
+    placeholder: "Search...";
+    placeholder-color: @fg-dim;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    fixed-height: true;
+    spacing: 4px;
+    scrollbar: false;
+}
+
+element {
+    padding: 8px 12px;
+    border-radius: 6px;
+    spacing: 10px;
+}
+
+element selected {
+    background-color: @bg-alt;
+    text-color: @accent;
+}
+
+element-icon {
+    size: 24px;
+}
+
+element-text {
+    vertical-align: 0.5;
+}

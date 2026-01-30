@@ -35,6 +35,54 @@
       register: _verify_picom
       failed_when: not _verify_picom.stat.exists
 
+    - name: Check polybar config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/polybar/config.ini"
+      register: _verify_polybar
+      failed_when: not _verify_polybar.stat.exists
+
+    - name: Check rofi config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/rofi/config.rasi"
+      register: _verify_rofi
+      failed_when: not _verify_rofi.stat.exists
+
+    - name: Check alacritty config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/alacritty/alacritty.toml"
+      register: _verify_alacritty
+      failed_when: not _verify_alacritty.stat.exists
+
+    - name: Check dunst config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/dunst/dunstrc"
+      register: _verify_dunst
+      failed_when: not _verify_dunst.stat.exists
+
+    - name: Check starship config exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/starship.toml"
+      register: _verify_starship
+      failed_when: not _verify_starship.stat.exists
+
+    - name: Check theme-switch is executable
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.local/bin/theme-switch"
+      register: _verify_theme_switch
+      failed_when: not _verify_theme_switch.stat.exists or not _verify_theme_switch.stat.executable
+
+    - name: Check wallpapers directory exists
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.local/share/wallpapers"
+      register: _verify_wallpapers
+      failed_when: not _verify_wallpapers.stat.exists or not _verify_wallpapers.stat.isdir
+
+    - name: Check GTK3 settings exist
+      ansible.builtin.stat:
+        path: "{{ _verify_home }}/.config/gtk-3.0/settings.ini"
+      register: _verify_gtk3
+      failed_when: not _verify_gtk3.stat.exists
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
@@ -43,3 +91,11 @@
           - ".xinitrc deployed"
           - ".config/i3/config deployed"
           - ".config/picom.conf deployed"
+          - ".config/polybar/config.ini deployed"
+          - ".config/rofi/config.rasi deployed"
+          - ".config/alacritty/alacritty.toml deployed"
+          - ".config/dunst/dunstrc deployed"
+          - ".config/starship.toml deployed"
+          - ".local/bin/theme-switch executable"
+          - ".local/share/wallpapers/ exists"
+          - ".config/gtk-3.0/settings.ini deployed"

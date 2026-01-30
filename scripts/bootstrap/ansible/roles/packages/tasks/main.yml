@@ -13,10 +13,15 @@
          + packages_docker
          + packages_xorg
          + packages_wm
+         + packages_filemanager
+         + packages_network
+         + packages_media
+         + packages_desktop
          + packages_graphics
          + packages_session
          + packages_terminal
          + packages_fonts
+         + packages_theming
          + packages_search
          + packages_viewers
          + (packages_distro[ansible_os_family] | default([])) }}

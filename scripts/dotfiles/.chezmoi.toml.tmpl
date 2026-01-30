@@ -1,5 +1,4 @@
-# chezmoi configuration template
-# This file is used to configure chezmoi behavior during initialization
+{{- $theme := promptChoiceOnce . "theme_name" "Choose color theme" (list "dracula" "monochrome") }}
 
 [data]
-# Add any template variables here if needed
+  theme_name = {{ $theme | quote }}

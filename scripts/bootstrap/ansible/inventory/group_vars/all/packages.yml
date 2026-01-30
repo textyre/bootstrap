@@ -64,8 +64,39 @@ packages_xorg:
 # --- Оконный менеджер: визуал и хелперы ---
 # i3 ставится из AUR (i3-rounded-border-patch-git)
 packages_wm:
-  - picom             # композитор (тени, прозрачность)
-  - dmenu             # минимальный лаунчер
+  - picom             # композитор (тени, прозрачность, анимации)
+  - dmenu             # минимальный лаунчер (фолбэк)
+  - polybar           # статус-бар
+  - rofi              # лаунчер приложений и меню
+  - dunst             # демон уведомлений
+  - feh               # управление обоями
+  - flameshot         # скриншоты
+
+# --- Файловый менеджер ---
+packages_filemanager:
+  - thunar            # GUI файловый менеджер
+  - thunar-volman     # управление съёмными носителями
+  - tumbler           # миниатюры
+  - gvfs              # корзина / удалённые ФС
+
+# --- Сеть ---
+packages_network:
+  - networkmanager
+  - network-manager-applet
+
+# --- Медиа и управление ---
+packages_media:
+  - playerctl         # MPRIS управление плеером
+  - pamixer           # управление громкостью PulseAudio
+  - brightnessctl     # управление яркостью
+
+# --- Десктоп-интеграция ---
+packages_desktop:
+  - xdg-utils         # xdg-open и другие
+  - xdg-user-dirs     # ~/Documents, ~/Downloads, ...
+  - xss-lock          # автоблокировка экрана
+  - imagemagick       # блюр для lock screen
+  - lxappearance      # GTK тема (GUI)
 
 # --- Графика ---
 packages_graphics:
@@ -82,9 +113,18 @@ packages_terminal:
 
 # --- Шрифты ---
 packages_fonts:
-  - ttf-jetbrains-mono
+  - ttf-jetbrains-mono-nerd  # JetBrains Mono + Nerd Font иконки
+  - ttf-firacode-nerd
+  - ttf-hack-nerd
+  - ttf-iosevka-nerd
+  - ttf-nerd-fonts-symbols   # только символы/иконки Nerd Font
   - ttf-font-awesome
   - noto-fonts
+  - terminus-font            # bitmap шрифт
+
+# --- Темы и иконки ---
+packages_theming:
+  - papirus-icon-theme       # иконки Papirus
 
 # --- Поиск (fuzzy finder + grep замена) ---
 packages_search:
@@ -108,4 +148,7 @@ packages_distro:
 # --- AUR пакеты (только Arch Linux, через yay) ---
 # yay устанавливается отдельной ролью (roles/yay)
 packages_aur:
-  - i3-rounded-border-patch-git 4.22.r31.gd06f97c4-1    # i3 с патчем скруглённых рамок
+  - i3-rounded-border-patch-git   # i3 с патчем скруглённых рамок
+  - i3lock-color                  # lock screen с кастомизацией цветов
+  - rofi-greenclip                # менеджер буфера обмена для rofi
+  - dracula-gtk-theme             # Dracula GTK тема
