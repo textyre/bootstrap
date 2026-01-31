@@ -127,11 +127,18 @@ try {
     }
 
     $syncSourceInfo = Get-Item -LiteralPath $Global:SYNC_SOURCE_DIR -ErrorAction Stop
-    # Collect all files under the project root (the whole repo is the deployment unit)
-    $syncFiles = Get-ChildItem -LiteralPath $syncSourceInfo.FullName -Recurse -File `
-        -Exclude '*.pyc','*.pyo' |
-        Where-Object { $_.FullName -notmatch '[\\/](\.git|\.venv|__pycache__|\.molecule|\.cache|windows|\.github|\.claude|node_modules|\.vscode|\.idea)[\\/]' } |
-        Sort-Object FullName
+    # Collect all files within the whitelist items
+    $syncFiles = @()
+    foreach ($item in $Global:SYNC_ITEMS) {
+        $itemPath = Join-Path -Path $syncSourceInfo.FullName -ChildPath $item
+        if (Test-Path -LiteralPath $itemPath) {
+            if ((Get-Item -LiteralPath $itemPath).PSIsContainer) {
+                $syncFiles += Get-ChildItem -LiteralPath $itemPath -Recurse -File
+            } else {
+                $syncFiles += Get-Item -LiteralPath $itemPath
+            }
+        }
+    }
 
     Write-Host "Локальная папка:  $($syncSourceInfo.FullName)" -ForegroundColor Yellow
     Write-Host "Найдено файлов:   $($syncFiles.Count)" -ForegroundColor Yellow
@@ -154,6 +161,13 @@ try {
     }
 
     $remotePathLiteral = ConvertTo-PosixLiteral -Value $Global:REMOTE_PATH
+
+    Write-Host "Проверяю доступность сервера..." -ForegroundColor Cyan
+    $tcpTest = Test-NetConnection -ComputerName $Global:SERVER_HOST -Port $Global:SERVER_PORT -WarningAction SilentlyContinue
+    if (-not $tcpTest.TcpTestSucceeded) {
+        throw ("SSH сервер недоступен ({0}:{1}). Убедитесь, что виртуальная машина запущена и проброс портов настроен." -f $Global:SERVER_HOST, $Global:SERVER_PORT)
+    }
+    Write-Host "✓ Сервер доступен" -ForegroundColor Green
 
     Write-Host "Проверяю/создаю удаленную директорию..." -ForegroundColor Cyan
     if ((Invoke-SSHCommand -Command ("mkdir -p {0}" -f $remotePathLiteral)) -ne 0) {
@@ -185,22 +199,20 @@ try {
             "-avz",
             "--delete",
             "--human-readable",
-            "--info=stats2",
-            "--exclude", ".git/",
-            "--exclude", ".github/",
-            "--exclude", ".venv/",
-            "--exclude", "__pycache__/",
-            "--exclude", "*.pyc",
-            "--exclude", "*.pyo",
-            "--exclude", ".molecule/",
-            "--exclude", ".cache/",
-            "--exclude", "windows/",
-            "--exclude", ".claude/",
-            "--exclude", ".pre-commit-config.yaml",
-            "--exclude", "node_modules/",
-            "--exclude", ".vscode/",
-            "--exclude", ".idea/"
+            "--info=stats2"
         )
+
+        foreach ($item in $Global:SYNC_ITEMS) {
+            $itemPath = Join-Path -Path $syncSourceInfo.FullName -ChildPath $item
+            if (Test-Path -LiteralPath $itemPath) {
+                if ((Get-Item -LiteralPath $itemPath).PSIsContainer) {
+                    $rsyncArgs += @("--include", "/$item/", "--include", "/$item/**")
+                } else {
+                    $rsyncArgs += @("--include", "/$item")
+                }
+            }
+        }
+        $rsyncArgs += @("--exclude", "*")
 
         $rsyncArgs += @("-e", (Get-RsyncTransport))
         $rsyncArgs += @($localPath, $remoteTarget)
@@ -225,20 +237,31 @@ try {
         }
 
         if ($syncFiles.Count -eq 0) {
-            throw "В каталоге $($syncSourceInfo.FullName) не найдено файлов для копирования."
+            throw "В белом списке SYNC_ITEMS не найдено файлов для копирования."
         }
 
-        # Copy the whole directory structure. Use scp -r with the directory contents (path\.)
-        $scpArgs = Get-ScpArgs -Recurse
-        $scpSource = Join-Path -Path $syncSourceInfo.FullName -ChildPath '.'
-        $scpArgs += $scpSource
-        $scpArgs += ("{0}:{1}/" -f $script:sshHost, $Global:REMOTE_PATH.TrimEnd('/'))
+        $remoteBase = "{0}:{1}/" -f $script:sshHost, $Global:REMOTE_PATH.TrimEnd('/')
 
-        Write-Verbose ("scp {0}" -f ($scpArgs -join ' '))
-        & scp @scpArgs
+        foreach ($item in $Global:SYNC_ITEMS) {
+            $itemPath = Join-Path -Path $syncSourceInfo.FullName -ChildPath $item
+            if (-not (Test-Path -LiteralPath $itemPath)) {
+                Write-Host "  Пропускаю (не найден): $item" -ForegroundColor Gray
+                continue
+            }
 
-        if ($LASTEXITCODE -ne 0) {
-            throw "scp завершился с ошибкой (код $LASTEXITCODE)."
+            $isDir = (Get-Item -LiteralPath $itemPath).PSIsContainer
+            $scpArgs = if ($isDir) { Get-ScpArgs -Recurse } else { Get-ScpArgs }
+            $scpArgs += $itemPath
+            $scpArgs += $remoteBase
+
+            Write-Verbose ("scp {0}" -f ($scpArgs -join ' '))
+            & scp @scpArgs
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "scp завершился с ошибкой при копировании '$item' (код $LASTEXITCODE)."
+            }
+
+            Write-Host "  ✓ $item" -ForegroundColor Green
         }
 
         $syncUsed = "scp"

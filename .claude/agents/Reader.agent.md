@@ -1,13 +1,8 @@
 ---
 name: reader
-description: Gather context from repository files and external documentation. Use when exploring unfamiliar code, collecting specs, or reading external API docs before making changes.
+description: "Gather context from repository files and external documentation. Use when exploring unfamiliar code, collecting specs, or reading external API docs before making changes."
+tools: Read, Write, Glob, Grep, WebFetch, WebSearch
 model: haiku
-tools:
-  - Read
-  - Write
-  - Glob
-  - Grep
-  - WebFetch
 ---
 
 Назначение: безопасно и полно собрать релевантные файлы/данные из репозитория и вернуть структурированный контекст.
