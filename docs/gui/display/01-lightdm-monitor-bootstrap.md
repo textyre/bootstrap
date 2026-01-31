@@ -11,7 +11,7 @@ tags: [lightdm, display-setup-script, monitor, xrandr]
 
 Документация содержит пример скрипта `monitor-bootstrap.sh`, который запускается
 как `display-setup-script` в LightDM greeter. Сам скрипт должен оставаться в
-`scripts/` (не перемещаем скрипты в этом шаге), здесь — только документация и
+`bin/` (не перемещаем скрипты в этом шаге), здесь — только документация и
 пример кода для копирования/установки.
 
 Файл `/usr/local/bin/monitor-bootstrap.sh` (пример):
@@ -46,4 +46,4 @@ display-setup-script=/usr/local/bin/monitor-bootstrap.sh
 
 Примечание: скрипт должен быть исполняемым (`chmod +x`) и находится в месте,
 доступном для LightDM. В репозитории рекомендуем держать исполняемые скрипты в
-`scripts/` и при установке копировать их в `/usr/local/bin`.
+`bin/` и при установке копировать их в `/usr/local/bin`.

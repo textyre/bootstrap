@@ -1,5 +1,5 @@
 <# ============================================
-   СИНХРОНИЗАЦИЯ СКРИПТОВ С ARCH СЕРВЕРОМ
+   СИНХРОНИЗАЦИЯ ПРОЕКТА С ARCH СЕРВЕРОМ
    Обновляет только измененные файлы (rsync) или полную копию (scp)
    ============================================ #>
 
@@ -126,12 +126,15 @@ try {
         throw "Команда ssh не найдена. Установите OpenSSH (Apps -> Optional Features) и повторите."
     }
 
-    $scriptsDirInfo = Get-Item -LiteralPath $Global:SCRIPTS_DIR -ErrorAction Stop
-    # Collect all files under the scripts directory (we will sync the whole tree)
-    $scriptFiles = Get-ChildItem -LiteralPath $scriptsDirInfo.FullName -Recurse -File | Sort-Object FullName
+    $syncSourceInfo = Get-Item -LiteralPath $Global:SYNC_SOURCE_DIR -ErrorAction Stop
+    # Collect all files under the project root (the whole repo is the deployment unit)
+    $syncFiles = Get-ChildItem -LiteralPath $syncSourceInfo.FullName -Recurse -File `
+        -Exclude '*.pyc','*.pyo' |
+        Where-Object { $_.FullName -notmatch '[\\/](\.git|\.venv|__pycache__|\.molecule|\.cache|windows|\.github|\.claude|node_modules|\.vscode|\.idea)[\\/]' } |
+        Sort-Object FullName
 
-    Write-Host "Локальная папка:  $($scriptsDirInfo.FullName)" -ForegroundColor Yellow
-    Write-Host "Найдено скриптов: $($scriptFiles.Count)" -ForegroundColor Yellow
+    Write-Host "Локальная папка:  $($syncSourceInfo.FullName)" -ForegroundColor Yellow
+    Write-Host "Найдено файлов:   $($syncFiles.Count)" -ForegroundColor Yellow
     Write-Host ("Удаленный сервер: {0}:{1}" -f $script:sshHost, $script:sshPort) -ForegroundColor Yellow
     Write-Host "Удаленный путь:   $($Global:REMOTE_PATH)" -ForegroundColor Yellow
     Write-Host ""
@@ -169,7 +172,7 @@ try {
     if ($rsyncCmd) {
         Write-Host "Используем rsync (только изменения, с удалением лишнего)..." -ForegroundColor Cyan
 
-        $localPath = $scriptsDirInfo.FullName -replace '\\', '/'
+        $localPath = $syncSourceInfo.FullName -replace '\\', '/'
         if (-not $localPath.EndsWith('/')) {
             $localPath += '/'
         }
@@ -184,7 +187,19 @@ try {
             "--human-readable",
             "--info=stats2",
             "--exclude", ".git/",
-            "--exclude", ".gitignore"
+            "--exclude", ".github/",
+            "--exclude", ".venv/",
+            "--exclude", "__pycache__/",
+            "--exclude", "*.pyc",
+            "--exclude", "*.pyo",
+            "--exclude", ".molecule/",
+            "--exclude", ".cache/",
+            "--exclude", "windows/",
+            "--exclude", ".claude/",
+            "--exclude", ".pre-commit-config.yaml",
+            "--exclude", "node_modules/",
+            "--exclude", ".vscode/",
+            "--exclude", ".idea/"
         )
 
         $rsyncArgs += @("-e", (Get-RsyncTransport))
@@ -200,7 +215,7 @@ try {
         $syncUsed = "rsync"
         Write-Host "✓ Синхронизация через rsync завершена" -ForegroundColor Green
     } else {
-        Write-Host "rsync недоступен. Переключаемся на scp (копируется вся структура папки scripts)..." -ForegroundColor Yellow
+        Write-Host "rsync недоступен. Переключаемся на scp (копируется весь проект)..." -ForegroundColor Yellow
         Write-Host "Подсказка: winget install rsync  # чтобы включить режим обновления только изменений" -ForegroundColor Gray
         Write-Host ""
 
@@ -209,13 +224,13 @@ try {
             throw "Команда scp не найдена. Установите OpenSSH Client и повторите."
         }
 
-        if ($scriptFiles.Count -eq 0) {
-            throw "В каталоге $($scriptsDirInfo.FullName) не найдено файлов для копирования."
+        if ($syncFiles.Count -eq 0) {
+            throw "В каталоге $($syncSourceInfo.FullName) не найдено файлов для копирования."
         }
 
         # Copy the whole directory structure. Use scp -r with the directory contents (path\.)
         $scpArgs = Get-ScpArgs -Recurse
-        $scpSource = Join-Path -Path $scriptsDirInfo.FullName -ChildPath '.'
+        $scpSource = Join-Path -Path $syncSourceInfo.FullName -ChildPath '.'
         $scpArgs += $scpSource
         $scpArgs += ("{0}:{1}/" -f $script:sshHost, $Global:REMOTE_PATH.TrimEnd('/'))
 
@@ -252,7 +267,7 @@ try {
     Write-Host "╚═══════════════════════════════════════════╝" -ForegroundColor Green
     Write-Host ""
     Write-Host ("Метод синхронизации: {0}" -f $syncUsed.ToUpperInvariant()) -ForegroundColor Gray
-    Write-Host ("Обновлено файлов:   {0}" -f $scriptFiles.Count) -ForegroundColor Gray
+    Write-Host ("Обновлено файлов:   {0}" -f $syncFiles.Count) -ForegroundColor Gray
     Write-Host ("Время выполнения:   {0:N1} с" -f $duration.TotalSeconds) -ForegroundColor Gray
     Write-Host ""
     Write-Host "Актуальные команды на сервере:" -ForegroundColor Yellow
@@ -263,8 +278,9 @@ try {
     }
     Write-Host ("  {0}" -f $sshSample) -ForegroundColor Gray
     Write-Host ("  cd {0}" -f $Global:REMOTE_PATH) -ForegroundColor Gray
-    Write-Host "  ./show_installed_packages.sh" -ForegroundColor Gray
-    Write-Host "  ./show_all_dependencies.sh" -ForegroundColor Gray
+    Write-Host "  ./bootstrap.sh" -ForegroundColor Gray
+    Write-Host "  ./bin/show-installed-packages.sh" -ForegroundColor Gray
+    Write-Host "  ./bin/show-all-dependencies.sh" -ForegroundColor Gray
     Write-Host ""
 }
 catch {

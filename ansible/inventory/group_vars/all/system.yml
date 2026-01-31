@@ -11,9 +11,9 @@
 # Единый целевой пользователь — все роли ссылаются на эту переменную
 target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
 
-# Базовая директория дотфайлов (scripts/dotfiles/)
-# inventory_dir → up 3 levels → scripts/ → dotfiles/
-dotfiles_base_dir: "{{ inventory_dir }}/../../../dotfiles"
+# Базовая директория дотфайлов (dotfiles/ в корне репозитория)
+# REPO_ROOT задаётся в Taskfile.yml → абсолютный путь к корню репозитория
+dotfiles_base_dir: "{{ lookup('env', 'REPO_ROOT') }}/dotfiles"
 
 # ============================================================
 #  base_system — роль roles/base_system

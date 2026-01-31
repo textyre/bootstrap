@@ -14,12 +14,12 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: ['-c', 'scripts/bootstrap/ansible/.yamllint']
-        files: 'scripts/bootstrap/ansible/.*\.(yml|yaml)$'
+        args: ['-c', 'ansible/.yamllint']
+        files: 'ansible/.*\.(yml|yaml)$'
 
   - repo: https://github.com/ansible/ansible-lint
     rev: v25.1.0
     hooks:
       - id: ansible-lint
-        files: 'scripts/bootstrap/ansible/.*\.(yml|yaml)$'
-        args: ['-c', 'scripts/bootstrap/ansible/.ansible-lint']
+        files: 'ansible/.*\.(yml|yaml)$'
+        args: ['-c', 'ansible/.ansible-lint']

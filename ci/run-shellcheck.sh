@@ -9,8 +9,8 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   exit 2
 fi
 
-echo "Running shellcheck on scripts/ ..."
-shellcheck -x -S info "$ROOT/../scripts"/*.sh || true
-shellcheck -x -S info -r "$(find "$ROOT/../scripts" -type f -name '*.sh' -print)" || true
+echo "Running shellcheck on bin/ and bootstrap.sh ..."
+shellcheck -x -S info "$ROOT/bootstrap.sh" || true
+shellcheck -x -S info "$ROOT/bin"/*.sh || true
 
 echo "Done. Review shellcheck output above (exit code 0 indicates success)."

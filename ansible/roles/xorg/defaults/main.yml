@@ -2,8 +2,8 @@
 # === Конфигурация X11 (Xorg) ===
 # Деплой системных файлов /etc/X11/xorg.conf.d/
 
-# Путь к исходным файлам (scripts/dotfiles/)
-xorg_source_dir: "{{ dotfiles_base_dir | default(role_path ~ '/../../../dotfiles') }}"
+# Путь к исходным файлам (dotfiles/ в корне репозитория)
+xorg_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}"
 
 # Системные файлы для деплоя
 xorg_system_files:

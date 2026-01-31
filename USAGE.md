@@ -19,21 +19,23 @@ cd windows
 ### На Arch Linux
 
 ```bash
-cd ~/scripts
+cd ~/bootstrap
 
 # Показать пакеты и прямые зависимости
-./show_installed_packages.sh
+./bin/show-installed-packages.sh
 
 # Показать полное дерево всех зависимостей
-./show_all_dependencies.sh
+./bin/show-all-dependencies.sh
 
 # Сохранить в файл
-./show_installed_packages.sh > packages.txt
+./bin/show-installed-packages.sh > packages.txt
 ```
 
 ## Структура проекта
 
-- **`scripts/`** - Bash скрипты для Arch Linux
+- **`ansible/`** - Ansible проект (роли, плейбуки, инвентарь)
+- **`dotfiles/`** - Исходные дотфайлы (chezmoi source)
+- **`bin/`** - Утилиты для анализа пакетов
 - **`windows/`** - PowerShell утилиты для синхронизации
 - **`docs/`** - Подробная документация
 
@@ -41,21 +43,13 @@ cd ~/scripts
 
 См. [README.md](README.md) и [docs/QUICKSTART.md](docs/QUICKSTART.md)
 
-## Dry-run и логирование для скриптов
-
-Некоторые скрипты в `scripts/` поддерживают безопасный режим симуляции `dry-run` и подробное логирование.
-
-- Включить dry-run через CLI-флаг `--dry-run` или короткий `-n` (пример ниже).
-- Уровень логирования задаётся через `SUITE_LOG_LEVEL` (по умолчанию `info`). Допустимые значения: `error`, `warn`, `info`, `debug`, `trace`.
-- CLI-флаги (`--dry-run`, `--log-level`) имеют приоритет над переменными окружения.
-
-Примеры:
+## Dry-run
 
 ```bash
-# Запуск подсистемы distrobox в режиме dry-run с debug логами
-SUITE_LOG_LEVEL=debug ./scripts/distrobox/bin/manage.sh --dry-run install
+# Показать изменения без применения
+./bootstrap.sh --check
 
-# Альтернатива: флаги CLI
-./scripts/distrobox/bin/manage.sh --debug --dry-run install
+# Через task runner
+task dry-run
 ```
 

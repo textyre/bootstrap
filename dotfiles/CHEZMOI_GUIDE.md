@@ -6,7 +6,7 @@ This project uses [chezmoi](https://www.chezmoi.io/) to manage dotfiles across A
 
 ## Structure
 
-- **`scripts/dotfiles/`** - chezmoi repository with all managed dotfiles
+- **`dotfiles/`** - chezmoi repository with all managed dotfiles
   - `dot_xinitrc` → deployed as `~/.xinitrc`
   - `dot_config/i3/config` → deployed as `~/.config/i3/config`
   - `.chezmoi.toml.tmpl` - chezmoi configuration template
@@ -16,9 +16,9 @@ This project uses [chezmoi](https://www.chezmoi.io/) to manage dotfiles across A
 During `./bootstrap/bootstrap.sh`:
 
 1. **Package installation** - `chezmoi` package is installed via pacman
-2. **Dotfiles application** - `scripts/bootstrap/gui/deploy-dotfiles.sh` runs:
+2. **Dotfiles application** - Ansible chezmoi role runs:
    ```bash
-   chezmoi init --apply /path/to/scripts/dotfiles
+   chezmoi init --apply /path/to/dotfiles
    ```
 
 ## Manual Dotfiles Operations
@@ -45,9 +45,9 @@ chezmoi edit ~/.xinitrc
 
 ## Adding New Dotfiles
 
-1. Place source file in `scripts/dotfiles/` with `dot_` prefix:
-   - `~/.bashrc` → `scripts/dotfiles/dot_bashrc`
-   - `~/.config/foo/bar` → `scripts/dotfiles/dot_config/foo/bar`
+1. Place source file in `dotfiles/` with `dot_` prefix:
+   - `~/.bashrc` → `dotfiles/dot_bashrc`
+   - `~/.config/foo/bar` → `dotfiles/dot_config/foo/bar`
 
 2. Commit to git
 

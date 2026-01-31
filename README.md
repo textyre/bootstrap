@@ -56,8 +56,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 ## Разработка
 
 ```bash
-cd scripts/bootstrap/ansible
-
+# Из корня репозитория:
 task bootstrap    # Установить Python зависимости (один раз)
 task check        # Проверить синтаксис
 task lint         # ansible-lint best practices
@@ -73,48 +72,44 @@ task clean        # Удалить venv
 ```
 bootstrap/
 ├── bootstrap.sh                           # Единственная точка входа
-├── .pre-commit-config.yaml                # Pre-commit hooks
-├── .github/workflows/lint.yml             # CI pipeline
-├── scripts/
-│   ├── bootstrap/ansible/                 # Ansible project
-│   │   ├── ansible.cfg
-│   │   ├── Taskfile.yml                   # Task runner
-│   │   ├── requirements.txt               # Python deps
-│   │   ├── vault-pass.sh                  # Vault password resolver
-│   │   ├── inventory/
-│   │   │   ├── hosts.ini                  # localhost
-│   │   │   └── group_vars/all/
-│   │   │       ├── packages.yml           # Реестр пакетов
-│   │   │       ├── system.yml             # Системные переменные
-│   │   │       └── vault.yml              # Encrypted sudo password
-│   │   ├── playbooks/
-│   │   │   ├── workstation.yml            # Полный bootstrap (13 ролей)
-│   │   │   └── mirrors-update.yml         # Только зеркала
-│   │   └── roles/                         # 13 модульных ролей
-│   │       ├── base_system/
-│   │       ├── reflector/
-│   │       ├── yay/
-│   │       ├── packages/
-│   │       ├── user/
-│   │       ├── ssh/
-│   │       ├── git/
-│   │       ├── shell/
-│   │       ├── docker/
-│   │       ├── firewall/
-│   │       ├── xorg/
-│   │       ├── lightdm/
-│   │       └── chezmoi/
-│   ├── dotfiles/                          # Исходные дотфайлы (chezmoi source)
-│   ├── ci/                                # CI скрипты
-│   ├── show_installed_packages.sh         # Анализ пакетов
-│   └── show_all_dependencies.sh           # Дерево зависимостей
+├── Taskfile.yml                           # Task runner (разработка)
+├── ansible/                               # Ansible project
+│   ├── ansible.cfg
+│   ├── requirements.txt                   # Python deps
+│   ├── vault-pass.sh                      # Vault password resolver
+│   ├── inventory/
+│   │   ├── hosts.ini                      # localhost
+│   │   └── group_vars/all/
+│   │       ├── packages.yml               # Реестр пакетов
+│   │       ├── system.yml                 # Системные переменные
+│   │       └── vault.yml                  # Encrypted sudo password
+│   ├── playbooks/
+│   │   ├── workstation.yml                # Полный bootstrap (13 ролей)
+│   │   └── mirrors-update.yml             # Только зеркала
+│   └── roles/                             # 13 модульных ролей
+│       ├── base_system/
+│       ├── reflector/
+│       ├── yay/
+│       ├── packages/
+│       ├── user/
+│       ├── ssh/
+│       ├── git/
+│       ├── shell/
+│       ├── docker/
+│       ├── firewall/
+│       ├── xorg/
+│       ├── lightdm/
+│       └── chezmoi/
+├── dotfiles/                              # Исходные дотфайлы (chezmoi source)
+├── bin/                                   # Утилиты (анализ пакетов)
+├── ci/                                    # CI скрипты
 ├── windows/                               # Windows SSH/sync утилиты
 └── docs/                                  # Документация
 ```
 
 ## Переменные
 
-Все переменные в `inventory/group_vars/all/`:
+Все переменные в `ansible/inventory/group_vars/all/`:
 
 - **packages.yml** — реестр пакетов (100+ пакетов по категориям)
 - **system.yml** — системные переменные (locale, hostname, user, git, shell, etc.)

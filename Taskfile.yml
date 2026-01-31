@@ -1,10 +1,18 @@
 version: '3'
 
 vars:
-  VENV: .venv
+  ANSIBLE_DIR: ansible
+  VENV: '{{.ANSIBLE_DIR}}/.venv'
   PREFIX: 'env PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH"'
   ANSIBLE: '{{.PREFIX}} ansible-playbook'
   PLAYBOOK: playbooks/workstation.yml
+
+env:
+  REPO_ROOT: '{{.TASKFILE_DIR}}'
+  ANSIBLE_CONFIG: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/ansible.cfg'
+  ANSIBLE_ROLES_PATH: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles:{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/playbooks/roles:~/.ansible/roles:/usr/share/ansible/roles'
+  ANSIBLE_INVENTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/inventory/hosts.ini'
+  ANSIBLE_VAULT_PASSWORD_FILE: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh'
 
 tasks:
   default:
@@ -15,9 +23,10 @@ tasks:
 
   bootstrap:
     desc: "Install all dependencies (run once on fresh system)"
+    dir: '{{.ANSIBLE_DIR}}'
     cmds:
       - echo "==> Creating Python virtual environment..."
-      - python -m venv {{.VENV}}
+      - python -m venv .venv
       - echo "==> Installing Python dependencies..."
       - '{{.PREFIX}} pip install --upgrade pip'
       - '{{.PREFIX}} pip install -r requirements.txt'
@@ -28,6 +37,7 @@ tasks:
   check:
     desc: "Validate playbook syntax"
     deps: [_ensure-venv]
+    dir: '{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Checking playbook syntax..."'
       - "{{.ANSIBLE}} playbooks/mirrors-update.yml --syntax-check"
@@ -37,6 +47,7 @@ tasks:
   lint:
     desc: "Run ansible-lint"
     deps: [_ensure-venv]
+    dir: '{{.ANSIBLE_DIR}}'
     cmds:
       - '{{.PREFIX}} ansible-lint playbooks/ roles/'
 
@@ -66,9 +77,9 @@ tasks:
   test-base-system:
     desc: "Run molecule tests for base_system"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/base_system
+    dir: '{{.ANSIBLE_DIR}}/roles/base_system'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing base_system role..."'
       - '{{.PREFIX}} molecule test'
@@ -76,9 +87,9 @@ tasks:
   test-reflector:
     desc: "Run molecule tests for reflector"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/reflector
+    dir: '{{.ANSIBLE_DIR}}/roles/reflector'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing reflector role..."'
       - '{{.PREFIX}} molecule test'
@@ -86,9 +97,9 @@ tasks:
   test-yay:
     desc: "Run molecule tests for yay"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/yay
+    dir: '{{.ANSIBLE_DIR}}/roles/yay'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing yay role..."'
       - '{{.PREFIX}} molecule test'
@@ -96,9 +107,9 @@ tasks:
   test-packages:
     desc: "Run molecule tests for packages"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/packages
+    dir: '{{.ANSIBLE_DIR}}/roles/packages'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing packages role..."'
       - '{{.PREFIX}} molecule test'
@@ -106,9 +117,9 @@ tasks:
   test-user:
     desc: "Run molecule tests for user"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/user
+    dir: '{{.ANSIBLE_DIR}}/roles/user'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing user role..."'
       - '{{.PREFIX}} molecule test'
@@ -116,9 +127,9 @@ tasks:
   test-ssh:
     desc: "Run molecule tests for ssh"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/ssh
+    dir: '{{.ANSIBLE_DIR}}/roles/ssh'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing ssh role..."'
       - '{{.PREFIX}} molecule test'
@@ -126,9 +137,9 @@ tasks:
   test-git:
     desc: "Run molecule tests for git"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/git
+    dir: '{{.ANSIBLE_DIR}}/roles/git'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing git role..."'
       - '{{.PREFIX}} molecule test'
@@ -136,9 +147,9 @@ tasks:
   test-shell:
     desc: "Run molecule tests for shell"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/shell
+    dir: '{{.ANSIBLE_DIR}}/roles/shell'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing shell role..."'
       - '{{.PREFIX}} molecule test'
@@ -146,9 +157,9 @@ tasks:
   test-docker:
     desc: "Run molecule tests for docker"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/docker
+    dir: '{{.ANSIBLE_DIR}}/roles/docker'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing docker role..."'
       - '{{.PREFIX}} molecule test'
@@ -156,9 +167,9 @@ tasks:
   test-firewall:
     desc: "Run molecule tests for firewall"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/firewall
+    dir: '{{.ANSIBLE_DIR}}/roles/firewall'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing firewall role..."'
       - '{{.PREFIX}} molecule test'
@@ -166,9 +177,9 @@ tasks:
   test-xorg:
     desc: "Run molecule tests for xorg"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/xorg
+    dir: '{{.ANSIBLE_DIR}}/roles/xorg'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing xorg role..."'
       - '{{.PREFIX}} molecule test'
@@ -176,9 +187,9 @@ tasks:
   test-lightdm:
     desc: "Run molecule tests for lightdm"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/lightdm
+    dir: '{{.ANSIBLE_DIR}}/roles/lightdm'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing lightdm role..."'
       - '{{.PREFIX}} molecule test'
@@ -186,9 +197,9 @@ tasks:
   test-chezmoi:
     desc: "Run molecule tests for chezmoi"
     deps: [_ensure-venv, _check-vault]
-    dir: roles/chezmoi
+    dir: '{{.ANSIBLE_DIR}}/roles/chezmoi'
     env:
-      MOLECULE_PROJECT_DIRECTORY: "{{.TASKFILE_DIR}}"
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing chezmoi role..."'
       - '{{.PREFIX}} molecule test'
@@ -198,12 +209,14 @@ tasks:
   dry-run:
     desc: "Show what would change without applying"
     deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}'
     cmds:
       - '{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff'
 
   run:
     desc: "Apply playbook (real changes!)"
     deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will modify your system. Continue?"
     cmds:
       - 'echo "==> Running playbook..."'
@@ -212,6 +225,7 @@ tasks:
   workstation:
     desc: "Setup full workstation (all 13 roles)"
     deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:
       - 'echo "==> Setting up workstation..."'
@@ -226,7 +240,7 @@ tasks:
   clean:
     desc: "Remove venv and cache"
     cmds:
-      - rm -rf {{.VENV}} .molecule __pycache__
+      - rm -rf {{.VENV}} {{.ANSIBLE_DIR}}/.molecule {{.ANSIBLE_DIR}}/__pycache__
 
   # --- Internal tasks ---
 
@@ -240,6 +254,7 @@ tasks:
 
   _check-vault:
     internal: true
+    dir: '{{.ANSIBLE_DIR}}'
     silent: true
     preconditions:
       - sh: '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml >/dev/null 2>&1'

@@ -17,7 +17,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ANSIBLE_DIR="${SCRIPT_DIR}/scripts/bootstrap/ansible"
+ANSIBLE_DIR="${SCRIPT_DIR}/ansible"
 VAULT_PASS_FILE="${HOME}/.vault-pass"
 
 # --- Step 1: Verify Arch Linux ---

@@ -102,8 +102,7 @@ pass insert ansible/vault-password
 ## Разработка
 
 ```bash
-cd scripts/bootstrap/ansible
-
+# Из корня репозитория:
 task bootstrap    # Установить Python зависимости (один раз)
 task check        # Проверить синтаксис
 task lint         # ansible-lint

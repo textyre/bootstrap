@@ -6,7 +6,7 @@ Usage:
 
 ```bash
 sudo pacman -S shellcheck  # on Arch
-./scripts/ci/run-shellcheck.sh
+./ci/run-shellcheck.sh
 ```
 
 Integrate this script into CI by executing it as a build step. It exits

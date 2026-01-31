@@ -1,5 +1,8 @@
 # Decisions Log
 
+> **Примечание:** Пути в записях до 2026-01-31 используют старую структуру (`scripts/bootstrap/`, `scripts/dotfiles/`).
+> После рефакторинга: `scripts/bootstrap/` → `ansible/`, `scripts/dotfiles/` → `dotfiles/`, утилиты → `bin/`.
+
 ## Дата: 2026-01-28 — 2026-01-29
 
 ---

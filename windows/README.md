@@ -36,7 +36,7 @@ windows/
 $Global:SERVER_USER = "your_username"
 $Global:SERVER_HOST = "192.168.1.100"
 $Global:SERVER_PORT = 22
-$Global:REMOTE_PATH = "/home/your_username/scripts"
+$Global:REMOTE_PATH = "/home/your_username/bootstrap"
 ```
 
 ### 2. Настройте SSH ключ (один раз)
@@ -260,8 +260,8 @@ sync\sync_to_server.bat
 
 ### Очистка на сервере и запуск
 sudo -S umount ./externals/{run,sys,proc,dev}
-sudo rm -rf ./{scripts,externals}
-./scripts/bootstrap/bootstrap.sh
+sudo rm -rf ./externals
+./bootstrap.sh
 
 ### Автоматизация
 

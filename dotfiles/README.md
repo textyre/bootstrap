@@ -17,14 +17,14 @@ dotfiles/
 Во время bootstrap процесса chezmoi автоматически инициализируется и применяется:
 
 ```bash
-chezmoi init --apply https://your-repo-url/scripts/dotfiles
+chezmoi init --apply https://your-repo-url/dotfiles
 ```
 
 ## Ручное использование
 
 ### Первый запуск
 ```bash
-chezmoi init https://your-repo-url/scripts/dotfiles
+chezmoi init https://your-repo-url/dotfiles
 chezmoi apply
 ```
 

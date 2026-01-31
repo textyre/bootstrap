@@ -40,7 +40,7 @@ packages_tree.txt
 full_dependencies.txt
 
 # ---- Personal / local overrides ----
-windows/config/
+windows/config/config.ps1
 windows/.env
 
 # ---- Sensitive keys ----
@@ -52,6 +52,10 @@ id_rsa*
 .vault-pass
 *.vault-pass
 
-# ---- Runtime state ----
-scripts/state/
+# ---- Python virtual environment ----
+.venv/
+
+# ---- Molecule / Ansible cache ----
+.molecule/
+.cache/
 

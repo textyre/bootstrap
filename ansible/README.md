@@ -5,7 +5,7 @@
 ## Быстрый старт
 
 ```bash
-cd scripts/bootstrap/ansible
+# Из корня репозитория:
 task bootstrap   # Установить Python зависимости (один раз)
 task workstation # Применить все 13 ролей
 ```
