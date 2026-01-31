@@ -24,7 +24,9 @@
       "Bash(pip3 show:*)",
       "Bash(python -m pip:*)",
       "Bash(grep:*)",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(powershell -File:*)",
+      "Bash(ansible all -i inventory/hosts.yml -m shell -a \"faillock --reset --user textyre; rm -f /etc/sudoers.d/99-molecule-pacman; ls -la /etc/sudoers.d/; faillock --user textyre\" --become -e 'ansible_become_password=541232')"
     ]
   }
 }

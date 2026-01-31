@@ -37,6 +37,31 @@
   when: ansible_os_family == 'Archlinux'
   tags: ['install']
 
+- name: Remove packages conflicting with AUR replacements
+  community.general.pacman:
+    name: "{{ packages_aur_remove_conflicts }}"
+    state: absent
+  when:
+    - ansible_os_family == 'Archlinux'
+    - packages_aur_remove_conflicts | length > 0
+  tags: ['install', 'aur']
+
+- name: Create temporary SUDO_ASKPASS helper for AUR builds
+  ansible.builtin.copy:
+    dest: /tmp/.ansible_sudo_askpass
+    content: |
+      #!/bin/sh
+      echo '{{ ansible_become_password }}'
+    mode: '0700'
+    owner: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+  no_log: true
+  changed_when: false
+  when:
+    - ansible_os_family == 'Archlinux'
+    - packages_aur | length > 0
+    - ansible_become_password is defined
+  tags: ['install', 'aur']
+
 - name: Check if yay is installed
   ansible.builtin.command: which yay
   register: packages_yay_check
@@ -49,7 +74,10 @@
   become: true
   become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
   ansible.builtin.command: >
-    yay -S --needed --noconfirm {{ item }}
+    yay -S --needed --noconfirm
+    {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
+    {{ item }}
+  environment: "{{ {'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass'} if ansible_become_password is defined else {} }}"
   loop: "{{ packages_aur }}"
   register: packages_yay_install
   changed_when: "'there is nothing to do' not in packages_yay_install.stdout | default('')"
@@ -66,6 +94,16 @@
     - ansible_os_family == 'Archlinux'
     - packages_yay_check.rc is defined
     - packages_yay_check.rc != 0
+    - packages_aur | length > 0
+  tags: ['install', 'aur']
+
+- name: Remove temporary SUDO_ASKPASS helper
+  ansible.builtin.file:
+    path: /tmp/.ansible_sudo_askpass
+    state: absent
+  changed_when: false
+  when:
+    - ansible_os_family == 'Archlinux'
     - packages_aur | length > 0
   tags: ['install', 'aur']
 

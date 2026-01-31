@@ -22,3 +22,4 @@ packages_search: []
 packages_viewers: []
 packages_distro: {}
 packages_aur: []
+packages_aur_remove_conflicts: []

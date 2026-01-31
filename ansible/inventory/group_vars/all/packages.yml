@@ -146,10 +146,16 @@ packages_distro:
   Debian:
     - build-essential
 
+# --- Пакеты конфликтующие с AUR заменами ---
+# Удаляются перед установкой AUR пакетов
+packages_aur_remove_conflicts:
+  - picom             # заменяется на picom-ftlabs-git из AUR
+  - i3lock            # заменяется на i3lock-color из AUR
+
 # --- AUR пакеты (только Arch Linux, через yay) ---
 # yay устанавливается отдельной ролью (roles/yay)
 packages_aur:
-  - i3-rounded-border-patch-git   # i3 с патчем скруглённых рамок
+  # i3-rounded-border-patch-git — патч несовместим с i3 4.25+, используется стандартный i3-wm
   - picom-ftlabs-git              # picom fork с анимациями (zoom, slide-down)
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
