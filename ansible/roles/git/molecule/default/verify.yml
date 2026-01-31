@@ -7,32 +7,29 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
-    - name: Check git init.defaultBranch
+    - name: Check git init.defaultBranch  # noqa: command-instead-of-module
       become: true
       become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
-      community.general.git_config:
-        name: init.defaultBranch
-        scope: global
-      register: _verify_git_branch
-      failed_when: _verify_git_branch.config_value != 'main'
+      ansible.builtin.command: git config --global --get init.defaultBranch
+      register: _git_verify_git_branch
+      changed_when: false
+      failed_when: _git_verify_git_branch.stdout != 'main'
 
-    - name: Check git core.editor
+    - name: Check git core.editor  # noqa: command-instead-of-module
       become: true
       become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
-      community.general.git_config:
-        name: core.editor
-        scope: global
-      register: _verify_git_editor
-      failed_when: _verify_git_editor.config_value != 'vim'
+      ansible.builtin.command: git config --global --get core.editor
+      register: _git_verify_git_editor
+      changed_when: false
+      failed_when: _git_verify_git_editor.stdout != 'vim'
 
-    - name: Check git pull.rebase
+    - name: Check git pull.rebase  # noqa: command-instead-of-module
       become: true
       become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
-      community.general.git_config:
-        name: pull.rebase
-        scope: global
-      register: _verify_git_rebase
-      failed_when: _verify_git_rebase.config_value != 'true'
+      ansible.builtin.command: git config --global --get pull.rebase
+      register: _git_verify_git_rebase
+      changed_when: false
+      failed_when: _git_verify_git_rebase.stdout != 'true'
 
     - name: Show test results
       ansible.builtin.debug:

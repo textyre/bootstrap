@@ -18,13 +18,7 @@
     regexp: '^#?\s*{{ base_system_locale }}'
     line: "{{ base_system_locale }} UTF-8"
     state: present
-  register: _base_system_locale_gen
-  tags: ['system', 'locale']
-
-- name: Generate locale
-  ansible.builtin.command: locale-gen
-  when: _base_system_locale_gen is changed
-  changed_when: true
+  notify: Generate locale
   tags: ['system', 'locale']
 
 - name: Set default locale

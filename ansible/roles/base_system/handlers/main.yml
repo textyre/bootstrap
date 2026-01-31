@@ -1,0 +1,6 @@
+---
+# Handlers for base_system role
+
+- name: Generate locale
+  ansible.builtin.command: locale-gen
+  changed_when: true

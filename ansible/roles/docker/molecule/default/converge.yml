@@ -13,5 +13,10 @@
           - ansible_facts['os_family'] == 'Archlinux'
         fail_msg: "This test requires Arch Linux"
 
+    - name: Ensure docker is installed (prerequisite for this role)
+      community.general.pacman:
+        name: docker
+        state: present
+
   roles:
     - role: docker

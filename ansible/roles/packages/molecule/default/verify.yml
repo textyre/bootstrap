@@ -15,8 +15,8 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: packages_pkg_check
-      failed_when: packages_pkg_check is changed
+      register: _packages_pkg_check
+      failed_when: _packages_pkg_check is changed
       loop:
         - git
         - curl
@@ -27,18 +27,18 @@
         name: jq
         state: present
       check_mode: true
-      register: packages_jq_check
-      failed_when: packages_jq_check is changed
+      register: _packages_jq_check
+      failed_when: _packages_jq_check is changed
 
     - name: Verify git is executable  # noqa: command-instead-of-module
       ansible.builtin.command: git --version
       changed_when: false
-      register: packages_git_version
+      register: _packages_git_version
 
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All checks passed!"
-          - "git: {{ packages_git_version.stdout }}"
+          - "git: {{ _packages_git_version.stdout }}"
           - "Base packages: installed"
           - "Tools packages: installed"

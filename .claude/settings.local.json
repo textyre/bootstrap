@@ -19,7 +19,12 @@
       "WebFetch(domain:archlinux.org)",
       "WebFetch(domain:man.archlinux.org)",
       "WebFetch(domain:redhat-cop.github.io)",
-      "WebFetch(domain:www.chezmoi.io)"
+      "WebFetch(domain:www.chezmoi.io)",
+      "Bash(ansible-lint:*)",
+      "Bash(pip3 show:*)",
+      "Bash(python -m pip:*)",
+      "Bash(grep:*)",
+      "Bash(powershell.exe:*)"
     ]
   }
 }

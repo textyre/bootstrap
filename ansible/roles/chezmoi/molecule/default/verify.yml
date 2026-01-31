@@ -5,83 +5,89 @@
   gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/chezmoi/defaults/main.yml"
 
   tasks:
     - name: Check chezmoi is installed
       ansible.builtin.command: which chezmoi
-      register: _verify_chezmoi_bin
+      register: _chezmoi_verify_chezmoi_bin
       changed_when: false
-      failed_when: _verify_chezmoi_bin.rc != 0
+      failed_when: _chezmoi_verify_chezmoi_bin.rc != 0
+
+    - name: Get user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ chezmoi_user }}"
 
     - name: Set user home
       ansible.builtin.set_fact:
-        _verify_home: "{{ ansible_env.HOME }}"
+        _chezmoi_verify_home: "{{ getent_passwd[chezmoi_user][4] }}"
 
     - name: Check .xinitrc exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.xinitrc"
-      register: _verify_xinitrc
-      failed_when: not _verify_xinitrc.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.xinitrc"
+      register: _chezmoi_verify_xinitrc
+      failed_when: not _chezmoi_verify_xinitrc.stat.exists
 
     - name: Check .config/i3/config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/i3/config"
-      register: _verify_i3_config
-      failed_when: not _verify_i3_config.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/i3/config"
+      register: _chezmoi_verify_i3_config
+      failed_when: not _chezmoi_verify_i3_config.stat.exists
 
     - name: Check .config/picom.conf exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/picom.conf"
-      register: _verify_picom
-      failed_when: not _verify_picom.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/picom.conf"
+      register: _chezmoi_verify_picom
+      failed_when: not _chezmoi_verify_picom.stat.exists
 
     - name: Check polybar config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/polybar/config.ini"
-      register: _verify_polybar
-      failed_when: not _verify_polybar.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/polybar/config.ini"
+      register: _chezmoi_verify_polybar
+      failed_when: not _chezmoi_verify_polybar.stat.exists
 
     - name: Check rofi config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/rofi/config.rasi"
-      register: _verify_rofi
-      failed_when: not _verify_rofi.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/rofi/config.rasi"
+      register: _chezmoi_verify_rofi
+      failed_when: not _chezmoi_verify_rofi.stat.exists
 
     - name: Check alacritty config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/alacritty/alacritty.toml"
-      register: _verify_alacritty
-      failed_when: not _verify_alacritty.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
+      register: _chezmoi_verify_alacritty
+      failed_when: not _chezmoi_verify_alacritty.stat.exists
 
     - name: Check dunst config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/dunst/dunstrc"
-      register: _verify_dunst
-      failed_when: not _verify_dunst.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/dunst/dunstrc"
+      register: _chezmoi_verify_dunst
+      failed_when: not _chezmoi_verify_dunst.stat.exists
 
     - name: Check starship config exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/starship.toml"
-      register: _verify_starship
-      failed_when: not _verify_starship.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/starship.toml"
+      register: _chezmoi_verify_starship
+      failed_when: not _chezmoi_verify_starship.stat.exists
 
     - name: Check theme-switch is executable
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.local/bin/theme-switch"
-      register: _verify_theme_switch
-      failed_when: not _verify_theme_switch.stat.exists or not _verify_theme_switch.stat.executable
+        path: "{{ _chezmoi_verify_home }}/.local/bin/theme-switch"
+      register: _chezmoi_verify_theme_switch
+      failed_when: not _chezmoi_verify_theme_switch.stat.exists or not _chezmoi_verify_theme_switch.stat.executable
 
     - name: Check wallpapers directory exists
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.local/share/wallpapers"
-      register: _verify_wallpapers
-      failed_when: not _verify_wallpapers.stat.exists or not _verify_wallpapers.stat.isdir
+        path: "{{ _chezmoi_verify_home }}/.local/share/wallpapers"
+      register: _chezmoi_verify_wallpapers
+      failed_when: not _chezmoi_verify_wallpapers.stat.exists or not _chezmoi_verify_wallpapers.stat.isdir
 
     - name: Check GTK3 settings exist
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/.config/gtk-3.0/settings.ini"
-      register: _verify_gtk3
-      failed_when: not _verify_gtk3.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
+      register: _chezmoi_verify_gtk3
+      failed_when: not _chezmoi_verify_gtk3.stat.exists
 
     - name: Show test results
       ansible.builtin.debug:

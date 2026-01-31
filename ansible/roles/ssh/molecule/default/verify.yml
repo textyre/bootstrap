@@ -2,44 +2,54 @@
 - name: Verify
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/ssh/defaults/main.yml"
 
   tasks:
+    - name: Get user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ ssh_user }}"
+
+    - name: Set user home fact
+      ansible.builtin.set_fact:
+        _ssh_verify_user_home: "{{ getent_passwd[ssh_user][4] }}"
+
     - name: Check openssh is installed
       ansible.builtin.package:
         name: openssh
         state: present
       check_mode: true
-      register: _verify_openssh
-      failed_when: _verify_openssh is changed
+      register: _ssh_verify_openssh
+      failed_when: _ssh_verify_openssh is changed
 
     - name: Check SSH key exists
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
-      register: _verify_ssh_key
-      failed_when: not _verify_ssh_key.stat.exists
+        path: "{{ _ssh_verify_user_home }}/.ssh/id_ed25519"
+      register: _ssh_verify_ssh_key
+      failed_when: not _ssh_verify_ssh_key.stat.exists
 
     - name: Check SSH key permissions
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.ssh/id_ed25519"
-      register: _verify_ssh_key_perms
-      failed_when: _verify_ssh_key_perms.stat.mode != '0600'
+        path: "{{ _ssh_verify_user_home }}/.ssh/id_ed25519"
+      register: _ssh_ssh_verify_ssh_key_perms
+      failed_when: _ssh_ssh_verify_ssh_key_perms.stat.mode != '0600'
 
     - name: Check sshd is enabled and running
       ansible.builtin.systemd:
         name: sshd
-      register: _verify_sshd
+      register: _ssh_verify_sshd
       failed_when: >
-        _verify_sshd.status.ActiveState != 'active' or
-        _verify_sshd.status.UnitFileState != 'enabled'
+        _ssh_verify_sshd.status.ActiveState != 'active' or
+        _ssh_verify_sshd.status.UnitFileState != 'enabled'
 
     - name: Check sshd config has hardened settings
       ansible.builtin.command: grep '^PermitRootLogin no' /etc/ssh/sshd_config
-      register: _verify_sshd_root
+      register: _ssh_ssh_verify_sshd_root
       changed_when: false
-      failed_when: _verify_sshd_root.rc != 0
+      failed_when: _ssh_ssh_verify_sshd_root.rc != 0
 
     - name: Show test results
       ansible.builtin.debug:

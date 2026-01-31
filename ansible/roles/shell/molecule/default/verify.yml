@@ -5,36 +5,46 @@
   gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/shell/defaults/main.yml"
 
   tasks:
+    - name: Get user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ shell_user }}"
+
+    - name: Set user home fact
+      ansible.builtin.set_fact:
+        _shell_verify_user_home: "{{ getent_passwd[shell_user][4] }}"
+
     - name: Determine shell config path
       ansible.builtin.set_fact:
-        _verify_shell_config: >-
-          {{ ansible_env.HOME }}/.{{ shell_type | default('bash') }}rc
+        _shell_verify_shell_config: >-
+          {{ _shell_verify_user_home }}/.{{ shell_type | default('bash') }}rc
 
     - name: Check shell config exists
       ansible.builtin.stat:
-        path: "{{ _verify_shell_config }}"
-      register: _verify_shell_stat
-      failed_when: not _verify_shell_stat.stat.exists
+        path: "{{ _shell_verify_shell_config }}"
+      register: _shell_verify_shell_stat
+      failed_when: not _shell_verify_shell_stat.stat.exists
 
     - name: Check shell config contains managed marker
-      ansible.builtin.command: "grep 'managed by Ansible' {{ _verify_shell_config }}"
-      register: _verify_shell_managed
+      ansible.builtin.command: "grep 'managed by Ansible' {{ _shell_verify_shell_config }}"
+      register: _shell_verify_shell_managed
       changed_when: false
-      failed_when: _verify_shell_managed.rc != 0
+      failed_when: _shell_verify_shell_managed.rc != 0
 
     - name: Check ~/.local/bin exists
       ansible.builtin.stat:
-        path: "{{ ansible_env.HOME }}/.local/bin"
-      register: _verify_local_bin
+        path: "{{ _shell_verify_user_home }}/.local/bin"
+      register: _shell_verify_local_bin
       failed_when: >
-        not _verify_local_bin.stat.exists or
-        not _verify_local_bin.stat.isdir
+        not _shell_verify_local_bin.stat.exists or
+        not _shell_verify_local_bin.stat.isdir
 
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All checks passed!"
-          - "Shell config deployed: {{ _verify_shell_config }}"
+          - "Shell config deployed: {{ _shell_verify_shell_config }}"
           - "~/.local/bin directory exists"

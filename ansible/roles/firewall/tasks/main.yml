@@ -22,5 +22,5 @@
     name: nftables
     enabled: true
     state: started
-  when: firewall_enabled
+  when: firewall_enabled and firewall_enable_service
   tags: ['firewall', 'service']

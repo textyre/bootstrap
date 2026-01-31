@@ -5,9 +5,10 @@
 - name: Verify
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/yay/defaults/main.yml"
 
   tasks:
     - name: Check that build dependencies are installed
@@ -15,33 +16,33 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: yay_dep_check
-      failed_when: yay_dep_check is changed
+      register: _yay_dep_check
+      failed_when: _yay_dep_check is changed
       loop: "{{ yay_build_deps }}"
 
     - name: Check that yay binary exists
       ansible.builtin.command: which yay
       changed_when: false
-      register: _yay_path
+      register: _yay_verify_path
 
     - name: Check that yay is executable
       ansible.builtin.command: yay --version
       changed_when: false
-      register: _yay_version
+      register: _yay_verify_version
 
     - name: Check that temp build directory was cleaned up
       ansible.builtin.find:
         paths: /tmp
         patterns: "yay_build_*"
         file_type: directory
-      register: _yay_build_dirs
-      failed_when: _yay_build_dirs.matched > 0
+      register: _yay_verify_build_dirs
+      failed_when: _yay_verify_build_dirs.matched > 0
 
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All checks passed!"
-          - "yay binary: {{ _yay_path.stdout }}"
-          - "yay version: {{ _yay_version.stdout }}"
+          - "yay binary: {{ _yay_verify_path.stdout }}"
+          - "yay version: {{ _yay_verify_version.stdout }}"
           - "Build dependencies: installed"
           - "Temp build dirs: cleaned up"

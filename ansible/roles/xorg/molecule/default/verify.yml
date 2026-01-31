@@ -2,7 +2,7 @@
 - name: Verify
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
@@ -10,17 +10,17 @@
     - name: Check /etc/X11/xorg.conf.d/10-monitor.conf exists
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: _verify_xorg_monitor
-      failed_when: not _verify_xorg_monitor.stat.exists
+      register: _xorg_verify_xorg_monitor
+      failed_when: not _xorg_verify_xorg_monitor.stat.exists
 
     - name: Check 10-monitor.conf ownership
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: _verify_xorg_perms
+      register: _xorg_verify_xorg_perms
       failed_when: >
-        _verify_xorg_perms.stat.pw_name != 'root' or
-        _verify_xorg_perms.stat.gr_name != 'root' or
-        _verify_xorg_perms.stat.mode != '0644'
+        _xorg_verify_xorg_perms.stat.pw_name != 'root' or
+        _xorg_verify_xorg_perms.stat.gr_name != 'root' or
+        _xorg_verify_xorg_perms.stat.mode != '0644'
 
     - name: Show test results
       ansible.builtin.debug:

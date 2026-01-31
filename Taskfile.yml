@@ -242,6 +242,44 @@ tasks:
     cmds:
       - rm -rf {{.VENV}} {{.ANSIBLE_DIR}}/.molecule {{.ANSIBLE_DIR}}/__pycache__
 
+  vault-create:
+    desc: "Create encrypted vault.yml with sudo password"
+    deps: [_ensure-venv, _ensure-vault-pass]
+    dir: '{{.ANSIBLE_DIR}}'
+    status:
+      - test -f inventory/group_vars/all/vault.yml
+    cmds:
+      - echo "==> Creating encrypted vault.yml..."
+      - |
+        read -s -r -p "Enter sudo password for ansible_become_password: " sudo_pass
+        echo
+        echo "ansible_become_password: \"${sudo_pass}\"" | \
+          {{.PREFIX}} ansible-vault encrypt \
+            --output inventory/group_vars/all/vault.yml -
+        chmod 600 inventory/group_vars/all/vault.yml
+        unset sudo_pass
+      - echo "vault.yml created and encrypted"
+
+  vault-edit:
+    desc: "Edit encrypted vault.yml"
+    deps: [_ensure-venv, _ensure-vault-pass]
+    dir: '{{.ANSIBLE_DIR}}'
+    preconditions:
+      - sh: test -f inventory/group_vars/all/vault.yml
+        msg: "vault.yml not found. Run 'task vault-create' first"
+    cmds:
+      - '{{.PREFIX}} ansible-vault edit inventory/group_vars/all/vault.yml'
+
+  vault-view:
+    desc: "View decrypted vault.yml contents"
+    deps: [_ensure-venv, _ensure-vault-pass]
+    dir: '{{.ANSIBLE_DIR}}'
+    preconditions:
+      - sh: test -f inventory/group_vars/all/vault.yml
+        msg: "vault.yml not found. Run 'task vault-create' first"
+    cmds:
+      - '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml'
+
   # --- Internal tasks ---
 
   _ensure-venv:
@@ -252,11 +290,25 @@ tasks:
       - echo "Run 'task bootstrap' first"
       - exit 1
 
+  _ensure-vault-pass:
+    internal: true
+    silent: true
+    preconditions:
+      - sh: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh >/dev/null 2>&1'
+        msg: |
+          Vault password not configured. Setup:
+            1. echo 'password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+            2. pass insert ansible/vault-password
+
   _check-vault:
     internal: true
     dir: '{{.ANSIBLE_DIR}}'
     silent: true
     preconditions:
+      - sh: test -f inventory/group_vars/all/vault.yml
+        msg: |
+          vault.yml not found. Create it:
+            task vault-create
       - sh: '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml >/dev/null 2>&1'
         msg: |
           Cannot decrypt vault. Setup vault password:
