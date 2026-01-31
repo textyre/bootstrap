@@ -1,0 +1,78 @@
+# ============================================
+# ОБЩИЕ НАСТРОЙКИ ПОДКЛЮЧЕНИЯ К СЕРВЕРУ
+# ============================================
+# Скопируйте этот файл в config.ps1 и измените параметры:
+#   Copy-Item config.ps1.example config.ps1
+#
+# config.ps1 добавлен в .gitignore — ваши данные не попадут в репозиторий.
+
+# Параметры подключения
+$Global:SERVER_USER = "your_username"                  # Имя пользователя на Arch сервере
+$Global:SERVER_HOST = "192.168.1.100"                  # IP адрес или hostname сервера
+$Global:SERVER_PORT = 22                               # Порт SSH (обычно 22 или 2222)
+$Global:REMOTE_PATH = "/home/your_username/bootstrap"  # Путь на сервере
+
+# Пути проекта (вычисляются автоматически)
+$Global:CONFIG_DIR = $PSScriptRoot
+$Global:WINDOWS_DIR = Split-Path -Parent $Global:CONFIG_DIR
+$Global:PROJECT_ROOT = Split-Path -Parent $Global:WINDOWS_DIR
+# Источник синхронизации — корень проекта (репозиторий = единица деплоя)
+$Global:SYNC_SOURCE_DIR = $Global:PROJECT_ROOT
+$Global:DOCS_DIR = Join-Path $Global:PROJECT_ROOT "docs"
+
+# SSH ключи (вычисляются автоматически)
+$Global:SSH_DIR = "$env:USERPROFILE\.ssh"
+$Global:KEY_NAME = "id_rsa_${Global:SERVER_HOST}_${Global:SERVER_PORT}"
+$Global:SSH_KEY = "$Global:SSH_DIR\$Global:KEY_NAME"
+$Global:SSH_PUB_KEY = "$Global:SSH_DIR\${Global:KEY_NAME}.pub"
+$Global:SSH_CONFIG = "$Global:SSH_DIR\config"
+
+# Функция для отображения текущих настроек
+function Show-Config {
+    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host "Текущие настройки подключения" -ForegroundColor Cyan
+    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Сервер:" -ForegroundColor Yellow
+    Write-Host "  User:    $Global:SERVER_USER" -ForegroundColor Gray
+    Write-Host "  Host:    $Global:SERVER_HOST" -ForegroundColor Gray
+    Write-Host "  Port:    $Global:SERVER_PORT" -ForegroundColor Gray
+    Write-Host "  Path:    $Global:REMOTE_PATH" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "SSH ключ:" -ForegroundColor Yellow
+    Write-Host "  Name:    $Global:KEY_NAME" -ForegroundColor Gray
+    Write-Host "  Path:    $Global:SSH_KEY" -ForegroundColor Gray
+    Write-Host "  Exists:  $(Test-Path $Global:SSH_KEY)" -ForegroundColor Gray
+    Write-Host ""
+}
+
+# Функция для проверки настроек
+function Test-Config {
+    $valid = $true
+
+    if ([string]::IsNullOrWhiteSpace($Global:SERVER_USER)) {
+        Write-Host "✗ SERVER_USER не задан" -ForegroundColor Red
+        $valid = $false
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Global:SERVER_HOST)) {
+        Write-Host "✗ SERVER_HOST не задан" -ForegroundColor Red
+        $valid = $false
+    }
+
+    if ($Global:SERVER_PORT -le 0 -or $Global:SERVER_PORT -gt 65535) {
+        Write-Host "✗ SERVER_PORT некорректен (должен быть 1-65535)" -ForegroundColor Red
+        $valid = $false
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Global:REMOTE_PATH)) {
+        Write-Host "✗ REMOTE_PATH не задан" -ForegroundColor Red
+        $valid = $false
+    }
+
+    return $valid
+}
+
+# Информация о загрузке
+Write-Host "✓ Конфигурация загружена" -ForegroundColor Green -NoNewline
+Write-Host (" ({0}@{1}:{2})" -f $Global:SERVER_USER, $Global:SERVER_HOST, $Global:SERVER_PORT) -ForegroundColor Gray
