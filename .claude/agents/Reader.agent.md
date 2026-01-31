@@ -1,5 +1,9 @@
 ---
+name: reader
 description: Субагент: Чтение и сбор контекста (Claude Code)
+tools: Read, Glob, Grep, WebFetch
+model: inherit
+permissionMode: default
 ---
 
 Назначение: безопасно и полно собрать релевантные файлы/данные из репозитория и сформировать спецификацию/контекст для основного (orchestrating) агента.
