@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: vm
+  author: textyre
+  description: VM guest integration (VirtualBox, VMware, Hyper-V) with auto-detection and kernel module management
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+  galaxy_tags: [vm, virtualbox, vmware, hyperv, guest, virtualization, mkinitcpio]
+dependencies: []

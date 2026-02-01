@@ -48,8 +48,8 @@
 # ---- OS-специфичная конфигурация ----
 
 - name: Include OS-specific configuration
-  ansible.builtin.include_tasks: "{{ ansible_os_family | lower }}.yml"
-  when: ansible_os_family in _base_system_supported_os
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
+  when: ansible_facts['os_family'] in _base_system_supported_os
   tags: ['system']
 
 # ---- Отчёт ----
@@ -57,7 +57,7 @@
 - name: Report base system configuration
   ansible.builtin.debug:
     msg:
-      - "OS: {{ ansible_os_family }}"
+      - "OS: {{ ansible_facts['os_family'] }}"
       - "Таймзона: {{ base_system_timezone }}"
       - "Локаль: {{ base_system_locale }}"
       - "Hostname: {{ base_system_hostname }}"

@@ -20,7 +20,7 @@
 yay_aur_url: "https://aur.archlinux.org/yay.git"
 
 # Пользователь для сборки (makepkg не работает от root)
-yay_build_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+yay_build_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Зависимости для сборки yay из исходников
 yay_build_deps:
@@ -99,6 +99,7 @@ packages_desktop:
   - maim              # быстрый захват экрана (lock screen)
   - imagemagick       # блюр для lock screen
   - lxappearance      # GTK тема (GUI)
+  - arandr            # GUI для xrandr (настройки дисплея)
 
 # --- Графика ---
 packages_graphics:
@@ -149,16 +150,17 @@ packages_distro:
     - build-essential
 
 # --- VirtualBox Guest Additions (only if running in VirtualBox VM) ---
+# Used by role: vm
 packages_virtualbox_guest:
-  - virtualbox-guest-utils   # Guest Additions (shared folders, resize, vboxvideo)
-  - mesa-utils               # glxinfo для диагностики
+  - virtualbox-guest-utils   # Guest Additions (shared folders, clipboard, vboxvideo)
 
 # --- VMware Guest Tools (only if running in VMware VM) ---
+# Used by role: vm
 packages_vmware_guest:
-  - open-vm-tools
-  - open-vm-tools-desktop    # X11 clipboard, drag-drop
+  - open-vm-tools            # VMware guest tools (vmtoolsd, vgauthd)
 
 # --- Hyper-V Guest Daemons (only if running in Hyper-V VM) ---
+# Used by role: vm
 packages_hyperv_guest:
   - hyperv                   # hv_fcopy, hv_kvp, hv_vss daemons
 
@@ -177,3 +179,5 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
+  - naivecalendar-git             # rofi-календарь для polybar
+  - eww-git                       # виджет-фреймворк (control center)

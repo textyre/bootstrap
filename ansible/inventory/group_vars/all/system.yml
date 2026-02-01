@@ -9,7 +9,7 @@
 # ============================================================
 
 # Единый целевой пользователь — все роли ссылаются на эту переменную
-target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+target_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Базовая директория дотфайлов (dotfiles/ в корне репозитория)
 # REPO_ROOT задаётся в Taskfile.yml → абсолютный путь к корню репозитория

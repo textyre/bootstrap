@@ -9,7 +9,7 @@
   community.general.pacman:
     update_cache: true
     upgrade: true
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['install', 'upgrade']
 
 # ---- Сбор всех пакетов в единый список ----
@@ -33,7 +33,7 @@
          + packages_theming
          + packages_search
          + packages_viewers
-         + (packages_distro[ansible_os_family] | default([])) }}
+         + (packages_distro[ansible_facts['os_family']] | default([])) }}
   tags: ['install']
 
 # ---- Arch Linux (pacman) ----
@@ -43,7 +43,7 @@
     name: "{{ _packages_all }}"
     state: present
     update_cache: true
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['install']
 
 - name: Remove packages conflicting with AUR replacements
@@ -51,7 +51,7 @@
     name: "{{ packages_aur_remove_conflicts }}"
     state: absent
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_aur_remove_conflicts | length > 0
   tags: ['install', 'aur']
 
@@ -62,11 +62,11 @@
       #!/bin/sh
       echo '{{ ansible_become_password }}'
     mode: '0700'
-    owner: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+    owner: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
   no_log: true
   changed_when: false
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_aur | length > 0
     - ansible_become_password is defined
   tags: ['install', 'aur']
@@ -76,7 +76,7 @@
   register: packages_yay_check
   changed_when: false
   failed_when: false
-  when: ansible_os_family == 'Archlinux' and packages_aur | length > 0
+  when: ansible_facts['os_family'] == 'Archlinux' and packages_aur | length > 0
   tags: ['install', 'aur']
 
 - name: Verify perl is available for AUR builds
@@ -85,28 +85,28 @@
   changed_when: false
   failed_when: _packages_perl_check.rc != 0
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_aur | length > 0
     - packages_yay_check.rc == 0
   tags: ['install', 'aur']
 
 - name: Install AUR packages via yay
   become: true
-  become_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+  become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
   ansible.builtin.command: >
     yay -S --needed --noconfirm
     {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
     {{ item }}
   environment: >-
     {{
-      {'PATH': '/usr/bin/core_perl:' + ansible_env.PATH}
+      {'PATH': '/usr/bin/core_perl:' + ansible_facts['env']['PATH']}
       | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass'} if ansible_become_password is defined else {})
     }}
   loop: "{{ packages_aur }}"
   register: packages_yay_install
   changed_when: "'there is nothing to do' not in packages_yay_install.stdout | default('')"
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_yay_check.rc == 0
     - packages_aur | length > 0
   tags: ['install', 'aur']
@@ -115,7 +115,7 @@
   ansible.builtin.debug:
     msg: "yay не найден — AUR пакеты пропущены: {{ packages_aur | join(', ') }}"
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_yay_check.rc is defined
     - packages_yay_check.rc != 0
     - packages_aur | length > 0
@@ -127,7 +127,7 @@
     state: absent
   changed_when: false
   when:
-    - ansible_os_family == 'Archlinux'
+    - ansible_facts['os_family'] == 'Archlinux'
     - packages_aur | length > 0
   tags: ['install', 'aur']
 
@@ -139,7 +139,7 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
   tags: ['install']
 
 # ---- Отчёт ----

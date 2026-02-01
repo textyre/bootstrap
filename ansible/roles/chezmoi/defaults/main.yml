@@ -3,7 +3,7 @@
 # Установка chezmoi, инициализация и применение из локального источника
 
 # Целевой пользователь
-chezmoi_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+chezmoi_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Путь к исходным дотфайлам (dotfiles/ в корне репозитория)
 chezmoi_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}"

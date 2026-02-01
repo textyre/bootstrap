@@ -1,0 +1,102 @@
+---
+# Molecule prepare playbook for vm role
+# Ensures clean state by removing guest packages before testing
+
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/packages.yml"
+
+  tasks:
+    - name: Detect virtualization type
+      ansible.builtin.set_fact:
+        vm_prepare_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+
+    - name: Stop VirtualBox guest service
+      ansible.builtin.service:
+        name: vboxservice
+        state: stopped
+      when: vm_prepare_virt_type == 'virtualbox'
+      failed_when: false
+
+    - name: Stop vboxadd-service (ISO GA)
+      ansible.builtin.service:
+        name: vboxadd-service
+        state: stopped
+      when: vm_prepare_virt_type == 'virtualbox'
+      failed_when: false
+
+    - name: Remove ISO Guest Additions
+      ansible.builtin.find:
+        paths: /opt
+        patterns: 'VBoxGuestAdditions-*'
+        file_type: directory
+      register: vm_prepare_iso_dirs
+      when: vm_prepare_virt_type == 'virtualbox'
+
+    - name: Run ISO GA uninstall scripts
+      ansible.builtin.command:
+        cmd: "{{ item.path }}/uninstall.sh"
+      loop: "{{ vm_prepare_iso_dirs.files | default([]) }}"
+      when:
+        - vm_prepare_virt_type == 'virtualbox'
+        - vm_prepare_iso_dirs.matched | default(0) > 0
+      register: vm_prepare_iso_uninstall
+      changed_when: vm_prepare_iso_uninstall.rc | default(1) == 0
+      failed_when: false
+
+    - name: Stop VMware guest services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - vmtoolsd
+        - vgauthd
+        - vmware-vmblock-fuse
+      when: vm_prepare_virt_type == 'VMware'
+      failed_when: false
+
+    - name: Stop Hyper-V guest daemons
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - hv_fcopy_daemon
+        - hv_kvp_daemon
+        - hv_vss_daemon
+      when: vm_prepare_virt_type == 'hyperv'
+      failed_when: false
+
+    - name: Remove VirtualBox guest packages
+      ansible.builtin.package:
+        name: "{{ packages_virtualbox_guest }}"
+        state: absent
+      when:
+        - vm_prepare_virt_type == 'virtualbox'
+        - packages_virtualbox_guest | length > 0
+      failed_when: false
+
+    - name: Remove VMware guest packages
+      ansible.builtin.package:
+        name: "{{ packages_vmware_guest }}"
+        state: absent
+      when:
+        - vm_prepare_virt_type == 'VMware'
+        - packages_vmware_guest | length > 0
+      failed_when: false
+
+    - name: Remove Hyper-V guest packages
+      ansible.builtin.package:
+        name: "{{ packages_hyperv_guest }}"
+        state: absent
+      when:
+        - vm_prepare_virt_type == 'hyperv'
+        - packages_hyperv_guest | length > 0
+      failed_when: false
+
+    - name: Report prepare completion
+      ansible.builtin.debug:
+        msg: "Prepare complete for {{ vm_prepare_virt_type }} hypervisor"

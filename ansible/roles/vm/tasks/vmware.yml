@@ -1,0 +1,168 @@
+---
+# === VMware Guest Tools (open-vm-tools) ===
+# Install packages, enable services, verify modules
+
+# ---- Install packages with retries ----
+
+- name: "VMware: Install guest packages"
+  ansible.builtin.package:
+    name: "{{ packages_vmware_guest }}"
+    state: present
+  when: packages_vmware_guest | length > 0
+  register: _vm_vmware_pkg_install
+  retries: 3
+  delay: 5
+  until: _vm_vmware_pkg_install is succeeded
+  tags: ['vm', 'vmware', 'vm:install']
+
+# ---- Time sync conflict check ----
+
+- name: "VMware: Check for systemd-timesyncd conflicts"
+  tags: ['vm', 'vmware', 'vm:verify']
+  block:
+    - name: "VMware: Get systemd-timesyncd status"
+      ansible.builtin.systemd:
+        name: systemd-timesyncd
+      register: _vm_vmware_timesyncd
+      failed_when: false
+
+    - name: "VMware: Warn about time sync conflict"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: systemd-timesyncd is active. vmtoolsd also manages time sync.
+          Consider disabling systemd-timesyncd to avoid conflicts:
+          systemctl disable --now systemd-timesyncd
+      when:
+        - _vm_vmware_timesyncd.status is defined
+        - _vm_vmware_timesyncd.status.ActiveState == 'active'
+
+# ---- Enable and start services ----
+
+- name: "VMware: Enable and start vgauthd service"
+  tags: ['vm', 'vmware', 'vm:service']
+  block:
+    - name: "VMware: Enable vgauthd"
+      ansible.builtin.service:
+        name: vgauthd
+        enabled: true
+        state: started
+      register: _vm_vmware_vgauthd
+
+    - name: "VMware: Check journald for vgauthd errors"
+      ansible.builtin.command:
+        cmd: journalctl -u vgauthd -n 20 --no-pager
+      register: _vm_vmware_vgauthd_journal
+      changed_when: false
+      failed_when: false
+
+    - name: "VMware: Report vgauthd health"
+      ansible.builtin.debug:
+        msg: "vgauthd started successfully"
+      when: _vm_vmware_vgauthd is succeeded
+  rescue:
+    - name: "VMware: vgauthd start failed"
+      ansible.builtin.fail:
+        msg: >-
+          Failed to start vgauthd. Journal output:
+          {{ _vm_vmware_vgauthd_journal.stdout | default('N/A') }}
+
+- name: "VMware: Enable and start vmtoolsd service"
+  tags: ['vm', 'vmware', 'vm:service']
+  block:
+    - name: "VMware: Enable vmtoolsd"
+      ansible.builtin.service:
+        name: vmtoolsd
+        enabled: true
+        state: started
+      register: _vm_vmware_vmtoolsd
+
+    - name: "VMware: Check journald for vmtoolsd errors"
+      ansible.builtin.command:
+        cmd: journalctl -u vmtoolsd -n 20 --no-pager
+      register: _vm_vmware_vmtoolsd_journal
+      changed_when: false
+      failed_when: false
+
+    - name: "VMware: Report vmtoolsd health"
+      ansible.builtin.debug:
+        msg: "vmtoolsd started successfully"
+      when: _vm_vmware_vmtoolsd is succeeded
+  rescue:
+    - name: "VMware: vmtoolsd start failed"
+      ansible.builtin.fail:
+        msg: >-
+          Failed to start vmtoolsd. Journal output:
+          {{ _vm_vmware_vmtoolsd_journal.stdout | default('N/A') }}
+
+- name: "VMware: Enable vmware-vmblock-fuse service"
+  ansible.builtin.systemd:
+    name: vmware-vmblock-fuse
+    enabled: true
+    state: started
+  register: _vm_vmware_vmblock
+  failed_when: false
+  tags: ['vm', 'vmware', 'vm:service']
+
+- name: "VMware: Report vmblock-fuse status"
+  ansible.builtin.debug:
+    msg: "{{ 'vmware-vmblock-fuse enabled' if _vm_vmware_vmblock is succeeded else 'vmware-vmblock-fuse not available (optional)' }}"
+  tags: ['vm', 'vmware', 'vm:service']
+
+# ---- Verify kernel modules ----
+
+- name: "VMware: Check kernel modules loaded"
+  ansible.builtin.command: lsmod
+  register: _vm_vmware_lsmod
+  changed_when: false
+  tags: ['vm', 'vmware', 'vm:verify']
+
+- name: "VMware: Verify vmw_balloon module loaded"
+  ansible.builtin.assert:
+    that: "'vmw_balloon' in _vm_vmware_lsmod.stdout"
+    fail_msg: "vmw_balloon kernel module not loaded. Reboot may be required."
+    success_msg: "vmw_balloon module loaded successfully"
+  tags: ['vm', 'vmware', 'vm:verify']
+
+- name: "VMware: Check vmxnet3 module (optional)"
+  ansible.builtin.debug:
+    msg: "{{ 'vmxnet3 module loaded' if 'vmxnet3' in _vm_vmware_lsmod.stdout else 'vmxnet3 not loaded (uses e1000/other NIC)' }}"
+  tags: ['vm', 'vmware', 'vm:verify']
+
+# ---- Version reporting ----
+
+- name: "VMware: Get vmware-toolbox-cmd version"
+  ansible.builtin.command:
+    cmd: vmware-toolbox-cmd -v
+  register: _vm_vmware_version
+  changed_when: false
+  failed_when: false
+  when: vm_vmware_version_report
+  tags: ['vm', 'vmware', 'vm:verify']
+
+- name: "VMware: Attempt to detect host version"
+  ansible.builtin.command:
+    cmd: vmware-toolbox-cmd stat raw text vmprovider
+  register: _vm_vmware_host_info
+  changed_when: false
+  failed_when: false
+  when: vm_vmware_version_report
+  tags: ['vm', 'vmware', 'vm:verify']
+
+- name: "VMware: Version report"
+  ansible.builtin.debug:
+    msg:
+      - "Guest tools version: {{ _vm_vmware_version.stdout | default('unknown') }}"
+      - "Host platform: {{ _vm_vmware_host_info.stdout | default('not available') }}"
+      - "NOTE: VMware recommends distro-provided open-vm-tools regardless of host version"
+  when:
+    - vm_vmware_version_report
+    - _vm_vmware_version.rc | default(1) == 0
+  tags: ['vm', 'vmware', 'vm:verify']
+
+- name: "VMware: Version report skipped"
+  ansible.builtin.debug:
+    msg: "VMware tools version reporting disabled or vmware-toolbox-cmd not available"
+  when: >-
+    not vm_vmware_version_report
+    or (_vm_vmware_version.rc | default(1) != 0)
+  tags: ['vm', 'vmware', 'vm:verify']

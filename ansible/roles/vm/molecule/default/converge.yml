@@ -8,4 +8,4 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/packages.yml"
 
   roles:
-    - role: drivers
+    - role: vm

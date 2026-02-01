@@ -1,0 +1,81 @@
+---
+# === Virtualization guest tools (VM role) ===
+# Detects hypervisor and installs appropriate guest utilities
+# Supported: VirtualBox, VMware, Hyper-V
+
+# ---- Detection ----
+
+- name: Detect virtualization environment
+  ansible.builtin.set_fact:
+    _vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+    _vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+  tags: ['vm']
+
+- name: Check for container/WSL2 environment
+  ansible.builtin.set_fact:
+    _vm_is_container: "{{ _vm_virt_role == 'guest' and _vm_virt_type in ['container', 'wsl'] }}"
+  tags: ['vm']
+
+- name: Determine if running as guest in supported hypervisor
+  ansible.builtin.set_fact:
+    _vm_is_guest: "{{ _vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors }}"
+    _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
+  tags: ['vm']
+
+# ---- Deploy custom facts ----
+
+- name: Include custom facts deployment
+  ansible.builtin.include_tasks:
+    file: facts.yml
+  when: _vm_is_guest | bool
+  tags: ['vm', 'vm:facts']
+
+# ---- Dispatch to hypervisor-specific tasks ----
+
+- name: Include hypervisor-specific tasks
+  ansible.builtin.include_tasks:
+    file: "{{ _vm_hypervisor_map[_vm_hypervisor] }}"
+  when: _vm_is_guest | bool
+  tags: ['vm']
+
+# ---- Initramfs configuration ----
+
+- name: Include mkinitcpio configuration
+  ansible.builtin.include_tasks:
+    file: mkinitcpio.yml
+  when:
+    - _vm_is_guest | bool
+    - ansible_facts['os_family'] == 'Archlinux'
+  tags: ['vm', 'vm:mkinitcpio']
+
+# ---- Skip messages ----
+
+- name: Skip - container/WSL2 environment detected
+  ansible.builtin.debug:
+    msg: >-
+      Container or WSL2 environment detected (type={{ _vm_virt_type }}).
+      Guest tools not applicable for containers.
+  when: _vm_is_container | bool
+  tags: ['vm']
+
+- name: Skip - not a supported guest VM
+  ansible.builtin.debug:
+    msg: >-
+      Not a supported guest VM (type={{ _vm_virt_type }}, role={{ _vm_virt_role }}).
+      No guest tools to install.
+  when:
+    - not (_vm_is_guest | bool)
+    - not (_vm_is_container | bool)
+  tags: ['vm']
+
+# ---- Summary report ----
+
+- name: Report VM guest configuration
+  ansible.builtin.debug:
+    msg:
+      - "Virtualization type: {{ _vm_virt_type }}"
+      - "Virtualization role: {{ _vm_virt_role }}"
+      - "Detected hypervisor: {{ _vm_hypervisor }}"
+      - "Guest utilities installed: {{ _vm_is_guest | bool }}"
+      - "Container/WSL2: {{ _vm_is_container | bool }}"
+  tags: ['vm']

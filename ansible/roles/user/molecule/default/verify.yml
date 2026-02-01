@@ -11,11 +11,11 @@
     - name: Check user exists
       ansible.builtin.getent:
         database: passwd
-        key: "{{ user_name | default(ansible_env.SUDO_USER | default(ansible_user_id)) }}"
+        key: "{{ user_name | default(ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'])) }}"
       register: _user_verify_user
 
     - name: Check user is in wheel group
-      ansible.builtin.command: "groups {{ user_name | default(ansible_env.SUDO_USER | default(ansible_user_id)) }}"
+      ansible.builtin.command: "groups {{ user_name | default(ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'])) }}"
       register: _user_verify_groups
       changed_when: false
       failed_when: "'wheel' not in _user_verify_groups.stdout"

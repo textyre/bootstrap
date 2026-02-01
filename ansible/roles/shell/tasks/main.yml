@@ -16,7 +16,7 @@
 # ---- Установка шелла (OS-specific) ----
 
 - name: Install shell package (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['shell', 'install']
 
 # ---- Создание ~/.local/bin ----

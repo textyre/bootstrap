@@ -20,7 +20,7 @@
       failed_when: _docker_verify_json_valid.rc != 0
 
     - name: Check user is in docker group
-      ansible.builtin.command: "groups {{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      ansible.builtin.command: "groups {{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
       register: _docker_verify_docker_group
       changed_when: false
       failed_when: "'docker' not in _docker_verify_docker_group.stdout"

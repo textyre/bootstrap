@@ -1,0 +1,460 @@
+---
+# === VirtualBox Guest Additions ===
+# Version enforcement: MUST match VBox host version
+# If mismatch detected, automatically download and install from ISO
+
+# ---- Phase 1: Pre-flight detection ----
+
+- name: "VirtualBox: Check if VBoxControl is available"
+  ansible.builtin.command:
+    cmd: which VBoxControl
+  register: _vm_vbox_control_check
+  changed_when: false
+  failed_when: false
+  tags: ['vm', 'vbox', 'vm:install']
+
+- name: "VirtualBox: Check for existing ISO Guest Additions"
+  ansible.builtin.find:
+    paths: /opt
+    patterns: 'VBoxGuestAdditions-*'
+    file_type: directory
+  register: _vm_vbox_iso_dirs_pre
+  changed_when: false
+  failed_when: false
+  tags: ['vm', 'vbox', 'vm:install']
+
+- name: "VirtualBox: Check if pacman GA is installed"
+  ansible.builtin.command:
+    cmd: pacman -Q virtualbox-guest-utils
+  register: _vm_vbox_pacman_check
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags: ['vm', 'vbox', 'vm:install']
+
+# ---- Phase 2: Initial install for detection (only if VBoxControl missing) ----
+
+- name: "VirtualBox: Install pacman GA for version detection"
+  ansible.builtin.package:
+    name: "{{ packages_virtualbox_guest }}"
+    state: present
+  when:
+    - _vm_vbox_control_check.rc != 0
+    - packages_virtualbox_guest | length > 0
+  register: _vm_vbox_initial_install
+  retries: 3
+  delay: 5
+  until: _vm_vbox_initial_install is succeeded
+  tags: ['vm', 'vbox', 'vm:install']
+
+# ---- Phase 3: Version detection ----
+
+- name: "VirtualBox: Get host VirtualBox version"
+  ansible.builtin.command:
+    cmd: VBoxControl guestproperty get /VirtualBox/HostInfo/VBoxVer
+  register: _vm_vbox_host_version_raw
+  changed_when: false
+  failed_when: false
+  when: vm_vbox_version_check
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Get installed GA version"
+  ansible.builtin.command:
+    cmd: VBoxControl --version
+  register: _vm_vbox_guest_version_raw
+  changed_when: false
+  failed_when: false
+  when: vm_vbox_version_check
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Parse versions"
+  ansible.builtin.set_fact:
+    _vm_vbox_host_ver: >-
+      {{ _vm_vbox_host_version_raw.stdout | default('')
+         | regex_search('Value:\s*(.+)', '\1')
+         | default(['unknown'], true) | first | trim }}
+    _vm_vbox_guest_ver: >-
+      {{ _vm_vbox_guest_version_raw.stdout | default('')
+         | regex_replace('[^0-9.].*', '') }}
+  when:
+    - vm_vbox_version_check
+    - _vm_vbox_host_version_raw.rc | default(1) == 0
+    - _vm_vbox_guest_version_raw.rc | default(1) == 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Report detected versions"
+  ansible.builtin.debug:
+    msg: "Detected versions - Host: {{ _vm_vbox_host_ver | default('unknown') }}, Guest: {{ _vm_vbox_guest_ver | default('unknown') }}"
+  when:
+    - vm_vbox_version_check
+    - _vm_vbox_host_ver is defined
+    - _vm_vbox_guest_ver is defined
+  tags: ['vm', 'vbox', 'vm:verify']
+
+# ---- Phase 4: ISO version enforcement (ONLY when versions mismatch) ----
+
+- name: "VirtualBox: Enforce version match via ISO"
+  when:
+    - vm_vbox_version_check
+    - _vm_vbox_host_ver is defined
+    - _vm_vbox_guest_ver is defined
+    - _vm_vbox_host_ver != 'unknown'
+    - _vm_vbox_host_ver != _vm_vbox_guest_ver
+  tags: ['vm', 'vbox', 'vm:install']
+  block:
+    - name: "VirtualBox: Detect kernel type for ISO build"
+      ansible.builtin.command:
+        cmd: uname -r
+      register: _vm_vbox_kernel_for_iso
+      changed_when: false
+
+    - name: "VirtualBox: Download VBoxGuestAdditions ISO"
+      ansible.builtin.get_url:
+        url: "https://download.virtualbox.org/virtualbox/{{ _vm_vbox_host_ver }}/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
+        dest: "/tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
+        mode: '0644'
+
+    - name: "VirtualBox: Install build dependencies"
+      ansible.builtin.package:
+        name: "{{ ['gcc', 'make', 'perl'] + (['linux-lts-headers'] if '-lts' in _vm_vbox_kernel_for_iso.stdout else ['linux-headers']) }}"
+        state: present
+      retries: 3
+      delay: 5
+      until: _vm_vbox_build_deps is succeeded
+      register: _vm_vbox_build_deps
+
+    - name: "VirtualBox: Stop vboxservice"
+      ansible.builtin.service:
+        name: vboxservice
+        state: stopped
+      failed_when: false
+
+    - name: "VirtualBox: Stop vboxadd-service"
+      ansible.builtin.service:
+        name: vboxadd-service
+        state: stopped
+      failed_when: false
+
+    - name: "VirtualBox: Remove pacman GA packages"
+      ansible.builtin.package:
+        name: "{{ packages_virtualbox_guest }}"
+        state: absent
+      when: packages_virtualbox_guest | length > 0
+
+    - name: "VirtualBox: Remove existing ISO Guest Additions"
+      ansible.builtin.command:
+        cmd: "{{ item.path }}/uninstall.sh"
+      loop: "{{ _vm_vbox_iso_dirs_pre.files }}"
+      when: _vm_vbox_iso_dirs_pre.matched > 0
+      register: _vm_vbox_old_iso_uninstall
+      changed_when: _vm_vbox_old_iso_uninstall.rc | default(1) == 0
+      failed_when: false
+
+    - name: "VirtualBox: Create ISO mount point"
+      ansible.builtin.file:
+        path: /mnt/vbox_iso
+        state: directory
+        mode: '0755'
+
+    - name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso /mnt/vbox_iso"
+      changed_when: true
+
+    - name: "VirtualBox: Run VBoxLinuxAdditions.run"
+      ansible.builtin.command:
+        cmd: /mnt/vbox_iso/VBoxLinuxAdditions.run --nox11
+      register: _vm_vbox_iso_install_result
+      changed_when: true
+      failed_when: false
+
+    - name: "VirtualBox: Show ISO installer output"
+      ansible.builtin.debug:
+        msg: "{{ _vm_vbox_iso_install_result.stdout_lines | default([]) }}"
+
+    - name: "VirtualBox: Load vboxguest module"
+      ansible.builtin.command:
+        cmd: modprobe vboxguest
+      changed_when: true
+      failed_when: false
+
+    - name: "VirtualBox: Create systemd service file for ISO GA"
+      ansible.builtin.copy:
+        dest: /usr/lib/systemd/system/vboxadd-service.service
+        content: |
+          [Unit]
+          Description=VirtualBox Guest Additions Service
+          ConditionVirtualization=oracle
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/VBoxService -f
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: "VirtualBox: Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: "VirtualBox: Enable vboxadd-service"
+      ansible.builtin.systemd:
+        name: vboxadd-service
+        enabled: true
+        state: started
+      failed_when: false
+
+    - name: "VirtualBox: Mark ISO installation complete"
+      ansible.builtin.set_fact:
+        _vm_vbox_iso_installed: true
+
+  rescue:
+    - name: "VirtualBox: RECOVERY - Re-install pacman GA packages"
+      ansible.builtin.package:
+        name: "{{ packages_virtualbox_guest }}"
+        state: present
+      register: _vm_vbox_recovery
+      failed_when: false
+
+    - name: "VirtualBox: RECOVERY - Re-enable vboxservice"
+      ansible.builtin.service:
+        name: vboxservice
+        enabled: true
+        state: started
+      when: _vm_vbox_recovery is succeeded
+      failed_when: false
+
+    - name: "VirtualBox: Collect failure diagnostics"
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - "uname -r"
+        - "ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'"
+        - "lsmod | grep vbox || echo 'No vbox modules'"
+      register: _vm_vbox_iso_diag
+      changed_when: false
+      failed_when: false
+
+    - name: "VirtualBox: CRITICAL - ISO install and recovery both failed"
+      ansible.builtin.fail:
+        msg: >-
+          Failed to install VBoxGuestAdditions {{ _vm_vbox_host_ver }} from ISO, and pacman recovery also failed.
+          Diagnostics: {{ _vm_vbox_iso_diag.results | map(attribute='stdout') | list }}
+      when: _vm_vbox_recovery is failed
+
+    - name: "VirtualBox: ISO install failed, reverted to pacman"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: ISO GA install failed. Reverted to pacman packages ({{ _vm_vbox_guest_ver }}).
+          Version mismatch persists (host={{ _vm_vbox_host_ver }}).
+      when: _vm_vbox_recovery is succeeded
+
+  always:
+    - name: "VirtualBox: Unmount ISO"
+      ansible.builtin.command:
+        cmd: umount /mnt/vbox_iso
+      changed_when: false
+      failed_when: false
+
+    - name: "VirtualBox: Remove ISO mount point"
+      ansible.builtin.file:
+        path: /mnt/vbox_iso
+        state: absent
+
+    - name: "VirtualBox: Remove downloaded ISO"
+      ansible.builtin.file:
+        path: "/tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
+        state: absent
+
+# ---- Phase 5: Pacman path (versions match OR version check disabled) ----
+
+- name: "VirtualBox: Ensure pacman GA packages (versions match)"
+  ansible.builtin.package:
+    name: "{{ packages_virtualbox_guest }}"
+    state: present
+  when:
+    - packages_virtualbox_guest | length > 0
+    - not (_vm_vbox_iso_installed | default(false))
+    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - >-
+      not vm_vbox_version_check
+      or (_vm_vbox_host_ver | default('') == _vm_vbox_guest_ver | default(''))
+      or _vm_vbox_host_ver | default('') == 'unknown'
+  register: _vm_vbox_pkg_install
+  retries: 3
+  delay: 5
+  until: _vm_vbox_pkg_install is succeeded
+  tags: ['vm', 'vbox', 'vm:install']
+
+# ---- Phase 6: LTS kernel (only for pacman path) ----
+
+- name: "VirtualBox: Check if running linux-lts kernel"
+  ansible.builtin.command:
+    cmd: uname -r
+  register: _vm_vbox_kernel
+  changed_when: false
+  when:
+    - not (_vm_vbox_iso_installed | default(false))
+    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+  tags: ['vm', 'vbox', 'vm:install']
+
+- name: "VirtualBox: Install LTS kernel headers and DKMS"
+  ansible.builtin.package:
+    name:
+      - virtualbox-guest-dkms
+      - linux-lts-headers
+    state: present
+  when:
+    - not (_vm_vbox_iso_installed | default(false))
+    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _vm_vbox_kernel.stdout is defined
+    - "'lts' in _vm_vbox_kernel.stdout"
+  register: _vm_vbox_lts_install
+  retries: 3
+  delay: 5
+  until: _vm_vbox_lts_install is succeeded
+  tags: ['vm', 'vbox', 'vm:install']
+
+# ---- Phase 7: Determine active service name ----
+
+- name: "VirtualBox: Determine active service name"
+  ansible.builtin.set_fact:
+    _vm_vbox_service_name: >-
+      {{ 'vboxadd-service' if (_vm_vbox_iso_installed | default(false))
+         or (_vm_vbox_iso_dirs_pre.matched | default(0) > 0)
+         else 'vboxservice' }}
+  tags: ['vm', 'vbox', 'vm:service']
+
+# ---- Phase 8: Time sync conflict check ----
+
+- name: "VirtualBox: Check for systemd-timesyncd conflicts"
+  tags: ['vm', 'vbox', 'vm:verify']
+  block:
+    - name: "VirtualBox: Get systemd-timesyncd status"
+      ansible.builtin.systemd:
+        name: systemd-timesyncd
+      register: _vm_vbox_timesyncd
+      failed_when: false
+
+    - name: "VirtualBox: Warn about time sync conflict"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: systemd-timesyncd is active. {{ _vm_vbox_service_name }} also manages time sync.
+          Consider disabling systemd-timesyncd to avoid conflicts:
+          systemctl disable --now systemd-timesyncd
+      when:
+        - _vm_vbox_timesyncd.status is defined
+        - _vm_vbox_timesyncd.status.ActiveState == 'active'
+
+# ---- Phase 9: Service management ----
+
+- name: "VirtualBox: Enable and start {{ _vm_vbox_service_name }}"
+  when: not (_vm_vbox_iso_installed | default(false))
+  tags: ['vm', 'vbox', 'vm:service']
+  block:
+    - name: "VirtualBox: Enable service"
+      ansible.builtin.service:
+        name: "{{ _vm_vbox_service_name }}"
+        enabled: true
+        state: started
+      register: _vm_vbox_service
+
+    - name: "VirtualBox: Check journald for service errors"
+      ansible.builtin.command:
+        cmd: "journalctl -u {{ _vm_vbox_service_name }} -n 20 --no-pager"
+      register: _vm_vbox_journal
+      changed_when: false
+      failed_when: false
+
+    - name: "VirtualBox: Report service health"
+      ansible.builtin.debug:
+        msg: "{{ _vm_vbox_service_name }} started successfully"
+      when: _vm_vbox_service is succeeded
+
+  rescue:
+    - name: "VirtualBox: Service start failed"
+      ansible.builtin.fail:
+        msg: >-
+          Failed to start {{ _vm_vbox_service_name }}. Journal output:
+          {{ _vm_vbox_journal.stdout | default('N/A') }}
+
+# ---- Phase 10: Module verification ----
+
+- name: "VirtualBox: Check kernel modules loaded"
+  ansible.builtin.command:
+    cmd: lsmod
+  register: _vm_vbox_lsmod
+  changed_when: false
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Verify vboxguest module loaded"
+  ansible.builtin.assert:
+    that: "'vboxguest' in _vm_vbox_lsmod.stdout"
+    fail_msg: "vboxguest kernel module not loaded. Reboot may be required."
+    success_msg: "vboxguest module loaded successfully"
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Verify vboxsf module loaded"
+  ansible.builtin.assert:
+    that: "'vboxsf' in _vm_vbox_lsmod.stdout"
+    fail_msg: "vboxsf kernel module not loaded. Shared folders will not work."
+    success_msg: "vboxsf module loaded successfully"
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Check vboxvideo module (optional)"
+  ansible.builtin.debug:
+    msg: "{{ 'vboxvideo module loaded' if 'vboxvideo' in _vm_vbox_lsmod.stdout else 'vboxvideo not loaded (may use VMSVGA)' }}"
+  tags: ['vm', 'vbox', 'vm:verify']
+
+# ---- Phase 11: X11 autostart check ----
+
+- name: "VirtualBox: Check VBoxClient X11 autostart"
+  ansible.builtin.stat:
+    path: /etc/xdg/autostart/vboxclient.desktop
+  register: _vm_vbox_x11_autostart
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Report X11 integration status"
+  ansible.builtin.debug:
+    msg: "{{ 'VBoxClient X11 autostart configured' if _vm_vbox_x11_autostart.stat.exists else 'VBoxClient X11 autostart not found (headless OK)' }}"
+  tags: ['vm', 'vbox', 'vm:verify']
+
+# ---- Phase 12: Final version verification ----
+
+- name: "VirtualBox: Final version check"
+  ansible.builtin.command:
+    cmd: VBoxControl --version
+  register: _vm_vbox_final_ver
+  changed_when: false
+  failed_when: false
+  when: vm_vbox_version_check
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Final version report"
+  ansible.builtin.debug:
+    msg: >-
+      VirtualBox GA version: {{ _vm_vbox_final_ver.stdout | default('unknown') | regex_replace('[^0-9.].*', '') }}
+      (host: {{ _vm_vbox_host_ver | default('unknown') }},
+       installed via: {{ 'ISO' if (_vm_vbox_iso_installed | default(false)) or (_vm_vbox_iso_dirs_pre.matched | default(0) > 0) else 'pacman' }})
+  when: vm_vbox_version_check
+  tags: ['vm', 'vbox', 'vm:verify']
+
+# ---- Phase 13: Reboot flag ----
+
+- name: "VirtualBox: Set reboot required flag"
+  ansible.builtin.set_fact:
+    _vm_reboot_required: true
+  when:
+    - (_vm_vbox_pkg_install is changed) or (_vm_vbox_iso_installed | default(false))
+    - "'vboxguest' not in _vm_vbox_lsmod.stdout"
+  tags: ['vm', 'vbox']
+
+- name: "VirtualBox: Notify reboot required"
+  ansible.builtin.debug:
+    msg: "NOTICE: Reboot required for kernel modules to load properly"
+  when: _vm_reboot_required | default(false)
+  tags: ['vm', 'vbox']

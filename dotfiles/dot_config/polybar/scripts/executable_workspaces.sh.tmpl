@@ -1,0 +1,83 @@
+{{- $t := index .themes .theme_name -}}
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Color configuration from chezmoi theme
+FOCUSED="{{ $t.accent }}"
+OCCUPIED="{{ $t.fg }}"
+EMPTY="{{ $t.fg_dim }}"
+URGENT="{{ $t.urgent }}"
+
+# Workspace names
+declare -A WS_NAMES=(
+    [1]="1: "
+    [2]="2: "
+    [3]="3: "
+    [4]="4"
+    [5]="5"
+    [6]="6"
+    [7]="7"
+    [8]="8"
+    [9]="9"
+    [10]="10"
+)
+
+render_workspaces() {
+    local workspaces
+    workspaces=$(i3-msg -t get_workspaces)
+
+    local output=""
+
+    for i in {1..10}; do
+        local ws_data
+        ws_data=$(echo "$workspaces" | jq -r ".[] | select(.num == $i)")
+
+        local name="${WS_NAMES[$i]}"
+        local color="$EMPTY"
+        local underline=""
+
+        if [[ -n "$ws_data" ]]; then
+            # Workspace exists in i3
+            local focused
+            local urgent
+            focused=$(echo "$ws_data" | jq -r '.focused')
+            urgent=$(echo "$ws_data" | jq -r '.urgent')
+
+            if [[ "$urgent" == "true" ]]; then
+                color="$URGENT"
+            elif [[ "$focused" == "true" ]]; then
+                color="$FOCUSED"
+                underline="%{u$FOCUSED}%{+u}"
+            else
+                color="$OCCUPIED"
+            fi
+        fi
+
+        # Build clickable workspace with color and optional underline
+        output+="%{A1:i3-msg workspace number $i:}"
+        output+="%{F$color}"
+        output+="$underline"
+        output+=" $name "
+        if [[ -n "$underline" ]]; then
+            output+="%{-u}"
+        fi
+        output+="%{F-}"
+        output+="%{A}"
+
+        # Add separator between workspaces
+        if [[ $i -lt 10 ]]; then
+            output+=" "
+        fi
+    done
+
+    echo "$output"
+}
+
+# Initial render
+render_workspaces
+
+# Subscribe to i3 workspace events for real-time updates
+i3-msg -t subscribe -m '["workspace"]' | while read -r event; do
+    render_workspaces
+done

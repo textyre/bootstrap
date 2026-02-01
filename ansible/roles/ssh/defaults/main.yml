@@ -3,7 +3,7 @@
 # Генерация ключей, клиентский конфиг, hardening sshd
 
 # Целевой пользователь
-ssh_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+ssh_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Генерация SSH-ключа
 ssh_generate_key: true

@@ -1,0 +1,200 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/packages.yml"
+
+  tasks:
+    - name: Get virtualization type
+      ansible.builtin.set_fact:
+        vm_verify_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+        vm_verify_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+
+    # === VirtualBox verification ===
+
+    - name: Check if vboxadd-service unit exists (ISO GA)
+      ansible.builtin.stat:
+        path: /usr/lib/systemd/system/vboxadd-service.service
+      register: vm_verify_vboxadd_unit
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Determine VBox service name
+      ansible.builtin.set_fact:
+        vm_verify_vbox_service_name: >-
+          {{ 'vboxadd-service' if vm_verify_vboxadd_unit.stat.exists | default(false)
+             else 'vboxservice' }}
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Check VBox service is running
+      ansible.builtin.systemd:
+        name: "{{ vm_verify_vbox_service_name }}"
+      register: vm_verify_vboxservice
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Assert VBox service is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_vboxservice.status.ActiveState == 'active'
+        fail_msg: "{{ vm_verify_vbox_service_name }} is not running"
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Check vboxguest module loaded (VirtualBox only)
+      ansible.builtin.command: lsmod
+      register: vm_verify_vbox_lsmod
+      changed_when: false
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Assert vboxguest module is loaded
+      ansible.builtin.assert:
+        that:
+          - "'vboxguest' in vm_verify_vbox_lsmod.stdout"
+        fail_msg: "vboxguest kernel module not loaded"
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Assert vboxsf module is loaded
+      ansible.builtin.assert:
+        that:
+          - "'vboxsf' in vm_verify_vbox_lsmod.stdout"
+        fail_msg: "vboxsf kernel module not loaded"
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Verify VBox version match (post-enforcement)
+      ansible.builtin.command:
+        cmd: VBoxControl --version
+      register: vm_verify_vbox_ga_ver
+      changed_when: false
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Get VBox host version
+      ansible.builtin.command:
+        cmd: VBoxControl guestproperty get /VirtualBox/HostInfo/VBoxVer
+      register: vm_verify_vbox_host_ver
+      changed_when: false
+      failed_when: false
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Parse VBox versions for report
+      ansible.builtin.set_fact:
+        vm_verify_ga_version: >-
+          {{ vm_verify_vbox_ga_ver.stdout | default('')
+             | regex_replace('[^0-9.].*', '') }}
+        vm_verify_host_version: >-
+          {{ (vm_verify_vbox_host_ver.stdout | default(''))
+             | regex_search('Value:\s*(.+)', '\1')
+             | default(['unknown'], true) | first | trim }}
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    - name: Report version enforcement result
+      ansible.builtin.debug:
+        msg:
+          - "GA version: {{ vm_verify_ga_version | default('unknown') }}"
+          - "Host version: {{ vm_verify_host_version | default('unknown') }}"
+      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+
+    # === VMware verification ===
+
+    - name: Check vmtoolsd is running (VMware only)
+      ansible.builtin.systemd:
+        name: vmtoolsd
+      register: vm_verify_vmtoolsd
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Assert vmtoolsd is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_vmtoolsd.status.ActiveState == 'active'
+        fail_msg: "vmtoolsd is not running"
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Check vgauthd is running (VMware only)
+      ansible.builtin.systemd:
+        name: vgauthd
+      register: vm_verify_vgauthd
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Assert vgauthd is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_vgauthd.status.ActiveState == 'active'
+        fail_msg: "vgauthd is not running"
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Check vmware-vmblock-fuse status (VMware only, optional)
+      ansible.builtin.systemd:
+        name: vmware-vmblock-fuse
+      register: vm_verify_vmblock
+      failed_when: false
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Report vmblock-fuse status
+      ansible.builtin.debug:
+        msg: "{{ 'vmware-vmblock-fuse is active' if vm_verify_vmblock.status.ActiveState == 'active' else 'vmware-vmblock-fuse not active (optional)' }}"
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Check VMware kernel modules loaded
+      ansible.builtin.command: lsmod
+      register: vm_verify_vmware_lsmod
+      changed_when: false
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    - name: Assert vmw_balloon module is loaded
+      ansible.builtin.assert:
+        that:
+          - "'vmw_balloon' in vm_verify_vmware_lsmod.stdout"
+        fail_msg: "vmw_balloon kernel module not loaded"
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
+    # === Hyper-V verification ===
+
+    - name: Check hv_kvp_daemon is running (Hyper-V only)
+      ansible.builtin.systemd:
+        name: hv_kvp_daemon
+      register: vm_verify_hv_kvp
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Assert hv_kvp_daemon is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_hv_kvp.status.ActiveState == 'active'
+        fail_msg: "hv_kvp_daemon is not running"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Check Hyper-V kernel modules loaded
+      ansible.builtin.command: lsmod
+      register: vm_verify_hyperv_lsmod
+      changed_when: false
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Assert hv_vmbus module is loaded
+      ansible.builtin.assert:
+        that:
+          - "'hv_vmbus' in vm_verify_hyperv_lsmod.stdout"
+        fail_msg: "hv_vmbus kernel module not loaded"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    # === Custom facts verification ===
+
+    - name: Check custom facts deployment
+      ansible.builtin.stat:
+        path: /etc/ansible/facts.d/vm_guest.fact
+      register: vm_verify_custom_fact
+      when: vm_verify_virt_role == 'guest'
+
+    - name: Assert custom fact exists
+      ansible.builtin.assert:
+        that:
+          - vm_verify_custom_fact.stat.exists
+          - vm_verify_custom_fact.stat.executable
+        fail_msg: "Custom fact vm_guest.fact not deployed or not executable"
+      when: vm_verify_virt_role == 'guest'
+
+    # === Summary ===
+
+    - name: Show verification results
+      ansible.builtin.debug:
+        msg:
+          - "Virtualization: {{ vm_verify_virt_type }} ({{ vm_verify_virt_role }})"
+          - "VM guest verification passed"

@@ -3,7 +3,7 @@
 # Настройка bash/zsh, алиасы, PATH, переменные окружения
 
 # Целевой пользователь
-shell_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+shell_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Тип шелла (bash или zsh)
 shell_type: bash

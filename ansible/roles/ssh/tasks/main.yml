@@ -5,7 +5,7 @@
 # ---- Установка openssh (OS-specific) ----
 
 - name: Install openssh (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['ssh', 'install']
 
 # ---- Генерация SSH-ключа ----

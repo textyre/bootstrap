@@ -25,6 +25,7 @@ font pango:{{ .font.mono }} {{ .font.mono_size }}
 # Gaps
 gaps inner {{ .layout.gaps_inner }}
 gaps outer {{ .layout.gaps_outer }}
+gaps top {{ .layout.gaps_top }}
 smart_gaps off
 
 # Borders
@@ -179,11 +180,13 @@ bindsym $mod+c exec --no-startup-id rofi -modi "clipboard:greenclip print" -show
 # File manager
 bindsym $mod+n exec --no-startup-id thunar
 
+# Control Center
+bindsym $mod+Ctrl+c exec --no-startup-id ~/.config/rofi/scripts/controlcenter.sh
+
 # === AUTOSTART ===
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id ~/.local/bin/launch-picom
 exec_always --no-startup-id sh -c 'pkill -x dunst; exec dunst'
-exec_always --no-startup-id sh -c 'pkill -x nm-applet; exec nm-applet'
 exec_always --no-startup-id sh -c 'pkill -x greenclip; exec greenclip daemon'
-exec --no-startup-id ~/.local/bin/wallpaper-random
+exec_always --no-startup-id ~/.local/bin/wallpaper-restore
 exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.local/bin/lock-screen

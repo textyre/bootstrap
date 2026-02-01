@@ -1,0 +1,56 @@
+---
+# === Initramfs Configuration (mkinitcpio) ===
+# Add hypervisor-specific kernel modules to /etc/mkinitcpio.conf
+# Arch Linux only
+
+- name: "Initramfs: Read current mkinitcpio.conf"
+  ansible.builtin.slurp:
+    src: /etc/mkinitcpio.conf
+  register: _vm_mkinitcpio_raw
+  tags: ['vm', 'vm:mkinitcpio']
+
+- name: "Initramfs: Parse current MODULES"
+  ansible.builtin.set_fact:
+    _vm_mkinitcpio_current_modules: >-
+      {{ (_vm_mkinitcpio_raw.content | b64decode)
+         | regex_search('^MODULES=\(([^)]*)\)', '\1', multiline=True)
+         | default([''], true) | first | split() }}
+  tags: ['vm', 'vm:mkinitcpio']
+
+- name: "Initramfs: Calculate modules to add"
+  ansible.builtin.set_fact:
+    _vm_mkinitcpio_needed: >-
+      {{ vm_mkinitcpio_modules[_vm_hypervisor]
+         | difference(_vm_mkinitcpio_current_modules) }}
+    _vm_mkinitcpio_merged: >-
+      {{ (_vm_mkinitcpio_current_modules
+          + vm_mkinitcpio_modules[_vm_hypervisor])
+         | unique | sort }}
+  when:
+    - vm_mkinitcpio_modules[_vm_hypervisor] is defined
+    - vm_mkinitcpio_modules[_vm_hypervisor] | length > 0
+  tags: ['vm', 'vm:mkinitcpio']
+
+- name: "Initramfs: Update MODULES in mkinitcpio.conf"
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: '^MODULES='
+    line: "MODULES=({{ _vm_mkinitcpio_merged | join(' ') }})"
+    state: present
+    backup: true
+  when:
+    - _vm_mkinitcpio_needed is defined
+    - _vm_mkinitcpio_needed | length > 0
+  notify: Regenerate initramfs
+  register: _vm_mkinitcpio_result
+  tags: ['vm', 'vm:mkinitcpio']
+
+- name: "Initramfs: Report configuration"
+  ansible.builtin.debug:
+    msg:
+      - "Hypervisor: {{ _vm_hypervisor }}"
+      - "Existing modules: {{ _vm_mkinitcpio_current_modules | join(', ') }}"
+      - "Added modules: {{ _vm_mkinitcpio_needed | default([]) | join(', ') | default('none (already present)') }}"
+      - "Final MODULES: {{ _vm_mkinitcpio_merged | default(_vm_mkinitcpio_current_modules) | join(', ') }}"
+  when: vm_mkinitcpio_modules[_vm_hypervisor] is defined
+  tags: ['vm', 'vm:mkinitcpio']

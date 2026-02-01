@@ -4,7 +4,11 @@
 [layout]
   gaps_inner    = 4
   gaps_outer    = 8
+  gaps_top      = 48
   border_size   = 1
   corner_radius = 10
   bar_height    = 32
+  bar_offset_y  = 6
+  bar_border    = 1
+  bar_radius    = 14
   network_interface_type = "wired"

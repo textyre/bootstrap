@@ -3,7 +3,7 @@
 # Минимальный набор правил для рабочей станции
 
 - name: Install nftables (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['firewall', 'install']
 
 - name: Deploy nftables configuration

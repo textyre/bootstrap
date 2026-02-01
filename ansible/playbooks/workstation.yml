@@ -28,17 +28,17 @@
     - role: base_system
       tags: [base, system]
 
-    - role: drivers
-      tags: [drivers, vbox, vmware, hyperv]
+    - role: vm
+      tags: [vm, vbox, vmware, hyperv]
 
     - role: reflector
       tags: [mirrors, reflector]
-      when: ansible_os_family == 'Archlinux'
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     # --- Phase 2: Package infrastructure ---
     - role: yay
       tags: [aur, yay]
-      when: ansible_os_family == 'Archlinux'
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - role: packages
       tags: [packages, install]
@@ -67,7 +67,7 @@
     # --- Phase 6: Desktop environment ---
     - role: xorg
       tags: [xorg, display]
-      when: ansible_os_family == 'Archlinux'
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - role: lightdm
       tags: [lightdm, display]

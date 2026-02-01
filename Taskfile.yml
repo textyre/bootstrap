@@ -58,7 +58,7 @@ tasks:
       - task: check
       - task: lint
       - task: test-base-system
-      - task: test-drivers
+      - task: test-vm
       - task: test-reflector
       - task: test-yay
       - task: test-packages
@@ -85,14 +85,14 @@ tasks:
       - 'echo "==> Testing base_system role..."'
       - '{{.PREFIX}} molecule test'
 
-  test-drivers:
-    desc: "Run molecule tests for drivers"
+  test-vm:
+    desc: "Run molecule tests for vm"
     deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/drivers'
+    dir: '{{.ANSIBLE_DIR}}/roles/vm'
     env:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
-      - 'echo "==> Testing drivers role..."'
+      - 'echo "==> Testing vm role..."'
       - '{{.PREFIX}} molecule test'
 
   test-reflector:

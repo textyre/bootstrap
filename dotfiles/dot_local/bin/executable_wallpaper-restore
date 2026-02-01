@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Restore wallpaper on i3 reload (idempotent, safe for exec_always)
+# Usage: wallpaper-restore
+
+set -euo pipefail
+
+STATE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-current"
+WALLPAPER_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/wallpapers"
+
+# Try to restore from saved state
+if [[ -f "$STATE_FILE" ]]; then
+    SAVED="$(cat "$STATE_FILE")"
+    if [[ -f "$SAVED" ]]; then
+        feh --bg-fill "$SAVED"
+        exit 0
+    fi
+fi
+
+# Fallback: set random wallpaper if directory exists
+if [[ -d "$WALLPAPER_DIR" ]]; then
+    WALLPAPER=$(find "$WALLPAPER_DIR" -maxdepth 1 -type f \
+        \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.bmp' \) \
+        | shuf -n 1)
+
+    if [[ -n "$WALLPAPER" ]]; then
+        wallpaper-set "$WALLPAPER"
+        exit 0
+    fi
+fi
+
+# Nothing to restore, exit silently
+exit 0

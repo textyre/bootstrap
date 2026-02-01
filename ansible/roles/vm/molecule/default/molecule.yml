@@ -1,5 +1,5 @@
 ---
-# Molecule configuration for drivers role testing
+# Molecule configuration for vm role testing
 #
 # DELEGATED DRIVER: Applies role to localhost (your Arch Linux VM)
 #
@@ -25,6 +25,7 @@ provisioner:
       localhost:
         ansible_connection: local
   playbooks:
+    prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
   env:
@@ -36,5 +37,7 @@ verifier:
 scenario:
   test_sequence:
     - syntax
+    - prepare
     - converge
+    - idempotence
     - verify

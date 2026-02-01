@@ -3,7 +3,7 @@
 # Создание/настройка пользователя, sudo, группы
 
 - name: Install sudo (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_os_family | lower }}.yml"
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['user', 'sudo', 'install']
 
 - name: Ensure user exists with correct shell and groups
