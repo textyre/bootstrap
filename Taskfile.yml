@@ -11,7 +11,7 @@ env:
   REPO_ROOT: '{{.TASKFILE_DIR}}'
   ANSIBLE_CONFIG: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/ansible.cfg'
   ANSIBLE_ROLES_PATH: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles:{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/playbooks/roles:~/.ansible/roles:/usr/share/ansible/roles'
-  ANSIBLE_INVENTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/inventory/hosts.ini'
+  ANSIBLE_INVENTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/inventory/hosts.yml'
   ANSIBLE_VAULT_PASSWORD_FILE: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh'
 
 tasks:
@@ -58,6 +58,7 @@ tasks:
       - task: check
       - task: lint
       - task: test-base-system
+      - task: test-drivers
       - task: test-reflector
       - task: test-yay
       - task: test-packages
@@ -82,6 +83,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing base_system role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-drivers:
+    desc: "Run molecule tests for drivers"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/drivers'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing drivers role..."'
       - '{{.PREFIX}} molecule test'
 
   test-reflector:

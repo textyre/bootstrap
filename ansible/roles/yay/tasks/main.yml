@@ -9,7 +9,7 @@
   tags: ['aur', 'install']
 
 - name: Check if yay is already installed
-  ansible.builtin.command: which yay
+  ansible.builtin.command: yay --version
   register: _yay_exists
   changed_when: false
   failed_when: false

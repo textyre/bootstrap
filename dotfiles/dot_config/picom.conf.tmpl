@@ -4,119 +4,95 @@
 
 # === BACKEND ===
 backend = "glx";
-vsync = true;
-glx-no-stencil = true;
-glx-no-rebind-pixmap = true;
-use-damage = true;
+# vsync = true;
+# glx-no-stencil = true;
+# glx-no-rebind-pixmap = true;
+# use-damage = true;
 
 # === ROUNDED CORNERS ===
-corner-radius = {{ .layout.corner_radius }};
-rounded-corners-exclude = [
-  "window_type = 'dock'",
-  "window_type = 'desktop'",
-  "window_type = 'popup_menu'",
-  "window_type = 'tooltip'",
-  "class_g = 'Polybar'",
-  "fullscreen"
-];
-
-detect-client-opacity = true;
-detect-rounded-corners = true;
+# corner-radius = {{ .layout.corner_radius }};
+# rounded-corners-exclude = [
+#   "window_type = 'dock'",
+#   "window_type = 'desktop'",
+#   "window_type = 'popup_menu'",
+#   "window_type = 'tooltip'",
+#   "class_g = 'Polybar'",
+#   "fullscreen"
+# ];
+#
+# detect-client-opacity = true;
+# detect-rounded-corners = true;
 
 # === SHADOWS ===
-shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -5;
-shadow-offset-y = -5;
-shadow-opacity = 0.35;
-shadow-color = "{{ $t.bg_alt }}";
-
-shadow-exclude = [
-  "window_type = 'dock'",
-  "window_type = 'desktop'",
-  "class_g = 'Polybar'",
-  "_GTK_FRAME_EXTENTS@:c"
-];
+# shadow = true;
+# shadow-radius = 12;
+# shadow-offset-x = -5;
+# shadow-offset-y = -5;
+# shadow-opacity = 0.35;
+# shadow-color = "{{ $t.bg_alt }}";
+#
+# shadow-exclude = [
+#   "window_type = 'dock'",
+#   "window_type = 'desktop'",
+#   "class_g = 'Polybar'",
+#   "_GTK_FRAME_EXTENTS@:c"
+# ];
 
 # === OPACITY ===
-active-opacity = 0.92;
-inactive-opacity = 0.85;
-frame-opacity = 1.0;
-inactive-opacity-override = false;
-
-opacity-rule = [
-  "100:class_g = 'firefox'",
-  "100:class_g = 'Brave-browser'",
-  "100:fullscreen",
-  "95:class_g = 'Alacritty' && focused",
-  "85:class_g = 'Alacritty' && !focused",
-  "95:class_g = 'Rofi'"
-];
+# active-opacity = 0.92;
+# inactive-opacity = 0.85;
+# frame-opacity = 1.0;
+# inactive-opacity-override = false;
+#
+# opacity-rule = [
+#   "100:class_g = 'firefox'",
+#   "100:class_g = 'Brave-browser'",
+#   "100:fullscreen",
+#   "95:class_g = 'Alacritty' && focused",
+#   "85:class_g = 'Alacritty' && !focused",
+#   "95:class_g = 'Rofi'"
+# ];
 
 # === BLUR ===
-blur-background = true;
-blur-background-frame = true;
+# blur-background = true;
+# blur-background-frame = true;
+#
+# blur: {
+#   method = "dual_kawase";
+#   strength = 5;
+# };
+#
+# blur-background-exclude = [
+#   "window_type = 'dock'",
+#   "window_type = 'desktop'",
+#   "class_g = 'Polybar'",
+#   "_GTK_FRAME_EXTENTS@:c"
+# ];
 
-blur: {
-  method = "dual_kawase";
-  strength = 5;
-};
-
-blur-background-exclude = [
-  "window_type = 'dock'",
-  "window_type = 'desktop'",
-  "class_g = 'Polybar'",
-  "_GTK_FRAME_EXTENTS@:c"
-];
-
-# === ANIMATIONS (mainline picom v12+) ===
-animations = (
-  {
-    triggers = ["open", "show"];
-    preset = "appear";
-    duration = 0.3;
-    scale = 0.95;
-  },
-  {
-    triggers = ["close", "hide"];
-    preset = "disappear";
-    duration = 0.2;
-    scale = 0.95;
-  },
-  {
-    triggers = ["open"];
-    match = "window_type = 'dialog' || window_type = 'popup_menu' || window_type = 'dropdown_menu'";
-    preset = "slide-in";
-    direction = "down";
-    duration = 0.2;
-  },
-  {
-    triggers = ["close"];
-    match = "window_type = 'dialog' || window_type = 'popup_menu' || window_type = 'dropdown_menu'";
-    preset = "slide-out";
-    direction = "down";
-    duration = 0.15;
-  },
-  {
-    triggers = ["geometry"];
-    preset = "geometry-change";
-    duration = 0.15;
-  }
-);
+# === ANIMATIONS (picom-ftlabs) ===
+# animations = true;
+# animation-stiffness-in-tag = 125;
+# animation-stiffness-tag-change = 90;
+# animation-dampening = 15;
+# animation-window-mass = 0.5;
+# animation-clamping = true;
+# animation-for-open-window = "zoom";
+# animation-for-unmap-window = "slide-down";
+# animation-for-transient-window = "slide-down";
 
 # === FADING ===
-fading = true;
-fade-in-step = 0.04;
-fade-out-step = 0.04;
-fade-delta = 5;
-
-fade-exclude = [];
+# fading = true;
+# fade-in-step = 0.04;
+# fade-out-step = 0.04;
+# fade-delta = 5;
+#
+# fade-exclude = [];
 
 # === WINDOW TYPE SETTINGS ===
-wintypes: {
-  tooltip = { fade = true; shadow = false; opacity = 0.9; };
-  dock = { shadow = false; clip-shadow-above = true; };
-  dnd = { shadow = false; };
-  popup_menu = { opacity = 0.95; shadow = true; };
-  dropdown_menu = { opacity = 0.95; shadow = true; };
-};
+# wintypes: {
+#   tooltip = { fade = true; shadow = false; opacity = 0.9; };
+#   dock = { shadow = false; clip-shadow-above = true; };
+#   dnd = { shadow = false; };
+#   popup_menu = { opacity = 0.95; shadow = true; };
+#   dropdown_menu = { opacity = 0.95; shadow = true; };
+# };

@@ -28,6 +28,9 @@
     - role: base_system
       tags: [base, system]
 
+    - role: drivers
+      tags: [drivers, vbox, vmware, hyperv]
+
     - role: reflector
       tags: [mirrors, reflector]
       when: ansible_os_family == 'Archlinux'

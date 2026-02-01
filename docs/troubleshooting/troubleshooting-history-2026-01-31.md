@@ -44,11 +44,13 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 
 - [x] Чёрный экран после LightDM логина — пакеты не установлены (converge не грузил packages.yml)
 - [x] 125 pacman пакетов установлены, 4 AUR пакета установлены
-- [x] polybar, picom, dunst, nm-applet, greenclip, xss-lock запущены
+- [x] polybar, dunst, nm-applet, greenclip, xss-lock запущены
 
 ## Не решено
 
 ### Критичные
+
+- [ ] **picom-ftlabs-git чёрный экран** — picom (vgit-df4c6) замораживает экран при запуске. Конфиг содержал mainline v12+ анимации (`triggers`/`preset`) вместо FT-Labs формата (`animation-for-open-window`). Формат исправлен, инкрементальное тестирование (backend → blur → animations → wintypes) проходит, но стабильность при длительной работе не подтверждена. Без picom десктоп работает нормально. GLX backend точно рабочий (подтверждено пользователем).
 
 - [ ] **i3-rounded-border-patch-git** — патч `border_radius_v2.patch` несовместим с i3 4.25 (hunk #2 FAILED в `src/con.c`). Upstream AUR проблема. Варианты: форк PKGBUILD, альтернативный пакет, ждать мейнтейнера
 

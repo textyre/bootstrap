@@ -1,0 +1,47 @@
+---
+# === Virtualization drivers ===
+# Detects hypervisor and installs appropriate guest utilities
+# Supported: VirtualBox, VMware, Hyper-V
+
+# ---- Detection ----
+
+- name: Detect virtualization environment
+  ansible.builtin.set_fact:
+    _drivers_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+    _drivers_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+  tags: ['drivers']
+
+- name: Determine if running as guest in supported hypervisor
+  ansible.builtin.set_fact:
+    _drivers_is_guest: "{{ _drivers_virt_role == 'guest' and _drivers_virt_type in _drivers_supported_hypervisors }}"
+    _drivers_hypervisor: "{{ _drivers_virt_type if (_drivers_virt_role == 'guest' and _drivers_virt_type in _drivers_supported_hypervisors) else 'none' }}"
+  tags: ['drivers']
+
+# ---- Dispatch to hypervisor-specific tasks ----
+
+- name: Include hypervisor-specific tasks
+  ansible.builtin.include_tasks:
+    file: "{{ _drivers_hypervisor_map[_drivers_hypervisor] }}"
+  when: _drivers_is_guest | bool
+  tags: ['drivers']
+
+# ---- Skip message for bare-metal / unsupported ----
+
+- name: Skip - not a supported guest VM
+  ansible.builtin.debug:
+    msg: >-
+      Not a supported guest VM (type={{ _drivers_virt_type }}, role={{ _drivers_virt_role }}).
+      No guest drivers to install.
+  when: not (_drivers_is_guest | bool)
+  tags: ['drivers']
+
+# ---- Report ----
+
+- name: Report drivers configuration
+  ansible.builtin.debug:
+    msg:
+      - "Virtualization type: {{ _drivers_virt_type }}"
+      - "Virtualization role: {{ _drivers_virt_role }}"
+      - "Detected hypervisor: {{ _drivers_hypervisor }}"
+      - "Guest utilities installed: {{ _drivers_is_guest | bool }}"
+  tags: ['drivers']

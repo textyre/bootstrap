@@ -182,8 +182,8 @@ bindsym $mod+n exec --no-startup-id thunar
 # === AUTOSTART ===
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id ~/.local/bin/launch-picom
-exec --no-startup-id dunst
-exec --no-startup-id nm-applet
-exec --no-startup-id greenclip daemon
+exec_always --no-startup-id sh -c 'pkill -x dunst; exec dunst'
+exec_always --no-startup-id sh -c 'pkill -x nm-applet; exec nm-applet'
+exec_always --no-startup-id sh -c 'pkill -x greenclip; exec greenclip daemon'
 exec --no-startup-id ~/.local/bin/wallpaper-random
 exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.local/bin/lock-screen

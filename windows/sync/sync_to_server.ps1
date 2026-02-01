@@ -270,14 +270,24 @@ try {
 
     if (-not $SkipPermissions.IsPresent) {
         Write-Host ""
-        Write-Host "Выставляю права на выполнение и исправляю окончания строк (*.sh)..." -ForegroundColor Cyan
+        Write-Host "Исправляю права файлов и окончания строк..." -ForegroundColor Cyan
         # Нормализуем окончания строк (CRLF -> LF) с помощью sed, затем рекурсивно выставим бит +x
         # sed присутствует почти на всех Unix-системах; если его нет, просто выполнится chmod
         $findCommand = "if command -v sed >/dev/null 2>&1; then find {0} -type f -name '*.sh' -exec sed -i 's/\r$//' {{}} +; fi; find {0} -type f -name '*.sh' -exec chmod +x {{}} +" -f $remotePathLiteral
         if ((Invoke-SSHCommand -Command $findCommand) -ne 0) {
             throw "Не удалось обновить права/выполнить патчинг .sh файлов в $($Global:REMOTE_PATH)."
         }
-        Write-Host "✓ Права обновлены и патчинг выполнен" -ForegroundColor Green
+        Write-Host "  ✓ .sh файлы: +x, LF" -ForegroundColor Green
+
+        # Ansible требует корректные права: ansible.cfg не должен быть world-writable,
+        # inventory и vault файлы не должны быть доступны другим пользователям
+        $ansiblePermsCommand = "chmod 644 {0}/ansible/ansible.cfg 2>/dev/null; chmod -R go-w {0}/ansible/inventory/ 2>/dev/null; chmod 600 {0}/ansible/inventory/group_vars/all/vault.yml 2>/dev/null" -f $remotePathLiteral
+        if ((Invoke-SSHCommand -Command $ansiblePermsCommand) -ne 0) {
+            Write-Host "  ⚠ Не удалось исправить права Ansible файлов" -ForegroundColor Yellow
+        } else {
+            Write-Host "  ✓ Ansible: ansible.cfg 644, inventory go-w, vault 600" -ForegroundColor Green
+        }
+        Write-Host "✓ Права обновлены" -ForegroundColor Green
     } else {
         Write-Host ""
         Write-Host "Пропускаю установку прав (флаг -SkipPermissions)" -ForegroundColor Gray

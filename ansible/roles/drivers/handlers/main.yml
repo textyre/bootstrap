@@ -1,0 +1,23 @@
+---
+- name: Restart vboxservice
+  ansible.builtin.systemd:
+    name: vboxservice
+    state: restarted
+  when: ansible_facts['virtualization_type'] | default('') == 'virtualbox'
+
+- name: Restart vmtoolsd
+  ansible.builtin.systemd:
+    name: vmtoolsd
+    state: restarted
+  when: ansible_facts['virtualization_type'] | default('') == 'VMware'
+
+- name: Restart hyperv daemons
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - hv_fcopy_daemon
+    - hv_kvp_daemon
+    - hv_vss_daemon
+  failed_when: false
+  when: ansible_facts['virtualization_type'] | default('') == 'hyperv'

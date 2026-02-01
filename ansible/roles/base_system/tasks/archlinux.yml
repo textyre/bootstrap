@@ -26,6 +26,22 @@
   when: base_system_pacman_verbose_pkg_lists
   tags: ['system', 'pacman']
 
+# ---- PAM faillock ----
+
+- name: Configure pam_faillock defaults
+  ansible.builtin.copy:
+    dest: /etc/security/faillock.conf
+    content: |
+      # Managed by Ansible — suppress pam_faillock warnings
+      dir = /run/faillock
+      deny = 5
+      fail_interval = 900
+      unlock_time = 600
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['system', 'pam']
+
 # ---- Внешний кэш pacman (опционально) ----
 
 - name: Setup external pacman cache

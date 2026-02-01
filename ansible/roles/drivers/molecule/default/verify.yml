@@ -1,0 +1,59 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/packages.yml"
+
+  tasks:
+    - name: Get virtualization type
+      ansible.builtin.set_fact:
+        drivers_verify_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+        drivers_verify_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+
+    - name: Check vboxservice is running (VirtualBox only)
+      ansible.builtin.systemd:
+        name: vboxservice
+      register: drivers_verify_vboxservice
+      when: drivers_verify_virt_type == 'virtualbox' and drivers_verify_virt_role == 'guest'
+
+    - name: Assert vboxservice is active
+      ansible.builtin.assert:
+        that:
+          - drivers_verify_vboxservice.status.ActiveState == 'active'
+        fail_msg: "vboxservice is not running"
+      when: drivers_verify_virt_type == 'virtualbox' and drivers_verify_virt_role == 'guest'
+
+    - name: Check vmtoolsd is running (VMware only)
+      ansible.builtin.systemd:
+        name: vmtoolsd
+      register: drivers_verify_vmtoolsd
+      when: drivers_verify_virt_type == 'VMware' and drivers_verify_virt_role == 'guest'
+
+    - name: Assert vmtoolsd is active
+      ansible.builtin.assert:
+        that:
+          - drivers_verify_vmtoolsd.status.ActiveState == 'active'
+        fail_msg: "vmtoolsd is not running"
+      when: drivers_verify_virt_type == 'VMware' and drivers_verify_virt_role == 'guest'
+
+    - name: Check hv_kvp_daemon is running (Hyper-V only)
+      ansible.builtin.systemd:
+        name: hv_kvp_daemon
+      register: drivers_verify_hv_kvp
+      when: drivers_verify_virt_type == 'hyperv' and drivers_verify_virt_role == 'guest'
+
+    - name: Assert hv_kvp_daemon is active
+      ansible.builtin.assert:
+        that:
+          - drivers_verify_hv_kvp.status.ActiveState == 'active'
+        fail_msg: "hv_kvp_daemon is not running"
+      when: drivers_verify_virt_type == 'hyperv' and drivers_verify_virt_role == 'guest'
+
+    - name: Show verification results
+      ansible.builtin.debug:
+        msg:
+          - "Virtualization: {{ drivers_verify_virt_type }} ({{ drivers_verify_virt_role }})"
+          - "Driver verification passed"

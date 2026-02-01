@@ -3,6 +3,15 @@
 # Поддержка: Arch Linux (pacman + AUR), Debian/Ubuntu (apt)
 # Только установка пакетов. Сервисы → docker/lightdm роли. Группы → user роль.
 
+# ---- Полное обновление системы ----
+
+- name: Full system upgrade (pacman -Syu)
+  community.general.pacman:
+    update_cache: true
+    upgrade: true
+  when: ansible_os_family == 'Archlinux'
+  tags: ['install', 'upgrade']
+
 # ---- Сбор всех пакетов в единый список ----
 
 - name: Build combined package list
@@ -63,11 +72,22 @@
   tags: ['install', 'aur']
 
 - name: Check if yay is installed
-  ansible.builtin.command: which yay
+  ansible.builtin.command: yay --version
   register: packages_yay_check
   changed_when: false
   failed_when: false
   when: ansible_os_family == 'Archlinux' and packages_aur | length > 0
+  tags: ['install', 'aur']
+
+- name: Verify perl is available for AUR builds
+  ansible.builtin.command: perl -v
+  register: _packages_perl_check
+  changed_when: false
+  failed_when: _packages_perl_check.rc != 0
+  when:
+    - ansible_os_family == 'Archlinux'
+    - packages_aur | length > 0
+    - packages_yay_check.rc == 0
   tags: ['install', 'aur']
 
 - name: Install AUR packages via yay
@@ -77,7 +97,11 @@
     yay -S --needed --noconfirm
     {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
     {{ item }}
-  environment: "{{ {'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass'} if ansible_become_password is defined else {} }}"
+  environment: >-
+    {{
+      {'PATH': '/usr/bin/core_perl:' + ansible_env.PATH}
+      | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass'} if ansible_become_password is defined else {})
+    }}
   loop: "{{ packages_aur }}"
   register: packages_yay_install
   changed_when: "'there is nothing to do' not in packages_yay_install.stdout | default('')"
