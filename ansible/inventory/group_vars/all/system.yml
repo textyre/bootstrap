@@ -67,7 +67,7 @@ git_editor: "vim"
 
 shell_user: "{{ target_user }}"
 shell_type: bash
-# chezmoi управляет .zshrc — shell role не деплоит конфиг
+# chezmoi управляет .bashrc и .zshrc — shell role не деплоит конфиг
 shell_deploy_config: false
 
 # ============================================================

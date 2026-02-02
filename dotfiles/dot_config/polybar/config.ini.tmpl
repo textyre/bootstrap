@@ -25,7 +25,7 @@ island-border  = #66{{ trimPrefix "#" $t.border_active }}
 ; ============================================================
 [bar/workspaces]
 monitor = ${env:MONITOR:}
-width = 420
+width = {{ .layout.bar_width_workspaces }}
 offset-x = {{ .layout.gaps_outer }}
 offset-y = {{ .layout.bar_offset_y }}
 height = {{ .layout.bar_height }}
@@ -37,7 +37,6 @@ border-size = {{ .layout.bar_border }}
 border-color = ${colors.island-border}
 
 override-redirect = true
-wm-restack = i3
 
 modules-center = workspaces
 
@@ -56,8 +55,8 @@ padding-right = 0
 ; ============================================================
 [bar/clock]
 monitor = ${env:MONITOR:}
-width = 220
-offset-x = 50%:-110
+width = {{ .layout.bar_width_clock }}
+offset-x = 50%:-{{ div .layout.bar_width_clock 2 }}
 offset-y = {{ .layout.bar_offset_y }}
 height = {{ .layout.bar_height }}
 
@@ -68,7 +67,6 @@ border-size = {{ .layout.bar_border }}
 border-color = ${colors.island-border}
 
 override-redirect = true
-wm-restack = i3
 
 modules-center = date
 
@@ -87,8 +85,8 @@ padding-right = 0
 ; ============================================================
 [bar/system]
 monitor = ${env:MONITOR:}
-width = 440
-offset-x = 100%:-448
+width = {{ .layout.bar_width_system }}
+offset-x = 100%:-{{ add .layout.bar_width_system .layout.gaps_outer }}
 offset-y = {{ .layout.bar_offset_y }}
 height = {{ .layout.bar_height }}
 
@@ -99,7 +97,6 @@ border-size = {{ .layout.bar_border }}
 border-color = ${colors.island-border}
 
 override-redirect = true
-wm-restack = i3
 
 modules-left = network sep volume sep cpu sep memory
 modules-right = sep controlcenter sep powermenu sep tray
@@ -143,7 +140,7 @@ format = <label>
 format-foreground = ${colors.foreground}
 format-padding = 2
 label = "  %date%    %time%"
-click-left = bash -c 'command -v naivecalendar &>/dev/null && naivecalendar || notify-send "Calendar" "$(cal)" &'
+click-left = gsimplecal &
 
 ; ============================================================
 ; MODULE: NETWORK

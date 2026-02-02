@@ -71,6 +71,7 @@ packages_wm:
   - dunst             # демон уведомлений
   - feh               # управление обоями
   - flameshot         # скриншоты
+  - gsimplecal        # лёгкий GTK-календарь (popup при клике на часы)
 
 # --- Файловый менеджер ---
 packages_filemanager:
@@ -179,5 +180,4 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
-  - naivecalendar-git             # rofi-календарь для polybar
   - eww-git                       # виджет-фреймворк (control center)

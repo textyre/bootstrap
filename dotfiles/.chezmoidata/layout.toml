@@ -12,3 +12,6 @@
   bar_border    = 1
   bar_radius    = 14
   network_interface_type = "wired"
+  bar_width_workspaces = 420
+  bar_width_clock      = 220
+  bar_width_system     = 440

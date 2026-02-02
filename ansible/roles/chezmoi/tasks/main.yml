@@ -92,6 +92,16 @@
   changed_when: _chezmoi_apply.rc == 0
   tags: ['chezmoi', 'dotfiles']
 
+- name: Verify no nested chezmoidata (guard against stale theme data)
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  ansible.builtin.command:
+    cmd: find {{ _chezmoi_user_home }}/.local/share/chezmoi -mindepth 2 -name '.chezmoidata' -type d
+  register: _chezmoi_nested_check
+  changed_when: false
+  failed_when: _chezmoi_nested_check.stdout | length > 0
+  tags: ['chezmoi', 'dotfiles']
+
 - name: Report chezmoi deployment
   ansible.builtin.debug:
     msg:

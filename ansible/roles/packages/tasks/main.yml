@@ -79,6 +79,41 @@
   when: ansible_facts['os_family'] == 'Archlinux' and packages_aur | length > 0
   tags: ['install', 'aur']
 
+- name: Validate AUR packages don't conflict with official packages
+  ansible.builtin.shell: |
+    set -euo pipefail
+    conflicts_found=0
+    remove_list="{{ packages_aur_remove_conflicts | join(' ') }}"
+    all_pkgs="{{ _packages_all | join(' ') }}"
+    for pkg in {{ packages_aur | join(' ') }}; do
+      provides=$(yay -Si "$pkg" 2>/dev/null | grep '^Provides' | sed 's/Provides *: //' | tr ' ' '\n')
+      for p in $provides; do
+        p_name=$(echo "$p" | sed 's/[>=<].*//')
+        [ -z "$p_name" ] && continue
+        if echo "$all_pkgs" | tr ' ' '\n' | grep -qx "$p_name"; then
+          if ! echo "$remove_list" | tr ' ' '\n' | grep -qx "$p_name"; then
+            echo "CONFLICT: AUR '$pkg' provides '$p_name' which is in official list but NOT in packages_aur_remove_conflicts"
+            conflicts_found=1
+          fi
+        fi
+      done
+    done
+    if [ "$conflicts_found" -eq 1 ]; then
+      echo "Fix: add conflicting packages to packages_aur_remove_conflicts in packages.yml"
+      exit 1
+    fi
+    echo "OK: No unhandled AUR vs official conflicts"
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+  changed_when: false
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - packages_aur | length > 0
+    - packages_yay_check.rc == 0
+  tags: ['install', 'aur']
+
 - name: Verify perl is available for AUR builds
   ansible.builtin.command: perl -v
   register: _packages_perl_check
