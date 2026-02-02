@@ -142,7 +142,7 @@ time = "%H:%M"
 format = <label>
 format-foreground = ${colors.foreground}
 format-padding = 2
-label = "  %date%    %time%"
+label = "  %date%    %time%"
 click-left = bash -c 'command -v naivecalendar &>/dev/null && naivecalendar || notify-send "Calendar" "$(cal)" &'
 
 ; ============================================================
@@ -154,11 +154,11 @@ interface-type = {{ .layout.network_interface_type }}
 interval = 3
 format-connected = <label-connected>
 format-connected-padding = 1
-label-connected = "  %local_ip%"
+label-connected = "  %local_ip%"
 label-connected-foreground = ${colors.success}
 format-disconnected = <label-disconnected>
 format-disconnected-padding = 1
-label-disconnected = "  disconnected"
+label-disconnected = "  disconnected"
 label-disconnected-foreground = ${colors.urgent}
 click-left = alacritty -e nmtui &
 
@@ -170,11 +170,11 @@ type = internal/pulseaudio
 use-ui-max = true
 format-volume = <label-volume>
 format-volume-padding = 1
-label-volume = "  %percentage%%"
+label-volume = "  %percentage%%"
 label-volume-foreground = ${colors.foreground}
 format-muted = <label-muted>
 format-muted-padding = 1
-label-muted = "  muted"
+label-muted = "  muted"
 label-muted-foreground = ${colors.foreground-dim}
 click-left = pavucontrol &
 scroll-up = pamixer -i 5
@@ -188,7 +188,7 @@ type = internal/cpu
 interval = 2
 format = <label>
 format-padding = 1
-label = "  %percentage%%"
+label = "  %percentage%%"
 label-foreground = ${colors.info}
 
 ; ============================================================
@@ -199,7 +199,7 @@ type = internal/memory
 interval = 3
 format = <label>
 format-padding = 1
-label = "  %percentage_used%%"
+label = "  %percentage_used%%"
 label-foreground = ${colors.warning}
 
 ; ============================================================
@@ -207,7 +207,7 @@ label-foreground = ${colors.warning}
 ; ============================================================
 [module/controlcenter]
 type = custom/text
-format = " "
+format = ""
 format-foreground = ${colors.accent}
 format-padding = 1
 click-left = ~/.config/rofi/scripts/controlcenter.sh &
@@ -217,7 +217,7 @@ click-left = ~/.config/rofi/scripts/controlcenter.sh &
 ; ============================================================
 [module/powermenu]
 type = custom/text
-format = " "
+format = ""
 format-foreground = ${colors.urgent}
 format-padding = 1
 click-left = ~/.config/rofi/scripts/powermenu.sh &

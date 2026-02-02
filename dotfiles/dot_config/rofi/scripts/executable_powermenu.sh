@@ -1,11 +1,11 @@
 #!/bin/bash
 # Rofi Power Menu
 
-lock=""
-logout=""
-suspend=""
-reboot=""
-shutdown=""
+lock=""
+logout=""
+suspend=""
+reboot=""
+shutdown=""
 
 options="$lock\n$logout\n$suspend\n$reboot\n$shutdown"
 

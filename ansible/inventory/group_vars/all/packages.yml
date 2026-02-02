@@ -62,10 +62,9 @@ packages_xorg:
   - xorg-drivers      # видеодрайверы Xorg
 
 # --- Оконный менеджер: визуал и хелперы ---
-# i3-wm ставится через pacman, затем заменяется на i3-rounded-border-patch-git из AUR
+# i3 ставится из AUR (i3-rounded-border-patch-git) — закруглённые углы
+# picom ставится из AUR (picom-ftlabs-git) — анимации
 packages_wm:
-  - i3-wm             # оконный менеджер i3
-  # picom ставится из AUR (picom-ftlabs-git) — нужен для анимаций
   - dmenu             # минимальный лаунчер (фолбэк)
   - polybar           # статус-бар
   - rofi              # лаунчер приложений и меню
@@ -113,6 +112,7 @@ packages_session:
 # --- Терминал ---
 packages_terminal:
   - alacritty         # GPU-accelerated терминал
+  - starship          # Cross-shell промпт с Nerd Font иконками
 
 # --- Шрифты ---
 packages_fonts:

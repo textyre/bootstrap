@@ -38,11 +38,11 @@ get_network() {
 }
 
 # Build menu options
-volume_icon=""
-brightness_icon=""
-network_icon=""
-display_icon=""
-power_icon=""
+volume_icon=""
+brightness_icon=""
+network_icon=""
+display_icon=""
+power_icon=""
 
 volume_status=$(get_volume)
 brightness_status=$(get_brightness)
