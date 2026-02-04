@@ -9,31 +9,65 @@ OCCUPIED="{{ $t.fg }}"
 EMPTY="{{ $t.fg_dim }}"
 URGENT="{{ $t.urgent }}"
 
-# Workspace names
-declare -A WS_NAMES=(
-    [1]="1: "
-    [2]="2: "
-    [3]="3: "
-    [4]="4"
-    [5]="5"
-    [6]="6"
-    [7]="7"
-    [8]="8"
-    [9]="9"
-    [10]="10"
-)
+# Layout configuration
+EDGE_PADDING=8
+GAP={{ .layout.sep_gap }}
+
+# Default icon for new workspaces
+DEFAULT_ICON="●"
+
+# Fixed workspaces (1-3) with icons
+# 1: Browser (nf-fa-earth_americas U+ee46), 2: Code (U+f121), 3: Terminal (U+f120)
+declare -A WS_NAMES
+WS_NAMES[1]=$(printf '%b' "\\xee\\xb9\\x86")
+WS_NAMES[2]=$(printf '%b' "\\xef\\x84\\xa1")
+WS_NAMES[3]=$(printf '%b' "\\xef\\x84\\xa0")
+
+ICONS_FILE="$HOME/.config/polybar/workspace-icons.conf"
 
 render_workspaces() {
+    # Load custom icons on each render (to pick up changes)
+    declare -A CUSTOM_ICONS
+    if [[ -f "$ICONS_FILE" ]]; then
+        while IFS=: read -r num icon; do
+            [[ -n "$num" && -n "$icon" ]] && CUSTOM_ICONS[$num]="$icon"
+        done < "$ICONS_FILE"
+    fi
+
     local workspaces
     workspaces=$(i3-msg -t get_workspaces)
 
-    local output=""
-
+    # First pass: count visible workspaces and collect data
+    local -a visible_ws=()
     for i in {1..10}; do
         local ws_data
         ws_data=$(echo "$workspaces" | jq -r ".[] | select(.num == $i)")
 
-        local name="${WS_NAMES[$i]}"
+        # Skip non-existent workspaces > 3
+        if [[ -z "$ws_data" ]] && [[ $i -gt 3 ]]; then
+            continue
+        fi
+        visible_ws+=("$i")
+    done
+
+    local count=${#visible_ws[@]}
+    local output=""
+    local idx=0
+
+    # Left edge padding
+    output+="%{O$EDGE_PADDING}"
+
+    for i in "${visible_ws[@]}"; do
+        local ws_data
+        ws_data=$(echo "$workspaces" | jq -r ".[] | select(.num == $i)")
+
+        # Get icon: custom > base > default (use -v to avoid set -u errors)
+        local name="$DEFAULT_ICON"
+        if [[ -v "CUSTOM_ICONS[$i]" ]]; then
+            name="${CUSTOM_ICONS[$i]}"
+        elif [[ -v "WS_NAMES[$i]" ]]; then
+            name="${WS_NAMES[$i]}"
+        fi
         local color="$EMPTY"
         local underline=""
 
@@ -54,22 +88,37 @@ render_workspaces() {
             fi
         fi
 
-        # Build clickable workspace with color and optional underline
+        # Add gap between items (not before first)
+        if [[ $idx -gt 0 ]]; then
+            output+="%{O$GAP}"
+        fi
+
+        # Right-click menu for dynamic workspaces (4+)
+        if [[ $i -gt 3 ]] && [[ -n "$ws_data" ]]; then
+            output+="%{A3:~/.config/polybar/scripts/workspace-menu.sh $i:}"
+        fi
+
+        # Left-click to switch workspace
         output+="%{A1:i3-msg workspace number $i:}"
         output+="%{F$color}"
         output+="$underline"
-        output+=" $name "
+        output+="%{T2}$name%{T-}"
         if [[ -n "$underline" ]]; then
             output+="%{-u}"
         fi
         output+="%{F-}"
         output+="%{A}"
 
-        # Add separator between workspaces
-        if [[ $i -lt 10 ]]; then
-            output+=" "
+        # Close right-click handler
+        if [[ $i -gt 3 ]] && [[ -n "$ws_data" ]]; then
+            output+="%{A}"
         fi
+
+        ((++idx))
     done
+
+    # Right edge padding
+    output+="%{O$EDGE_PADDING}"
 
     echo "$output"
 }

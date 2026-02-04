@@ -5,7 +5,6 @@
 # === BACKEND ===
 backend = "glx";
 # vsync = true;
-# glx-no-stencil = true;
 # use-damage = true;
 
 # === ROUNDED CORNERS ===
@@ -24,60 +23,57 @@ detect-rounded-corners = true;
 
 # === SHADOWS ===
 shadow = true;
-shadow-radius = 12;
-shadow-offset-x = -5;
-shadow-offset-y = -5;
-shadow-opacity = 0.35;
-shadow-color = "{{ $t.bg_alt }}";
+shadow-radius = 8;
+shadow-offset-x = -4;
+shadow-offset-y = -4;
+shadow-opacity = 0.3;
 
 shadow-exclude = [
+  "class_g = 'Polybar'",
+  "_GTK_FRAME_EXTENTS@:c"
+];
+
+# === OPACITY ===
+active-opacity = 0.92;
+inactive-opacity = 0.85;
+frame-opacity = 1.0;
+inactive-opacity-override = false;
+
+opacity-rule = [
+  "100:class_g = 'firefox'",
+  "100:class_g = 'Brave-browser'",
+  "100:fullscreen",
+  "95:class_g = 'Alacritty' && focused",
+  "85:class_g = 'Alacritty' && !focused",
+  "95:class_g = 'Rofi'"
+];
+
+# === BLUR ===
+blur-background = true;
+blur-background-frame = true;
+
+blur: {
+  method = "dual_kawase";
+  strength = 1;
+};
+
+blur-background-exclude = [
   "window_type = 'dock'",
   "window_type = 'desktop'",
   "class_g = 'Polybar'",
   "_GTK_FRAME_EXTENTS@:c"
 ];
 
-# === OPACITY ===
-# active-opacity = 0.92;
-# inactive-opacity = 0.85;
-# frame-opacity = 1.0;
-# inactive-opacity-override = false;
-#
-# opacity-rule = [
-#   "100:class_g = 'firefox'",
-#   "100:class_g = 'Brave-browser'",
-#   "100:fullscreen",
-#   "95:class_g = 'Alacritty' && focused",
-#   "85:class_g = 'Alacritty' && !focused",
-#   "95:class_g = 'Rofi'"
-# ];
-
-# === BLUR ===
-# blur-background = true;
-# blur-background-frame = true;
-#
-# blur: {
-#   method = "dual_kawase";
-#   strength = 5;
-# };
-#
-# blur-background-exclude = [
-#   "window_type = 'dock'",
-#   "window_type = 'desktop'",
-#   "class_g = 'Polybar'",
-#   "_GTK_FRAME_EXTENTS@:c"
-# ];
-
 # === ANIMATIONS (picom-ftlabs) ===
-# animations = true;
-# animation-stiffness-in-tag = 125;
-# animation-stiffness-tag-change = 90;
-# animation-dampening = 15;
-# animation-window-mass = 0.5;
-# animation-clamping = true;
-# animation-for-open-window = "zoom";
-# animation-for-unmap-window = "slide-down";
-# animation-for-transient-window = "slide-down";
+animations = true;
+animation-stiffness-in-tag = 125;
+animation-stiffness-tag-change = 90;
+animation-dampening = 15;
+animation-window-mass = 0.5;
+animation-clamping = true;
+animation-for-open-window = "zoom";
+animation-for-unmap-window = "slide-down";
+animation-for-transient-window = "slide-down";
 
 # === FADING ===
 fading = true;

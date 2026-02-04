@@ -1,0 +1,64 @@
+{{- $t := index .themes .theme_name -}}
+/* Rofi Context Menu — Compact dropdown */
+
+* {
+    bg:      {{ $t.bg }}ee;
+    fg:      {{ $t.fg }};
+    fg-dim:  {{ $t.fg_dim }};
+    accent:  {{ $t.accent }};
+    urgent:  {{ $t.urgent }};
+    border:  {{ $t.border_active }};
+    bg-light: {{ $t.bg_light }};
+
+    background-color: transparent;
+    text-color: @fg;
+    font: "{{ .font.mono }} {{ .font.mono_size }}";
+}
+
+window {
+    width: 220px;
+    location: northwest;
+    x-offset: 20;
+    y-offset: 50;
+    transparency: "real";
+    background-color: @bg;
+    border: 1px;
+    border-color: @border;
+    border-radius: {{ .layout.corner_radius }}px;
+    padding: 10px;
+}
+
+mainbox {
+    children: [ inputbar, listview ];
+    spacing: 10px;
+}
+
+inputbar {
+    children: [ prompt ];
+    padding: 8px 10px;
+    background-color: @bg-light;
+    border-radius: 6px;
+}
+
+prompt {
+    text-color: @accent;
+}
+
+listview {
+    lines: 2;
+    columns: 1;
+    spacing: 5px;
+    cycle: true;
+    fixed-height: true;
+    scrollbar: false;
+}
+
+element {
+    padding: 10px 12px;
+    border-radius: 6px;
+}
+
+element selected {
+    background-color: {{ $t.bg_light }}cc;
+    text-color: @accent;
+}

@@ -25,7 +25,7 @@ island-border  = #66{{ trimPrefix "#" $t.border_active }}
 ; ============================================================
 [bar/workspaces]
 monitor = ${env:MONITOR:}
-width = {{ .layout.bar_width_workspaces }}
+width = ${env:WS_BAR_WIDTH:{{ .layout.bar_width_workspaces }}}
 offset-x = {{ .layout.gaps_outer }}
 offset-y = {{ .layout.bar_offset_y }}
 height = {{ .layout.bar_height }}
@@ -43,9 +43,40 @@ modules-center = workspaces
 enable-ipc = true
 cursor-click = pointer
 
-font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;2
-font-1 = {{ .font.icon }}:size={{ .font.icon_size }};3
-font-2 = {{ .font.mono }}:size={{ .font.bar_size }};2
+font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;{{ .layout.font_offset }}
+font-1 = {{ .font.icon }}:size={{ .font.icon_size }};{{ .layout.font_offset }}
+font-2 = {{ .font.mono }}:size={{ .font.bar_size }};{{ .layout.font_offset }}
+
+padding-left = {{ .layout.bar_padding_ws }}px
+padding-right = {{ .layout.bar_padding_ws }}px
+
+; ============================================================
+; BAR: WORKSPACE ADD (LEFT ISLAND - ADD BUTTON)
+; ============================================================
+[bar/workspace-add]
+monitor = ${env:MONITOR:}
+width = 40
+; Position = gaps_outer + bar_width_workspaces + gap between islands
+offset-x = ${env:WS_ADD_OFFSET:{{ add .layout.gaps_outer .layout.bar_width_workspaces 4 }}}
+offset-y = {{ .layout.bar_offset_y }}
+height = {{ .layout.bar_height }}
+
+background = ${colors.island}
+foreground = ${colors.foreground}
+radius = {{ .layout.bar_radius }}
+border-size = {{ .layout.bar_border }}
+border-color = ${colors.island-border}
+
+override-redirect = true
+
+modules-center = workspace-add-btn
+
+enable-ipc = true
+cursor-click = pointer
+
+font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;{{ .layout.font_offset }}
+font-1 = {{ .font.icon }}:size={{ .font.icon_size }};{{ .layout.font_offset }}
+font-2 = {{ .font.mono }}:size={{ .font.bar_size }};{{ .layout.font_offset }}
 
 padding-left = 0
 padding-right = 0
@@ -73,12 +104,12 @@ modules-center = date
 enable-ipc = true
 cursor-click = pointer
 
-font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;2
-font-1 = {{ .font.icon }}:size={{ .font.icon_size }};3
-font-2 = {{ .font.mono }}:size={{ .font.bar_size }};2
+font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;{{ .layout.font_offset }}
+font-1 = {{ .font.icon }}:size={{ .font.icon_size }};{{ .layout.font_offset }}
+font-2 = {{ .font.mono }}:size={{ .font.bar_size }};{{ .layout.font_offset }}
 
-padding-left = 0
-padding-right = 0
+padding-left = {{ .layout.bar_padding }}px
+padding-right = {{ .layout.bar_padding }}px
 
 ; ============================================================
 ; BAR: SYSTEM (RIGHT ISLAND)
@@ -105,12 +136,12 @@ enable-ipc = true
 cursor-click = pointer
 cursor-scroll = ns-resize
 
-font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;2
-font-1 = {{ .font.icon }}:size={{ .font.icon_size }};3
-font-2 = {{ .font.mono }}:size={{ .font.bar_size }};2
+font-0 = {{ .font.mono }}:size={{ .font.bar_size }}:weight=bold;{{ .layout.font_offset }}
+font-1 = {{ .font.icon }}:size={{ .font.icon_size }};{{ .layout.font_offset }}
+font-2 = {{ .font.mono }}:size={{ .font.bar_size }};{{ .layout.font_offset }}
 
-padding-left = 2
-padding-right = 1
+padding-left = {{ .layout.bar_padding }}px
+padding-right = {{ .layout.bar_padding }}px
 
 ; ============================================================
 ; MODULE: WORKSPACES
@@ -121,12 +152,20 @@ exec = ~/.config/polybar/scripts/workspaces.sh
 tail = true
 
 ; ============================================================
+; MODULE: WORKSPACE ADD BUTTON
+; ============================================================
+[module/workspace-add-btn]
+type = custom/text
+format = "%{T2}+%{T-}"
+format-foreground = ${colors.accent}
+click-left = ~/.config/polybar/scripts/add-workspace.sh
+
+; ============================================================
 ; MODULE: SEPARATOR
 ; ============================================================
 [module/sep]
 type = custom/text
-format = "  "
-format-foreground = ${colors.foreground-dim}
+format = "%{O{{ .layout.sep_gap }}}"
 
 ; ============================================================
 ; MODULE: DATE/TIME
@@ -139,7 +178,7 @@ time = "%H:%M"
 format = <label>
 format-foreground = ${colors.foreground}
 format-padding = 2
-label = "  %date%    %time%"
+label = "%{T2}%{T-}  %date%    %time%"
 click-left = gsimplecal &
 
 ; ============================================================
@@ -151,11 +190,11 @@ interface-type = {{ .layout.network_interface_type }}
 interval = 3
 format-connected = <label-connected>
 format-connected-padding = 1
-label-connected = "  %local_ip%"
+label-connected = "%{T2}%{T-}  %local_ip%"
 label-connected-foreground = ${colors.success}
 format-disconnected = <label-disconnected>
 format-disconnected-padding = 1
-label-disconnected = "  disconnected"
+label-disconnected = "%{T2}%{T-}  disconnected"
 label-disconnected-foreground = ${colors.urgent}
 click-left = alacritty -e nmtui &
 
@@ -167,11 +206,11 @@ type = internal/pulseaudio
 use-ui-max = true
 format-volume = <label-volume>
 format-volume-padding = 1
-label-volume = "  %percentage%%"
+label-volume = "%{T2}%{T-}  %percentage%%"
 label-volume-foreground = ${colors.foreground}
 format-muted = <label-muted>
 format-muted-padding = 1
-label-muted = "  muted"
+label-muted = "%{T2}%{T-}  muted"
 label-muted-foreground = ${colors.foreground-dim}
 click-left = pavucontrol &
 scroll-up = pamixer -i 5
@@ -185,7 +224,7 @@ type = internal/cpu
 interval = 2
 format = <label>
 format-padding = 1
-label = "  %percentage%%"
+label = "%{T2}%{T-}  %percentage%%"
 label-foreground = ${colors.info}
 
 ; ============================================================
@@ -196,7 +235,7 @@ type = internal/memory
 interval = 3
 format = <label>
 format-padding = 1
-label = "  %percentage_used%%"
+label = "%{T2}%{T-}  %percentage_used%%"
 label-foreground = ${colors.warning}
 
 ; ============================================================
@@ -204,7 +243,7 @@ label-foreground = ${colors.warning}
 ; ============================================================
 [module/controlcenter]
 type = custom/text
-format = ""
+format = "%{T2}%{T-}"
 format-foreground = ${colors.accent}
 format-padding = 1
 click-left = ~/.config/rofi/scripts/controlcenter.sh &
@@ -214,7 +253,7 @@ click-left = ~/.config/rofi/scripts/controlcenter.sh &
 ; ============================================================
 [module/powermenu]
 type = custom/text
-format = ""
+format = "%{T2}%{T-}"
 format-foreground = ${colors.urgent}
 format-padding = 1
 click-left = ~/.config/rofi/scripts/powermenu.sh &
