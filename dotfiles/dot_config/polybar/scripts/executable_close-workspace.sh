@@ -7,8 +7,8 @@ ICONS_FILE="$HOME/.config/polybar/workspace-icons.conf"
 
 # Layout constants (must match launch.sh)
 GAPS_OUTER=8
-EDGE_PADDING=8
-GAP=18
+EDGE_PADDING=12
+GAP=22
 ICON_WIDTH=16
 MIN_WS=3
 
