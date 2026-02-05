@@ -1,0 +1,97 @@
+---
+# === power_management — TLP, CPU governor, sleep ===
+
+# ---- Detect device type via DMI ----
+
+- name: Read DMI chassis type
+  ansible.builtin.slurp:
+    src: /sys/class/dmi/id/chassis_type
+  register: _power_management_chassis_raw
+  failed_when: false
+  tags: ['power']
+
+- name: Set device type fact
+  ansible.builtin.set_fact:
+    _power_management_is_laptop: >-
+      {{
+        (power_management_device_type == 'laptop') or
+        (power_management_device_type == 'auto' and
+         _power_management_chassis_raw is succeeded and
+         (_power_management_chassis_raw.content | b64decode | trim) in _power_management_laptop_chassis_types)
+      }}
+  tags: ['power']
+
+- name: Report detected device type
+  ansible.builtin.debug:
+    msg: "Device type: {{ 'laptop' if _power_management_is_laptop else 'desktop' }} (config: {{ power_management_device_type }})"
+  tags: ['power']
+
+# ---- Disable conflicting services ----
+
+- name: Stop and mask power-profiles-daemon
+  ansible.builtin.systemd:
+    name: power-profiles-daemon
+    state: stopped
+    masked: true
+  failed_when: false
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']
+
+# ---- OS-specific package installation ----
+
+- name: Include OS-specific installation
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+  when: ansible_facts['os_family'] in _power_management_supported_os
+  tags: ['power']
+
+# ---- TLP configuration (laptop) ----
+
+- name: Deploy TLP configuration
+  ansible.builtin.template:
+    src: tlp.conf.j2
+    dest: /etc/tlp.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart tlp
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']
+
+- name: Enable and start TLP service
+  ansible.builtin.systemd:
+    name: tlp
+    enabled: true
+    state: started
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']
+
+# ---- CPU governor (desktop) ----
+
+- name: Set CPU governor via cpupower
+  ansible.builtin.command: cpupower frequency-set -g {{ power_management_cpu_governor }}
+  changed_when: true
+  when: not _power_management_is_laptop
+  failed_when: false
+  tags: ['power', 'cpu']
+
+# ---- systemd sleep configuration ----
+
+- name: Deploy systemd sleep.conf
+  ansible.builtin.template:
+    src: sleep.conf.j2
+    dest: /etc/systemd/sleep.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['power', 'sleep']
+
+# ---- Report ----
+
+- name: Report power management configuration
+  ansible.builtin.debug:
+    msg:
+      - "Device: {{ 'laptop' if _power_management_is_laptop else 'desktop' }}"
+      - "TLP: {{ 'enabled' if _power_management_is_laptop else 'skipped (desktop)' }}"
+      - "CPU governor: {{ power_management_tlp_cpu_governor_ac if _power_management_is_laptop else power_management_cpu_governor }}"
+      - "Sleep mode: {{ power_management_suspend_mode }}"
+  tags: ['power']

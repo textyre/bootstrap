@@ -2,11 +2,12 @@
 
 План развития Ansible ролей для полного покрытия VM/Bare Metal конфигурации.
 
-## Текущее состояние (14 ролей)
+## Текущее состояние (17 ролей)
 
 | Фаза | Роли | Статус |
 |------|------|--------|
 | System Foundation | `base_system`, `vm`, `reflector` | ✅ |
+| Hardware & Kernel | `gpu_drivers`, `sysctl`, `power_management` | ✅ |
 | Package Infrastructure | `yay`, `packages` | ✅ |
 | User & Access | `user`, `ssh` | ✅ |
 | Development Tools | `git`, `shell` | ✅ |
@@ -18,14 +19,13 @@
 
 ## Планируемые роли
 
-### Приоритет 1: Критичные для Bare Metal
+### Приоритет 1: Критичные для Bare Metal ✅
 
-| Роль | Описание | Сложность |
-|------|----------|-----------|
-| `gpu_drivers` | NVIDIA/AMD/Intel драйверы, Vulkan, VA-API, hardware acceleration | High |
-| `audio` | PipeWire/PulseAudio, ALSA конфигурация, bluetooth audio | Medium |
-| `sysctl` | Kernel параметры (vm.swappiness, net.*, fs.inotify.max_user_watches) | Low |
-| `power_management` | TLP, CPU governor, suspend/hibernate, laptop-mode-tools | Medium |
+| Роль | Описание | Сложность | Статус |
+|------|----------|-----------|--------|
+| `gpu_drivers` | NVIDIA/AMD/Intel драйверы, Vulkan, VA-API, hardware acceleration | High | ✅ |
+| `sysctl` | Kernel параметры (vm.swappiness, net.*, fs.inotify.max_user_watches) | Low | ✅ |
+| `power_management` | TLP, CPU governor, suspend/hibernate, laptop-mode-tools | Medium | ✅ |
 
 ### Приоритет 2: Desktop Experience
 
@@ -100,8 +100,8 @@
 ```
 Phase 1 (Bare Metal essentials):
 ├── gpu_drivers
-├── audio
-└── sysctl
+├── sysctl
+└── power_management
 
 Phase 2 (Desktop polish):
 ├── compositor
@@ -110,7 +110,6 @@ Phase 2 (Desktop polish):
 └── input_devices
 
 Phase 3 (System hardening):
-├── power_management
 ├── swap
 ├── backup
 └── fail2ban
@@ -155,6 +154,14 @@ roles/new_role/
 2. **Tags** для selective execution
 3. **Molecule tests** для CI/CD
 4. **Idempotency** — повторный запуск не должен менять состояние
+
+---
+
+## Запасные (отложенные)
+
+| Роль | Описание | Сложность | Причина |
+|------|----------|-----------|---------|
+| `audio` | PipeWire/PulseAudio, ALSA конфигурация, bluetooth audio | Medium | Не требуется на текущем этапе |
 
 ---
 

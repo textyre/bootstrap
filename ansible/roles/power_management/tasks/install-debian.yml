@@ -1,0 +1,17 @@
+---
+# Debian package installation for power_management
+
+- name: Install TLP (laptop)
+  ansible.builtin.apt:
+    name:
+      - tlp
+    state: present
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']
+
+- name: Install linux-tools-common (cpupower)
+  ansible.builtin.apt:
+    name:
+      - linux-tools-common
+    state: present
+  tags: ['power', 'cpu']

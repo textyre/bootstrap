@@ -1,0 +1,45 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check sysctl drop-in file exists
+      ansible.builtin.stat:
+        path: /etc/sysctl.d/99-ansible.conf
+      register: _sysctl_verify_conf
+      failed_when: not _sysctl_verify_conf.stat.exists
+
+    - name: Check sysctl config contains swappiness setting
+      ansible.builtin.command: grep 'vm.swappiness' /etc/sysctl.d/99-ansible.conf
+      register: _sysctl_verify_swappiness
+      changed_when: false
+      failed_when: _sysctl_verify_swappiness.rc != 0
+
+    - name: Check live sysctl value for vm.swappiness
+      ansible.builtin.command: sysctl -n vm.swappiness
+      register: _sysctl_verify_live_swappiness
+      changed_when: false
+      failed_when: _sysctl_verify_live_swappiness.stdout | int != 10
+
+    - name: Check live sysctl value for fs.inotify.max_user_watches
+      ansible.builtin.command: sysctl -n fs.inotify.max_user_watches
+      register: _sysctl_verify_live_inotify
+      changed_when: false
+      failed_when: _sysctl_verify_live_inotify.stdout | int != 524288
+
+    - name: Check live sysctl value for net.core.somaxconn
+      ansible.builtin.command: sysctl -n net.core.somaxconn
+      register: _sysctl_verify_live_somaxconn
+      changed_when: false
+      failed_when: _sysctl_verify_live_somaxconn.stdout | int != 4096
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All sysctl checks passed!"
+          - "Drop-in file deployed to /etc/sysctl.d/99-ansible.conf"
+          - "Live kernel parameters verified"

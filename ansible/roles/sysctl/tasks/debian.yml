@@ -1,0 +1,8 @@
+---
+# Debian specific sysctl tasks
+
+- name: Ensure procps is installed
+  ansible.builtin.apt:
+    name: procps
+    state: present
+  tags: ['sysctl']

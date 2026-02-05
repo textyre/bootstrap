@@ -1,0 +1,105 @@
+---
+# Arch Linux GPU driver installation
+
+# ---- NVIDIA ----
+
+- name: Install NVIDIA proprietary drivers
+  community.general.pacman:
+    name: "{{ _gpu_drivers_nvidia_proprietary_packages }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_proprietary
+  tags: ['gpu', 'nvidia']
+
+- name: Install NVIDIA proprietary multilib
+  community.general.pacman:
+    name: "{{ _gpu_drivers_nvidia_proprietary_multilib }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_proprietary
+    - gpu_drivers_multilib
+  tags: ['gpu', 'nvidia']
+
+- name: Install NVIDIA nouveau (open-source) drivers
+  community.general.pacman:
+    name: "{{ _gpu_drivers_nvidia_nouveau_packages }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - not gpu_drivers_nvidia_proprietary
+  tags: ['gpu', 'nvidia']
+
+- name: Install NVIDIA nouveau multilib
+  community.general.pacman:
+    name: "{{ _gpu_drivers_nvidia_nouveau_multilib }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - not gpu_drivers_nvidia_proprietary
+    - gpu_drivers_multilib
+  tags: ['gpu', 'nvidia']
+
+# ---- AMD ----
+
+- name: Install AMD drivers
+  community.general.pacman:
+    name: "{{ _gpu_drivers_amd_packages }}"
+    state: present
+  when: _gpu_drivers_has_amd
+  tags: ['gpu', 'amd']
+
+- name: Install AMD multilib
+  community.general.pacman:
+    name: "{{ _gpu_drivers_amd_multilib }}"
+    state: present
+  when:
+    - _gpu_drivers_has_amd
+    - gpu_drivers_multilib
+  tags: ['gpu', 'amd']
+
+# ---- Intel ----
+
+- name: Install Intel drivers
+  community.general.pacman:
+    name: "{{ _gpu_drivers_intel_packages }}"
+    state: present
+  when: _gpu_drivers_has_intel
+  tags: ['gpu', 'intel']
+
+- name: Install Intel multilib
+  community.general.pacman:
+    name: "{{ _gpu_drivers_intel_multilib }}"
+    state: present
+  when:
+    - _gpu_drivers_has_intel
+    - gpu_drivers_multilib
+  tags: ['gpu', 'intel']
+
+# ---- Vulkan common ----
+
+- name: Install Vulkan common packages
+  community.general.pacman:
+    name: "{{ _gpu_drivers_vulkan_common }}"
+    state: present
+  when: _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+  tags: ['gpu', 'vulkan']
+
+- name: Install Vulkan common multilib
+  community.general.pacman:
+    name: "{{ _gpu_drivers_vulkan_common_multilib }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_multilib
+  tags: ['gpu', 'vulkan']
+
+- name: Install Vulkan tools
+  community.general.pacman:
+    name: "{{ _gpu_drivers_vulkan_tools_packages }}"
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_vulkan_tools
+  tags: ['gpu', 'vulkan']

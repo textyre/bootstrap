@@ -91,3 +91,25 @@ firewall_allow_ssh: true
 
 chezmoi_user: "{{ target_user }}"
 chezmoi_install_method: pacman
+
+# ============================================================
+#  gpu_drivers — роль roles/gpu_drivers
+# ============================================================
+
+gpu_drivers_nvidia_proprietary: true
+gpu_drivers_multilib: false
+
+# ============================================================
+#  sysctl — роль roles/sysctl
+# ============================================================
+
+# Используются дефолты роли; переопределить при необходимости:
+# sysctl_vm_swappiness: 10
+# sysctl_fs_inotify_max_user_watches: 524288
+
+# ============================================================
+#  power_management — роль roles/power_management
+# ============================================================
+
+# auto = detect via DMI chassis_type; override with 'laptop' or 'desktop'
+power_management_device_type: auto

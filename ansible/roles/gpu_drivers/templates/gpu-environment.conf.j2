@@ -1,0 +1,11 @@
+# Managed by Ansible — do not edit manually
+# Role: gpu_drivers
+# GPU environment variables for VA-API
+
+{% if _gpu_drivers_has_nvidia %}
+LIBVA_DRIVER_NAME=nvidia
+{% elif _gpu_drivers_has_amd %}
+LIBVA_DRIVER_NAME=radeonsi
+{% elif _gpu_drivers_has_intel %}
+LIBVA_DRIVER_NAME=iHD
+{% endif %}

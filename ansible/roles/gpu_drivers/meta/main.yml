@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: gpu_drivers
+  author: textyre
+  description: Auto-detect GPU, установка драйверов NVIDIA/AMD/Intel + Vulkan + VA-API
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+  galaxy_tags: [gpu, nvidia, amd, intel, vulkan, vaapi, drivers]
+dependencies: []

@@ -1,0 +1,3 @@
+---
+# Handlers for gpu_drivers role
+# No service handlers needed — GPU drivers don't have persistent services

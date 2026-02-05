@@ -1,0 +1,31 @@
+---
+# === sysctl — kernel parameter tuning ===
+# Управление параметрами ядра через /etc/sysctl.d/99-ansible.conf
+
+# Supported OS families
+_sysctl_supported_os:
+  - Archlinux
+  - Debian
+
+# ---- VM / Memory ----
+sysctl_vm_swappiness: 10
+sysctl_vm_vfs_cache_pressure: 50
+sysctl_vm_dirty_ratio: 10
+sysctl_vm_dirty_background_ratio: 5
+
+# ---- Filesystem ----
+sysctl_fs_inotify_max_user_watches: 524288
+sysctl_fs_inotify_max_user_instances: 1024
+sysctl_fs_file_max: 2097152
+
+# ---- Network ----
+sysctl_net_core_somaxconn: 4096
+sysctl_net_ipv4_tcp_fastopen: 3
+sysctl_net_ipv4_tcp_tw_reuse: 1
+
+# ---- Kernel ----
+sysctl_kernel_unprivileged_userns_clone: 1
+
+# ---- Custom parameters ----
+# List of dicts: [{name: "kernel.param", value: "1"}]
+sysctl_custom_params: []

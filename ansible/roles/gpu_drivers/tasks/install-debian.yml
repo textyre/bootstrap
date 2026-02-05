@@ -1,0 +1,8 @@
+---
+# Debian GPU driver installation
+# Placeholder — Debian GPU driver installation is complex and varies by release
+
+- name: Debian GPU drivers — not yet implemented
+  ansible.builtin.debug:
+    msg: "Debian GPU driver installation is not yet implemented. Install drivers manually."
+  tags: ['gpu', 'drivers']

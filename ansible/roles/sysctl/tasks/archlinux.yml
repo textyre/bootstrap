@@ -1,0 +1,8 @@
+---
+# Arch Linux specific sysctl tasks
+# No additional packages or configuration needed on Arch
+
+- name: Arch Linux sysctl — no additional steps required
+  ansible.builtin.debug:
+    msg: "procps-ng is part of base on Arch Linux, no extra packages needed"
+  tags: ['sysctl']

@@ -1,0 +1,17 @@
+# Managed by Ansible — do not edit manually
+# Role: power_management
+
+# ---- CPU ----
+CPU_SCALING_GOVERNOR_ON_AC={{ power_management_tlp_cpu_governor_ac }}
+CPU_SCALING_GOVERNOR_ON_BAT={{ power_management_tlp_cpu_governor_bat }}
+
+# ---- Disk ----
+DISK_IOSCHED={{ power_management_tlp_disk_iosched }}
+
+# ---- Wi-Fi ----
+WIFI_PWR_ON_AC={{ power_management_tlp_wifi_pwr_on_ac }}
+WIFI_PWR_ON_BAT={{ power_management_tlp_wifi_pwr_on_bat }}
+
+# ---- PCIe ASPM ----
+PCIE_ASPM_ON_AC={{ power_management_tlp_pcie_aspm_on_ac }}
+PCIE_ASPM_ON_BAT={{ power_management_tlp_pcie_aspm_on_bat }}

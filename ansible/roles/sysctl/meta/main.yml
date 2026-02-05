@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: sysctl
+  author: textyre
+  description: Управление kernel параметрами через /etc/sysctl.d drop-in файлы
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+  galaxy_tags: [sysctl, kernel, tuning, performance]
+dependencies: []

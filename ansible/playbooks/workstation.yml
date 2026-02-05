@@ -35,6 +35,16 @@
       tags: [mirrors, reflector]
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    # --- Phase 1.5: Hardware & Kernel ---
+    - role: gpu_drivers
+      tags: [gpu, drivers, hardware]
+
+    - role: sysctl
+      tags: [sysctl, kernel, tuning]
+
+    - role: power_management
+      tags: [power, tlp, battery]
+
     # --- Phase 2: Package infrastructure ---
     - role: yay
       tags: [aur, yay]

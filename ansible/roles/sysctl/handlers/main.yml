@@ -1,0 +1,6 @@
+---
+# Handlers for sysctl role
+
+- name: Apply sysctl settings
+  ansible.builtin.command: sysctl --system
+  changed_when: true

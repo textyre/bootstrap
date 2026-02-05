@@ -1,0 +1,58 @@
+---
+# === gpu_drivers — GPU detection and driver installation ===
+# Auto-detect GPU via lspci, install appropriate drivers + Vulkan + VA-API
+
+# Supported OS families
+_gpu_drivers_supported_os:
+  - Archlinux
+  - Debian
+
+# ---- Driver preferences ----
+gpu_drivers_nvidia_proprietary: true
+gpu_drivers_multilib: false
+gpu_drivers_vulkan_tools: true
+gpu_drivers_vaapi: true
+
+# ---- Package lists (Arch Linux) ----
+_gpu_drivers_nvidia_proprietary_packages:
+  - nvidia
+  - nvidia-utils
+  - nvidia-settings
+
+_gpu_drivers_nvidia_proprietary_multilib:
+  - lib32-nvidia-utils
+
+_gpu_drivers_nvidia_nouveau_packages:
+  - mesa
+  - xf86-video-nouveau
+
+_gpu_drivers_nvidia_nouveau_multilib:
+  - lib32-mesa
+
+_gpu_drivers_amd_packages:
+  - mesa
+  - xf86-video-amdgpu
+  - vulkan-radeon
+  - libva-mesa-driver
+
+_gpu_drivers_amd_multilib:
+  - lib32-mesa
+  - lib32-vulkan-radeon
+
+_gpu_drivers_intel_packages:
+  - mesa
+  - vulkan-intel
+  - intel-media-driver
+
+_gpu_drivers_intel_multilib:
+  - lib32-mesa
+  - lib32-vulkan-intel
+
+_gpu_drivers_vulkan_common:
+  - vulkan-icd-loader
+
+_gpu_drivers_vulkan_common_multilib:
+  - lib32-vulkan-icd-loader
+
+_gpu_drivers_vulkan_tools_packages:
+  - vulkan-tools

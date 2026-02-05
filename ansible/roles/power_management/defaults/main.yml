@@ -1,0 +1,38 @@
+---
+# === power_management — TLP, CPU governor, sleep ===
+# Управление питанием: TLP для ноутбуков, CPU governor для десктопов, systemd sleep
+
+# Supported OS families
+_power_management_supported_os:
+  - Archlinux
+  - Debian
+
+# ---- Device type detection ----
+# auto = detect via DMI chassis_type
+# laptop / desktop = force specific mode
+power_management_device_type: auto
+
+# Laptop chassis types (DMI chassis_type values)
+_power_management_laptop_chassis_types:
+  - "8"   # Portable
+  - "9"   # Laptop
+  - "10"  # Notebook
+  - "14"  # Sub Notebook
+  - "31"  # Convertible
+
+# ---- TLP (laptop only) ----
+power_management_tlp_cpu_governor_ac: performance
+power_management_tlp_cpu_governor_bat: powersave
+power_management_tlp_disk_iosched: mq-deadline
+power_management_tlp_wifi_pwr_on_ac: "off"
+power_management_tlp_wifi_pwr_on_bat: "on"
+power_management_tlp_pcie_aspm_on_ac: default
+power_management_tlp_pcie_aspm_on_bat: powersupersave
+
+# ---- CPU governor (desktop) ----
+power_management_cpu_governor: schedutil
+
+# ---- systemd sleep ----
+power_management_suspend_mode: suspend
+power_management_hibernate_mode: hibernate
+power_management_hybrid_sleep_mode: suspend

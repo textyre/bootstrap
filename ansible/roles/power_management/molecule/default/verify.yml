@@ -1,0 +1,73 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check cpupower is installed
+      ansible.builtin.package:
+        name: cpupower
+        state: present
+      check_mode: true
+      register: _power_verify_cpupower
+      failed_when: _power_verify_cpupower is changed
+
+    - name: Check systemd sleep.conf exists
+      ansible.builtin.stat:
+        path: /etc/systemd/sleep.conf
+      register: _power_verify_sleep_conf
+      failed_when: not _power_verify_sleep_conf.stat.exists
+
+    - name: Check sleep.conf contains SuspendMode
+      ansible.builtin.command: grep 'SuspendMode' /etc/systemd/sleep.conf
+      register: _power_verify_suspend_mode
+      changed_when: false
+      failed_when: _power_verify_suspend_mode.rc != 0
+
+    - name: Read DMI chassis type for conditional checks
+      ansible.builtin.slurp:
+        src: /sys/class/dmi/id/chassis_type
+      register: _power_verify_chassis
+      failed_when: false
+
+    - name: Set laptop detection fact for verification
+      ansible.builtin.set_fact:
+        _power_verify_is_laptop: >-
+          {{ _power_verify_chassis is succeeded and
+             (_power_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '31'] }}
+
+    - name: Check TLP is installed (laptop only)
+      ansible.builtin.package:
+        name: tlp
+        state: present
+      check_mode: true
+      register: _power_verify_tlp
+      failed_when: _power_verify_tlp is changed
+      when: _power_verify_is_laptop
+
+    - name: Check TLP config exists (laptop only)
+      ansible.builtin.stat:
+        path: /etc/tlp.conf
+      register: _power_verify_tlp_conf
+      failed_when: not _power_verify_tlp_conf.stat.exists
+      when: _power_verify_is_laptop
+
+    - name: Check TLP service is enabled (laptop only)
+      ansible.builtin.systemd:
+        name: tlp
+        enabled: true
+      check_mode: true
+      register: _power_verify_tlp_service
+      failed_when: _power_verify_tlp_service is changed
+      when: _power_verify_is_laptop
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All power management checks passed!"
+          - "Device type: {{ 'laptop' if _power_verify_is_laptop else 'desktop' }}"
+          - "cpupower installed, sleep.conf deployed"
+          - "TLP: {{ 'installed and enabled' if _power_verify_is_laptop else 'skipped (desktop)' }}"

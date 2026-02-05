@@ -1,0 +1,8 @@
+---
+# Handlers for power_management role
+
+- name: Restart tlp
+  ansible.builtin.systemd:
+    name: tlp
+    state: restarted
+  when: _power_management_is_laptop | default(false)

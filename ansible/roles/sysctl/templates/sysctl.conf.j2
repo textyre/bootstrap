@@ -1,0 +1,29 @@
+# Managed by Ansible — do not edit manually
+# Role: sysctl
+# Drop-in: /etc/sysctl.d/99-ansible.conf
+
+# ---- VM / Memory ----
+vm.swappiness = {{ sysctl_vm_swappiness }}
+vm.vfs_cache_pressure = {{ sysctl_vm_vfs_cache_pressure }}
+vm.dirty_ratio = {{ sysctl_vm_dirty_ratio }}
+vm.dirty_background_ratio = {{ sysctl_vm_dirty_background_ratio }}
+
+# ---- Filesystem ----
+fs.inotify.max_user_watches = {{ sysctl_fs_inotify_max_user_watches }}
+fs.inotify.max_user_instances = {{ sysctl_fs_inotify_max_user_instances }}
+fs.file-max = {{ sysctl_fs_file_max }}
+
+# ---- Network ----
+net.core.somaxconn = {{ sysctl_net_core_somaxconn }}
+net.ipv4.tcp_fastopen = {{ sysctl_net_ipv4_tcp_fastopen }}
+net.ipv4.tcp_tw_reuse = {{ sysctl_net_ipv4_tcp_tw_reuse }}
+
+# ---- Kernel ----
+kernel.unprivileged_userns_clone = {{ sysctl_kernel_unprivileged_userns_clone }}
+
+{% if sysctl_custom_params | length > 0 %}
+# ---- Custom parameters ----
+{% for param in sysctl_custom_params %}
+{{ param.name }} = {{ param.value }}
+{% endfor %}
+{% endif %}
