@@ -250,7 +250,7 @@ enter([
     // Window: Workspaces (left island) — dynamic width
     defwindow("workspaces", #{
         monitor: 0,
-        windowtype: "dock",
+        windowtype: "utility",
         geometry: #{
             x: "{{ .layout.gaps_outer }}px",
             y: "{{ .layout.bar_offset_y }}px",
@@ -263,7 +263,7 @@ enter([
     // Window: Add button (left, after workspaces) — dynamic position
     defwindow("workspace-add", #{
         monitor: 0,
-        windowtype: "dock",
+        windowtype: "utility",
         geometry: #{
             x: ws_add_x + "px",
             y: "{{ .layout.bar_offset_y }}px",
@@ -276,7 +276,7 @@ enter([
     // Window: Clock (center island)
     defwindow("clock", #{
         monitor: 0,
-        windowtype: "dock",
+        windowtype: "utility",
         geometry: #{
             x: "50%",
             y: "{{ .layout.bar_offset_y }}px",
@@ -289,7 +289,7 @@ enter([
     // Window: System (right island)
     defwindow("system", #{
         monitor: 0,
-        windowtype: "dock",
+        windowtype: "utility",
         geometry: #{
             x: "{{ .layout.gaps_outer }}px",
             y: "{{ .layout.bar_offset_y }}px",
