@@ -16,28 +16,28 @@
 }
 
 window {
-    width: 220px;
+    width: {{ .rofi.context_menu_width }}px;
     location: northwest;
-    x-offset: 20;
-    y-offset: 50;
+    x-offset: {{ .rofi.context_x_offset }};
+    y-offset: {{ .rofi.context_y_offset }};
     transparency: "real";
     background-color: @bg;
     border: 1px;
     border-color: @border;
     border-radius: {{ .layout.corner_radius }}px;
-    padding: 10px;
+    padding: {{ .rofi.padding_small }}px;
 }
 
 mainbox {
     children: [ inputbar, listview ];
-    spacing: 10px;
+    spacing: {{ .rofi.spacing_small }}px;
 }
 
 inputbar {
     children: [ prompt ];
-    padding: 8px 10px;
+    padding: {{ .rofi.inputbar_padding_context }};
     background-color: @bg-light;
-    border-radius: 6px;
+    border-radius: {{ .rofi.border_radius_small }}px;
 }
 
 prompt {
@@ -45,17 +45,17 @@ prompt {
 }
 
 listview {
-    lines: 2;
+    lines: {{ .rofi.context_menu_lines }};
     columns: 1;
-    spacing: 5px;
+    spacing: {{ .rofi.spacing_context }}px;
     cycle: true;
     fixed-height: true;
     scrollbar: false;
 }
 
 element {
-    padding: 10px 12px;
-    border-radius: 6px;
+    padding: {{ .rofi.element_padding_small }};
+    border-radius: {{ .rofi.border_radius_small }}px;
 }
 
 element selected {

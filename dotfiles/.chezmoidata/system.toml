@@ -1,0 +1,26 @@
+# === System-wide configuration ===
+# Доступ из шаблонов: {{ .system.cursor_size }}, {{ .system.icon_theme }}
+# SSOT для системных настроек (GTK, X11, курсоры, иконки)
+
+[system]
+  # === Cursor ===
+  cursor_size         = 24   # Размер курсора
+  cursor_theme        = "Adwaita"  # Тема курсора
+
+  # === Icons ===
+  icon_theme          = "Papirus-Dark"  # Тема иконок
+
+  # === Font rendering (X11/Xft) ===
+  dpi                 = 96   # DPI для шрифтов
+  antialias           = true # Сглаживание шрифтов
+  hinting             = true # Хинтинг шрифтов
+  hintstyle           = "hintslight"  # Стиль хинтинга
+  rgba                = "rgb"  # Субпиксельное сглаживание
+
+  # === GTK ===
+  gtk_toolbar_style   = "GTK_TOOLBAR_BOTH_HORIZ"  # Стиль тулбара
+  gtk_toolbar_icon_size = "GTK_ICON_SIZE_LARGE_TOOLBAR"  # Размер иконок тулбара
+  gtk_button_images   = 0    # Показывать картинки в кнопках
+  gtk_menu_images     = 0    # Показывать картинки в меню
+  gtk_enable_sounds   = 0    # Звуки событий
+  gtk_prefer_dark     = 1    # Предпочитать темную тему

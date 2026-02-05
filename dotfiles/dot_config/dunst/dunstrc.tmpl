@@ -7,22 +7,22 @@
     monitor = 0
     follow = mouse
     origin = top-right
-    offset = 20x20
-    width = (280, 400)
-    height = 150
-    notification_limit = 5
+    offset = {{ .dunst.offset_x }}x{{ .dunst.offset_y }}
+    width = ({{ .dunst.width_min }}, {{ .dunst.width_max }})
+    height = {{ .dunst.height }}
+    notification_limit = {{ .dunst.notification_limit }}
 
     # Appearance
-    frame_width = 1
+    frame_width = {{ .dunst.frame_width }}
     frame_color = "{{ $t.border_active }}"
-    corner_radius = 8
-    separator_height = 2
+    corner_radius = {{ .dunst.corner_radius }}
+    separator_height = {{ .dunst.separator_height }}
     separator_color = frame
-    padding = 12
-    horizontal_padding = 14
-    text_icon_padding = 12
-    gap_size = 4
-    transparency = 10
+    padding = {{ .dunst.padding }}
+    horizontal_padding = {{ .dunst.horizontal_padding }}
+    text_icon_padding = {{ .dunst.text_icon_padding }}
+    gap_size = {{ .dunst.gap_size }}
+    transparency = {{ .dunst.transparency }}
 
     # Text
     font = {{ .font.mono }} {{ .font.mono_size }}
@@ -31,19 +31,19 @@
     format = "<b>%s</b>\n%b"
     alignment = left
     vertical_alignment = center
-    show_age_threshold = 30
+    show_age_threshold = {{ .dunst.show_age_threshold }}
     ellipsize = end
 
     # Icons
     icon_position = left
-    min_icon_size = 24
-    max_icon_size = 48
-    icon_theme = Papirus-Dark
+    min_icon_size = {{ .dunst.icon_size_min }}
+    max_icon_size = {{ .dunst.icon_size_max }}
+    icon_theme = {{ .system.icon_theme }}
     enable_recursive_icon_lookup = true
 
     # History
     sticky_history = yes
-    history_length = 20
+    history_length = {{ .dunst.history_length }}
 
     # Misc
     dmenu = rofi -dmenu -theme ~/.config/rofi/themes/launcher.rasi
@@ -56,19 +56,19 @@
     background = "{{ $t.bg }}ee"
     foreground = "{{ $t.fg_dim }}"
     frame_color = "{{ $t.border_inactive }}"
-    timeout = 5
+    timeout = {{ .dunst.timeout_low }}
     highlight = "{{ $t.info }}"
 
 [urgency_normal]
     background = "{{ $t.bg }}ee"
     foreground = "{{ $t.fg }}"
     frame_color = "{{ $t.accent }}"
-    timeout = 8
+    timeout = {{ .dunst.timeout_normal }}
     highlight = "{{ $t.accent }}"
 
 [urgency_critical]
     background = "{{ $t.bg }}ee"
     foreground = "{{ $t.fg }}"
     frame_color = "{{ $t.urgent }}"
-    timeout = 0
+    timeout = {{ .dunst.timeout_critical }}
     highlight = "{{ $t.urgent }}"

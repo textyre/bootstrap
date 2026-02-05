@@ -1,0 +1,26 @@
+# === Terminal and shell configuration ===
+# Доступ из шаблонов: {{ .terminal.alacritty_padding }}, {{ .terminal.history_size }}
+# SSOT для настроек терминала и shell
+
+[terminal]
+  # === Alacritty ===
+  alacritty_padding   = 12   # Padding внутри окна терминала
+  scrolling_history   = 10000  # Размер истории скроллинга
+  scrolling_multiplier = 3   # Множитель скорости прокрутки
+
+  # === Bash history ===
+  history_size        = 10000  # Размер истории команд (HISTSIZE/HISTFILESIZE)
+
+  # === Starship prompt ===
+  truncation_length   = 3    # Количество директорий в пути перед truncation
+  truncation_symbol   = ".../"  # Символ обрезки пути
+  cmd_duration_min    = 2000 # Минимальное время выполнения команды для отображения (ms)
+
+  # === FZF ===
+  fzf_border          = "rounded"  # Стиль границы
+  fzf_margin          = 1    # Внешний отступ
+  fzf_padding         = 1    # Внутренний отступ
+
+  # === Cursor ===
+  cursor_shape        = "Beam"  # Форма курсора (Beam, Block, Underline)
+  cursor_blink_interval = 500  # Интервал мигания курсора (ms)

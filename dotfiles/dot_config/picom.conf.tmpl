@@ -23,10 +23,10 @@ detect-rounded-corners = true;
 
 # === SHADOWS ===
 shadow = true;
-shadow-radius = 8;
-shadow-offset-x = -4;
-shadow-offset-y = -4;
-shadow-opacity = 0.3;
+shadow-radius = {{ .picom.shadow_radius }};
+shadow-offset-x = {{ .picom.shadow_offset_x }};
+shadow-offset-y = {{ .picom.shadow_offset_y }};
+shadow-opacity = {{ .picom.shadow_opacity }};
 
 shadow-exclude = [
   "class_g = 'Polybar'",
@@ -34,18 +34,18 @@ shadow-exclude = [
 ];
 
 # === OPACITY ===
-active-opacity = 0.92;
-inactive-opacity = 0.85;
-frame-opacity = 1.0;
+active-opacity = {{ .picom.active_opacity }};
+inactive-opacity = {{ .picom.inactive_opacity }};
+frame-opacity = {{ .picom.frame_opacity }};
 inactive-opacity-override = false;
 
 opacity-rule = [
-  "100:class_g = 'firefox'",
-  "100:class_g = 'Brave-browser'",
-  "100:fullscreen",
-  "95:class_g = 'Alacritty' && focused",
-  "85:class_g = 'Alacritty' && !focused",
-  "95:class_g = 'Rofi'"
+  "{{ .picom.opacity_firefox }}:class_g = 'firefox'",
+  "{{ .picom.opacity_firefox }}:class_g = 'Brave-browser'",
+  "{{ .picom.opacity_firefox }}:fullscreen",
+  "{{ .picom.opacity_terminal_focused }}:class_g = 'Alacritty' && focused",
+  "{{ .picom.opacity_terminal_unfocused }}:class_g = 'Alacritty' && !focused",
+  "{{ .picom.opacity_rofi }}:class_g = 'Rofi'"
 ];
 
 # === BLUR ===
@@ -53,8 +53,8 @@ blur-background = true;
 blur-background-frame = true;
 
 blur: {
-  method = "dual_kawase";
-  strength = 1;
+  method = "{{ .picom.blur_method }}";
+  strength = {{ .picom.blur_strength }};
 };
 
 blur-background-exclude = [
@@ -66,10 +66,10 @@ blur-background-exclude = [
 
 # === ANIMATIONS (picom-ftlabs) ===
 animations = true;
-animation-stiffness-in-tag = 125;
-animation-stiffness-tag-change = 90;
-animation-dampening = 15;
-animation-window-mass = 0.5;
+animation-stiffness-in-tag = {{ .picom.animation_stiffness }};
+animation-stiffness-tag-change = {{ .picom.animation_stiffness_tag }};
+animation-dampening = {{ .picom.animation_dampening }};
+animation-window-mass = {{ .picom.animation_mass }};
 animation-clamping = true;
 animation-for-open-window = "zoom";
 animation-for-unmap-window = "slide-down";
@@ -77,9 +77,9 @@ animation-for-transient-window = "slide-down";
 
 # === FADING ===
 fading = true;
-fade-in-step = 0.04;
-fade-out-step = 0.04;
-fade-delta = 5;
+fade-in-step = {{ .picom.fade_step }};
+fade-out-step = {{ .picom.fade_step }};
+fade-delta = {{ .picom.fade_delta }};
 
 fade-exclude = [];
 

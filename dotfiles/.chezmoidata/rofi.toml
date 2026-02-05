@@ -1,0 +1,75 @@
+# === Rofi configuration values ===
+# Доступ из шаблонов: {{ .rofi.launcher_width }}, {{ .rofi.padding_large }}
+# SSOT для всех rofi тем
+
+[rofi]
+  # === Dialog widths ===
+  launcher_width      = 600
+  powermenu_width     = 500
+  theme_switcher_width = 350
+  wallpaper_width     = 450
+  context_menu_width  = 220
+  controlcenter_width = 350
+  icon_select_width   = 300
+
+  # === Padding values ===
+  padding_large       = 20   # Main window padding для launcher/wallpaper
+  padding_medium      = 15   # Списки и spacing
+  padding_small       = 10   # Context menu/compact dialogs
+  padding_powermenu   = 30   # Special для powermenu
+
+  # === Border radius ===
+  border_radius_large = 8    # Inputbar, основные элементы
+  border_radius_small = 6    # Element items
+  border_radius_powermenu = 10  # Powermenu кнопки
+
+  # === Spacing ===
+  spacing_large       = 15   # Powermenu grid/launcher mainbox/controlcenter
+  spacing_medium      = 12   # Theme switcher/wallpaper/inputbar padding/icon-select
+  spacing_small       = 10   # Context menu
+  spacing_element     = 4    # Между элементами listview
+  spacing_context     = 5    # Context menu elements
+  spacing_controlcenter = 8  # Control center elements
+  spacing_icon_select = 8    # Icon select grid
+
+  # === Element padding ===
+  element_padding_large  = "8px 12px"   # Launcher/wallpaper элементы
+  element_padding_medium = "10px 14px"  # Theme switcher/controlcenter
+  element_padding_small  = "10px 12px"  # Context menu
+  element_padding_icon_select = "10px 8px"  # Icon select элементы
+  element_padding_powermenu = "20px"    # Powermenu кнопки
+  element_icon_gap       = 10           # Gap между icon и text в element
+
+  # === Inputbar padding ===
+  inputbar_padding_context = "8px 10px"     # Context menu inputbar
+  inputbar_padding_icon_select = "10px 12px" # Icon select inputbar
+
+  # === Message padding ===
+  message_padding        = 10           # Powermenu/controlcenter message
+
+  # === Icon sizes ===
+  icon_size_launcher  = 24   # App launcher icons
+  icon_size_powermenu = 28   # Powermenu font size
+
+  # === Prompt padding ===
+  prompt_padding      = "0 8px 0 0"
+
+  # === Positioning ===
+  context_x_offset    = 20
+  context_y_offset    = 50
+  controlcenter_x_offset = -20
+  controlcenter_y_offset = 50
+  icon_select_x_offset = 20
+  icon_select_y_offset = 50
+
+  # === Listview settings ===
+  launcher_lines      = 8
+  wallpaper_lines     = 10
+  theme_switcher_lines = 4
+  context_menu_lines  = 2
+  powermenu_lines     = 1
+  powermenu_columns   = 5
+  controlcenter_lines = 5
+  controlcenter_columns = 1
+  icon_select_lines   = 5
+  icon_select_columns = 2

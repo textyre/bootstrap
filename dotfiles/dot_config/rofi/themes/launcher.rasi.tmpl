@@ -17,30 +17,30 @@
 }
 
 window {
-    width: 600px;
+    width: {{ .rofi.launcher_width }}px;
     transparency: "real";
     background-color: @bg;
     border: 1px;
     border-color: @border;
     border-radius: {{ .layout.corner_radius }}px;
-    padding: 20px;
+    padding: {{ .rofi.padding_large }}px;
 }
 
 mainbox {
-    spacing: 15px;
+    spacing: {{ .rofi.spacing_large }}px;
     children: [ inputbar, listview ];
 }
 
 inputbar {
     children: [ prompt, entry ];
     background-color: @bg-alt;
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: {{ .rofi.border_radius_large }}px;
+    padding: {{ .rofi.spacing_medium }}px;
 }
 
 prompt {
     text-color: @accent;
-    padding: 0 8px 0 0;
+    padding: {{ .rofi.prompt_padding }};
 }
 
 entry {
@@ -49,17 +49,17 @@ entry {
 }
 
 listview {
-    lines: 8;
+    lines: {{ .rofi.launcher_lines }};
     columns: 1;
     fixed-height: true;
-    spacing: 4px;
+    spacing: {{ .rofi.spacing_element }}px;
     scrollbar: false;
 }
 
 element {
-    padding: 8px 12px;
-    border-radius: 6px;
-    spacing: 10px;
+    padding: {{ .rofi.element_padding_large }};
+    border-radius: {{ .rofi.border_radius_small }}px;
+    spacing: {{ .rofi.element_icon_gap }}px;
 }
 
 element selected {
@@ -68,7 +68,7 @@ element selected {
 }
 
 element-icon {
-    size: 24px;
+    size: {{ .rofi.icon_size_launcher }}px;
 }
 
 element-text {

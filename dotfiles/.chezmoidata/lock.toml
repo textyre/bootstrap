@@ -1,0 +1,21 @@
+# === i3lock-color lock screen configuration ===
+# Доступ из шаблонов: {{ .lock.blur_radius }}, {{ .lock.indicator_radius }}
+# SSOT для настроек экрана блокировки
+
+[lock]
+  # === Screenshot blur ===
+  blur_radius         = "0x8"  # Радиус размытия (формат ImageMagick)
+  brightness          = 60   # Яркость экрана блокировки (0-100)
+
+  # === Indicator (lock circle) ===
+  indicator_radius    = 120  # Радиус индикатора разблокировки
+  ring_width          = 8    # Толщина кольца индикатора
+
+  # === Time format ===
+  time_format         = "%H:%M"      # Формат времени
+  date_format         = "%a, %d %b"  # Формат даты
+
+  # === Text strings ===
+  noinput_text        = ""   # Текст когда нет ввода
+  verif_text          = "..." # Текст при проверке пароля
+  wrong_text          = "!"  # Текст при неверном пароле

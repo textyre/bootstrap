@@ -16,28 +16,28 @@
 }
 
 window {
-    width: 300px;
+    width: {{ .rofi.icon_select_width }}px;
     location: northwest;
-    x-offset: 20;
-    y-offset: 50;
+    x-offset: {{ .rofi.icon_select_x_offset }};
+    y-offset: {{ .rofi.icon_select_y_offset }};
     transparency: "real";
     background-color: @bg;
     border: 1px;
     border-color: @border;
     border-radius: {{ .layout.corner_radius }}px;
-    padding: 12px;
+    padding: {{ .rofi.spacing_medium }}px;
 }
 
 mainbox {
     children: [ inputbar, listview ];
-    spacing: 12px;
+    spacing: {{ .rofi.spacing_medium }}px;
 }
 
 inputbar {
     children: [ prompt ];
-    padding: 10px 12px;
+    padding: {{ .rofi.inputbar_padding_icon_select }};
     background-color: @bg-light;
-    border-radius: 6px;
+    border-radius: {{ .rofi.border_radius_small }}px;
 }
 
 prompt {
@@ -45,17 +45,17 @@ prompt {
 }
 
 listview {
-    lines: 5;
-    columns: 2;
-    spacing: 8px;
+    lines: {{ .rofi.icon_select_lines }};
+    columns: {{ .rofi.icon_select_columns }};
+    spacing: {{ .rofi.spacing_icon_select }}px;
     cycle: true;
     fixed-height: true;
     scrollbar: false;
 }
 
 element {
-    padding: 10px 8px;
-    border-radius: 6px;
+    padding: {{ .rofi.element_padding_icon_select }};
+    border-radius: {{ .rofi.border_radius_small }}px;
     horizontal-align: 0.0;
 }
 

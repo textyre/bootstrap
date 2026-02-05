@@ -4,18 +4,18 @@
 
 [Settings]
 gtk-theme-name={{ $t.gtk_theme }}
-gtk-icon-theme-name=Papirus-Dark
+gtk-icon-theme-name={{ .system.icon_theme }}
 gtk-font-name={{ .font.mono }} {{ .font.mono_size }}
-gtk-cursor-theme-name=Adwaita
-gtk-cursor-theme-size=24
-gtk-toolbar-style=GTK_TOOLBAR_BOTH_HORIZ
-gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
-gtk-button-images=0
-gtk-menu-images=0
-gtk-enable-event-sounds=0
-gtk-enable-input-feedback-sounds=0
+gtk-cursor-theme-name={{ .system.cursor_theme }}
+gtk-cursor-theme-size={{ .system.cursor_size }}
+gtk-toolbar-style={{ .system.gtk_toolbar_style }}
+gtk-toolbar-icon-size={{ .system.gtk_toolbar_icon_size }}
+gtk-button-images={{ .system.gtk_button_images }}
+gtk-menu-images={{ .system.gtk_menu_images }}
+gtk-enable-event-sounds={{ .system.gtk_enable_sounds }}
+gtk-enable-input-feedback-sounds={{ .system.gtk_enable_sounds }}
 gtk-xft-antialias=1
 gtk-xft-hinting=1
-gtk-xft-hintstyle=hintslight
-gtk-xft-rgba=rgb
-gtk-application-prefer-dark-theme=1
+gtk-xft-hintstyle={{ .system.hintstyle }}
+gtk-xft-rgba={{ .system.rgba }}
+gtk-application-prefer-dark-theme={{ .system.gtk_prefer_dark }}

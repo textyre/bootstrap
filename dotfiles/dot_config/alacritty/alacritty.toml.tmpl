@@ -7,13 +7,13 @@ TERM = "xterm-256color"
 
 [window]
 # opacity managed by picom opacity-rules (no double transparency)
-padding = { x = 12, y = 12 }
+padding = { x = {{ .terminal.alacritty_padding }}, y = {{ .terminal.alacritty_padding }} }
 dynamic_padding = true
 decorations = "None"
 
 [scrolling]
-history = 10000
-multiplier = 3
+history = {{ .terminal.scrolling_history }}
+multiplier = {{ .terminal.scrolling_multiplier }}
 
 [font]
 size = {{ .font.mono_size }}
@@ -35,8 +35,8 @@ family = "{{ .font.mono }}"
 style = "Bold Italic"
 
 [cursor]
-style = { shape = "Beam", blinking = "On" }
-blink_interval = 500
+style = { shape = "{{ .terminal.cursor_shape }}", blinking = "On" }
+blink_interval = {{ .terminal.cursor_blink_interval }}
 unfocused_hollow = true
 
 [mouse]

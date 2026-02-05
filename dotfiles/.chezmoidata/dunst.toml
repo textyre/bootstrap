@@ -1,0 +1,39 @@
+# === Dunst notification daemon configuration ===
+# Доступ из шаблонов: {{ .dunst.offset_x }}, {{ .dunst.width_min }}
+# SSOT для настроек уведомлений
+
+[dunst]
+  # === Positioning ===
+  offset_x            = 20   # Отступ от края экрана (x)
+  offset_y            = 20   # Отступ от края экрана (y)
+
+  # === Dimensions ===
+  width_min           = 280  # Минимальная ширина уведомления
+  width_max           = 400  # Максимальная ширина уведомления
+  height              = 150  # Высота уведомления
+
+  # === Appearance ===
+  corner_radius       = 8    # Радиус скругления углов
+  frame_width         = 1    # Толщина рамки
+  separator_height    = 2    # Высота разделителя между уведомлениями
+  transparency        = 10   # Прозрачность (0-100)
+
+  # === Spacing ===
+  padding             = 12   # Внутренний padding
+  horizontal_padding  = 14   # Горизонтальный padding
+  text_icon_padding   = 12   # Отступ между текстом и иконкой
+  gap_size            = 4    # Зазор между уведомлениями
+
+  # === Icons ===
+  icon_size_min       = 24   # Минимальный размер иконки
+  icon_size_max       = 48   # Максимальный размер иконки
+
+  # === Behavior ===
+  notification_limit  = 5    # Максимум одновременных уведомлений
+  history_length      = 20   # Количество уведомлений в истории
+  show_age_threshold  = 30   # Показывать возраст уведомления после N секунд
+
+  # === Timeouts (seconds) ===
+  timeout_low         = 5    # Timeout для low urgency
+  timeout_normal      = 8    # Timeout для normal urgency
+  timeout_critical    = 0    # Timeout для critical (0 = sticky)

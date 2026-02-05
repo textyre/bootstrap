@@ -26,8 +26,8 @@ Arch = " "
 [directory]
 style = "bg:{{ $t.bg_light }} fg:{{ $t.fg }}"
 format = "[ $path ]($style)"
-truncation_length = 3
-truncation_symbol = ".../"
+truncation_length = {{ .terminal.truncation_length }}
+truncation_symbol = "{{ .terminal.truncation_symbol }}"
 
 [git_branch]
 symbol = " "
@@ -42,7 +42,7 @@ format = "[$all_status$ahead_behind]($style)"
 symbol = " "
 
 [cmd_duration]
-min_time = 2000
+min_time = {{ .terminal.cmd_duration_min }}
 format = "[ $duration]($style)"
 style = "fg:{{ $t.fg_dim }}"
 

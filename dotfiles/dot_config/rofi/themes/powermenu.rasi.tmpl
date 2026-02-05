@@ -11,26 +11,26 @@
 
     background-color: transparent;
     text-color: @fg;
-    font: "{{ .font.icon }} 28";
+    font: "{{ .font.icon }} {{ .rofi.icon_size_powermenu }}";
 }
 
 window {
-    width: 500px;
+    width: {{ .rofi.powermenu_width }}px;
     transparency: "real";
     background-color: @bg;
     border: 1px;
     border-color: @border;
     border-radius: {{ .layout.corner_radius }}px;
-    padding: 30px;
+    padding: {{ .rofi.padding_powermenu }}px;
 }
 
 mainbox {
     children: [ message, listview ];
-    spacing: 20px;
+    spacing: {{ .rofi.padding_large }}px;
 }
 
 message {
-    padding: 10px;
+    padding: {{ .rofi.message_padding }}px;
 }
 
 textbox {
@@ -40,17 +40,17 @@ textbox {
 }
 
 listview {
-    lines: 1;
-    columns: 5;
-    spacing: 15px;
+    lines: {{ .rofi.powermenu_lines }};
+    columns: {{ .rofi.powermenu_columns }};
+    spacing: {{ .rofi.spacing_large }}px;
     cycle: true;
     fixed-height: true;
     scrollbar: false;
 }
 
 element {
-    padding: 20px;
-    border-radius: 10px;
+    padding: {{ .rofi.element_padding_powermenu }};
+    border-radius: {{ .rofi.border_radius_powermenu }}px;
     horizontal-align: 0.5;
 }
 

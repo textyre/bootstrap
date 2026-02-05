@@ -16,25 +16,25 @@
 }
 
 window {
-    width: 350px;
+    width: {{ .rofi.controlcenter_width }}px;
     location: northeast;
-    x-offset: -20;
-    y-offset: 50;
+    x-offset: {{ .rofi.controlcenter_x_offset }};
+    y-offset: {{ .rofi.controlcenter_y_offset }};
     transparency: "real";
     background-color: @bg;
     border: 1px;
     border-color: @border;
     border-radius: {{ .layout.corner_radius }}px;
-    padding: 15px;
+    padding: {{ .rofi.padding_medium }}px;
 }
 
 mainbox {
     children: [ message, listview ];
-    spacing: 15px;
+    spacing: {{ .rofi.spacing_large }}px;
 }
 
 message {
-    padding: 10px;
+    padding: {{ .rofi.message_padding }}px;
 }
 
 textbox {
@@ -43,17 +43,17 @@ textbox {
 }
 
 listview {
-    lines: 5;
-    columns: 1;
-    spacing: 8px;
+    lines: {{ .rofi.controlcenter_lines }};
+    columns: {{ .rofi.controlcenter_columns }};
+    spacing: {{ .rofi.spacing_controlcenter }}px;
     cycle: true;
     fixed-height: true;
     scrollbar: false;
 }
 
 element {
-    padding: 10px 14px;
-    border-radius: 8px;
+    padding: {{ .rofi.element_padding_medium }};
+    border-radius: {{ .rofi.border_radius_large }}px;
 }
 
 element selected {

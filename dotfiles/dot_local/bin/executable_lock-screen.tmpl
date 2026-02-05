@@ -10,7 +10,7 @@ trap 'rm -f "$TMPIMG"' EXIT
 
 # Capture screenshot (maim is ~10x faster than import) and blur
 maim "$TMPIMG"
-convert "$TMPIMG" -blur 0x8 -modulate 60 "$TMPIMG"
+convert "$TMPIMG" -blur {{ .lock.blur_radius }} -modulate {{ .lock.brightness }} "$TMPIMG"
 
 # Lock with i3lock-color
 i3lock \
@@ -35,12 +35,12 @@ i3lock \
     --verif-font="{{ .font.mono }}" \
     --wrong-font="{{ .font.mono }}" \
     --clock \
-    --time-str="%H:%M" \
-    --date-str="%a, %d %b" \
+    --time-str="{{ .lock.time_format }}" \
+    --date-str="{{ .lock.date_format }}" \
     --indicator \
-    --radius=120 \
-    --ring-width=8 \
-    --noinput-text="" \
-    --verif-text="..." \
-    --wrong-text="!" \
+    --radius={{ .lock.indicator_radius }} \
+    --ring-width={{ .lock.ring_width }} \
+    --noinput-text="{{ .lock.noinput_text }}" \
+    --verif-text="{{ .lock.verif_text }}" \
+    --wrong-text="{{ .lock.wrong_text }}" \
     --nofork

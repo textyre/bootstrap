@@ -1,0 +1,35 @@
+# === Picom compositor configuration ===
+# Доступ из шаблонов: {{ .picom.shadow_radius }}, {{ .picom.active_opacity }}
+# SSOT для настроек композитора
+
+[picom]
+  # === Shadows ===
+  shadow_radius       = 8    # Радиус тени
+  shadow_offset_x     = -4   # Смещение тени по X
+  shadow_offset_y     = -4   # Смещение тени по Y
+  shadow_opacity      = 0.3  # Прозрачность тени
+
+  # === Opacity ===
+  active_opacity      = 0.92 # Прозрачность активного окна
+  inactive_opacity    = 0.85 # Прозрачность неактивного окна
+  frame_opacity       = 1.0  # Прозрачность рамки окна
+
+  # === Animations (picom-ftlabs) ===
+  animation_stiffness = 125  # Жесткость анимации (выше = быстрее)
+  animation_stiffness_tag = 90  # Жесткость для смены тегов
+  animation_dampening = 15   # Затухание анимации
+  animation_mass      = 0.5  # Масса окна для анимации
+
+  # === Fading ===
+  fade_step           = 0.04 # Шаг fade-in/fade-out
+  fade_delta          = 5    # Время между шагами fade (ms)
+
+  # === Blur ===
+  blur_method         = "dual_kawase"  # Метод размытия
+  blur_strength       = 1    # Сила размытия (1-20)
+
+  # === Opacity rules (для специфичных приложений) ===
+  opacity_firefox     = 100  # Firefox/Brave полностью непрозрачны
+  opacity_terminal_focused = 95   # Alacritty фокус
+  opacity_terminal_unfocused = 85 # Alacritty без фокуса
+  opacity_rofi        = 95   # Rofi меню

@@ -5,8 +5,8 @@
 [[ $- != *i* ]] && return
 
 # ---- History ----
-HISTSIZE=10000
-HISTFILESIZE=10000
+HISTSIZE={{ .terminal.history_size }}
+HISTFILESIZE={{ .terminal.history_size }}
 HISTCONTROL=ignoreboth:erasedups
 shopt -s histappend
 
@@ -53,7 +53,7 @@ if command -v fzf &>/dev/null; then
         --color=bg+:{{ $t.bg_light }},fg+:{{ $t.fg }},hl:{{ $t.accent }},hl+:{{ $t.accent2 }}
         --color=info:{{ $t.info }},prompt:{{ $t.accent }},pointer:{{ $t.accent2 }},marker:{{ $t.success }}
         --color=spinner:{{ $t.accent }},header:{{ $t.fg_dim }},gutter:-1
-        --border rounded --margin 1 --padding 1"
+        --border {{ .terminal.fzf_border }} --margin {{ .terminal.fzf_margin }} --padding {{ .terminal.fzf_padding }}"
 fi
 
 # ---- Starship prompt ----
