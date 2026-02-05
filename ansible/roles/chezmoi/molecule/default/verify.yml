@@ -41,11 +41,11 @@
       register: _chezmoi_verify_picom
       failed_when: not _chezmoi_verify_picom.stat.exists
 
-    - name: Check polybar config exists
+    - name: Check ewwii config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/polybar/config.ini"
-      register: _chezmoi_verify_polybar
-      failed_when: not _chezmoi_verify_polybar.stat.exists
+        path: "{{ _chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
+      register: _chezmoi_verify_ewwii
+      failed_when: not _chezmoi_verify_ewwii.stat.exists
 
     - name: Check rofi config exists
       ansible.builtin.stat:
@@ -97,7 +97,7 @@
           - ".xinitrc deployed"
           - ".config/i3/config deployed"
           - ".config/picom.conf deployed"
-          - ".config/polybar/config.ini deployed"
+          - ".config/ewwii/ewwii.rhai deployed"
           - ".config/rofi/config.rasi deployed"
           - ".config/alacritty/alacritty.toml deployed"
           - ".config/dunst/dunstrc deployed"

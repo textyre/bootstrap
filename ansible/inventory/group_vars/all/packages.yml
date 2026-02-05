@@ -66,7 +66,7 @@ packages_xorg:
 # picom ставится из AUR (picom-ftlabs-git) — анимации
 packages_wm:
   - dmenu             # минимальный лаунчер (фолбэк)
-  - polybar           # статус-бар
+  # - polybar         # ОТКЛЮЧЕНО: заменено на eww (ewwii)
   - rofi              # лаунчер приложений и меню
   - dunst             # демон уведомлений
   - feh               # управление обоями
@@ -180,4 +180,4 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
-  - eww-git                       # виджет-фреймворк (control center)
+  - eww-git                       # виджет-фреймворк для статус-бара (ewwii)

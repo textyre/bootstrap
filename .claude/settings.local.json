@@ -27,7 +27,12 @@
       "Bash(powershell.exe:*)",
       "Bash(powershell -File:*)",
       "WebFetch(domain:aur.archlinux.org)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(bash ./scripts/ssh-sudo.sh:*)",
+      "Bash(bash:*)",
+      "Bash(bash scripts/ssh-run.sh:*)",
+      "WebFetch(domain:ewwii-sh.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

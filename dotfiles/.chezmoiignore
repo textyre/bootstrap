@@ -4,3 +4,6 @@ etc
 etc/**
 wallpapers
 wallpapers/**
+# Polybar kept as backup - not deployed (replaced by ewwii)
+dot_config/polybar
+dot_config/polybar/**

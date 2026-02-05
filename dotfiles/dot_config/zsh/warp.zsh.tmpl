@@ -1,0 +1,137 @@
+{{- $t := index .themes .theme_name -}}
+# ~/.config/zsh/warp.zsh — WARP-style terminal features
+
+# ---- Block Output ----
+_WARP_BORDER="{{ $t.fg_dim }}"
+_WARP_CMD="{{ $t.accent }}"
+_WARP_TIME="{{ $t.fg_dim }}"
+_WARP_SUCCESS="{{ $t.success }}"
+_WARP_ERROR="{{ $t.error }}"
+
+_warp_cmd_start=0
+_warp_last_cmd=""
+
+preexec() {
+    _warp_cmd_start=$EPOCHREALTIME
+    _warp_last_cmd="$1"
+    print -P "%F{$_WARP_BORDER}╭─────────────────────────────────────────────────────────────────%f"
+    print -P "%F{$_WARP_BORDER}│%f %F{$_WARP_CMD}❯%f $1"
+    print -P "%F{$_WARP_BORDER}├─────────────────────────────────────────────────────────────────%f"
+}
+
+precmd() {
+    local exit_code=$?
+    [[ -z "$_warp_last_cmd" ]] && return
+
+    local duration=""
+    if (( _warp_cmd_start > 0 )); then
+        local elapsed=$(( EPOCHREALTIME - _warp_cmd_start ))
+        if (( elapsed >= 1 )); then
+            duration=$(printf "%.2fs" $elapsed)
+        elif (( elapsed >= 0.01 )); then
+            duration=$(printf "%.0fms" $(( elapsed * 1000 )))
+        fi
+    fi
+
+    local status_icon status_color
+    if (( exit_code == 0 )); then
+        status_icon="✓"
+        status_color="$_WARP_SUCCESS"
+    else
+        status_icon="✗ $exit_code"
+        status_color="$_WARP_ERROR"
+    fi
+
+    local right_info="%F{$status_color}$status_icon%f"
+    [[ -n "$duration" ]] && right_info+=" %F{$_WARP_TIME}$duration%f"
+
+    print -P "%F{$_WARP_BORDER}╰─────────────────────────────────────────────────────── $right_info %F{$_WARP_BORDER}─╯%f"
+    print ""
+
+    _warp_cmd_start=0
+    _warp_last_cmd=""
+}
+
+# ---- Command Palette (Ctrl+P) ----
+_warp_command_palette() {
+    local commands=(
+        "git:status:gs:Git status"
+        "git:diff:gd:Git diff"
+        "git:log:gl:Git log"
+        "git:add -A:git add -A:Stage all changes"
+        "git:commit:git commit:Create commit"
+        "git:push:git push:Push to remote"
+        "git:pull:git pull:Pull from remote"
+        "files:list:ll:List files"
+        "files:find:fd:Find files with fd"
+        "files:search:rg:Search with ripgrep"
+        "system:processes:htop:Process monitor"
+        "system:disk:df -h:Disk usage"
+        "system:memory:free -h:Memory usage"
+        "docker:ps:docker ps:List containers"
+        "docker:images:docker images:List images"
+        "docker:compose up:docker compose up -d:Start compose"
+    )
+
+    local selected=$(printf '%s\n' "${commands[@]}" | \
+        fzf --prompt="Command > " \
+            --header="WARP Command Palette" \
+            --delimiter=":" \
+            --with-nth=1,2,4 \
+            --preview='echo "Command: {3}"' \
+            --preview-window=up:1)
+
+    if [[ -n "$selected" ]]; then
+        local cmd=$(echo "$selected" | cut -d: -f3)
+        LBUFFER="$cmd"
+        zle redisplay
+    fi
+}
+zle -N _warp_command_palette
+bindkey '^P' _warp_command_palette
+
+# ---- Workflows (Ctrl+O) ----
+WARP_WORKFLOWS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/workflows.txt"
+
+_warp_save_workflow() {
+    [[ -z "$BUFFER" ]] && return
+    local name=$(print -n "Workflow name: " >&2; read -r name; echo "$name")
+    [[ -z "$name" ]] && return
+    echo "$name:$BUFFER" >> "$WARP_WORKFLOWS_FILE"
+    zle -M "Saved workflow: $name"
+}
+zle -N _warp_save_workflow
+bindkey '^O^S' _warp_save_workflow
+
+_warp_run_workflow() {
+    [[ ! -f "$WARP_WORKFLOWS_FILE" ]] && { zle -M "No workflows saved"; return; }
+
+    local selected=$(cat "$WARP_WORKFLOWS_FILE" | \
+        fzf --prompt="Workflow > " \
+            --header="Saved Workflows (Ctrl+O+S to save)" \
+            --delimiter=":" \
+            --with-nth=1 \
+            --preview='echo "Command: {2..}"')
+
+    if [[ -n "$selected" ]]; then
+        LBUFFER="${selected#*:}"
+        zle redisplay
+    fi
+}
+zle -N _warp_run_workflow
+bindkey '^O' _warp_run_workflow
+
+# ---- Directory Jump (Ctrl+G) ----
+_warp_directory_jump() {
+    local dir=$(find "${1:-.}" -type d 2>/dev/null | head -1000 | \
+        fzf --prompt="Directory > " \
+            --header="Jump to directory" \
+            --preview='eza -la --icons --color=always {} 2>/dev/null || ls -la {}')
+
+    if [[ -n "$dir" ]]; then
+        cd "$dir"
+        zle accept-line
+    fi
+}
+zle -N _warp_directory_jump
+bindkey '^G' _warp_directory_jump

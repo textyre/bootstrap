@@ -1,0 +1,30 @@
+{{- $t := index .themes .theme_name -}}
+# ~/.config/zsh/plugins.zsh — Plugin loading
+
+# zsh-syntax-highlighting
+if [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
+
+# zsh-autosuggestions
+if [[ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+    ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg={{ $t.fg_dim }}"
+fi
+
+# zsh-history-substring-search (optional, better than history-search)
+if [[ -f /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh ]]; then
+    source /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh
+    bindkey '^[[A' history-substring-search-up
+    bindkey '^[[B' history-substring-search-down
+fi
+
+# FZF integration
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --zsh 2>/dev/null)" || true
+    export FZF_DEFAULT_OPTS="
+        --color=bg+:{{ $t.bg_light }},fg+:{{ $t.fg }},hl:{{ $t.accent }},hl+:{{ $t.accent2 }}
+        --color=info:{{ $t.info }},prompt:{{ $t.accent }},pointer:{{ $t.accent2 }},marker:{{ $t.success }}
+        --color=spinner:{{ $t.accent }},header:{{ $t.fg_dim }},gutter:-1
+        --border rounded --margin 1 --padding 1"
+fi

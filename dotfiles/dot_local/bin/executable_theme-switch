@@ -57,9 +57,9 @@ if pgrep -x i3 >/dev/null 2>&1; then
     i3-msg reload >/dev/null 2>&1 || true
 fi
 
-# Polybar
-if [[ -x "$HOME/.config/polybar/launch.sh" ]]; then
-    "$HOME/.config/polybar/launch.sh" &
+# Ewwii
+if [[ -x "$HOME/.config/ewwii/launch.sh" ]]; then
+    "$HOME/.config/ewwii/launch.sh" &
 fi
 
 # Picom (reloads config with new theme colors)

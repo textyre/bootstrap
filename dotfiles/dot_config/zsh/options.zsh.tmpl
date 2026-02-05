@@ -1,0 +1,43 @@
+{{- $t := index .themes .theme_name -}}
+# ~/.config/zsh/options.zsh — Shell options and history
+
+# ---- History ----
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE=~/.zsh_history
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_FIND_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+
+# ---- Shell options ----
+setopt AUTO_CD
+setopt CORRECT
+setopt GLOB_DOTS
+setopt EXTENDED_GLOB
+setopt NOTIFY
+unsetopt BEEP
+
+# ---- Directory stack ----
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt PUSHD_SILENT
+DIRSTACKSIZE=20
+
+# ---- Modules ----
+zmodload zsh/datetime
+
+# ---- PATH ----
+[[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && export PATH="$HOME/.local/bin:$PATH"
+
+# ---- Environment variables ----
+export EDITOR="nvim"
+export VISUAL="nvim"
+export TERMINAL="alacritty"
+export BROWSER="firefox"
+export LANG="en_US.UTF-8"
+export BAT_THEME="{{ $t.bat_theme }}"
