@@ -10,6 +10,9 @@ set -euo pipefail
 # Ensure DISPLAY is set for X11 (needed when launched via SSH or autostart)
 export DISPLAY="${DISPLAY:-:0}"
 
+# Use Cairo renderer to reduce RAM usage (~200MB -> ~30MB)
+export GSK_RENDERER=cairo
+
 # Kill existing ewwii instances
 ewwii kill 2>/dev/null || true
 sleep 0.3
@@ -18,8 +21,7 @@ sleep 0.3
 ewwii daemon &
 sleep 0.5
 
-# Open the single bar window
-# Contains all islands inside via centerbox layout
+# Opens the bar window with floating islands
 ewwii open bar
 
 echo "Ewwii started successfully"

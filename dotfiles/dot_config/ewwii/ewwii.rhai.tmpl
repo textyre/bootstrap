@@ -4,11 +4,11 @@
 // Syntax: Ewwii 0.4.0 Rhai
 // ============================================================
 // Design: One transparent dock window spanning full width,
-// with styled "island" boxes inside using centerbox layout.
+// with styled "island" boxes inside a horizontal box layout.
 // This avoids i3's dock-stacking behavior.
 // ============================================================
-// NOTE: Ewwii 0.4.0 does NOT load external CSS files.
-// All styles are applied via inline `style` property on widgets.
+// NOTE: All styles are applied via CSS classes (ewwii.scss).
+// No inline styles are used in this configuration.
 // ============================================================
 {{- $t := index .themes .theme_name }}
 
@@ -17,51 +17,36 @@
 // ============================================================
 fn workspaces(ws_json) {
     let buttons = [];
-
-    // Colors injected by chezmoi at template time
-    let c_accent = "{{ $t.accent }}";
-    let c_fg = "{{ $t.fg }}";
-    let c_fg_dim = "{{ $t.fg_dim }}";
-    let c_urgent = "{{ $t.urgent }}";
     let icon_size = {{ .font.icon_size }};
 
-    // Parse JSON string to array (ewwii provides parse_json)
     if ws_json == "" || ws_json == "[]" {
         // Fallback: show 3 empty workspaces
         for n in 1..=3 {
             let ws_label = "" + n;
-            buttons.push(button(#{
+            buttons.push(eventbox(#{
                 class: "ws empty",
                 onclick: "i3-msg workspace number " + n,
-                label: ws_label,
                 cursor: "pointer",
-                style: "color: " + c_fg_dim + "; padding: 2px 4px; font-size: " + icon_size + "px;",
-            }));
+                halign: "center",
+                valign: "center",
+            }, [
+                label(#{ text: ws_label })
+            ]));
         }
     } else {
         // Dynamic workspaces from script
         let ws_list = parse_json(ws_json);
 
         for ws in ws_list {
-            let class_name = "ws " + ws.state;
-            let color = c_fg;
-            let border_bottom = "border-bottom: none;";
-            if ws.state == "focused" {
-                color = c_accent;
-                border_bottom = "border-bottom: 2px solid " + c_accent + ";";
-            } else if ws.state == "urgent" {
-                color = c_urgent;
-            } else if ws.state == "empty" {
-                color = c_fg_dim;
-            }
-
-            buttons.push(button(#{
-                class: class_name,
+            buttons.push(eventbox(#{
+                class: "ws " + ws.state,
                 onclick: "i3-msg workspace number " + ws.number,
-                label: ws.icon,
                 cursor: "pointer",
-                style: "color: " + color + "; padding: 2px 4px; font-size: " + icon_size + "px; " + border_bottom,
-            }));
+                halign: "center",
+                valign: "center",
+            }, [
+                label(#{ text: ws.icon })
+            ]));
         }
     }
 
@@ -69,6 +54,7 @@ fn workspaces(ws_json) {
         class: "workspaces",
         orientation: "h",
         spacing: 4,
+        space_evenly: false,
         halign: "center",
         valign: "center",
     }, buttons);
@@ -81,143 +67,72 @@ fn clock_widget(time_var, date_var) {
     let c_fg = "{{ $t.fg }}";
     let icon_calendar = "{{ .font.icon_calendar }}";
     let icon_size = {{ .font.icon_size }};
+    let bar_size = {{ .font.bar_size }};
 
-    return button(#{
+    return eventbox(#{
         class: "clock",
         onclick: "gsimplecal &",
         cursor: "pointer",
-        label: icon_calendar + " " + date_var + "  " + time_var,
-        style: "padding: 2px 6px; color: " + c_fg + "; font-size: " + icon_size + "px;",
-    });
-}
-
-// ============================================================
-// WIDGETS — System modules
-// ============================================================
-fn network_btn(ip_var) {
-    let c_success = "{{ $t.success }}";
-    let icon_wifi = "{{ .font.icon_wifi }}";
-
-    return button(#{
-        class: "module success",
-        onclick: "alacritty -e nmtui &",
-        cursor: "pointer",
-        label: icon_wifi + " " + ip_var,
-        style: "padding: 2px 4px; color: " + c_success + ";",
-    });
-}
-
-fn cpu_btn(cpu_var) {
-    let c_info = "{{ $t.info }}";
-    let icon_cpu = "{{ .font.icon_cpu }}";
-
-    return button(#{
-        class: "module info",
-        label: icon_cpu + " " + cpu_var + "%",
-        style: "padding: 2px 4px; color: " + c_info + ";",
-    });
-}
-
-fn memory_btn(mem_var) {
-    let c_warning = "{{ $t.warning }}";
-    let icon_memory = "{{ .font.icon_memory }}";
-
-    return button(#{
-        class: "module warning",
-        label: icon_memory + " " + mem_var + "%",
-        style: "padding: 2px 4px; color: " + c_warning + ";",
-    });
-}
-
-fn controlcenter_btn() {
-    let c_accent = "{{ $t.accent }}";
-    let icon_cog = "{{ .font.icon_cog }}";
-
-    return button(#{
-        class: "module accent",
-        onclick: "~/.config/rofi/scripts/controlcenter.sh &",
-        cursor: "pointer",
-        label: icon_cog,
-        style: "padding: 2px 4px; color: " + c_accent + ";",
-    });
-}
-
-fn powermenu_btn() {
-    let c_urgent = "{{ $t.urgent }}";
-    let icon_power = "{{ .font.icon_power }}";
-
-    return button(#{
-        class: "module urgent",
-        onclick: "~/.config/rofi/scripts/powermenu.sh &",
-        cursor: "pointer",
-        label: icon_power,
-        style: "padding: 2px 4px; color: " + c_urgent + ";",
-    });
+        halign: "center",
+        valign: "center",
+    }, [
+        label(#{
+            halign: "center",
+            valign: "center",
+            markup: `${icon_calendar} ${date_var}  ${time_var}`,
+        })
+    ]);
 }
 
 // ============================================================
 // WIDGETS — System bar assembly
 // ============================================================
 fn system_info_btn(network_ip, cpu, memory) {
-    let c_fg = "{{ $t.fg }}";
     let icon_wifi = "{{ .font.icon_wifi }}";
     let icon_cpu = "{{ .font.icon_cpu }}";
     let icon_database = "{{ .font.icon_database }}";
-    let icon_size = {{ .font.icon_size }};
 
-    return button(#{
+    return box(#{
         class: "system-info",
-        label: icon_wifi + " " + network_ip + "  " + icon_cpu + " " + cpu + "%  " + icon_database + " " + memory + "%",
-        style: "padding: 2px 4px; color: " + c_fg + "; font-size: " + icon_size + "px;",
-    });
+        orientation: "h",
+        space_evenly: false,
+        halign: "center",
+        valign: "center",
+    }, [
+        label(#{ class: "sys-icon", text: icon_wifi }),
+        label(#{ class: "sys-val", text: network_ip }),
+        label(#{ class: "sys-icon", text: icon_cpu }),
+        label(#{ class: "sys-val", text: `${cpu}%` }),
+        label(#{ class: "sys-icon sys-icon-db", text: icon_database }),
+        label(#{ class: "sys-val", text: `${memory}%` }),
+    ]);
 }
 
 fn system_cog_btn() {
-    let c_accent = "{{ $t.accent }}";
     let icon_cog = "{{ .font.icon_cog }}";
-    let icon_size = {{ .font.icon_size }};
 
-    return button(#{
+    return eventbox(#{
         class: "system-cog",
         onclick: "~/.config/rofi/scripts/controlcenter.sh &",
         cursor: "pointer",
-        label: icon_cog,
-        style: "padding: 2px 4px; color: " + c_accent + "; font-size: " + icon_size + "px;",
-    });
+        halign: "center",
+        valign: "center",
+    }, [
+        label(#{ text: icon_cog })
+    ]);
 }
 
 fn system_power_btn() {
-    let c_urgent = "{{ $t.urgent }}";
     let icon_power = "{{ .font.icon_power }}";
-    let icon_size = {{ .font.icon_size }};
 
-    return button(#{
+    return eventbox(#{
         class: "system-power",
         onclick: "~/.config/rofi/scripts/powermenu.sh &",
         cursor: "pointer",
-        label: icon_power,
-        style: "padding: 2px 4px; color: " + c_urgent + "; font-size: " + icon_size + "px;",
-    });
-}
-
-// ============================================================
-// WIDGETS — Add button
-// ============================================================
-fn add_button() {
-    let c_accent = "{{ $t.accent }}";
-    let icon_size = {{ .font.icon_size }};
-
-    return eventbox(#{
-        onclick: "~/.config/ewwii/scripts/add-workspace.sh &",
-        cursor: "pointer",
+        halign: "center",
+        valign: "center",
     }, [
-        box(#{
-            class: "add-btn",
-            halign: "center",
-            valign: "center",
-        }, [
-            label(#{ class: "icon accent", text: "+", style: "font-size: " + icon_size + "px; color: " + c_accent + ";" })
-        ])
+        label(#{ text: icon_power })
     ]);
 }
 
@@ -245,12 +160,7 @@ enter([
     }),
     poll("memory", #{
         interval: "3s",
-        cmd: "free | grep Mem | awk '{print int($3/$2 * 100)}'",
-        initial: "0",
-    }),
-    poll("volume", #{
-        interval: "1s",
-        cmd: "pamixer --get-volume 2>/dev/null || echo 0",
+        cmd: "awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf \"%d\", (t-a)*100/t}' /proc/meminfo",
         initial: "0",
     }),
     poll("network_ip", #{
@@ -274,7 +184,7 @@ enter([
     // ========================================
     // One transparent dock window with islands inside.
     // Dock type ensures i3 reserves space at top.
-    // All styles via inline `style` (ewwii 0.4.0 ignores external CSS).
+    // All styles via external ewwii.scss (CSS classes on widgets).
     // ========================================
 
     defwindow("bar", #{
@@ -293,63 +203,51 @@ enter([
             distance: "{{ add .layout.bar_pad_top .layout.bar_height .layout.bar_pad_bottom }}px",
         },
     },
-    // Main bar container — three sections: left (natural), center+right (expand)
+    // Main bar container — spacer pattern for true centering
     box(#{
         class: "bar-container",
         orientation: "h",
+        space_evenly: false,
         halign: "fill",
         valign: "center",
-        style: "background-color: transparent; padding: {{ .layout.bar_pad_top }}px {{ .layout.bar_pad_sides }}px {{ .layout.bar_pad_bottom }}px {{ .layout.bar_pad_sides }}px; font-family: '{{ .font.mono }}', monospace; font-size: {{ .font.bar_size }}px; font-weight: bold; color: {{ $t.fg }};",
     }, [
-        // ====== LEFT: natural width, no expand ======
+        // ====== LEFT: workspaces ======
         box(#{
             class: "bar-left",
             orientation: "h",
+            space_evenly: false,
             halign: "start",
             valign: "center",
-            spacing: {{ .layout.ws_add_gap }},
         }, [
             box(#{
                 class: "island ws-island",
+                space_evenly: false,
                 valign: "center",
-                style: "background-color: {{ $t.island_bg }}; border: {{ .layout.bar_border }}px solid {{ $t.island_border }}; border-radius: {{ .layout.bar_radius }}px; color: {{ $t.fg }}; min-height: {{ .layout.bar_height }}px; padding: 4px {{ .layout.edge_padding }}px;",
             }, [workspaces(workspaces_json)]),
-            box(#{
-                class: "island add-island",
-                valign: "center",
-                style: "background-color: {{ $t.island_bg }}; border: {{ .layout.bar_border }}px solid {{ $t.island_border }}; border-radius: {{ .layout.bar_radius }}px; color: {{ $t.fg }}; min-height: {{ .layout.bar_height }}px; padding: 4px 8px;",
-            }, [add_button()]),
         ]),
 
-        // ====== CENTER: expand, clock centered inside ======
-        box(#{
-            class: "bar-center",
-            hexpand: true,
-            halign: "fill",
-            valign: "center",
-        }, [
-            box(#{
-                class: "island clock-island",
-                halign: "center",
-                valign: "center",
-                style: "background-color: {{ $t.island_bg }}; border: {{ .layout.bar_border }}px solid {{ $t.island_border }}; border-radius: {{ .layout.bar_radius }}px; color: {{ $t.fg }}; min-height: {{ .layout.bar_height }}px; padding: 2px;",
-            }, [clock_widget(time, date_str)]),
-        ]),
+        // ====== SPACER ======
+        box(#{ hexpand: true, space_evenly: false }, []),
 
-        // ====== RIGHT: expand, system aligned end ======
+        // ====== CENTER: clock ======
         box(#{
-            class: "bar-right",
-            hexpand: true,
-            halign: "fill",
+            class: "island clock-island",
+            space_evenly: false,
+            halign: "center",
             valign: "center",
-        }, [
-            box(#{
-                class: "island system-island",
-                orientation: "h",
-                halign: "end",
-                valign: "center",
-                style: "background-color: {{ $t.island_bg }}; border: {{ .layout.bar_border }}px solid {{ $t.island_border }}; border-radius: {{ .layout.bar_radius }}px; color: {{ $t.fg }}; min-height: {{ .layout.bar_height }}px; padding: 2px;",
-            }, [system_info_btn(network_ip, cpu, memory), system_cog_btn(), system_power_btn()]),
-        ]),
-    ]))
+        }, [clock_widget(time, date_str)]),
+
+        // ====== SPACER ======
+        box(#{ hexpand: true, space_evenly: false }, []),
+
+        // ====== RIGHT: system ======
+        box(#{
+            class: "island system-island",
+            orientation: "h",
+            space_evenly: false,
+            halign: "end",
+            valign: "center",
+        }, [system_info_btn(network_ip, cpu, memory), system_cog_btn(), system_power_btn()]),
+    ])
+)
 ])

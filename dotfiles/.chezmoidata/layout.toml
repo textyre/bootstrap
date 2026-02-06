@@ -18,12 +18,14 @@
   bar_pad_sides = 16              # Отступ контейнера по бокам
   bar_border    = 1
   bar_radius    = 48
-  bar_padding   = 2               # Padding внутри clock/system островов
-  bar_padding_ws = 0              # Padding для workspaces острова
+  island_padding = 4              # Padding внутри всех островов (ewwii)
+  bar_padding   = 2               # Legacy: padding внутри clock/system (polybar)
+  bar_padding_ws = 0              # Legacy: padding для workspaces (polybar)
   sep_gap       = 4               # Зазор между модулями
-  font_offset   = 3
+  font_offset   = 3               # Legacy polybar font offset
 
   # === Bar ширины ===
+  # === Legacy (for polybar/old eww fallback) ===
   bar_width_workspaces = 116  # Фиксированная для fallback (3 WS: 12+16+22+16+22+16+12)
   bar_width_clock      = 220
   bar_width_system     = 440

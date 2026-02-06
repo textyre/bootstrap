@@ -17,15 +17,14 @@ $success: {{ $t.success }};
 $warning: {{ $t.warning }};
 $info: {{ $t.info }};
 
-// Island styling
-$island-bg: rgba($bg, 0.87);
-$island-border: rgba({{ $t.border_active }}, 0.4);
+// Island styling (pre-computed values from themes.toml)
+$island-bg: {{ $t.island_bg }};
+$island-border: {{ $t.island_border }};
 
 // Layout values
 $bar-radius: {{ .layout.bar_radius }}px;
 $bar-border: {{ .layout.bar_border }}px;
-$bar-padding: {{ .layout.bar_padding }}px;
-$edge-padding: {{ .layout.edge_padding }}px;
+$island-padding: {{ .layout.island_padding }}px;
 $font-size: {{ .font.bar_size }}px;
 $icon-size: {{ .font.icon_size }}px;
 $bar-height: {{ .layout.bar_height }}px;
@@ -48,13 +47,7 @@ $bar-height: {{ .layout.bar_height }}px;
     padding: {{ .layout.bar_pad_top }}px {{ .layout.bar_pad_sides }}px {{ .layout.bar_pad_bottom }}px {{ .layout.bar_pad_sides }}px;
 }
 
-.bar-centerbox {
-    background-color: transparent;
-}
-
-.bar-left,
-.bar-center,
-.bar-right {
+.bar-left {
     background-color: transparent;
 }
 
@@ -68,13 +61,14 @@ $bar-height: {{ .layout.bar_height }}px;
     color: $fg;
     padding: 4px 0;
     min-height: $bar-height;
+    max-height: $bar-height;
 }
 
 // ============================================================
 // WORKSPACES ISLAND
 // ============================================================
 .ws-island {
-    padding: 4px $edge-padding;
+    padding: $island-padding;
 }
 
 .workspaces {
@@ -82,12 +76,17 @@ $bar-height: {{ .layout.bar_height }}px;
 }
 
 .ws {
-    padding: 0 2px;
+    margin: 0 2px;
+    min-width: 28px;
     transition: all 150ms ease-in-out;
+
+    label {
+        font-size: $icon-size;
+    }
 
     &.focused {
         color: $accent;
-        border-bottom: 2px solid $accent;
+        border-bottom: none;
     }
 
     &.occupied {
@@ -114,54 +113,73 @@ $bar-height: {{ .layout.bar_height }}px;
 }
 
 // ============================================================
-// ADD BUTTON ISLAND
-// ============================================================
-.add-island {
-    padding: 4px 8px;
-}
-
-.add-btn {
-    .icon {
-        font-size: $icon-size;
-        transition: transform 150ms ease-in-out;
-    }
-
-    &:hover .icon {
-        transform: scale(1.2);
-    }
-}
-
-// ============================================================
 // CLOCK ISLAND
 // ============================================================
 .clock-island {
-    padding: 4px $bar-padding;
+    padding: $island-padding 24px;
+    transform: translateX(96px);
 }
 
-.clock {
-    .icon {
-        font-size: $icon-size;
-        color: $fg;
-    }
-
-    .date {
-        color: $fg;
-    }
-
-    .time {
-        color: $fg;
-    }
-}
+// Clock uses label(markup:) with Pango spans for mixed font sizes
 
 // ============================================================
 // SYSTEM ISLAND
 // ============================================================
 .system-island {
-    padding: 4px $bar-padding;
+    padding: $island-padding 24px;
 }
 
 .system {
     // Container for system modules
+}
+
+.system-info {
+    // no padding — height determined by icon font-size + island padding
+}
+
+.sys-icon {
+    font-size: $icon-size;
+    color: $fg;
+    margin-right: 8px;
+
+    &.sys-icon-db {
+        font-size: 18px;
+    }
+}
+
+.sys-val {
+    color: $fg;
+    margin-right: 16px;
+}
+
+.system-cog {
+    color: $fg;
+
+    label {
+        font-size: $icon-size;
+    }
+
+    &:hover {
+        color: $accent;
+    }
+}
+
+.system-power {
+    margin-left: 16px;
+    color: $fg;
+
+    label {
+        font-size: $icon-size;
+    }
+
+    &:hover {
+        color: $urgent;
+    }
+}
+
+.clock {
+    padding: 2px 6px;
+    color: $fg;
 }
 
 .sep {

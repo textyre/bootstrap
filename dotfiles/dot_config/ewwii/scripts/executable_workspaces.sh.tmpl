@@ -2,7 +2,6 @@
 # ============================================================
 # Workspaces JSON Generator for Ewwii
 # Outputs JSON array of workspaces on i3 events
-# Supports custom icons from workspace-icons.conf
 # ============================================================
 
 set -euo pipefail
@@ -10,45 +9,22 @@ set -euo pipefail
 # Ensure DISPLAY is set (required when launched from ewwii daemon)
 export DISPLAY="${DISPLAY:-:0}"
 
-# Custom icon file
-ICON_FILE="${HOME}/.config/ewwii/workspace-icons.conf"
-
 # Default icons for workspaces 1-10
 declare -A DEFAULT_ICONS=(
-    [1]="🌍"
-    [2]="󰀫"
-    [3]="󰀛"
-    [4]=""
-    [5]=""
-    [6]=""
-    [7]=""
-    [8]=""
-    [9]=""
-    [10]=""
+    [1]="{{ .font.icon_ws_globe }}"
+    [2]="{{ .font.icon_ws_code }}"
+    [3]="{{ .font.icon_ws_terminal }}"
 )
 
-# Get icon for workspace (custom or default)
+# Get icon for workspace number
 get_icon() {
-    local ws_num="$1"
-
-    # Check custom icon file first
-    if [[ -f "$ICON_FILE" ]]; then
-        local custom_icon
-        custom_icon=$(grep "^${ws_num}=" "$ICON_FILE" 2>/dev/null | cut -d= -f2 | head -1)
-        if [[ -n "$custom_icon" ]]; then
-            echo "$custom_icon"
-            return
-        fi
-    fi
-
-    # Return default icon
-    echo "${DEFAULT_ICONS[$ws_num]:-$ws_num}"
+    echo "${DEFAULT_ICONS[$1]:-$1}"
 }
 
 # Minimum workspaces to always show
 MIN_WS={{ .layout.min_workspaces }}
 
-# Generate workspaces JSON with custom icons
+# Generate workspaces JSON
 generate_json() {
     local workspaces
     workspaces=$(i3-msg -t get_workspaces 2>/dev/null) || return
@@ -70,7 +46,6 @@ generate_json() {
 
         existing_ws[$num]=1
 
-        # Get icon (custom or default)
         local icon
         icon=$(get_icon "$num")
 

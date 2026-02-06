@@ -32,7 +32,9 @@
       "Bash(bash:*)",
       "Bash(bash scripts/ssh-run.sh:*)",
       "WebFetch(domain:ewwii-sh.github.io)",
-      "WebFetch(domain:raw.githubusercontent.com)"
-    ]
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(./scripts/ssh-scp-to.sh:*)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
