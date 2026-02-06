@@ -28,6 +28,7 @@ $bar-padding: {{ .layout.bar_padding }}px;
 $edge-padding: {{ .layout.edge_padding }}px;
 $font-size: {{ .font.bar_size }}px;
 $icon-size: {{ .font.icon_size }}px;
+$bar-height: {{ .layout.bar_height }}px;
 
 // ============================================================
 // BASE STYLES
@@ -40,20 +41,40 @@ $icon-size: {{ .font.icon_size }}px;
 }
 
 // ============================================================
-// ISLAND CONTAINER
+// BAR CONTAINER — Transparent full-width dock
+// ============================================================
+.bar-container {
+    background-color: transparent;
+    padding: {{ .layout.bar_pad_top }}px {{ .layout.bar_pad_sides }}px {{ .layout.bar_pad_bottom }}px {{ .layout.bar_pad_sides }}px;
+}
+
+.bar-centerbox {
+    background-color: transparent;
+}
+
+.bar-left,
+.bar-center,
+.bar-right {
+    background-color: transparent;
+}
+
+// ============================================================
+// ISLAND — Styled floating boxes inside transparent bar
 // ============================================================
 .island {
     background-color: $island-bg;
     border: $bar-border solid $island-border;
     border-radius: $bar-radius;
     color: $fg;
+    padding: 4px 0;
+    min-height: $bar-height;
 }
 
 // ============================================================
 // WORKSPACES ISLAND
 // ============================================================
 .ws-island {
-    padding: 0 $edge-padding;
+    padding: 4px $edge-padding;
 }
 
 .workspaces {
@@ -96,7 +117,7 @@ $icon-size: {{ .font.icon_size }}px;
 // ADD BUTTON ISLAND
 // ============================================================
 .add-island {
-    padding: 0 8px;
+    padding: 4px 8px;
 }
 
 .add-btn {
@@ -114,7 +135,7 @@ $icon-size: {{ .font.icon_size }}px;
 // CLOCK ISLAND
 // ============================================================
 .clock-island {
-    padding: 0 $bar-padding;
+    padding: 4px $bar-padding;
 }
 
 .clock {
@@ -136,7 +157,7 @@ $icon-size: {{ .font.icon_size }}px;
 // SYSTEM ISLAND
 // ============================================================
 .system-island {
-    padding: 0 $bar-padding;
+    padding: 4px $bar-padding;
 }
 
 .system {
@@ -217,7 +238,7 @@ $icon-size: {{ .font.icon_size }}px;
 // INTERACTIVE STATES
 // ============================================================
 button, eventbox {
-    cursor: pointer;
+    // Note: GTK CSS doesn't support 'cursor' property
 
     &:hover {
         opacity: 0.85;

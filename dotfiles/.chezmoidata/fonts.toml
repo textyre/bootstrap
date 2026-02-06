@@ -4,6 +4,17 @@
 [font]
   mono      = "JetBrainsMono Nerd Font Mono"
   mono_size = 11
-  bar_size  = 10
+  bar_size  = 14
   icon      = "JetBrainsMono Nerd Font Mono"
-  icon_size = 16
+  icon_size = 18
+
+  # Bar module icons (Nerd Font codepoints, safe from editor Unicode corruption)
+  icon_clock   = "\uF017"
+  icon_wifi    = "\uF1EB"
+  icon_volume  = "\uF028"
+  icon_cpu     = "\uF2DB"
+  icon_memory  = "\uF538"
+  icon_cog     = "\uF013"
+  icon_power   = "\uF011"
+  icon_calendar = "\uF073"
+  icon_database = "\uF1C0"

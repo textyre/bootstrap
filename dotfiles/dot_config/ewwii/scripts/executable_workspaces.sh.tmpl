@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# Ensure DISPLAY is set (required when launched from ewwii daemon)
+export DISPLAY="${DISPLAY:-:0}"
+
 # Custom icon file
 ICON_FILE="${HOME}/.config/ewwii/workspace-icons.conf"
 
@@ -42,14 +45,19 @@ get_icon() {
     echo "${DEFAULT_ICONS[$ws_num]:-$ws_num}"
 }
 
+# Minimum workspaces to always show
+MIN_WS={{ .layout.min_workspaces }}
+
 # Generate workspaces JSON with custom icons
 generate_json() {
     local workspaces
     workspaces=$(i3-msg -t get_workspaces 2>/dev/null) || return
 
-    # Build JSON with custom icons
-    local result="["
-    local first=true
+    # Track which workspace numbers exist
+    declare -A existing_ws
+
+    # Build entries for existing workspaces
+    local entries=()
 
     while read -r ws; do
         local num name focused urgent visible windows
@@ -59,6 +67,8 @@ generate_json() {
         urgent=$(echo "$ws" | jq -r '.urgent')
         visible=$(echo "$ws" | jq -r '.visible')
         windows=$(echo "$ws" | jq -r '.windows // 0')
+
+        existing_ws[$num]=1
 
         # Get icon (custom or default)
         local icon
@@ -76,22 +86,39 @@ generate_json() {
             state="empty"
         fi
 
-        # Build JSON object
-        local ws_json
-        ws_json=$(jq -nc \
+        entries+=("$(jq -nc \
             --argjson number "$num" \
             --arg name "$name" \
             --arg icon "$icon" \
             --arg state "$state" \
-            '{number: $number, name: $name, icon: $icon, state: $state}')
+            '{number: $number, name: $name, icon: $icon, state: $state}')")
+    done < <(echo "$workspaces" | jq -c '.[]')
 
+    # Add empty workspaces up to MIN_WS
+    for n in $(seq 1 "$MIN_WS"); do
+        if [[ -z "${existing_ws[$n]:-}" ]]; then
+            local icon
+            icon=$(get_icon "$n")
+            entries+=("$(jq -nc \
+                --argjson number "$n" \
+                --arg name "$n" \
+                --arg icon "$icon" \
+                --arg state "empty" \
+                '{number: $number, name: $name, icon: $icon, state: $state}')")
+        fi
+    done
+
+    # Sort by workspace number and output
+    local result="["
+    local first=true
+    while IFS= read -r entry; do
         if [[ "$first" == "true" ]]; then
             first=false
-            result+="$ws_json"
+            result+="$entry"
         else
-            result+=",$ws_json"
+            result+=",$entry"
         fi
-    done < <(echo "$workspaces" | jq -c '.[]')
+    done < <(printf '%s\n' "${entries[@]}" | jq -sc 'sort_by(.number)[]')
 
     result+="]"
     echo "$result"

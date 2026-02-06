@@ -6,18 +6,21 @@
   # === Window Manager ===
   gaps_inner    = 4
   gaps_outer    = 8
-  gaps_top      = 48
+  gaps_top      = 4               # small gap above tiles (dock reserve handles bar space)
   border_size   = 1
   corner_radius = 10
 
   # === Bar общие ===
-  bar_height    = 32
-  bar_offset_y  = 6
+  bar_height    = 28              # Min-height островов
+  bar_offset_y  = 6               # Y-offset для старого eww (legacy, не используется в ewwii)
+  bar_pad_top   = 6               # Отступ контейнера сверху
+  bar_pad_bottom = 0              # Отступ контейнера снизу
+  bar_pad_sides = 16              # Отступ контейнера по бокам
   bar_border    = 1
-  bar_radius    = 14
-  bar_padding   = 4          # Padding для clock/system островов
-  bar_padding_ws = 0         # Padding для workspaces острова
-  sep_gap       = 22         # Зазор между модулями
+  bar_radius    = 48
+  bar_padding   = 2               # Padding внутри clock/system островов
+  bar_padding_ws = 0              # Padding для workspaces острова
+  sep_gap       = 4               # Зазор между модулями
   font_offset   = 3
 
   # === Bar ширины ===

@@ -26,6 +26,9 @@
   orange          = "#fab387"
   gtk_theme       = "Catppuccin-Mocha-Standard-Mauve-Dark"
   bat_theme       = "Catppuccin Mocha"
+  # Pre-computed rgba for ewwii inline styles (alpha() not supported)
+  island_bg       = "rgba(17, 17, 27, 0.87)"
+  island_border   = "#65547e"
 
 [themes.monochrome]
   bg              = "#0a0a0a"
@@ -51,3 +54,6 @@
   orange          = "#959595"
   gtk_theme       = "Adwaita-dark"
   bat_theme       = "ansi"
+  # Pre-computed rgba for ewwii inline styles (alpha() not supported)
+  island_bg       = "rgba(10, 10, 10, 0.87)"
+  island_border   = "#404040"

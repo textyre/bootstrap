@@ -18,11 +18,8 @@ sleep 0.3
 ewwii daemon &
 sleep 0.5
 
-# Open all windows
-# listen() scripts will automatically calculate sizes/positions
-ewwii open workspaces
-ewwii open workspace-add
-ewwii open clock
-ewwii open system
+# Open the single bar window
+# Contains all islands inside via centerbox layout
+ewwii open bar
 
 echo "Ewwii started successfully"
