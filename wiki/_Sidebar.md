@@ -15,6 +15,7 @@
 
 ### GUI конфигурация
 - [[Xorg-Configuration]]
+- [[Xorg-Reference]]
 - [[Display-Setup]]
 - [[Picom-Configuration]]
 - [[Polybar-Architecture]]
