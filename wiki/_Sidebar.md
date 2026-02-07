@@ -28,5 +28,6 @@
 - [[Roadmap]]
 
 ### Поддержка
+- [[Pacman-Reference]]
 - [[Troubleshooting]]
 - [[Windows-Setup]]
