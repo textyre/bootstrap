@@ -128,4 +128,77 @@
 
 ---
 
+## Архитектурные решения
+
+> Пути до 2026-01-31 используют старую структуру: `scripts/bootstrap/` → `ansible/`, `scripts/dotfiles/` → `dotfiles/`
+
+### Vault (sudo пароль)
+
+- [ ] Зашифрованный файл: `inventory/group_vars/all/vault.yml`
+- [ ] Каскадный скрипт `vault-pass.sh`: `pass` → `~/.vault-pass` → ошибка
+- [ ] Molecule: `config_options.defaults.vault_password_file`
+- [ ] AES-256 шифрование, безопасен для git
+
+### Централизация пакетов
+
+- [ ] Все пакеты в `inventory/group_vars/all/packages.yml` (data layer)
+- [ ] Precedence уровень 4: выше role defaults, ниже host_vars
+- [ ] Per-host override: `inventory/host_vars/<hostname>/packages.yml`
+
+### Модульные роли
+
+- [ ] Каждая роль — одна ответственность
+- [ ] Molecule тесты для каждой роли
+- [ ] Порядок:
+  ```
+  base_system → vm → reflector → yay → packages → user → ssh →
+  git → shell → docker → firewall → xorg → lightdm → chezmoi
+  ```
+
+### Мульти-дистро
+
+- [ ] OS dispatch: `include_tasks: "install-{{ ansible_os_family | lower }}.yml"`
+- [ ] `archlinux.yml` — полная реализация
+- [ ] `debian.yml` — заглушки для будущего
+- [ ] OS-specific install файлы для: user, ssh, firewall, shell, chezmoi
+
+### Reflector
+
+- [ ] Без `--config` флага — параметры напрямую в команде
+- [ ] Конфиг только для systemd timer через `@file` синтаксис
+
+### Taskfile venv PATH
+
+- [ ] PREFIX переменная: `env PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH"`
+- [ ] Все ansible-команды через `{{.PREFIX}}`
+
+---
+
+## Безопасность
+
+- [ ] `pacman -Syu` (не `pacman -Sy`)
+- [ ] nftables: `ct state invalid drop`, ICMP rate limiting
+- [ ] SSH: `ClientAliveInterval 300`, `ClientAliveCountMax 2`
+
+---
+
+## DRY
+
+- [ ] Единая `target_user` переменная в `system.yml`
+- [ ] `dotfiles_base_dir` в `system.yml`
+- [ ] Inventory: `[workstations]` (не `[local]`)
+- [ ] Playbook: `hosts: workstations`
+- [ ] Galaxy collections в `requirements.yml`
+
+---
+
+## Технический долг
+
+### Остаётся
+
+- [ ] Conditional WM support (i3 vs Hyprland vs Sway)
+- [ ] i18n support (rofi меню на разных языках)
+
+---
+
 Назад к [[Ansible-Overview]] | [[Home]]

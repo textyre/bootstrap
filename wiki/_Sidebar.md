@@ -9,7 +9,6 @@
 
 ### Компоненты
 - [[Ansible-Overview]]
-- [[Ansible-Decisions]]
 - [[Ansible-Patterns]]
 - [[Chezmoi-Guide]]
 - [[SSH-Setup]]
