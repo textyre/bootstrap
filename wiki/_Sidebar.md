@@ -16,6 +16,7 @@
 ### GUI конфигурация
 - [[Xorg-Configuration]]
 - [[Display-Setup]]
+- [[Picom-Configuration]]
 - [[Polybar-Architecture]]
 
 ### Миграция

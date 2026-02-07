@@ -346,6 +346,76 @@ GTK_DEBUG=interactive ewwii
 
 ---
 
+## Context Menu Rounded Corners
+
+Скруглённые углы на GTK3 context menus (Thunar, Firefox и др.) требуют синхронизации GTK CSS и picom compositor.
+
+### Архитектура
+
+```
+X11 window (window_type = popup_menu)
+├── picom corner-radius: 10px       ← compositor clipping
+└── GTK3 drawing:
+    ├── .csd.popup decoration       ← border-radius: 10px; box-shadow: ...
+    ├── menu                        ← margin: 4px; padding: 6px; border-radius: 10px
+    └── menuitem                    ← border-radius: 6px; padding: 7px 6px
+```
+
+### GTK3 CSS (`~/.config/gtk-3.0/gtk.css`)
+
+```css
+/* CSD popup decoration — скруглённые углы на уровне окна */
+.csd.popup decoration {
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Menu container */
+.csd menu {
+    border-radius: 10px;
+}
+
+menu {
+    margin: 4px;
+    padding: 6px;
+}
+
+/* Menu items — скругление предотвращает выступание hover за углы menu */
+menuitem {
+    border-radius: 6px;
+    padding: 7px 6px;
+}
+
+separator {
+    margin: 4px 8px;
+}
+```
+
+### Picom конфигурация
+
+Глобальный `corner-radius` в picom должен совпадать с GTK CSS `border-radius`. **Не отключайте** `corner-radius` для `popup_menu` — иначе GTK скруглит фон, но X11 окно останется прямоугольным.
+
+### Синхронизация
+
+| Уровень | Без настройки | Результат |
+|---------|--------------|-----------|
+| Только picom | GTK рисует квадратное, picom обрезает | Чёрные углы |
+| Только GTK CSS | GTK рисует скруглённое, X11 окно прямоугольное | Визуально квадратные |
+| **Оба** | GTK + picom синхронизированы | Корректные скруглённые углы |
+
+### Ограничения GTK3
+
+- `menuitem` hover-подсветка может выступать за скруглённые углы `menu` — частично решается `border-radius: 6px` на `menuitem`, но не идеально
+- `!important` **не поддерживается** в GTK CSS
+
+### Источник
+
+Рецепт основан на [adw-gtk3 #100](https://github.com/lassekongo83/adw-gtk3/issues/100).
+
+См. также: [[Picom-Configuration#синхронизация-picom-и-gtk-css-rounded-corners]]
+
+---
+
 ## Частые проблемы
 
 ### 1. Стили не применяются
@@ -371,6 +441,16 @@ GTK_DEBUG=interactive ewwii
 - `halign`/`valign` работают **внутри выделенного пространства**, а не абсолютно
 - Если контейнер шире нужного — `halign: center` центрирует в лишнем пространстве, а не уменьшает контейнер
 
+### 5. GTK3 vs GTK4: какой файл редактировать
+
+| Приложение | GTK версия | CSS файл |
+|-----------|-----------|----------|
+| Thunar 4.20 | GTK3 | `~/.config/gtk-3.0/gtk.css` |
+| Nautilus (GNOME 40+) | GTK4 | `~/.config/gtk-4.0/gtk.css` |
+| Firefox | GTK3 | `~/.config/gtk-3.0/gtk.css` |
+
+Проверить GTK-версию приложения: `ldd /usr/bin/<app> | grep libgtk`
+
 ---
 
 ## Полезные ссылки
@@ -381,6 +461,8 @@ GTK_DEBUG=interactive ewwii
 - [GTK3 CSS Properties](https://docs.gtk.org/gtk3/css-properties.html)
 - [Eww: Working with GTK](https://elkowar.github.io/eww/working_with_gtk.html)
 - [Pango Markup](https://docs.gtk.org/Pango/pango_markup.html)
+- [adw-gtk3 #100: Context Menu CSS](https://github.com/lassekongo83/adw-gtk3/issues/100) — рабочий рецепт для rounded corners
+- [GtkPopoverMenu (GTK4)](https://docs.gtk.org/gtk4/class.PopoverMenu.html) — CSS node: `popover > arrow + contents`
 
 ---
 

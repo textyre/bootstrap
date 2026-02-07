@@ -7,7 +7,7 @@
   gaps_inner    = 4
   gaps_outer    = 8
   gaps_top      = 4               # small gap above tiles (dock reserve handles bar space)
-  border_size   = 1
+  border_size   = 2
   corner_radius = 10
 
   # === Bar общие ===

@@ -12,6 +12,11 @@ All project interactions (linting, testing, ansible-playbook runs, molecule test
    ```
    bash scripts/ssh-scp-to.sh dotfiles/<path> /home/textyre/.local/share/chezmoi/<path>
    ```
+   **CRITICAL: Strip the `dotfiles/` prefix from the remote path!**
+   - Local: `dotfiles/.chezmoidata/picom.toml` → Remote: `/home/textyre/.local/share/chezmoi/.chezmoidata/picom.toml`
+   - Local: `dotfiles/dot_config/picom.conf.tmpl` → Remote: `/home/textyre/.local/share/chezmoi/dot_config/picom.conf.tmpl`
+   - **WRONG:** `/home/textyre/.local/share/chezmoi/dotfiles/.chezmoidata/...` — creates duplicate data that overrides correct files!
+
 2. **Apply and restart ewwii:**
    ```
    bash scripts/ssh-run.sh "chezmoi apply && pkill ewwii; sleep 1; nohup ~/.config/ewwii/launch.sh > /dev/null 2>&1 & disown"
@@ -20,6 +25,7 @@ All project interactions (linting, testing, ansible-playbook runs, molecule test
 Notes:
 - If renaming a file (e.g. `.conf` to `.conf.tmpl`), delete the old file from remote chezmoi source first
 - Helper scripts: `scripts/ssh-scp-to.sh` (copy), `scripts/ssh-run.sh` (execute)
+- **NEVER** create a `dotfiles/` subdirectory inside the remote chezmoi source — it causes data duplication and override conflicts
 
 ## Mandatory subagent delegation
 

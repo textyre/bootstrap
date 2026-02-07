@@ -14,15 +14,16 @@
   inactive_opacity    = 0.85 # Прозрачность неактивного окна
   frame_opacity       = 1.0  # Прозрачность рамки окна
 
-  # === Animations (picom-ftlabs) ===
-  animation_stiffness = 125  # Жесткость анимации (выше = быстрее)
-  animation_stiffness_tag = 90  # Жесткость для смены тегов
-  animation_dampening = 15   # Затухание анимации
-  animation_mass      = 0.5  # Масса окна для анимации
+  # === Animations (upstream picom v12+) ===
+  animation_duration  = 0.2          # Длительность анимации (секунды!)
+  animation_open      = "appear"     # Пресет открытия (fade-based, стабильнее в VM)
+  animation_close     = "disappear"  # Пресет закрытия
 
-  # === Fading ===
-  fade_step           = 0.04 # Шаг fade-in/fade-out
-  fade_delta          = 5    # Время между шагами fade (ms)
+  # === Float opacity для upstream rules (0.0-1.0) ===
+  opacity_firefox_f            = 1.0
+  opacity_terminal_focused_f   = 0.95
+  opacity_terminal_unfocused_f = 0.85
+  opacity_rofi_f               = 0.95
 
   # === Blur ===
   blur_method         = "dual_kawase"  # Метод размытия

@@ -2,6 +2,34 @@
 
 Консолидированный лог устранения неисправностей, организованный по датам.
 
+## 2026-02-07: Picom Rules, Opacity, GTK Menu Styling
+
+**Задача:** Настройка picom rules (opacity, animations), исправление opacity leaks, rounded corners на GTK3 context menus
+
+**Решено (6 проблем):**
+1. **A/B тестирование анимаций** — 13 экспериментов, найден стабильный конфиг (appear/disappear 0.2s, glx backend)
+2. **Backend xrender vs glx** — xrender визуально медленнее для анимаций, вернули glx
+3. **Opacity leak на dock/desktop/GTK** — default rule без match применял opacity ко всем; добавлен explicit `opacity = 1`
+4. **Thunar context menu opacity** — перенесён rule после popup_menu (порядок rules имеет значение)
+5. **GTK3 context menu rounded corners** — синхронизация GTK CSS + picom corner-radius (рецепт из adw-gtk3 #100)
+6. **Rules порядок и приоритет** — задокументировано что поздние rules перезаписывают ранние
+
+**Известные ограничения:**
+- Open-анимация не работает в VM (BUG [#1393](https://github.com/yshui/picom/issues/1393) + software rendering)
+- GTK3 menu hover может выступать за border-radius (ограничение GTK3)
+
+**Ключевые выводы:**
+- Picom `rules:` — последовательный приоритет (поздние перезаписывают)
+- GTK CSS + picom corner-radius должны быть синхронизированы
+- `!important` не поддерживается в GTK CSS
+- Thunar 4.20 использует GTK3, не GTK4
+
+**Файлы:** picom.conf.tmpl, gtk-3.0/gtk.css.tmpl, gtk-4.0/gtk.css.tmpl
+
+**Документация:** [[Picom-Configuration]], [[GTK-CSS-Reference]]
+
+---
+
 ## 2026-02-05: Ewwii Migration Planning
 
 **Задача:** Планирование миграции с Polybar на Ewwii

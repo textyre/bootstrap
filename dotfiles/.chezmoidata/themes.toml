@@ -29,6 +29,9 @@
   # Pre-computed rgba for ewwii inline styles (alpha() not supported)
   island_bg       = "rgba(17, 17, 27, 0.87)"
   island_border   = "#65547e"
+  island_bg_hover = "rgba(30, 30, 46, 0.95)"
+  island_border_hover = "#8b73ab"
+  island_fg_hover = "#cdd6f4"
 
 [themes.monochrome]
   bg              = "#0a0a0a"
@@ -42,8 +45,8 @@
   success         = "#808080"
   warning         = "#a0a0a0"
   info            = "#606060"
-  border_active   = "#383838"
-  border_inactive = "#161616"
+  border_active   = "#a0a0a0"
+  border_inactive = "#383838"
   border_urgent   = "#b04040"
   red             = "#808080"
   green           = "#909090"
@@ -57,3 +60,6 @@
   # Pre-computed rgba for ewwii inline styles (alpha() not supported)
   island_bg       = "rgba(10, 10, 10, 0.87)"
   island_border   = "#404040"
+  island_bg_hover = "rgba(255, 255, 255, 0.9)"
+  island_border_hover = "#1a1a1a"
+  island_fg_hover = "#0a0a0a"

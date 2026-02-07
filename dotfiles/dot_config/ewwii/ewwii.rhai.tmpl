@@ -229,6 +229,9 @@ enter([
         // ====== SPACER ======
         box(#{ hexpand: true, space_evenly: false }, []),
 
+        // ====== OFFSET: push clock toward true center ======
+        box(#{ class: "clock-offset", space_evenly: false }, []),
+
         // ====== CENTER: clock ======
         box(#{
             class: "island clock-island",

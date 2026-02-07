@@ -30,7 +30,8 @@
 - [ ] Роли содержат только логику, данные — в group_vars
 - [ ] AUR пакеты устанавливаются через yay с паролем из vault (SUDO_ASKPASS)
 - [ ] Конфликты AUR с pacman пакетами разрешаются автоматически
-- [ ] Обязательные AUR: picom-ftlabs-git, i3lock-color, rofi-greenclip, dracula-gtk-theme, i3-rounded-border-patch-git
+- [ ] picom ставится из pacman (официальный upstream v12+ с анимациями и rules)
+- [ ] Обязательные AUR: i3lock-color, rofi-greenclip, dracula-gtk-theme, i3-rounded-border-patch-git
 
 ## Тестирование
 

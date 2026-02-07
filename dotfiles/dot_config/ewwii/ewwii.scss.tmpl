@@ -20,6 +20,9 @@ $info: {{ $t.info }};
 // Island styling (pre-computed values from themes.toml)
 $island-bg: {{ $t.island_bg }};
 $island-border: {{ $t.island_border }};
+$island-bg-hover: {{ $t.island_bg_hover }};
+$island-border-hover: {{ $t.island_border_hover }};
+$island-fg-hover: {{ $t.island_fg_hover }};
 
 // Layout values
 $bar-radius: {{ .layout.bar_radius }}px;
@@ -62,6 +65,27 @@ $bar-height: {{ .layout.bar_height }}px;
     padding: 4px 0;
     min-height: $bar-height;
     max-height: $bar-height;
+    transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out, border-width 200ms ease-in-out;
+
+    &:hover {
+        background-color: $island-bg-hover;
+        border-color: $island-border-hover;
+        border-width: 2px;
+        color: $island-fg-hover;
+
+        label, .ws, .sys-icon, .sys-val, .clock, .system-cog, .system-power {
+            color: $island-fg-hover;
+        }
+
+        // WS icons dim on island hover, brighten on individual hover
+        .ws {
+            opacity: 0.5;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
+    }
 }
 
 // ============================================================
@@ -81,7 +105,7 @@ $bar-height: {{ .layout.bar_height }}px;
     transition: all 150ms ease-in-out;
 
     label {
-        font-size: $icon-size;
+        font-size: 22px;
     }
 
     &.focused {
@@ -115,9 +139,12 @@ $bar-height: {{ .layout.bar_height }}px;
 // ============================================================
 // CLOCK ISLAND
 // ============================================================
+.clock-offset {
+    min-width: 200px;
+}
+
 .clock-island {
     padding: $island-padding 24px;
-    transform: translateX(96px);
 }
 
 // Clock uses label(markup:) with Pango spans for mixed font sizes
