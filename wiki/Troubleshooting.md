@@ -30,21 +30,23 @@
 
 ---
 
-## 2026-02-05: Ewwii Migration Planning
+## 2026-02-05: Ewwii — начальная настройка
 
-**Задача:** Планирование миграции с Polybar на Ewwii
+**Задача:** Настройка ewwii status bar (замена Polybar)
 
-**Решение:** Создан полный план миграции в 8 фаз
+**Решено:**
+- Single transparent dock window с тремя островами
+- External SCSS (community standard, файл `ewwii.scss`)
+- Workspaces через i3 IPC + JSON
+- Chezmoi templating для тем и layout
+- `GSK_RENDERER=cairo` для экономии RAM
 
-**Ключевые моменты:**
-- Ewwii использует Rhai (Rust-like) вместо Yuck
-- GTK4 вместо GTK3
-- Автоматическая ширина окон (`width: "auto"`)
-- Оценка: 17-28 часов работы
+**Ключевые открытия:**
+- CSS файл должен называться `ewwii.scss`, не `eww.scss`
+- `space_evenly: false` обязателен на каждом box-виджете
+- Leaf widgets (button, label) определяют ширину по контенту
 
-**Статус:** Планирование завершено
-
-**Документация:** [[Ewwii-Migration]]
+**Документация:** [[Ewwii-Architecture]]
 
 ---
 

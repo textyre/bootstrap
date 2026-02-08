@@ -33,11 +33,11 @@ git clone <repo-url> bootstrap && cd bootstrap
 - [[Xorg-Configuration]] — Настройка X11/Xorg сервера
 - [[Display-Setup]] — LightDM и конфигурация дисплея
 
-### Polybar (текущий status bar)
-- [[Polybar-Architecture]] — Архитектура и полный анализ конфигурации Polybar
+### Status bar
+- [[Ewwii-Architecture]] — Архитектура и требования ewwii status bar
+- [[Polybar-Architecture]] — Архитектура Polybar (предыдущая реализация)
 
-### Миграция и будущее
-- [[Ewwii-Migration]] — План миграции с Polybar на Ewwii
+### Планы развития
 - [[Roadmap]] — Будущие роли и планы развития
 
 ### Помощь и решение проблем

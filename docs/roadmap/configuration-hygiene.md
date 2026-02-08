@@ -2,7 +2,7 @@
 
 Устранение технического долга в конфигурации Ansible: пути, валидация, источники правды.
 
-Основано на аудите [RelativePaths.md](../SubAgent%20docs/RelativePaths.md) и анализе индустриальных практик (AWS, Netflix, Habr community).
+Основано на аудите RelativePaths (документ удалён) и анализе индустриальных практик (AWS, Netflix, Habr community).
 
 ---
 

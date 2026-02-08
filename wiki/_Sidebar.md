@@ -20,11 +20,13 @@
 - [[Picom-Configuration]]
 - [[Polybar-Architecture]]
 
-### Миграция
-- [[Ewwii-Migration]]
+### Ewwii (status bar)
+- [[Ewwii-Architecture]]
 - [[Ewwii-Reference]]
 - [[Rhai-Reference]]
 - [[GTK-CSS-Reference]]
+
+### Планы
 - [[Roadmap]]
 
 ### Поддержка
