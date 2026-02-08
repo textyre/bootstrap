@@ -30,19 +30,33 @@ X.Org Server использует файл `xorg.conf` и файлы с суфф
 
 Файлы читаются в ASCII-порядке. Используйте префикс `XX-` (например: `10-monitor.conf`, `20-nvidia.conf`).
 
-### Секции конфигурации
+> **Важно:** При конфликтующих настройках файл, прочитанный последним, имеет приоритет.
+
+### Секции конфигурационного файла
+
+Файлы `xorg.conf` и `xorg.conf.d/*.conf` состоят из секций:
+
+```
+Section "SectionName"
+    SectionEntry
+    ...
+EndSection
+```
 
 | Секция | Описание |
 |--------|----------|
 | `Files` | Пути к файлам (шрифты, модули, XKB) |
 | `ServerFlags` | Глобальные опции сервера |
 | `Module` | Загружаемые модули |
+| `Extensions` | Включение/отключение X11-расширений |
 | `InputDevice` | Устройства ввода |
 | `InputClass` | Классы устройств ввода |
 | `Device` | Описание видеокарт |
 | `Monitor` | Описание мониторов |
+| `Modes` | Описание видеорежимов |
 | `Screen` | Связывание Device и Monitor |
 | `ServerLayout` | Общая конфигурация сессии |
+| `DRI` | Настройки Direct Rendering Infrastructure |
 
 ## Секция Monitor
 
@@ -150,16 +164,35 @@ sudo killall Xorg
 sudo kill -9 <PID>
 ```
 
-### Включение Ctrl+Alt+Backspace
+### Горячие клавиши в X11
 
-По умолчанию отключено. Для включения создайте `/etc/X11/xorg.conf.d/00-keyboard.conf`:
+| Комбинация | Действие |
+|------------|----------|
+| `Ctrl + Alt + Backspace` | Убить X-сервер (если включено) |
 
+#### Включение Ctrl+Alt+Backspace
+
+По умолчанию отключено. Для включения:
+
+**Вариант 1: xorg.conf.d**
+
+Создайте `/etc/X11/xorg.conf.d/00-keyboard.conf`:
 ```
 Section "InputClass"
     Identifier "Keyboard Defaults"
     MatchIsKeyboard "yes"
     Option "XkbOptions" "terminate:ctrl_alt_bksp"
 EndSection
+```
+
+**Вариант 2: setxkbmap (временно)**
+```bash
+setxkbmap -option terminate:ctrl_alt_bksp
+```
+
+**Вариант 3: localectl**
+```bash
+sudo localectl set-x11-keymap us "" "" terminate:ctrl_alt_bksp
 ```
 
 ## Если X-сервер завис
@@ -169,14 +202,26 @@ EndSection
 3. Затем снова `Ctrl + Alt + F2`
 4. Убейте X: `sudo pkill Xorg`
 
-## Полностью зависшая система
+## Аварийные комбинации (SysRq)
 
-Используйте комбинацию SysRq для безопасной перезагрузки:
+| Комбинация | Действие |
+|------------|----------|
+| `Alt + SysRq + R` | Отнять клавиатуру у X-сервера (raw mode) |
+| `Alt + SysRq + E` | SIGTERM всем процессам (кроме init) |
+| `Alt + SysRq + I` | SIGKILL всем процессам (кроме init) |
+| `Alt + SysRq + S` | Sync — записать буферы на диск |
+| `Alt + SysRq + U` | Перемонтировать файловые системы read-only |
+| `Alt + SysRq + B` | Немедленная перезагрузка |
+| `Alt + SysRq + K` | SAK — убить все процессы на текущем TTY |
+
+### Безопасная перезагрузка зависшей системы
+
+Последовательность **R E I S U B** (с паузой 1-2 сек между клавишами):
 
 ```
-Alt + SysRq + R  — отнять клавиатуру у X
-Alt + SysRq + E  — SIGTERM всем процессам
-Alt + SysRq + I  — SIGKILL всем процессам
+Alt + SysRq + R  — отнять клавиатуру
+Alt + SysRq + E  — завершить процессы
+Alt + SysRq + I  — убить процессы
 Alt + SysRq + S  — синхронизировать диски
 Alt + SysRq + U  — перемонтировать read-only
 Alt + SysRq + B  — перезагрузить
@@ -184,7 +229,22 @@ Alt + SysRq + B  — перезагрузить
 
 Мнемоника: **R**eboot **E**ven **I**f **S**ystem **U**tterly **B**roken
 
-Выполняйте с паузой 1-2 секунды между командами.
+### Включение SysRq
+
+Проверить статус:
+```bash
+cat /proc/sys/kernel/sysrq
+```
+
+Включить все функции:
+```bash
+echo 1 | sudo tee /proc/sys/kernel/sysrq
+```
+
+Для постоянного включения добавьте в `/etc/sysctl.d/99-sysrq.conf`:
+```
+kernel.sysrq = 1
+```
 
 ## Управление TTY
 
@@ -253,7 +313,12 @@ startx -- -config /path/to/xorg.conf
 
 ### ~/.xinitrc
 
-Пользовательский скрипт, выполняемый при запуске X через `startx` или `xinit`.
+Пользовательский скрипт, выполняемый при запуске X через `startx` или `xinit`. Если файл отсутствует, `startx` использует `/etc/X11/xinit/xinitrc`.
+
+Для создания своего:
+```bash
+cp /etc/X11/xinit/xinitrc ~/.xinitrc
+```
 
 Типичное использование:
 ```bash
@@ -269,9 +334,21 @@ xscreensaver &
 exec i3
 ```
 
+### ~/.xserverrc
+
+Скрипт для запуска X-сервера с пользовательскими параметрами. И `startx`, и `xinit` выполняют `~/.xserverrc`, если он существует.
+
+Пример:
+```bash
+#!/bin/sh
+exec /usr/bin/Xorg -nolisten tcp "$@" vt$XDG_VTNR
+```
+
+Системный файл по умолчанию: `/etc/X11/xinit/xserverrc`
+
 ### ~/.xprofile
 
-Выполняется при входе через Display Manager (LightDM, GDM, SDDM). Используется для установки переменных окружения.
+Выполняется при входе через Display Manager (LightDM, GDM, SDDM). Используется для установки переменных окружения и запуска фоновых программ перед стартом оконного менеджера/DE.
 
 ### ~/.Xresources
 
@@ -279,17 +356,36 @@ exec i3
 
 Загружается: `xrdb -merge ~/.Xresources`
 
+### ~/.Xmodmap
+
+Файл для переназначения клавиш и модификаторов клавиатуры. Загружается командой `xmodmap ~/.Xmodmap`.
+
+## Автоматическая конфигурация
+
+Современные версии X.Org автоматически определяют оборудование. В большинстве случаев ручная настройка `xorg.conf` не требуется. Arch Linux предоставляет дефолтные файлы конфигурации в `/usr/share/X11/xorg.conf.d/`.
+
+Для генерации базового `xorg.conf`:
+```bash
+# Xorg :0 -configure
+```
+
+Это создаст файл `xorg.conf.new` в `/root/`.
+
 ## Ссылки
 
 ### Официальная документация
 - [xorg.conf(5) — X.Org Manual](https://www.x.org/releases/current/doc/man/man5/xorg.conf.5.xhtml)
 - [Xorg(1) — X.Org Manual](https://www.x.org/releases/current/doc/man/man1/Xorg.1.xhtml)
+- [Xserver(1) — X.Org Manual](https://www.x.org/releases/current/doc/man/man1/Xserver.1.xhtml)
 - [cvt(1)](https://www.x.org/releases/current/doc/man/man1/cvt.1.xhtml)
 
 ### Arch Wiki
 - [Xorg — ArchWiki](https://wiki.archlinux.org/title/Xorg)
 - [xinit — ArchWiki](https://wiki.archlinux.org/title/Xinit)
 - [Xorg/Keyboard configuration](https://wiki.archlinux.org/title/Xorg/Keyboard_configuration)
+- [Xresources — ArchWiki](https://wiki.archlinux.org/title/Xresources)
+- [xprofile — ArchWiki](https://wiki.archlinux.org/title/Xprofile)
+- [Console — ArchWiki](https://wiki.archlinux.org/title/Linux_console)
 - [Linux Magic System Request Key](https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html)
 
 ---
