@@ -41,6 +41,30 @@ picom.conf.tmpl
 
 ## Анимации
 
+### Триггеры
+
+Полный список trigger-событий для анимаций:
+
+| Триггер | Описание |
+|---------|---------|
+| `open` | Окно открывается |
+| `close` | Окно закрывается |
+| `show` | Окно становится видимым |
+| `hide` | Окно скрывается |
+| `focus` | Окно получает фокус |
+| `unfocus` | Окно теряет фокус |
+| `workspace-in` | Переключение на workspace |
+| `workspace-out` | Переключение с workspace |
+| `geometry` | Изменение геометрии окна |
+
+### Suppressions
+
+Список триггеров, которые подавляются пока анимация выполняется. Предотвращает прерывание анимации другими событиями. Например, `suppressions = ["hide"]` в анимации `close` не даст `hide`-событию прервать анимацию закрытия.
+
+### Timing functions
+
+При использовании пресетов можно указать `timing-function` для управления кривой анимации: `ease-in-out`, `ease-in`, `ease-out`, `linear`. По умолчанию — зависит от пресета.
+
 ### Доступные пресеты
 
 | Пресет | Описание | VM совместимость |
@@ -119,6 +143,23 @@ duration = 200;   # 200 СЕКУНД - НЕПРАВИЛЬНО!
 - `wintypes:`
 
 Вся логика opacity, shadow exclusion и window types должна быть внутри `rules:`.
+
+## Per-window rule options
+
+Все опции, доступные для установки через `rules:`:
+
+| Опция | Тип | Назначение |
+|-------|-----|-----------|
+| `opacity` | 0.0–1.0 | Прозрачность окна |
+| `fade` | bool | Включить fading-анимацию |
+| `shadow` | bool | Рисовать тень |
+| `shadow-color` | hex/rgba | Цвет тени |
+| `shadow-radius` | int | Радиус размытия тени |
+| `corner-radius` | int | Радиус скруглённых углов (0 = без скругления) |
+| `blur-background` | bool | Включить размытие фона |
+| `full-shadow` | bool | Тень всего окна (vs только рамки) |
+| `redir-ignored` | bool | Redirect ignored windows |
+| `animations` | array | Массив анимаций для окна |
 
 ## Синтаксис rules
 
@@ -272,6 +313,20 @@ separator             { margin: 4px 8px; }
 | Множественные exclude-списки | Единый `rules:` блок |
 | `round-borders` | Не поддерживается (i3 patch handles it) |
 
+### Сравнение возможностей
+
+| Возможность | picom-ftlabs | Upstream v12+ |
+|-------------|--------------|---------------|
+| Пресеты анимаций | Да | Да |
+| Физика (stiffness/mass/dampening) | **Да** | **Нет** |
+| Per-window rules | Да | Да |
+| Анимации по типу окна | Да | Да |
+| Focus/unfocus триггеры | Да | Да |
+| Workspace switch анимации | Частично | Да (`workspace-in/out`) |
+| Fading + анимации одновременно | Иногда | **Нет** (анимации приоритетнее) |
+| Custom animation scripting | Расширенный | Ограничен (пресеты + timing functions) |
+| Suppressions (контроль прерываний) | Неявный | Явный (`suppressions = [...]`) |
+
 ### Пакеты
 
 - **Было:** `picom-ftlabs-git` (AUR) + `picom` в conflicts
@@ -305,6 +360,14 @@ ssh <host> "pkill picom"
 ```bash
 cat ~/.config/picom.conf
 ```
+
+## Ссылки
+
+- [Picom Official Documentation](https://picom.app/)
+- [Picom Sample Configuration](https://github.com/yshui/picom/blob/next/picom.sample.conf)
+- [FT-Labs Picom Fork](https://github.com/FT-Labs/picom)
+- [AUR: picom-ftlabs-git](https://aur.archlinux.org/packages/picom-ftlabs-git)
+- [ArchWiki: Picom](https://wiki.archlinux.org/title/Picom)
 
 ---
 
