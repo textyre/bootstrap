@@ -38,17 +38,6 @@
 
 ---
 
-## Meta (`meta/main.yml`)
-
-- [ ] `role_name` совпадает с именем директории
-- [ ] `license: MIT`
-- [ ] `min_ansible_version: "2.15"`
-- [ ] `platforms` — список поддерживаемых ОС
-- [ ] `galaxy_tags` — lowercase
-- [ ] `dependencies: []` — явно, даже если пусто
-
----
-
 ## Handlers (`handlers/main.yml`)
 
 - [ ] Вызываются через `notify` в тасках
@@ -130,8 +119,6 @@
 
 ## Архитектурные решения
 
-> Пути до 2026-01-31 используют старую структуру: `scripts/bootstrap/` → `ansible/`, `scripts/dotfiles/` → `dotfiles/`
-
 ### Vault (sudo пароль)
 
 - [ ] Зашифрованный файл: `inventory/group_vars/all/vault.yml`
@@ -176,29 +163,20 @@
 
 ## Безопасность
 
-- [ ] `pacman -Syu` (не `pacman -Sy`)
-- [ ] nftables: `ct state invalid drop`, ICMP rate limiting
-- [ ] SSH: `ClientAliveInterval 300`, `ClientAliveCountMax 2`
+- [ ] Обновление пакетов: полное (`-Syu`), никогда частичное (`-Sy`)
+- [ ] Файлы с секретами: `mode: '0600'`, `no_log: true` в тасках
+- [ ] Сетевые сервисы: default deny, явные allow-правила
+- [ ] SSH hardening настройки вынесены в переменные (`defaults/main.yml`), не захардкожены
+- [ ] Vault для любых паролей/токенов — никогда plaintext в коде
 
 ---
 
-## DRY
+## Переиспользование (DRY)
 
-- [ ] Единая `target_user` переменная в `system.yml`
-- [ ] `dotfiles_base_dir` в `system.yml`
-- [ ] Inventory: `[workstations]` (не `[local]`)
-- [ ] Playbook: `hosts: workstations`
-- [ ] Galaxy collections в `requirements.yml`
-
----
-
-## Технический долг
-
-### Остаётся
-
-- [ ] Conditional WM support (i3 vs Hyprland vs Sway)
-- [ ] i18n support (rofi меню на разных языках)
-
----
+- [ ] Общие переменные (`target_user`, `dotfiles_base_dir`) — в `system.yml`, не дублировать в ролях
+- [ ] Пакеты — в `packages.yml` (data layer), роли только читают списки
+- [ ] Per-host override — через `host_vars/<hostname>/`, не через условия в ролях
+- [ ] Зависимости (Galaxy collections) — в одном `requirements.yml`
+- [ ] Новая роль не дублирует логику существующей — проверить `roles/` перед созданием
 
 Назад к [[Ansible-Overview]] | [[Home]]
