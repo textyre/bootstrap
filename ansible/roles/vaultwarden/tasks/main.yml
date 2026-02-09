@@ -34,6 +34,17 @@
   when: vaultwarden_enabled
   tags: ['vaultwarden', 'secrets']
 
+# ---- DNS (локальный доступ) ----
+
+- name: Add Vaultwarden domain to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '.*\s{{ vaultwarden_domain | regex_escape }}$'
+    line: "127.0.0.1 {{ vaultwarden_domain }}"
+    state: present
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
 # ---- Docker Compose ----
 
 - name: Deploy Vaultwarden docker-compose.yml

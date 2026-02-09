@@ -71,6 +71,7 @@ tasks:
       - task: test-xorg
       - task: test-lightdm
       - task: test-chezmoi
+      - task: test-zen-browser
       - 'echo "All tests passed!"'
 
   # --- Individual role tests ---
@@ -213,6 +214,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing chezmoi role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-zen-browser:
+    desc: "Run molecule tests for zen_browser"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/zen_browser'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing zen_browser role..."'
       - '{{.PREFIX}} molecule test'
 
   # --- Playbook execution ---

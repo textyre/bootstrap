@@ -8,6 +8,6 @@ galaxy_info:
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [caddy, proxy, https, reverse-proxy]
+  galaxy_tags: [caddy, proxy, https, reverseproxy]
 dependencies:
   - role: docker

@@ -60,3 +60,26 @@
     state: present
   when: caddy_enabled
   tags: ['caddy', 'proxy', 'service']
+
+# ---- Доверие к локальному CA (только при tls internal) ----
+
+- name: Copy Caddy root CA to system trust store
+  ansible.builtin.command:
+    cmd: docker cp caddy:/data/caddy/pki/authorities/local/root.crt /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+  changed_when: true
+  when: caddy_enabled and caddy_tls_mode == "internal"
+  tags: ['caddy', 'proxy', 'configure']
+
+- name: Fix Caddy root CA permissions
+  ansible.builtin.file:
+    path: /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+    mode: '0644'
+  when: caddy_enabled and caddy_tls_mode == "internal"
+  tags: ['caddy', 'proxy', 'configure']
+
+- name: Update system CA trust
+  ansible.builtin.command:
+    cmd: update-ca-trust
+  changed_when: true
+  when: caddy_enabled and caddy_tls_mode == "internal"
+  tags: ['caddy', 'proxy', 'configure']

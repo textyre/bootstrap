@@ -1,0 +1,15 @@
+---
+# === Установка браузера Zen Browser ===
+# Значения по умолчанию
+
+# AUR пакет для установки
+zen_browser_aur_package: "zen-browser-bin"
+
+# Пользователь для установки AUR пакетов (makepkg не работает от root)
+zen_browser_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+
+# Установить как браузер по умолчанию
+zen_browser_set_default: true
+
+# Имя .desktop файла для xdg-settings
+zen_browser_desktop_file: "zen.desktop"

@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: zen_browser
+  author: textyre
+  description: Установка браузера Zen Browser из AUR
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+  galaxy_tags: [browser, zen, aur]
+dependencies: []

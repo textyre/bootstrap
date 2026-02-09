@@ -2,9 +2,11 @@
 - name: Restart caddy
   ansible.builtin.command:
     cmd: docker compose -f {{ caddy_base_dir }}/docker-compose.yml restart
+  changed_when: true
   listen: Restart caddy
 
 - name: Reload caddy
   ansible.builtin.command:
     cmd: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+  changed_when: true
   listen: Reload caddy

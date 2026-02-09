@@ -1,0 +1,124 @@
+---
+# === Установка браузера Zen Browser из AUR ===
+# Поддержка: только Arch Linux (AUR через yay)
+
+# ---- Проверка платформы ----
+
+- name: Ensure host is Arch Linux
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Archlinux'
+    fail_msg: "Zen Browser поддерживается только на Arch Linux (AUR)"
+  tags: ['zen_browser', 'browser']
+
+# ---- Обновление кеша pacman ----
+
+- name: Refresh pacman package database
+  community.general.pacman:
+    update_cache: true
+  tags: ['zen_browser', 'browser']
+
+# ---- Проверка текущего состояния ----
+
+- name: Check if Zen Browser is already installed
+  ansible.builtin.command: which zen-browser
+  register: _zen_browser_exists
+  changed_when: false
+  failed_when: false
+  tags: ['zen_browser', 'browser']
+
+- name: Check if yay is available
+  ansible.builtin.command: yay --version
+  register: _zen_browser_yay_check
+  changed_when: false
+  failed_when: false
+  tags: ['zen_browser', 'browser']
+
+- name: Fail if yay is not installed
+  ansible.builtin.fail:
+    msg: "yay не найден — установите роль yay перед zen_browser"
+  when: _zen_browser_yay_check.rc != 0
+  tags: ['zen_browser', 'browser']
+
+# ---- Установка через AUR ----
+
+- name: Create temporary SUDO_ASKPASS helper for AUR build
+  ansible.builtin.copy:
+    dest: /tmp/.ansible_sudo_askpass_zen
+    content: |
+      #!/bin/sh
+      echo '{{ ansible_become_password }}'
+    mode: '0700'
+    owner: "{{ zen_browser_user }}"
+  no_log: true
+  changed_when: false
+  when:
+    - _zen_browser_exists.rc != 0
+    - ansible_become_password is defined
+  tags: ['zen_browser', 'browser']
+
+- name: Install Zen Browser via yay
+  become: true
+  become_user: "{{ zen_browser_user }}"
+  ansible.builtin.command: >
+    yay -S --needed --noconfirm
+    {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
+    {{ zen_browser_aur_package }}
+  environment: >-
+    {{
+      {'PATH': '/usr/bin/core_perl:' + ansible_facts['env']['PATH']}
+      | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass_zen'} if ansible_become_password is defined else {})
+    }}
+  register: _zen_browser_install
+  changed_when: "'there is nothing to do' not in _zen_browser_install.stdout | default('')"
+  when: _zen_browser_exists.rc != 0
+  tags: ['zen_browser', 'browser']
+
+- name: Remove temporary SUDO_ASKPASS helper
+  ansible.builtin.file:
+    path: /tmp/.ansible_sudo_askpass_zen
+    state: absent
+  changed_when: false
+  when: _zen_browser_exists.rc != 0
+  tags: ['zen_browser', 'browser']
+
+# ---- Верификация установки ----
+
+- name: Verify Zen Browser binary exists
+  ansible.builtin.command: which zen-browser
+  register: _zen_browser_verify
+  changed_when: false
+  tags: ['zen_browser', 'browser']
+
+# ---- Браузер по умолчанию ----
+
+- name: Check current default browser
+  become: true
+  become_user: "{{ zen_browser_user }}"
+  ansible.builtin.command: xdg-settings get default-web-browser
+  environment:
+    DISPLAY: "{{ ansible_facts['env']['DISPLAY'] | default(':0') }}"
+  register: _zen_browser_current_default
+  changed_when: false
+  failed_when: false
+  when: zen_browser_set_default
+  tags: ['zen_browser', 'browser', 'configure']
+
+- name: Set Zen Browser as default browser
+  become: true
+  become_user: "{{ zen_browser_user }}"
+  ansible.builtin.command: xdg-settings set default-web-browser {{ zen_browser_desktop_file }}
+  environment:
+    DISPLAY: "{{ ansible_facts['env']['DISPLAY'] | default(':0') }}"
+  changed_when: true
+  when:
+    - zen_browser_set_default
+    - _zen_browser_current_default.stdout | default('') != zen_browser_desktop_file
+  tags: ['zen_browser', 'browser', 'configure']
+
+# ---- Отчёт ----
+
+- name: Report Zen Browser installation result
+  ansible.builtin.debug:
+    msg: "Zen Browser установлен: {{ _zen_browser_verify.stdout }}"
+  tags: ['zen_browser', 'browser']
