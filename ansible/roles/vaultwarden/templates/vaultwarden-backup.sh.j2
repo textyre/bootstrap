@@ -1,0 +1,21 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Бэкап Vaultwarden SQLite
+set -euo pipefail
+
+BACKUP_DIR="{{ vaultwarden_backup_dir }}"
+DATA_DIR="{{ vaultwarden_base_dir }}/data"
+KEEP_DAYS="{{ vaultwarden_backup_keep_days }}"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# SQLite safe backup (не блокирует БД)
+sqlite3 "${DATA_DIR}/db.sqlite3" ".backup '${BACKUP_DIR}/db-${TIMESTAMP}.sqlite3'"
+
+# Бэкап вложений (если есть)
+if [ -d "${DATA_DIR}/attachments" ]; then
+    tar -czf "${BACKUP_DIR}/attachments-${TIMESTAMP}.tar.gz" -C "${DATA_DIR}" attachments
+fi
+
+# Ротация: удалить старше N дней
+find "${BACKUP_DIR}" -name "db-*.sqlite3" -mtime "+${KEEP_DAYS}" -delete
+find "${BACKUP_DIR}" -name "attachments-*.tar.gz" -mtime "+${KEEP_DAYS}" -delete

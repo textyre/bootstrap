@@ -1,0 +1,92 @@
+---
+# === Vaultwarden (Self-hosted Bitwarden) ===
+# Менеджер паролей и секретов
+
+# ---- Директории ----
+
+- name: Create Vaultwarden base directory
+  ansible.builtin.file:
+    path: "{{ vaultwarden_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Create Vaultwarden data directory
+  ansible.builtin.file:
+    path: "{{ vaultwarden_base_dir }}/data"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Create Vaultwarden backup directory
+  ansible.builtin.file:
+    path: "{{ vaultwarden_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+# ---- Docker Compose ----
+
+- name: Deploy Vaultwarden docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ vaultwarden_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart vaultwarden
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+# ---- Caddy site config ----
+
+- name: Deploy Vaultwarden Caddy site config
+  ansible.builtin.template:
+    src: vault.caddy.j2
+    dest: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload caddy
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+# ---- Запуск ----
+
+- name: Start Vaultwarden containers
+  community.docker.docker_compose_v2:
+    project_src: "{{ vaultwarden_base_dir }}"
+    state: present
+  when: vaultwarden_enabled
+  tags: ['vaultwarden', 'secrets']
+
+# ---- Бэкап ----
+
+- name: Deploy Vaultwarden backup script
+  ansible.builtin.template:
+    src: vaultwarden-backup.sh.j2
+    dest: "{{ vaultwarden_base_dir }}/backup.sh"
+    owner: root
+    group: root
+    mode: '0700'
+  when: vaultwarden_enabled and vaultwarden_backup_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Configure Vaultwarden backup cron job
+  ansible.builtin.cron:
+    name: "Vaultwarden backup"
+    hour: "{{ vaultwarden_backup_cron_hour }}"
+    minute: "{{ vaultwarden_backup_cron_minute }}"
+    job: "{{ vaultwarden_base_dir }}/backup.sh"
+    user: root
+  when: vaultwarden_enabled and vaultwarden_backup_enabled
+  tags: ['vaultwarden', 'secrets']

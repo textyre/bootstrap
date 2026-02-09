@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "{{ caddy_https_port }}:443"
+      - "{{ caddy_http_port }}:80"
+    volumes:
+      - "{{ caddy_base_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "{{ caddy_base_dir }}/sites:/etc/caddy/sites:ro"
+      - "{{ caddy_base_dir }}/data:/data"
+      - "{{ caddy_base_dir }}/config:/config"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: "{{ caddy_docker_network }}"

@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+{{ vaultwarden_domain }} {
+{% if caddy_tls_mode is defined and caddy_tls_mode == "acme" %}
+    tls {{ caddy_tls_email | default("") }}
+{% endif %}
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy vaultwarden:80
+}

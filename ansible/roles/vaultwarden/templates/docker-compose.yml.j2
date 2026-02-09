@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      DOMAIN: "https://{{ vaultwarden_domain }}"
+      SIGNUPS_ALLOWED: "{{ vaultwarden_signups_allowed | string | lower }}"
+{% if vaultwarden_admin_enabled and vaultwarden_admin_token %}
+      ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
+{% endif %}
+      ROCKET_PORT: "80"
+      SENDS_ALLOWED: "true"
+      EMERGENCY_ACCESS_ALLOWED: "true"
+      PASSWORD_ITERATIONS: "{{ vaultwarden_password_iterations }}"
+      LOGIN_RATELIMIT_MAX_BURST: "{{ vaultwarden_login_ratelimit_max_burst }}"
+      LOGIN_RATELIMIT_SECONDS: "{{ vaultwarden_login_ratelimit_seconds }}"
+      ADMIN_RATELIMIT_MAX_BURST: "{{ vaultwarden_admin_ratelimit_max_burst }}"
+      ADMIN_RATELIMIT_SECONDS: "{{ vaultwarden_admin_ratelimit_seconds }}"
+    volumes:
+      - "{{ vaultwarden_base_dir }}/data:/data"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: "{{ vaultwarden_docker_network }}"

@@ -1,0 +1,10 @@
+---
+- name: Restart vaultwarden
+  ansible.builtin.command:
+    cmd: docker compose -f {{ vaultwarden_base_dir }}/docker-compose.yml restart
+  listen: Restart vaultwarden
+
+- name: Reload caddy
+  ansible.builtin.command:
+    cmd: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+  listen: Reload caddy

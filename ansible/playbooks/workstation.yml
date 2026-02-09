@@ -74,6 +74,12 @@
     - role: firewall
       tags: [firewall, security]
 
+    - role: caddy
+      tags: [caddy, proxy, security]
+
+    - role: vaultwarden
+      tags: [vaultwarden, security, secrets]
+
     # --- Phase 6: Desktop environment ---
     - role: xorg
       tags: [xorg, display]

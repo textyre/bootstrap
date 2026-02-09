@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+{
+{% if caddy_tls_mode == "internal" %}
+    local_certs
+{% endif %}
+    admin off
+}
+
+import /etc/caddy/sites/*.caddy

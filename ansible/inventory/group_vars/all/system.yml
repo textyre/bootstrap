@@ -1,6 +1,6 @@
 ---
 # === СИСТЕМНАЯ КОНФИГУРАЦИЯ ===
-# Переменные для ролей: base_system, user, ssh, git, shell, docker, firewall, chezmoi
+# Переменные для ролей: base_system, user, ssh, git, shell, docker, firewall, caddy, vaultwarden, chezmoi
 #
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
 
@@ -84,6 +84,25 @@ docker_add_user_to_group: true
 
 firewall_enabled: true
 firewall_allow_ssh: true
+firewall_allow_tcp_ports:
+  - 80
+  - 443
+
+# ============================================================
+#  caddy — роль roles/caddy
+# ============================================================
+
+caddy_tls_mode: "internal"
+# caddy_tls_email: "your@email.com"  # для Let's Encrypt (caddy_tls_mode: acme)
+
+# ============================================================
+#  vaultwarden — роль roles/vaultwarden
+# ============================================================
+
+vaultwarden_domain: "vault.local"
+# После создания аккаунта — отключить:
+# vaultwarden_signups_allowed: false
+# vaultwarden_admin_enabled: false
 
 # ============================================================
 #  chezmoi — роль roles/chezmoi

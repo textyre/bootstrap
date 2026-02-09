@@ -1,0 +1,24 @@
+---
+# === Reverse Proxy (Caddy) ===
+# Единый HTTPS reverse proxy для всех self-hosted сервисов
+
+# Включить роль
+caddy_enabled: true
+
+# Базовая директория
+caddy_base_dir: "/opt/caddy"
+
+# HTTPS порт
+caddy_https_port: 443
+
+# HTTP порт (для редиректа на HTTPS)
+caddy_http_port: 80
+
+# TLS режим: "internal" (self-signed) или "acme" (Let's Encrypt)
+caddy_tls_mode: "internal"
+
+# Email для Let's Encrypt (только при caddy_tls_mode: acme)
+caddy_tls_email: ""
+
+# Docker network для связи с сервисами
+caddy_docker_network: "proxy"

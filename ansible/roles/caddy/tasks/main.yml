@@ -1,0 +1,62 @@
+---
+# === Reverse Proxy (Caddy) ===
+# Развёртывание Caddy в Docker с автоматическим TLS
+
+# ---- Создание Docker network ----
+
+- name: Create Docker network for proxy
+  community.docker.docker_network:
+    name: "{{ caddy_docker_network }}"
+    state: present
+  when: caddy_enabled
+  tags: ['caddy', 'proxy', 'configure']
+
+# ---- Создание директорий ----
+
+- name: Create Caddy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ caddy_base_dir }}"
+    - "{{ caddy_base_dir }}/sites"
+    - "{{ caddy_base_dir }}/data"
+    - "{{ caddy_base_dir }}/config"
+  when: caddy_enabled
+  tags: ['caddy', 'proxy', 'configure']
+
+# ---- Конфигурация ----
+
+- name: Deploy Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_base_dir }}/Caddyfile"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload caddy
+  when: caddy_enabled
+  tags: ['caddy', 'proxy', 'configure']
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ caddy_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart caddy
+  when: caddy_enabled
+  tags: ['caddy', 'proxy', 'configure']
+
+# ---- Сервис ----
+
+- name: Start Caddy with docker compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ caddy_base_dir }}"
+    state: present
+  when: caddy_enabled
+  tags: ['caddy', 'proxy', 'service']

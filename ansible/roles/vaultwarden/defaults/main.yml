@@ -1,0 +1,39 @@
+---
+# === Vaultwarden (Self-hosted Bitwarden) ===
+# Менеджер паролей и секретов
+
+# Включить роль
+vaultwarden_enabled: true
+
+# Домен (используется Caddy и DOMAIN в Vaultwarden)
+vaultwarden_domain: "vault.local"
+
+# Базовая директория
+vaultwarden_base_dir: "/opt/vaultwarden"
+
+# Docker network (должна совпадать с caddy_docker_network)
+vaultwarden_docker_network: "proxy"
+
+# --- Admin panel ---
+# Включить /admin (отключить после первоначальной настройки!)
+vaultwarden_admin_enabled: true
+# Токен из vault.yml
+vaultwarden_admin_token: "{{ vault_vaultwarden_admin_token | default('') }}"
+
+# --- Регистрация ---
+# Разрешить регистрацию (отключить после создания своего аккаунта)
+vaultwarden_signups_allowed: true
+
+# --- Безопасность ---
+vaultwarden_password_iterations: 600000
+vaultwarden_login_ratelimit_max_burst: 5
+vaultwarden_login_ratelimit_seconds: 60
+vaultwarden_admin_ratelimit_max_burst: 3
+vaultwarden_admin_ratelimit_seconds: 60
+
+# --- Бэкап ---
+vaultwarden_backup_enabled: true
+vaultwarden_backup_dir: "/opt/vaultwarden/backups"
+vaultwarden_backup_keep_days: 30
+vaultwarden_backup_cron_hour: "3"
+vaultwarden_backup_cron_minute: "0"
