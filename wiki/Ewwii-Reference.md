@@ -386,7 +386,7 @@ label(#{ markup: "<span size='15pt' color='#a6e3a1'>icon</span> <span size='11pt
 
 Файл `ewwii.scss` / `ewwii.css` загружается автоматически. Официальный пример ewwii-bar использует внешний SCSS.
 
-> **Примечание:** В нашем проекте внешний CSS не работал при тестировании (причина не выяснена). Текущее решение: inline `style` на каждом виджете.
+> **Важно:** Файл стилей должен называться `ewwii.scss` (или `ewwii.css`), НЕ `eww.scss`. Ewwii ищет файл с именем, совпадающим с именем бинарника. Все community-конфиги используют внешний SCSS — это стандартный подход.
 
 ---
 
@@ -508,4 +508,4 @@ enter([  defwindow("bar", ...), defwindow("calendar", ...) ]);
 
 ---
 
-Назад к [[Home]] | См. также: [[Ewwii-Migration]], [[Rhai-Reference]], [[GTK-CSS-Reference]]
+Назад к [[Home]] | См. также: [[Ewwii-Architecture]], [[Rhai-Reference]], [[GTK-CSS-Reference]]

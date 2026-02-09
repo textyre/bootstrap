@@ -9,7 +9,7 @@
 
 ### Компоненты
 - [[Ansible-Overview]]
-- [[Ansible-Decisions]]
+- [[Ansible-Patterns]]
 - [[Chezmoi-Guide]]
 - [[SSH-Setup]]
 
@@ -20,13 +20,16 @@
 - [[Picom-Configuration]]
 - [[Polybar-Architecture]]
 
-### Миграция
-- [[Ewwii-Migration]]
+### Ewwii (status bar)
+- [[Ewwii-Architecture]]
 - [[Ewwii-Reference]]
 - [[Rhai-Reference]]
 - [[GTK-CSS-Reference]]
+
+### Планы
 - [[Roadmap]]
 
 ### Поддержка
+- [[Pacman-Reference]]
 - [[Troubleshooting]]
 - [[Windows-Setup]]

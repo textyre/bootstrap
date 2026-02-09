@@ -27,8 +27,8 @@ Total: 16 wiki pages (240 KB)
 - **Display-Setup.md** (7.7 KB) — LightDM and display config (consolidated from 4 files)
 - **Polybar-Architecture.md** (7.2 KB) — Polybar deep dive (summarized from 6 files)
 
-### Migration & Future
-- **Ewwii-Migration.md** (5.7 KB) — Migration plan from Polybar to Ewwii
+### Status Bar & Future
+- **Ewwii-Architecture.md** — Ewwii status bar architecture and requirements
 - **Roadmap.md** (4.1 KB) — Future plans for Ansible roles
 
 ### Support
@@ -75,8 +75,7 @@ All content was consolidated from existing documentation:
 - docs/: QUICKSTART.md, CHEZMOI_GUIDE.md, SSH_SYNC_SCRIPTS_ANALYSIS.md
 - docs/xorg/: 4 files merged into Xorg-Configuration.md
 - docs/gui/display/: 4 files merged into Display-Setup.md
-- docs/SubAgent docs/: 6 Polybar files summarized into Polybar-Architecture.md
-- docs/plans/: POLYBAR_TO_EWWII_MIGRATION.md → Ewwii-Migration.md
+- Ewwii-Architecture.md — consolidated from migration plan + troubleshooting history
 - docs/roadmap/: ansible-roles.md → Roadmap.md
 - docs/troubleshooting/: 8 files merged into Troubleshooting.md
 - ansible/: README.md, decisions.md → Ansible pages
