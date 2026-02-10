@@ -7,8 +7,8 @@ services:
     environment:
       DOMAIN: "https://{{ vaultwarden_domain }}"
       SIGNUPS_ALLOWED: "{{ vaultwarden_signups_allowed | string | lower }}"
-{% if vaultwarden_admin_enabled and vaultwarden_admin_token %}
-      ADMIN_TOKEN: "{{ vaultwarden_admin_token }}"
+{% if vaultwarden_admin_enabled and (_vaultwarden_admin_token is defined or vaultwarden_admin_token) %}
+      ADMIN_TOKEN: "{{ _vaultwarden_admin_token | default(vaultwarden_admin_token) }}"
 {% endif %}
       ROCKET_PORT: "80"
       SENDS_ALLOWED: "true"

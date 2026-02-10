@@ -43,6 +43,8 @@ packages_base:
   - openssh          # SSH клиент/сервер (для роли ssh)
   - chezmoi          # Менеджер дотфайлов (для роли chezmoi)
   - nftables         # Firewall (для роли firewall)
+  - cronie           # Планировщик задач (cron, для бэкапов Vaultwarden)
+  - sqlite           # SQLite CLI (для бэкапов Vaultwarden)
 
 # --- Редакторы ---
 packages_editors:
@@ -53,6 +55,7 @@ packages_editors:
 packages_docker:
   - docker
   - docker-compose
+  - python-requests  # Python HTTP (для community.docker.* модулей Ansible)
 
 # --- Xorg: сервер, утилиты, драйверы ---
 packages_xorg:

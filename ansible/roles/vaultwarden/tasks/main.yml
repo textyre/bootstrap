@@ -45,6 +45,44 @@
   when: vaultwarden_enabled
   tags: ['vaultwarden', 'secrets']
 
+# ---- Admin token (генерация при первом запуске) ----
+
+- name: Check if admin token file exists
+  ansible.builtin.stat:
+    path: "{{ vaultwarden_base_dir }}/.admin_token"
+  register: _vaultwarden_token_file
+  when: vaultwarden_enabled and vaultwarden_admin_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Generate admin token
+  ansible.builtin.shell:
+    cmd: openssl rand -base64 48 > {{ vaultwarden_base_dir }}/.admin_token
+    creates: "{{ vaultwarden_base_dir }}/.admin_token"
+  when: vaultwarden_enabled and vaultwarden_admin_enabled and not (_vaultwarden_token_file.stat.exists | default(false))
+  tags: ['vaultwarden', 'secrets']
+
+- name: Restrict admin token file permissions
+  ansible.builtin.file:
+    path: "{{ vaultwarden_base_dir }}/.admin_token"
+    owner: root
+    group: root
+    mode: '0600'
+  when: vaultwarden_enabled and vaultwarden_admin_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Read admin token
+  ansible.builtin.slurp:
+    src: "{{ vaultwarden_base_dir }}/.admin_token"
+  register: _vaultwarden_admin_token_raw
+  when: vaultwarden_enabled and vaultwarden_admin_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Set admin token fact
+  ansible.builtin.set_fact:
+    _vaultwarden_admin_token: "{{ _vaultwarden_admin_token_raw.content | b64decode | trim }}"
+  when: vaultwarden_enabled and vaultwarden_admin_enabled
+  tags: ['vaultwarden', 'secrets']
+
 # ---- Docker Compose ----
 
 - name: Deploy Vaultwarden docker-compose.yml
@@ -89,6 +127,14 @@
     owner: root
     group: root
     mode: '0700'
+  when: vaultwarden_enabled and vaultwarden_backup_enabled
+  tags: ['vaultwarden', 'secrets']
+
+- name: Ensure cronie service is enabled
+  ansible.builtin.service:
+    name: cronie
+    enabled: true
+    state: started
   when: vaultwarden_enabled and vaultwarden_backup_enabled
   tags: ['vaultwarden', 'secrets']
 

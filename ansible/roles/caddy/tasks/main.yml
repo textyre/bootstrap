@@ -83,3 +83,27 @@
   changed_when: true
   when: caddy_enabled and caddy_tls_mode == "internal"
   tags: ['caddy', 'proxy', 'configure']
+
+# ---- Доверие к CA в браузерах (Firefox/Zen не используют системный trust store) ----
+
+- name: Create Zen Browser distribution directory
+  ansible.builtin.file:
+    path: /usr/lib/zen-browser/distribution
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: caddy_enabled and caddy_tls_mode == "internal"
+  failed_when: false
+  tags: ['caddy', 'proxy', 'configure']
+
+- name: Configure Zen Browser to trust system CA
+  ansible.builtin.copy:
+    dest: /usr/lib/zen-browser/distribution/policies.json
+    content: '{"policies":{"Certificates":{"ImportEnterpriseRoots":true}}}'
+    owner: root
+    group: root
+    mode: '0644'
+  when: caddy_enabled and caddy_tls_mode == "internal"
+  failed_when: false
+  tags: ['caddy', 'proxy', 'configure']
