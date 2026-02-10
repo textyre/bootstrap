@@ -37,11 +37,19 @@ function boot(): void {
   // Background
   initBackground();
 
-  // Security barcode (decorative)
-  renderSecurityBarcode();
+  // System info + security signature
+  const user = getFirstUser();
+  const username = user ? user.username : 'unknown';
 
-  // System info
-  loadSystemInfo().then(renderSystemInfo);
+  loadSystemInfo().then((info) => {
+    renderSystemInfo(info);
+    renderSecurityBarcode({
+      hostname: info.hostname,
+      username,
+      ip: info.ip_address,
+      kernel: info.kernel,
+    });
+  });
 
   // Auth wiring
   initAuth({
@@ -80,7 +88,6 @@ function boot(): void {
   });
 
   // Get user and start
-  const user = getFirstUser();
   if (user) {
     currentUsername = user.username;
     els.usernameText.textContent = user.username.toUpperCase();
