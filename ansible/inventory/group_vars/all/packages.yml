@@ -112,7 +112,7 @@ packages_graphics:
 # --- Сессия / грифтер ---
 packages_session:
   - lightdm             # display manager
-  - lightdm-gtk-greeter # greeter для LightDM
+  # nody-greeter (AUR) — устанавливается через packages_aur
 
 # --- Терминал ---
 packages_terminal:
@@ -174,6 +174,7 @@ packages_hyperv_guest:
 packages_aur_remove_conflicts:
   - i3lock            # заменяется на i3lock-color из AUR
   - i3-wm             # заменяется на i3-rounded-border-patch-git из AUR
+  - lightdm-gtk-greeter # заменяется на nody-greeter из AUR
 
 # --- AUR пакеты (только Arch Linux, через yay) ---
 # yay устанавливается отдельной ролью (roles/yay)
@@ -183,3 +184,4 @@ packages_aur:
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
   - eww-git                       # виджет-фреймворк для статус-бара (ewwii)
+  - nody-greeter                   # LightDM web-гритер (Electron) для ctOS темы

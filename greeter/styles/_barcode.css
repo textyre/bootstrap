@@ -1,0 +1,77 @@
+/* === Username barcode (center) === */
+
+#username-barcode {
+  height: 40px;
+  max-width: 280px;
+}
+
+/* === Security matrix (right edge) === */
+
+#security-matrix {
+  width: 40px;
+  height: 300px;
+  image-rendering: pixelated;
+}
+
+#security-meta {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 1px;
+}
+
+/* === Top-right env block === */
+
+#env-block {
+  padding: var(--sp-1) var(--sp-2);
+  display: flex;
+  flex-direction: row;
+  gap: var(--sp-3);
+  border-right: 3px solid var(--ink);
+  border-left: 3px solid var(--ink);
+  background-color: var(--ink-low);
+}
+
+.info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.info-value {
+  font-size: var(--body-size);
+  color: var(--phosphor-hi);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* === Clock & date === */
+
+#clock {
+  font-size: var(--clock-size);
+  font-weight: 300;
+  color: var(--phosphor-hi);
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+#date-box {
+  border: var(--border);
+  padding: var(--sp-micro) var(--sp-1);
+}
+
+#date {
+  font-size: var(--date-size);
+  color: var(--phosphor);
+  letter-spacing: 1px;
+}

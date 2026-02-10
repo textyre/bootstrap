@@ -20,3 +20,27 @@ lightdm_system_files:
     owner: lightdm
     group: lightdm
     mode: "0755"
+
+# === ctOS Greeter (nody-greeter) ===
+
+# Имя темы
+lightdm_greeter_theme: "ctos"
+
+# Версия проекта (отображается в гритере)
+lightdm_ctos_version: "1.0.0"
+
+# Путь к собранной теме (greeter/dist/ в корне репозитория)
+lightdm_greeter_dist_dir: "{{ lookup('env', 'REPO_ROOT') }}/greeter/dist"
+
+# Путь к index.yml темы
+lightdm_greeter_index_yml: "{{ lookup('env', 'REPO_ROOT') }}/greeter/index.yml"
+
+# Конфигурация nody-greeter
+lightdm_greeter_debug_mode: false
+lightdm_greeter_screensaver_timeout: 300
+lightdm_greeter_secure_mode: true
+lightdm_greeter_time_language: ""
+lightdm_greeter_background_images_dir: "/usr/share/backgrounds"
+
+# Путь к обоям пользователя (копируются в /usr/share/backgrounds/)
+lightdm_wallpaper_source_dir: "/home/{{ ansible_facts['env']['SUDO_USER'] | default('textyre') }}/.local/share/wallpapers"

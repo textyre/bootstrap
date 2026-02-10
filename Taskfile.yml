@@ -253,6 +253,21 @@ tasks:
       - 'echo "==> Setting up workstation..."'
       - "{{.ANSIBLE}} playbooks/workstation.yml -v"
 
+  # --- ctOS Greeter ---
+
+  greeter:build:
+    desc: "Build ctOS greeter theme (Vite + TypeScript)"
+    dir: greeter
+    cmds:
+      - npm ci
+      - npm run build
+
+  greeter:dev:
+    desc: "Start Vite dev server for greeter theme"
+    dir: greeter
+    cmds:
+      - npm run dev
+
   all:
     desc: "Run check + lint"
     cmds:

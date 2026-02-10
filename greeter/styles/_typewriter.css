@@ -1,0 +1,45 @@
+#terminal-log {
+  font-size: var(--terminal-size);
+  color: var(--phosphor);
+  line-height: 1.6;
+  max-width: 600px;
+  min-height: 140px;
+}
+
+.log-line {
+  white-space: pre;
+  overflow: hidden;
+  opacity: 0.8;
+}
+
+.log-line.log-divider {
+  color: var(--muted);
+}
+
+.log-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--phosphor);
+  vertical-align: text-bottom;
+  animation: cursor-blink 0.8s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
+
+/* === Version line === */
+
+#version-line {
+  font-size: var(--version-size);
+  color: var(--muted);
+  padding-top: var(--sp-1);
+  border-top: var(--border);
+  margin-top: var(--sp-1);
+}
+
+.version-sep {
+  margin: 0 var(--sp-1);
+  opacity: 0.5;
+}

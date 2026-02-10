@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ctOS</title>
+</head>
+<body>
+  <!-- Background layers -->
+  <div id="background"></div>
+  <div id="grid-overlay"></div>
+  <div id="scanlines"></div>
+
+  <!-- HUD layout -->
+  <main id="hud">
+
+    <!-- Top-left: cube logo + clock + date -->
+    <section id="top-left">
+      <div id="cube-container">
+        <div class="cube">
+          <div class="cube-face cube-front"></div>
+          <div class="cube-face cube-back"></div>
+          <div class="cube-face cube-right"></div>
+          <div class="cube-face cube-left"></div>
+          <div class="cube-face cube-top"></div>
+          <div class="cube-face cube-bottom"></div>
+        </div>
+      </div>
+      <div id="clock">00:00</div>
+      <div id="date-box">
+        <span id="date">Monday 01 January</span>
+      </div>
+    </section>
+
+    <!-- Top-right: environment info -->
+    <section id="top-right">
+      <div id="env-block">
+        <div class="info-col">
+          <span class="info-label">ENV</span>
+          <span class="info-value" id="env-value">Workstation</span>
+        </div>
+        <div class="info-col">
+          <span class="info-label">NODE</span>
+          <span class="info-value" id="ip-value">0.0.0.0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Center: auth form -->
+    <section id="center">
+      <div id="ctos-logo">
+        <div id="ctos-block"></div>
+        <span class="ct">ct</span><span class="os">OS</span>
+      </div>
+
+      <div id="username-section">
+        <svg id="username-barcode"></svg>
+        <div id="username-label">PROFIL: <span id="username-text">---</span></div>
+      </div>
+
+      <form id="login-form" autocomplete="off">
+        <input
+          type="password"
+          id="password-input"
+          placeholder=""
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button type="submit" id="login-btn">LOGIN</button>
+      </form>
+
+      <div id="auth-message"></div>
+
+      <div id="license">
+        <span id="license-icon">&#9881;</span>
+        Property of Blume Corp. All usage is subject to Sentinel Active Monitoring.
+      </div>
+    </section>
+
+    <!-- Bottom-left: terminal log + version -->
+    <section id="bottom-left">
+      <div id="terminal-log"></div>
+      <div id="version-line">
+        <span id="version-project">ctos-1.0.0</span>
+        <span class="version-sep">&lt;&gt;</span>
+        <span id="version-kernel">---</span>
+      </div>
+    </section>
+
+    <!-- Right edge: security signature -->
+    <section id="right-edge">
+      <canvas id="security-matrix" width="40" height="300"></canvas>
+      <div id="security-meta">
+        <div id="security-uuid"></div>
+        <div id="security-coords"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "kernel": "6.12.8-arch1-1",
+  "environment": "VirtualBox",
+  "ip_address": "10.0.2.15",
+  "hostname": "archbox",
+  "project_version": "1.0.0"
+}

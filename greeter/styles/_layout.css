@@ -1,0 +1,75 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--phosphor);
+  font-family: var(--font-mono);
+  font-size: var(--body-size);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+  user-select: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "tl tr re"
+    "ct ct re"
+    "bl bl re";
+  padding: var(--sp-4);
+  z-index: 10;
+}
+
+#top-left {
+  grid-area: tl;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+}
+
+#top-right {
+  grid-area: tr;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+#center {
+  grid-area: ct;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+#bottom-left {
+  grid-area: bl;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+}
+
+#right-edge {
+  grid-area: re;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding-left: var(--sp-3);
+}
