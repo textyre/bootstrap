@@ -59,9 +59,11 @@ provisioner:
             - base-devel
           Debian:
             - build-essential
-        packages_aur: []
-        packages_enable_services: []
-        packages_user_groups: []
+        packages_filemanager: []
+        packages_network: []
+        packages_media: []
+        packages_desktop: []
+        packages_theming: []
   playbooks:
     converge: converge.yml
     verify: verify.yml

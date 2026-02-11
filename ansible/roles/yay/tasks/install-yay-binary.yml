@@ -1,0 +1,81 @@
+---
+# === yay binary installation from source ===
+
+- name: Check if yay is already installed
+  ansible.builtin.command: yay --version
+  register: _yay_exists
+  changed_when: false
+  failed_when: false
+  tags: ['aur', 'install']
+
+- name: Install build dependencies
+  community.general.pacman:
+    name: "{{ yay_build_deps }}"
+    state: present
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Create temp build directory
+  become: true
+  become_user: "{{ yay_build_user }}"
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: yay_build_
+  register: _yay_build_dir
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Clone yay from AUR
+  become: true
+  become_user: "{{ yay_build_user }}"
+  ansible.builtin.git:
+    repo: "{{ yay_aur_url }}"
+    dest: "{{ _yay_build_dir.path }}/yay"
+    depth: 1
+    version: master
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Build yay package
+  become: true
+  become_user: "{{ yay_build_user }}"
+  ansible.builtin.command:
+    cmd: makepkg --noconfirm
+    chdir: "{{ _yay_build_dir.path }}/yay"
+  changed_when: true
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Find built yay package
+  ansible.builtin.find:
+    paths: "{{ _yay_build_dir.path }}/yay"
+    patterns: "yay-*.pkg.tar.*"
+    excludes: "*-debug-*"
+  register: _yay_pkg
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Install yay package
+  community.general.pacman:
+    name: "{{ _yay_pkg.files[0].path }}"
+    state: present
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Clean up build directory
+  ansible.builtin.file:
+    path: "{{ _yay_build_dir.path }}"
+    state: absent
+  when: _yay_exists.rc != 0
+  tags: ['aur', 'install']
+
+- name: Verify yay installed
+  ansible.builtin.command: yay --version
+  register: _yay_version
+  changed_when: false
+  tags: ['aur', 'install']
+
+- name: Report yay version
+  ansible.builtin.debug:
+    msg: "yay установлен: {{ _yay_version.stdout }}"
+  tags: ['aur']

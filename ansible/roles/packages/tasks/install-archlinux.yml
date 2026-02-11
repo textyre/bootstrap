@@ -1,0 +1,8 @@
+---
+# Arch Linux: Install official packages via pacman
+
+- name: Install packages (pacman)
+  community.general.pacman:
+    name: "{{ _packages_all }}"
+    state: present
+    update_cache: true

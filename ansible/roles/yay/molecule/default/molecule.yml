@@ -35,6 +35,29 @@ provisioner:
           - base-devel
           - git
           - go
+        # AUR package management
+        packages_aur:
+          - rofi-greenclip
+        packages_aur_remove_conflicts: []
+        # Official package lists (needed for conflict validation)
+        packages_base:
+          - git
+        packages_editors: []
+        packages_docker: []
+        packages_xorg: []
+        packages_wm: []
+        packages_filemanager: []
+        packages_network: []
+        packages_media: []
+        packages_desktop: []
+        packages_graphics: []
+        packages_session: []
+        packages_terminal: []
+        packages_fonts: []
+        packages_theming: []
+        packages_search: []
+        packages_viewers: []
+        packages_distro: {}
   playbooks:
     converge: converge.yml
     verify: verify.yml

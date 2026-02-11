@@ -38,6 +38,21 @@
       register: _yay_verify_build_dirs
       failed_when: _yay_verify_build_dirs.matched > 0
 
+    - name: Check that yay-pacman sudoers file exists
+      ansible.builtin.stat:
+        path: /etc/sudoers.d/yay-pacman
+      register: _yay_verify_sudoers
+      failed_when: not _yay_verify_sudoers.stat.exists
+
+    - name: Validate yay-pacman sudoers syntax
+      ansible.builtin.command: /usr/sbin/visudo -cf /etc/sudoers.d/yay-pacman
+      changed_when: false
+
+    - name: Check that AUR packages are installed
+      ansible.builtin.command: "pacman -Q {{ item }}"
+      loop: "{{ packages_aur }}"
+      changed_when: false
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
@@ -46,3 +61,4 @@
           - "yay version: {{ _yay_verify_version.stdout }}"
           - "Build dependencies: installed"
           - "Temp build dirs: cleaned up"
+          - "AUR packages: {{ packages_aur | join(', ') }}"

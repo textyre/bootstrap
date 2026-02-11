@@ -1,9 +1,8 @@
 ---
-# === Установка пакетов на рабочую станцию ===
-# Поддержка: Arch Linux (pacman + AUR), Debian/Ubuntu (apt)
-# Только установка пакетов. Сервисы → docker/lightdm роли. Группы → user роль.
+# === Official package installation ===
+# AUR packages → yay role. Services → docker/lightdm roles. Groups → user role.
 
-# ---- Полное обновление системы ----
+# ---- Full system upgrade ----
 
 - name: Full system upgrade (pacman -Syu)
   community.general.pacman:
@@ -12,7 +11,7 @@
   when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['install', 'upgrade']
 
-# ---- Сбор всех пакетов в единый список ----
+# ---- Build combined package list ----
 
 - name: Build combined package list
   ansible.builtin.set_fact:
@@ -36,152 +35,15 @@
          + (packages_distro[ansible_facts['os_family']] | default([])) }}
   tags: ['install']
 
-# ---- Arch Linux (pacman) ----
+# ---- OS-specific package installation ----
 
-- name: Install packages (Arch Linux / pacman)
-  community.general.pacman:
-    name: "{{ _packages_all }}"
-    state: present
-    update_cache: true
-  when: ansible_facts['os_family'] == 'Archlinux'
+- name: Install packages (OS-specific)
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['install']
 
-- name: Remove packages conflicting with AUR replacements
-  community.general.pacman:
-    name: "{{ packages_aur_remove_conflicts }}"
-    state: absent
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_aur_remove_conflicts | length > 0
-  tags: ['install', 'aur']
-
-- name: Create temporary SUDO_ASKPASS helper for AUR builds
-  ansible.builtin.copy:
-    dest: /tmp/.ansible_sudo_askpass
-    content: |
-      #!/bin/sh
-      echo '{{ ansible_become_password }}'
-    mode: '0700'
-    owner: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-  no_log: true
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_aur | length > 0
-    - ansible_become_password is defined
-  tags: ['install', 'aur']
-
-- name: Check if yay is installed
-  ansible.builtin.command: yay --version
-  register: packages_yay_check
-  changed_when: false
-  failed_when: false
-  when: ansible_facts['os_family'] == 'Archlinux' and packages_aur | length > 0
-  tags: ['install', 'aur']
-
-- name: Validate AUR packages don't conflict with official packages
-  ansible.builtin.shell: |
-    set -euo pipefail
-    conflicts_found=0
-    remove_list="{{ packages_aur_remove_conflicts | join(' ') }}"
-    all_pkgs="{{ _packages_all | join(' ') }}"
-    for pkg in {{ packages_aur | join(' ') }}; do
-      provides=$(yay -Si "$pkg" 2>/dev/null | grep '^Provides' | sed 's/Provides *: //' | tr ' ' '\n')
-      for p in $provides; do
-        p_name=$(echo "$p" | sed 's/[>=<].*//')
-        [ -z "$p_name" ] && continue
-        if echo "$all_pkgs" | tr ' ' '\n' | grep -qx "$p_name"; then
-          if ! echo "$remove_list" | tr ' ' '\n' | grep -qx "$p_name"; then
-            echo "CONFLICT: AUR '$pkg' provides '$p_name' which is in official list but NOT in packages_aur_remove_conflicts"
-            conflicts_found=1
-          fi
-        fi
-      done
-    done
-    if [ "$conflicts_found" -eq 1 ]; then
-      echo "Fix: add conflicting packages to packages_aur_remove_conflicts in packages.yml"
-      exit 1
-    fi
-    echo "OK: No unhandled AUR vs official conflicts"
-  args:
-    executable: /bin/bash
-  become: true
-  become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_aur | length > 0
-    - packages_yay_check.rc == 0
-  tags: ['install', 'aur']
-
-- name: Verify perl is available for AUR builds
-  ansible.builtin.command: perl -v
-  register: _packages_perl_check
-  changed_when: false
-  failed_when: _packages_perl_check.rc != 0
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_aur | length > 0
-    - packages_yay_check.rc == 0
-  tags: ['install', 'aur']
-
-- name: Install AUR packages via yay
-  become: true
-  become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-  ansible.builtin.command: >
-    yay -S --needed --noconfirm
-    {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
-    {{ item }}
-  environment: >-
-    {{
-      {'PATH': '/usr/bin/core_perl:' + ansible_facts['env']['PATH']}
-      | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass'} if ansible_become_password is defined else {})
-    }}
-  loop: "{{ packages_aur }}"
-  register: packages_yay_install
-  changed_when: "'there is nothing to do' not in packages_yay_install.stdout | default('')"
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_yay_check.rc == 0
-    - packages_aur | length > 0
-  tags: ['install', 'aur']
-
-- name: Warn if yay not found (AUR packages skipped)
-  ansible.builtin.debug:
-    msg: "yay не найден — AUR пакеты пропущены: {{ packages_aur | join(', ') }}"
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_yay_check.rc is defined
-    - packages_yay_check.rc != 0
-    - packages_aur | length > 0
-  tags: ['install', 'aur']
-
-- name: Remove temporary SUDO_ASKPASS helper
-  ansible.builtin.file:
-    path: /tmp/.ansible_sudo_askpass
-    state: absent
-  changed_when: false
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - packages_aur | length > 0
-  tags: ['install', 'aur']
-
-# ---- Debian / Ubuntu (apt) ----
-
-- name: Install packages (Debian / apt)
-  ansible.builtin.apt:
-    name: "{{ _packages_all }}"
-    state: present
-    update_cache: true
-    cache_valid_time: 3600
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: ['install']
-
-# ---- Отчёт ----
+# ---- Report ----
 
 - name: Report installed packages
   ansible.builtin.debug:
-    msg:
-      - "Установлено пакетов: {{ _packages_all | length }}"
-      - "AUR пакетов: {{ packages_aur | length }}"
+    msg: "Official packages installed: {{ _packages_all | length }}"
   tags: ['install']

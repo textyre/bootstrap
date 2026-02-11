@@ -233,25 +233,25 @@ tasks:
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}'
     cmds:
-      - '{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff'
+      - '{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff {{.CLI_ARGS}}'
 
   run:
-    desc: "Apply playbook (real changes!)"
+    desc: "Apply playbook (real changes!). Use -- --tags 'foo,bar' to filter."
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will modify your system. Continue?"
     cmds:
       - 'echo "==> Running playbook..."'
-      - "{{.ANSIBLE}} {{.PLAYBOOK}} -v"
+      - '{{.ANSIBLE}} {{.PLAYBOOK}} -v {{.CLI_ARGS}}'
 
   workstation:
-    desc: "Setup full workstation (all 13 roles)"
+    desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:
       - 'echo "==> Setting up workstation..."'
-      - "{{.ANSIBLE}} playbooks/workstation.yml -v"
+      - '{{.ANSIBLE}} playbooks/workstation.yml -v {{.CLI_ARGS}}'
 
   # --- ctOS Greeter ---
 
