@@ -1,23 +1,23 @@
----
 branding:
-  background_images_dir: "{{ lightdm_greeter_background_images_dir }}"
-  logo: ""
-  user_image: ""
+    background_images_dir: {{ lightdm_greeter_background_images_dir }}
+    logo_image: ""
+    user_image: ""
 
 greeter:
-  debug_mode: {{ lightdm_greeter_debug_mode | lower }}
-  detect_theme_errors: true
-  screensaver_timeout: {{ lightdm_greeter_screensaver_timeout }}
-  secure_mode: {{ lightdm_greeter_secure_mode | lower }}
-  time_language: "{{ lightdm_greeter_time_language }}"
-  theme: "{{ lightdm_greeter_theme }}"
+    debug_mode: {{ lightdm_greeter_debug_mode | capitalize }}
+    detect_theme_errors: True
+    screensaver_timeout: {{ lightdm_greeter_screensaver_timeout }}
+    secure_mode: {{ lightdm_greeter_secure_mode | capitalize }}
+    theme: {{ lightdm_greeter_theme }}
+    icon_theme:
+    time_language:{{ ' ' + lightdm_greeter_time_language if lightdm_greeter_time_language else '' }}
 
 layouts:
-  - us
+    - us
 
 features:
-  battery: false
-  backlight:
-    enabled: false
-    value: 10
-    steps: 0
+    battery: False
+    backlight:
+        enabled: False
+        value: 10
+        steps: 0

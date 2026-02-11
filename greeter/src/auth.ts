@@ -57,7 +57,17 @@ export function respondToPrompt(response: string): void {
 export function launchSession(): void {
   const ldm = getLightDM();
   if (!ldm) return;
-  ldm.start_session(ldm.default_session);
+
+  // default_session may return "default" which doesn't exist as a real session.
+  // Fall back to the first available session from the sessions list.
+  let session = ldm.default_session;
+  if (ldm.sessions && ldm.sessions.length > 0) {
+    const valid = ldm.sessions.find((s: { key: string }) => s.key === session);
+    if (!valid) {
+      session = ldm.sessions[0].key;
+    }
+  }
+  ldm.start_session(session);
 }
 
 export function getFirstUser(): { username: string; displayName: string } | null {
