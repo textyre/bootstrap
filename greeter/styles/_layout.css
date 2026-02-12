@@ -1,4 +1,4 @@
-#hud {
+.hud {
   position: fixed;
   inset: 0;
   display: grid;
@@ -8,47 +8,46 @@
     "tl tr"
     "ct ct"
     "bl re";
-  padding: var(--sp-4);
-  z-index: var(--z-hud);
-}
+  padding: var(--size-px-7);
+  z-index: var(--layer-4);
 
-#top-left {
-  grid-area: tl;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sp-1);
-}
+  .top-left {
+    grid-area: tl;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--size-px-2);
+  }
 
-#top-right {
-  grid-area: tr;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-}
+  .top-right {
+    grid-area: tr;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+  }
 
-#center {
-  grid-area: ct;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+  .center {
+    grid-area: ct;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 
+  .bottom-left {
+    grid-area: bl;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    width: fit-content;
+    gap: var(--size-px-2);
+  }
 
-#bottom-left {
-  grid-area: bl;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: fit-content;
-  gap: var(--sp-1);
-}
-
-#right-edge {
-  grid-area: re;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: var(--sp-1);
-  padding-left: var(--sp-3);
+  .right-edge {
+    grid-area: re;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: var(--size-px-2);
+    padding-left: var(--size-px-5);
+  }
 }

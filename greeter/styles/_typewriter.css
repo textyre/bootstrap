@@ -1,6 +1,6 @@
-#terminal-log {
-  font-size: var(--terminal-size);
-  color: var(--phosphor);
+.terminal-log {
+  font-size: var(--text-md);
+  color: var(--text-primary);
   line-height: 1.6;
   width: var(--terminal-width);
   min-height: var(--terminal-min-h);
@@ -15,14 +15,14 @@
 }
 
 .log-line.log-divider {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .log-cursor {
   display: inline-block;
   width: var(--cursor-w);
   height: var(--cursor-h);
-  background: var(--phosphor);
+  background: var(--text-primary);
   vertical-align: text-bottom;
   animation: cursor-blink var(--cursor-blink-speed) step-end infinite;
 }
@@ -57,9 +57,9 @@
   transform: translateY(-50%);
   opacity: 0;
   white-space: nowrap;
-  color: var(--phosphor);
+  color: var(--text-primary);
   font-size: inherit;
-  background: var(--void);
+  background: var(--surface-base);
   padding: 0 2px;
   transition: opacity var(--tr-normal);
   pointer-events: none;
@@ -76,15 +76,15 @@
 
 /* === Version line === */
 
-#version-line {
-  font-size: var(--version-size);
-  color: var(--muted);
-  padding-top: var(--sp-1);
+.version-line {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding-top: var(--size-px-2);
   border-top: var(--border);
-  margin-top: var(--sp-1);
+  margin-top: var(--size-px-2);
 }
 
 .version-sep {
-  margin: 0 var(--sp-1);
+  margin: 0 var(--size-px-2);
   opacity: var(--op-sep);
 }

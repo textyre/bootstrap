@@ -1,28 +1,38 @@
-import { BARCODE, HASH } from '../../config/constants';
+import { BARCODE, SIG_BYTES } from '../../config/constants';
 import { SELECTORS } from '../../config/selectors';
 import type { SecurityData } from '../../types/barcode.types';
+import { logError } from '../../utils/logger';
 import { hashBytes, toHex } from './hash';
 import { renderPDF417 } from './barcode.renderer';
 
 export type { SecurityData };
 
-export function renderSecurityBarcode(data: SecurityData): void {
-  const canvas = document.getElementById(SELECTORS.SECURITY_MATRIX) as HTMLCanvasElement | null;
-  const uuidEl = document.getElementById(SELECTORS.SECURITY_UUID);
-  const coordsEl = document.getElementById(SELECTORS.SECURITY_COORDS);
+/**
+ * Renders a PDF417 security barcode from system identity data.
+ * Queries the DOM for the security canvas and text elements,
+ * then hashes the identity string and renders the barcode + signature.
+ */
+export class SecurityBarcode {
+  constructor(private readonly data: SecurityData) {}
 
-  if (!canvas) return;
+  async render(): Promise<void> {
+    const canvas = document.querySelector(SELECTORS.SECURITY_MATRIX) as HTMLCanvasElement | null;
+    const uuidEl = document.querySelector(SELECTORS.SECURITY_UUID);
+    const coordsEl = document.querySelector(SELECTORS.SECURITY_COORDS);
 
-  const identity = `${data.hostname}:${data.username}:${data.ip}:${data.kernel}`;
-  const bytes = hashBytes(identity);
-  const sig = toHex(bytes, HASH.SIG_BYTES);
+    if (!canvas) return;
 
-  try {
-    renderPDF417(canvas, BARCODE.SECURITY, identity);
-  } catch {
-    // Barcode generation failed — leave empty
+    const identity = `${this.data.hostname}:${this.data.username}:${this.data.ip}:${this.data.kernel}`;
+    const bytes = await hashBytes(identity);
+    const sig = toHex(bytes, SIG_BYTES);
+
+    try {
+      renderPDF417(canvas, BARCODE.SECURITY, identity);
+    } catch (err) {
+      logError('barcode:security', err);
+    }
+
+    if (uuidEl) uuidEl.textContent = `SIG:${sig}`;
+    if (coordsEl) coordsEl.textContent = this.data.hostname.toUpperCase();
   }
-
-  if (uuidEl) uuidEl.textContent = `SIG:${sig}`;
-  if (coordsEl) coordsEl.textContent = data.hostname.toUpperCase();
 }

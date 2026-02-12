@@ -10,55 +10,55 @@ export interface IAuthService {
   launchSession(): void;
 }
 
-export function createAuthService(
-  ldm: ILightDMAdapter,
-  bus: IEventBus,
-): IAuthService {
-  // Wire LightDM signals to event bus
-  ldm.onShowPrompt((message, isSecret) => {
-    bus.emit('auth:prompt', { message, isSecret });
-  });
+export class AuthService implements IAuthService {
+  constructor(private readonly ldm: ILightDMAdapter, private readonly bus: IEventBus) {
+    this.wireSignals();
+  }
 
-  ldm.onShowMessage((message, isError) => {
-    bus.emit('auth:message', { message, isError });
-  });
+  getFirstUser(): AuthUser | null {
+    const users = this.ldm.users;
+    return users.length > 0 ? users[0] : null;
+  }
 
-  ldm.onAuthenticationComplete((isAuthenticated) => {
-    if (isAuthenticated) {
-      bus.emit('auth:success', undefined);
-    } else {
-      bus.emit('auth:failure', { message: MESSAGES.AUTH_DENIED });
+  startAuth(username: string): void {
+    if (this.ldm.inAuthentication) {
+      this.ldm.cancelAuthentication();
     }
-  });
+    this.bus.emit('auth:start', { username });
+    this.ldm.authenticate(username);
+  }
 
-  return {
-    getFirstUser() {
-      const users = ldm.users;
-      return users.length > 0 ? users[0] : null;
-    },
+  respondToPrompt(response: string): void {
+    this.ldm.respond(response);
+  }
 
-    startAuth(username) {
-      if (ldm.inAuthentication) {
-        ldm.cancelAuthentication();
+  launchSession(): void {
+    let session = this.ldm.defaultSession;
+    const sessions = this.ldm.sessions;
+    if (sessions.length > 0) {
+      const valid = sessions.find((s) => s.key === session);
+      if (!valid) {
+        session = sessions[0].key;
       }
-      bus.emit('auth:start', { username });
-      ldm.authenticate(username);
-    },
+    }
+    this.ldm.startSession(session);
+  }
 
-    respondToPrompt(response) {
-      ldm.respond(response);
-    },
+  private wireSignals(): void {
+    this.ldm.onShowPrompt((message, isSecret) => {
+      this.bus.emit('auth:prompt', { message, isSecret });
+    });
 
-    launchSession() {
-      let session = ldm.defaultSession;
-      const sessions = ldm.sessions;
-      if (sessions.length > 0) {
-        const valid = sessions.find((s) => s.key === session);
-        if (!valid) {
-          session = sessions[0].key;
-        }
+    this.ldm.onShowMessage((message, isError) => {
+      this.bus.emit('auth:message', { message, isError });
+    });
+
+    this.ldm.onAuthenticationComplete((isAuthenticated) => {
+      if (isAuthenticated) {
+        this.bus.emit('auth:success', undefined);
+      } else {
+        this.bus.emit('auth:failure', { message: MESSAGES.AUTH_DENIED });
       }
-      ldm.startSession(session);
-    },
-  };
+    });
+  }
 }

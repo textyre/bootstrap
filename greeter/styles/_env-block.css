@@ -1,11 +1,11 @@
-#env-block {
-  padding: var(--sp-1) var(--sp-2);
+.env-block {
+  padding: var(--size-px-2) var(--size-px-3);
   display: flex;
   flex-direction: row;
-  gap: var(--sp-3);
-  border-right: var(--env-border-w) solid var(--ink);
-  border-left: var(--env-border-w) solid var(--ink);
-  background-color: var(--ink-low);
+  gap: var(--size-px-5);
+  border-right: var(--env-border-w) solid var(--border-subtle);
+  border-left: var(--env-border-w) solid var(--border-subtle);
+  background-color: var(--border-subtle-low);
   width: var(--env-block-w);
 }
 
@@ -16,15 +16,15 @@
 }
 
 .info-label {
-  font-size: var(--fs-security);
-  color: var(--muted);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: var(--ls-tight);
 }
 
 .info-value {
-  font-size: var(--body-size);
-  color: var(--phosphor-hi);
+  font-size: var(--text-base);
+  color: var(--text-emphasis);
   letter-spacing: var(--ls-tight);
   white-space: nowrap;
 }

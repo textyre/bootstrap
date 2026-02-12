@@ -1,5 +1,5 @@
-#arch-logo {
+.arch-logo {
   width: var(--arch-logo-size);
   height: var(--arch-logo-size);
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--size-px-2);
 }

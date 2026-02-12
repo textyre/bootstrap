@@ -1,60 +1,72 @@
 import { TIMING, BARCODE } from '../../config/constants';
 import { CSS_CLASSES } from '../../config/selectors';
+import { logError } from '../../utils/logger';
 import { randomString } from '../../utils/random';
 import { renderPDF417 } from './barcode.renderer';
 
-function renderToCanvas(canvas: HTMLCanvasElement, text: string): void {
-  try {
-    const tmp = document.createElement('canvas');
-    renderPDF417(tmp, BARCODE.FINGERPRINT, text);
+/**
+ * Creates a fingerprint barcode element with canvas + text overlay.
+ * After construction, `container` is ready for DOM insertion.
+ * Call `scramble()` to animate random frames before settling on the real fingerprint.
+ */
+export class FingerprintBarcode {
+  readonly container: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly textEl: HTMLElement;
 
-    const ratio = BARCODE.FP_HEIGHT / tmp.height;
-    canvas.width = Math.round(tmp.width * ratio);
-    canvas.height = BARCODE.FP_HEIGHT;
+  constructor(private readonly fingerprint: string) {
+    this.container = document.createElement('span');
+    this.container.className = CSS_CLASSES.FP_CONTAINER;
 
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
-    }
-  } catch {
-    // ignore
+    this.canvas = document.createElement('canvas');
+    this.canvas.classList.add(CSS_CLASSES.FP_BARCODE);
+
+    this.textEl = document.createElement('span');
+    this.textEl.className = CSS_CLASSES.FP_TEXT;
+    this.textEl.textContent = this.fingerprint;
+
+    this.container.appendChild(this.canvas);
+    this.container.appendChild(this.textEl);
+
+    this.renderInitial();
   }
-}
 
-export function renderFingerprintBarcode(fingerprint: string): {
-  container: HTMLElement;
-  scramble: () => Promise<void>;
-} {
-  const container = document.createElement('span');
-  container.className = CSS_CLASSES.FP_CONTAINER;
-
-  const canvas = document.createElement('canvas');
-  canvas.classList.add(CSS_CLASSES.FP_BARCODE);
-
-  renderToCanvas(canvas, randomString(fingerprint.length));
-
-  const textEl = document.createElement('span');
-  textEl.className = CSS_CLASSES.FP_TEXT;
-  textEl.textContent = fingerprint;
-
-  container.appendChild(canvas);
-  container.appendChild(textEl);
-
-  const scramble = (): Promise<void> =>
-    new Promise((resolve) => {
+  async scramble(): Promise<void> {
+    return new Promise((resolve) => {
       let frame = 0;
       const interval = setInterval(() => {
         frame++;
         if (frame < TIMING.SCRAMBLE_FRAMES) {
-          renderToCanvas(canvas, randomString(fingerprint.length));
+          this.renderToCanvas(randomString(this.fingerprint.length));
         } else {
           clearInterval(interval);
-          renderToCanvas(canvas, fingerprint);
+          this.renderToCanvas(this.fingerprint);
           resolve();
         }
       }, TIMING.SCRAMBLE_INTERVAL);
     });
+  }
 
-  return { container, scramble };
+  private renderInitial(): void {
+    this.renderToCanvas(randomString(this.fingerprint.length));
+  }
+
+  private renderToCanvas(text: string): void {
+    try {
+      const tmp = document.createElement('canvas');
+      renderPDF417(tmp, BARCODE.FINGERPRINT, text);
+
+      const ratio = BARCODE.FP_HEIGHT / tmp.height;
+      this.canvas.width = Math.round(tmp.width * ratio);
+      this.canvas.height = BARCODE.FP_HEIGHT;
+
+      const ctx = this.canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tmp, 0, 0, this.canvas.width, this.canvas.height);
+      }
+    } catch (err) {
+      logError('barcode:fingerprint', err);
+    }
+  }
 }

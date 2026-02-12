@@ -3,67 +3,66 @@ import type { LogLine } from './components/typewriter/log-generator';
 import { TIMING } from './config/constants';
 import { SELECTORS, CSS_CLASSES } from './config/selectors';
 import { delay } from './utils/delay';
-import { typewriteText } from './components/typewriter/typewriter';
+import { Typewriter } from './components/typewriter/typewriter';
 import { generateLogLines } from './components/typewriter/log-generator';
-import { renderFingerprintBarcode } from './components/barcode/fingerprint-barcode';
+import { FingerprintBarcode } from './components/barcode/fingerprint-barcode';
 
-/** Strategy interface for rendering different log line types */
-interface LineRenderer {
-  render(container: HTMLElement, line: LogLine): Promise<void>;
-}
+/**
+ * Orchestrates the terminal log typewriter sequence.
+ * Generates log lines from system info and renders them one by one
+ * using the appropriate renderer for each line type.
+ */
+export class TypewriterController {
+  constructor(
+    private readonly info: SystemInfo,
+    private readonly username: string,
+  ) {}
 
-/** Renders a plain text line with typewriter effect */
-const textRenderer: LineRenderer = {
-  async render(container, line) {
+  async run(): Promise<void> {
+    const container = document.querySelector(SELECTORS.TERMINAL_LOG) as HTMLElement | null;
+    if (!container) return;
+
+    const lines = generateLogLines(this.info, this.username);
+
+    for (const line of lines) {
+      await this.renderLine(container, line);
+      await delay(TIMING.LINE_PAUSE);
+    }
+  }
+
+  private async renderLine(container: HTMLElement, line: LogLine): Promise<void> {
+    const renderer = this.renderers[line.type];
+    if (renderer) await renderer(container, line);
+  }
+
+  private renderers: Record<string, (container: HTMLElement, line: LogLine) => Promise<void>> = {
+    text: this.renderText.bind(this),
+    fingerprint: this.renderFingerprint.bind(this),
+  };
+
+  private async renderText(container: HTMLElement, line: LogLine): Promise<void> {
     if (line.type !== 'text') return;
     const lineEl = document.createElement('div');
     lineEl.className = line.divider
       ? CSS_CLASSES.LOG_LINE + ' ' + CSS_CLASSES.LOG_DIVIDER
       : CSS_CLASSES.LOG_LINE;
     container.appendChild(lineEl);
-    await typewriteText(lineEl, line.text);
-  },
-};
+    await new Typewriter(lineEl, line.text).type();
+  }
 
-/** Renders a fingerprint line: types prefix, then shows scrambling barcode */
-const fingerprintRenderer: LineRenderer = {
-  async render(container, line) {
+  private async renderFingerprint(container: HTMLElement, line: LogLine): Promise<void> {
     if (line.type !== 'fingerprint') return;
     const lineEl = document.createElement('div');
     lineEl.className = CSS_CLASSES.LOG_LINE + ' ' + CSS_CLASSES.LOG_FINGERPRINT;
     container.appendChild(lineEl);
 
     // Type prefix using the shared typewriter engine
-    await typewriteText(lineEl, line.prefix);
+    await new Typewriter(lineEl, line.prefix).type();
 
     // Insert barcode, fade in, then scramble
-    const { container: barcode, scramble } = renderFingerprintBarcode(line.fingerprint);
-    lineEl.appendChild(barcode);
-    requestAnimationFrame(() => barcode.classList.add(CSS_CLASSES.VISIBLE));
-    await scramble();
-  },
-};
-
-/** Strategy map: line type -> renderer */
-const renderers: Record<string, LineRenderer> = {
-  text: textRenderer,
-  fingerprint: fingerprintRenderer,
-};
-
-export async function initTypewriter(
-  info: SystemInfo,
-  username: string,
-): Promise<void> {
-  const container = document.getElementById(SELECTORS.TERMINAL_LOG);
-  if (!container) return;
-
-  const lines = generateLogLines(info, username);
-
-  for (const line of lines) {
-    const renderer = renderers[line.type];
-    if (renderer) {
-      await renderer.render(container, line);
-    }
-    await delay(TIMING.LINE_PAUSE);
+    const fp = new FingerprintBarcode(line.fingerprint);
+    lineEl.appendChild(fp.container);
+    requestAnimationFrame(() => fp.container.classList.add(CSS_CLASSES.VISIBLE));
+    await fp.scramble();
   }
 }

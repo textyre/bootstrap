@@ -23,13 +23,6 @@ export const LOG_TEMPLATES = {
     `>> [BLUME_IDP] Opened session for user(${username})`,
 } as const;
 
-export const VIRT_PROTOCOL_MAP: Record<string, string> = {
-  virtualbox: 'VBOX::X11',
-  kvm: 'KVM::X11',
-  vmware: 'VMWARE::X11',
-  'bare-metal': 'X11',
-};
-
 export const DEFAULT_SYSTEM_INFO: SystemInfo = {
   kernel: 'unknown',
   virtualization_type: 'unknown',

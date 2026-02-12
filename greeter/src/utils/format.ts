@@ -1,4 +1,9 @@
-import { VIRT_PROTOCOL_MAP } from '../config/messages';
+const VIRT_PROTOCOL_MAP: Record<string, string> = {
+  virtualbox: 'VBOX::X11',
+  kvm: 'KVM::X11',
+  vmware: 'VMWARE::X11',
+  'bare-metal': 'X11',
+};
 
 export function formatRegion(timezone: string, prefix: string): string {
   const parts = timezone.split('/');

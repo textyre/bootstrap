@@ -1,9 +1,10 @@
 import { SELECTORS } from './config/selectors';
 import type { IGreeterConfigAdapter } from './adapters/greeter-config.adapter';
 import { createGreeterConfigAdapter } from './adapters/greeter-config.adapter';
+import { logError } from './utils/logger';
 
 export function initBackground(adapter?: IGreeterConfigAdapter): void {
-  const bgEl = document.getElementById(SELECTORS.BACKGROUND);
+  const bgEl = document.querySelector(SELECTORS.BACKGROUND) as HTMLElement | null;
   if (!bgEl) return;
 
   const config = adapter ?? createGreeterConfigAdapter();
@@ -17,7 +18,7 @@ export function initBackground(adapter?: IGreeterConfigAdapter): void {
         bgEl.style.backgroundImage = `url('${images[0]}')`;
       }
     });
-  } catch {
-    // greeter API not available — CSS background is fine
+  } catch (err) {
+    logError('background:load', err);
   }
 }

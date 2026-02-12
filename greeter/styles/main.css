@@ -1,24 +1,30 @@
+/* Fonts (unlayered — always available) */
 @import '@fontsource/jetbrains-mono/300.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/700.css';
 
+/* Open Props (partial — easings, sizes, z-index only) */
+@import 'open-props/easings.min.css' layer(tokens);
+@import 'open-props/sizes.min.css' layer(tokens);
+@import 'open-props/zindex.min.css' layer(tokens);
+
 /* Foundation */
-@import './_tokens.css';
-@import './_reset.css';
-@import './_animation-keyframes.css';
+@import './_reset.css' layer(reset);
+@import './_tokens.css' layer(tokens);
 
 /* Layout */
-@import './_layout.css';
-@import './_grid-overlay.css';
+@import './_layout.css' layer(layout);
+@import './_grid-overlay.css' layer(layout);
 
 /* Components */
-@import './_cube.css';
-@import './_clock.css';
-@import './_env-block.css';
-@import './_barcode.css';
-@import './_form.css';
-@import './_typewriter.css';
+@import './_cube.css' layer(components);
+@import './_clock.css' layer(components);
+@import './_env-block.css' layer(components);
+@import './_barcode.css' layer(components);
+@import './_form.css' layer(components);
+@import './_typewriter.css' layer(components);
 
-/* Boot animation (must be after components) */
-@import './_boot-states.css';
-@import './_boot-phases.css';
+/* States & animations (after components — higher priority) */
+@import './_boot-states.css' layer(states);
+@import './_boot-phases.css' layer(animations);
+@import './_animation-keyframes.css' layer(animations);

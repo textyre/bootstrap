@@ -1,34 +1,34 @@
 /* === ctOS Logo === */
 
-#ctos-logo {
+.ctos-logo {
   position: relative;
-  font-size: var(--logo-size);
+  font-size: var(--text-display);
   line-height: 1;
   letter-spacing: var(--ls-logo);
   width: var(--logo-block-w);
   height: var(--logo-h);
   transform: translateY(100%);
-}
 
-#ctos-block {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: var(--logo-block-w);
-  height: 100%;
-  background: var(--phosphor-hi);
-  z-index: var(--z-logo-block);
-}
+  .ctos-block {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--logo-block-w);
+    height: 100%;
+    background: var(--text-emphasis);
+    z-index: var(--layer-1);
+  }
 
-#os-prefix {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  font-size: var(--fs-os-prefix);
-  font-weight: var(--fw-bold);
-  color: var(--void);
-  line-height: 1;
-  opacity: 0;
+  .os-prefix {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    font-size: var(--text-xl);
+    font-weight: var(--fw-bold);
+    color: var(--surface-base);
+    line-height: 1;
+    opacity: 0;
+  }
 }
 
 .os {
@@ -36,7 +36,7 @@
   right: 0;
   bottom: 0;
   font-weight: var(--fw-bold);
-  color: var(--phosphor-hi);
+  color: var(--text-emphasis);
   line-height: 1;
 }
 
@@ -44,7 +44,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--sp-1);
+  gap: var(--size-px-2);
   margin-top: 24px;
 }
 
@@ -52,108 +52,108 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--size-px-3);
 }
 
 /* === Username === */
 
-#username-section {
+.username-section {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--size-px-3);
 }
 
-#username-label {
-  font-size: var(--label-size);
-  color: var(--muted);
+.username-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: var(--ls-normal);
 }
 
-#username-text {
-  color: var(--phosphor);
+.username-text {
+  color: var(--text-primary);
 }
 
 /* === Login form === */
 
-#login-form {
+.login-form {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--sp-1);
+  gap: var(--size-px-2);
   width: var(--form-width);
-}
 
-#password-input {
-  width: 100%;
-  height: var(--input-height);
-  padding: 0 var(--sp-2);
-  background: var(--phosphor-hi);
-  color: var(--void);
-  border: none;
-  outline: none;
-  font-family: var(--font-mono);
-  font-size: var(--input-size);
-  letter-spacing: var(--ls-wide);
-}
+  .password-input {
+    width: 100%;
+    height: var(--input-height);
+    padding: 0 var(--size-px-3);
+    background: var(--text-emphasis);
+    color: var(--surface-base);
+    border: none;
+    outline: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    letter-spacing: var(--ls-wide);
 
-#password-input::placeholder {
-  color: rgb(0 0 0 / var(--placeholder-opacity));
-}
+    &::placeholder {
+      color: rgb(0 0 0 / var(--placeholder-opacity));
+    }
+  }
 
-#login-btn {
-  padding: var(--sp-1) var(--sp-2);
-  background: var(--phosphor-hi);
-  color: var(--void);
-  border: none;
-  font-family: var(--font-mono);
-  font-size: var(--label-size);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-normal);
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: opacity var(--tr-fast);
-}
+  .login-btn {
+    padding: var(--size-px-2) var(--size-px-3);
+    background: var(--text-emphasis);
+    color: var(--surface-base);
+    border: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--ls-normal);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity var(--tr-fast);
 
-#login-btn:hover {
-  opacity: var(--op-hover);
-}
+    &:hover {
+      opacity: var(--op-hover);
+    }
 
-#login-btn:active {
-  opacity: var(--op-active);
+    &:active {
+      opacity: var(--op-active);
+    }
+  }
 }
 
 /* === Auth message === */
 
-#auth-message {
-  font-size: var(--label-size);
-  color: var(--fail);
+.auth-message {
+  font-size: var(--text-sm);
+  color: var(--feedback-error);
   min-height: 1.4em;
   text-transform: uppercase;
   letter-spacing: var(--ls-tight);
   opacity: 0;
   transition: opacity var(--tr-normal);
-}
 
-#auth-message:empty {
-  display: none;
-}
+  &:empty {
+    display: none;
+  }
 
-#auth-message.visible {
-  opacity: 1;
+  &.visible {
+    opacity: 1;
+  }
 }
 
 /* === License === */
 
-#license {
-  font-size: var(--fs-license);
-  color: var(--muted);
+.license {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   text-align: center;
   max-width: var(--license-max-w);
-  margin-top: var(--sp-3);
-}
+  margin-top: var(--size-px-5);
 
-#license-icon {
-  margin-right: var(--sp-micro);
+  .license-icon {
+    margin-right: var(--size-px-1);
+  }
 }

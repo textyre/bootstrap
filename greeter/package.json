@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.0.0",
-    "bwip-js": "^4.8.0"
+    "bwip-js": "^4.8.0",
+    "mitt": "^3.0.1",
+    "motion": "^12.34.0",
+    "open-props": "^1.7.23"
   },
   "devDependencies": {
     "nody-greeter-types": "^1.1.0",

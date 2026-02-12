@@ -18,48 +18,46 @@ export interface ILightDMAdapter {
   onAuthenticationComplete(handler: (isAuthenticated: boolean) => void): void;
 }
 
-export function createLightDMAdapter(): ILightDMAdapter {
-  const ldm = window.lightdm;
+export class LightDMAdapter implements ILightDMAdapter {
+  private readonly ldm = window.lightdm;
 
-  return {
-    get available() { return !!ldm; },
-    get isAuthenticated() { return ldm?.is_authenticated ?? false; },
-    get inAuthentication() { return ldm?.in_authentication ?? false; },
-    get users() {
-      if (!ldm?.users) return [];
-      return ldm.users.map((u) => ({
-        username: u.username,
-        displayName: u.display_name,
-      }));
-    },
-    get defaultSession() { return ldm?.default_session ?? ''; },
-    get sessions() {
-      if (!ldm?.sessions) return [];
-      return ldm.sessions.map((s) => ({
-        key: s.key,
-        name: s.name,
-      }));
-    },
+  get available(): boolean { return !!this.ldm; }
+  get isAuthenticated(): boolean { return this.ldm?.is_authenticated ?? false; }
+  get inAuthentication(): boolean { return this.ldm?.in_authentication ?? false; }
+  get users(): AuthUser[] {
+    if (!this.ldm?.users) return [];
+    return this.ldm.users.map((u) => ({
+      username: u.username,
+      displayName: u.display_name,
+    }));
+  }
+  get defaultSession(): string { return this.ldm?.default_session ?? ''; }
+  get sessions(): Array<{ key: string; name: string }> {
+    if (!this.ldm?.sessions) return [];
+    return this.ldm.sessions.map((s) => ({
+      key: s.key,
+      name: s.name,
+    }));
+  }
 
-    authenticate(username) { ldm?.authenticate(username); },
-    cancelAuthentication() { ldm?.cancel_authentication(); },
-    respond(response) { ldm?.respond(response); },
-    startSession(session) { ldm?.start_session(session); },
+  authenticate(username: string): void { this.ldm?.authenticate(username); }
+  cancelAuthentication(): void { this.ldm?.cancel_authentication(); }
+  respond(response: string): void { this.ldm?.respond(response); }
+  startSession(session: string): void { this.ldm?.start_session(session); }
 
-    onShowPrompt(handler) {
-      ldm?.show_prompt.connect((message: string, type: number) => {
-        handler(message, type === 1);
-      });
-    },
-    onShowMessage(handler) {
-      ldm?.show_message.connect((message: string, type: number) => {
-        handler(message, type === 1);
-      });
-    },
-    onAuthenticationComplete(handler) {
-      ldm?.authentication_complete.connect(() => {
-        handler(ldm.is_authenticated);
-      });
-    },
-  };
+  onShowPrompt(handler: (message: string, isSecret: boolean) => void): void {
+    this.ldm?.show_prompt.connect((message: string, type: number) => {
+      handler(message, type === 1);
+    });
+  }
+  onShowMessage(handler: (message: string, isError: boolean) => void): void {
+    this.ldm?.show_message.connect((message: string, type: number) => {
+      handler(message, type === 1);
+    });
+  }
+  onAuthenticationComplete(handler: (isAuthenticated: boolean) => void): void {
+    this.ldm?.authentication_complete.connect(() => {
+      handler(this.ldm!.is_authenticated);
+    });
+  }
 }

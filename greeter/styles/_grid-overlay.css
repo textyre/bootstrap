@@ -1,30 +1,30 @@
-#grid-overlay {
+.grid-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: var(--z-grid);
+  z-index: var(--layer-2);
   background:
     repeating-linear-gradient(
       90deg,
-      var(--grid) 0px,
-      var(--grid) 1px,
+      var(--overlay-grid) 0px,
+      var(--overlay-grid) 1px,
       transparent 1px,
       transparent var(--grid-cell)
     ),
     repeating-linear-gradient(
       0deg,
-      var(--grid) 0px,
-      var(--grid) 1px,
+      var(--overlay-grid) 0px,
+      var(--overlay-grid) 1px,
       transparent 1px,
       transparent var(--grid-cell)
     );
 }
 
-#scanlines {
+.scanlines {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: var(--z-scanlines);
+  z-index: var(--layer-3);
   background: repeating-linear-gradient(
     0deg,
     transparent 0px,
@@ -34,11 +34,11 @@
   );
 }
 
-#background {
+.background {
   position: fixed;
   inset: calc(-1 * var(--bg-bleed));
-  z-index: var(--z-background);
-  background-color: var(--void);
+  z-index: var(--layer-1);
+  background-color: var(--surface-base);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

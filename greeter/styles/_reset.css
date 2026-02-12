@@ -8,10 +8,10 @@ html, body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--void);
-  color: var(--phosphor);
+  background: var(--surface-base);
+  color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: var(--body-size);
+  font-size: var(--text-base);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   cursor: default;

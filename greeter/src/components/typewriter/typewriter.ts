@@ -2,29 +2,44 @@ import { TIMING } from '../../config/constants';
 import { CSS_CLASSES } from '../../config/selectors';
 
 /**
- * Type text character-by-character into a container element with a blinking cursor.
- * Returns a promise that resolves when all characters have been typed.
+ * Types text character-by-character into a container element with a blinking cursor.
+ * Call `type()` to start; the returned promise resolves when all characters have been typed.
  */
-export function typewriteText(
-  container: HTMLElement,
-  text: string,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const cursor = document.createElement('span');
-    cursor.className = CSS_CLASSES.LOG_CURSOR;
-    container.appendChild(cursor);
+export class Typewriter {
+  private charIdx = 0;
+  private readonly cursor: HTMLElement;
 
-    let charIdx = 0;
+  constructor(
+    private readonly container: HTMLElement,
+    private readonly text: string,
+  ) {
+    this.cursor = document.createElement('span');
+    this.cursor.className = CSS_CLASSES.LOG_CURSOR;
+    this.container.appendChild(this.cursor);
+  }
 
-    const interval = setInterval(() => {
-      if (charIdx < text.length) {
-        cursor.before(document.createTextNode(text[charIdx]));
-        charIdx++;
-      } else {
-        clearInterval(interval);
-        cursor.remove();
-        resolve();
-      }
-    }, TIMING.CHAR_DELAY);
-  });
+  async type(): Promise<void> {
+    return new Promise((resolve) => {
+      const intervalId = setInterval(() => {
+        if (this.charIdx < this.text.length) {
+          this.appendChar();
+        } else {
+          clearInterval(intervalId);
+          this.removeCursor();
+          resolve();
+        }
+      }, TIMING.CHAR_DELAY);
+    });
+  }
+
+  private appendChar(): void {
+    this.container.insertBefore(
+      document.createTextNode(this.text[this.charIdx++]),
+      this.cursor,
+    );
+  }
+
+  private removeCursor(): void {
+    this.cursor.remove();
+  }
 }

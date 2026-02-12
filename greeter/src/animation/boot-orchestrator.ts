@@ -1,76 +1,52 @@
-import type { AnimationPhase, AnimationStep } from '../types/animation.types';
+import { animate } from 'motion';
 import { CSS_CLASSES } from '../config/selectors';
 import { delay } from '../utils/delay';
-import { awaitAnimation, trigger } from './animation-utils';
-import { BOOT_PHASES } from './animation-phases';
+import { buildBootSequence, BOOT_ANIMATED_SELECTORS, BOOT_SETTLE_DELAY_S } from './animation-phases';
 
-function applyStep(el: Element, step: AnimationStep): void {
-  if (step.removeClasses) {
-    step.removeClasses.forEach((c) => el.classList.remove(c));
-  }
-
-  if (step.useTrigger === false) {
-    el.classList.add(step.triggerClass);
-  } else {
-    trigger(el, step.triggerClass);
-  }
-}
-
-async function runPhase(phase: AnimationPhase): Promise<void> {
-  if (phase.preDelay) {
-    await delay(phase.preDelay);
-  }
-
-  // Start parallel steps at their specified delay offset
-  let parallelPromise = Promise.resolve();
-  if (phase.parallel) {
-    const { delay: parallelDelay, steps } = phase.parallel;
-    parallelPromise = delay(parallelDelay).then(() => {
-      for (const step of steps) {
-        const el = document.querySelector(step.selector) as HTMLElement | null;
-        if (!el) continue;
-        applyStep(el, step);
-      }
-    });
-  }
-
-  // Fire ALL sequential step triggers synchronously, then await the waitForAnimation step
-  let animationTarget: Element | null = null;
-
-  for (const step of phase.steps) {
-    const el = document.querySelector(step.selector) as HTMLElement | null;
-    if (!el) continue;
-
-    applyStep(el, step);
-
-    if (step.waitForAnimation) {
-      animationTarget = el;
+/**
+ * Orchestrates the boot animation sequence using Motion.
+ * Handles reduced-motion preference by showing all elements immediately.
+ */
+export class BootAnimator {
+  async run(): Promise<void> {
+    // Reduced motion -- show everything immediately
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.showAll();
+      return;
     }
+
+    // Remove boot-pre so elements are visible (opacity controlled by animation keyframes)
+    this.revealBootElements();
+
+    // Build and run the full boot animation sequence
+    const sequence = buildBootSequence();
+    const controls = animate(sequence);
+
+    // Wait for entire sequence to finish
+    await controls.finished;
+
+    // Final settle delay
+    await delay(BOOT_SETTLE_DELAY_S * 1000);
   }
 
-  // Wait for the designated animation to complete
-  if (animationTarget) {
-    await awaitAnimation(animationTarget);
-  }
-
-  // Ensure parallel work is done
-  await parallelPromise;
-
-  if (phase.postDelay) {
-    await delay(phase.postDelay);
-  }
-}
-
-export async function runBootAnimation(): Promise<void> {
-  // Reduced motion — show everything immediately
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  /**
+   * Show all hidden elements immediately (reduced-motion path).
+   */
+  private showAll(): void {
     document.querySelectorAll('.' + CSS_CLASSES.BOOT_PRE).forEach((el) => {
       el.classList.remove(CSS_CLASSES.BOOT_PRE);
     });
-    return;
   }
 
-  for (const phase of BOOT_PHASES) {
-    await runPhase(phase);
+  /**
+   * Remove the `.boot-pre` hidden-state class from all animated elements
+   * so Motion can animate them from their initial keyframe values.
+   */
+  private revealBootElements(): void {
+    for (const selector of BOOT_ANIMATED_SELECTORS) {
+      document.querySelectorAll(selector).forEach((el) => {
+        el.classList.remove(CSS_CLASSES.BOOT_PRE);
+      });
+    }
   }
 }

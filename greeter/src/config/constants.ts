@@ -25,12 +25,7 @@ export const TIMING = {
   CUBE_PERIOD: 12000,
 } as const;
 
-export const HASH = {
-  FNV_OFFSET_BASIS: 0x811c9dc5,
-  FNV_PRIME: 0x01000193,
-  BYTE_COUNT: 256,
-  SIG_BYTES: 8,
-} as const;
+export const SIG_BYTES = 8;
 
 export const BARCODE = {
   USERNAME: {
@@ -77,7 +72,3 @@ export const CUBE = {
 
 export const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
-export const CLOCK = {
-  DAYS: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-  MONTHS: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-} as const;

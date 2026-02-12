@@ -1,8 +1,8 @@
 export function queryElement<T extends HTMLElement>(
-  id: string,
+  selector: string,
   type?: new () => T,
 ): T | null {
-  const el = document.getElementById(id);
+  const el = document.querySelector(selector);
   if (!el) return null;
   if (type && !(el instanceof type)) return null;
   return el as T;

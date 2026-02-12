@@ -1,46 +1,45 @@
-import { TIMING, CLOCK } from '../../config/constants';
+import { TIMING } from '../../config/constants';
 import { SELECTORS } from '../../config/selectors';
 
-export interface ClockController {
-  start(): void;
-  stop(): void;
-}
+export class Clock {
+  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private readonly clockEl: HTMLElement | null;
+  private readonly dateEl: HTMLElement | null;
+  private readonly timeFmt: Intl.DateTimeFormat;
+  private readonly dayFmt: Intl.DateTimeFormat;
+  private readonly dateFmt: Intl.DateTimeFormat;
+  private readonly monthFmt: Intl.DateTimeFormat;
 
-function pad(n: number): string {
-  return n.toString().padStart(2, '0');
-}
+  constructor() {
+    this.clockEl = document.querySelector(SELECTORS.CLOCK);
+    this.dateEl = document.querySelector(SELECTORS.DATE);
+    this.timeFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    this.dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
+    this.dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric' });
+    this.monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'long' });
+  }
 
-export function createClock(): ClockController {
-  let intervalId: ReturnType<typeof setInterval> | null = null;
+  start(): void {
+    this.update();
+    this.intervalId = setInterval(() => this.update(), TIMING.CLOCK_TICK);
+  }
 
-  function update(): void {
-    const now = new Date();
-
-    const clockEl = document.getElementById(SELECTORS.CLOCK);
-    const dateEl = document.getElementById(SELECTORS.DATE);
-
-    if (clockEl) {
-      clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    }
-
-    if (dateEl) {
-      const day = CLOCK.DAYS[now.getDay()];
-      const date = now.getDate();
-      const month = CLOCK.MONTHS[now.getMonth()];
-      dateEl.textContent = `${day} ${date} ${month}`;
+  stop(): void {
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
     }
   }
 
-  return {
-    start() {
-      update();
-      intervalId = setInterval(update, TIMING.CLOCK_TICK);
-    },
-    stop() {
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    },
-  };
+  private update(): void {
+    const now = new Date();
+
+    if (this.clockEl) {
+      this.clockEl.textContent = this.timeFmt.format(now);
+    }
+
+    if (this.dateEl) {
+      this.dateEl.textContent = `${this.dayFmt.format(now)} ${this.dateFmt.format(now)} ${this.monthFmt.format(now)}`;
+    }
+  }
 }
