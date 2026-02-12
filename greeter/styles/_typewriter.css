@@ -2,8 +2,8 @@
   font-size: var(--terminal-size);
   color: var(--phosphor);
   line-height: 1.6;
-  width: 600px;
-  min-height: 140px;
+  width: var(--terminal-width);
+  min-height: var(--terminal-min-h);
 }
 
 .log-line {
@@ -11,7 +11,7 @@
   align-items: center;
   white-space: pre;
   overflow: hidden;
-  opacity: 0.8;
+  opacity: var(--op-line);
 }
 
 .log-line.log-divider {
@@ -20,15 +20,11 @@
 
 .log-cursor {
   display: inline-block;
-  width: 7px;
-  height: 14px;
+  width: var(--cursor-w);
+  height: var(--cursor-h);
   background: var(--phosphor);
   vertical-align: text-bottom;
-  animation: cursor-blink 0.8s step-end infinite;
-}
-
-@keyframes cursor-blink {
-  50% { opacity: 0; }
+  animation: cursor-blink var(--cursor-blink-speed) step-end infinite;
 }
 
 /* === Fingerprint barcode === */
@@ -39,7 +35,7 @@
   vertical-align: middle;
   cursor: default;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity var(--tr-slow);
 }
 
 .fp-container.visible {
@@ -48,10 +44,10 @@
 
 .fp-barcode {
   display: inline-block;
-  height: 12px;
+  height: var(--fp-barcode-h);
   vertical-align: middle;
   image-rendering: pixelated;
-  transition: opacity 0.2s;
+  transition: opacity var(--tr-normal);
 }
 
 .fp-text {
@@ -65,7 +61,7 @@
   font-size: inherit;
   background: var(--void);
   padding: 0 2px;
-  transition: opacity 0.2s;
+  transition: opacity var(--tr-normal);
   pointer-events: none;
 }
 
@@ -74,7 +70,7 @@
 }
 
 .fp-container:hover .fp-text {
-  opacity: 0.8;
+  opacity: var(--op-fp-hover);
   pointer-events: auto;
 }
 
@@ -90,5 +86,5 @@
 
 .version-sep {
   margin: 0 var(--sp-1);
-  opacity: 0.5;
+  opacity: var(--op-sep);
 }

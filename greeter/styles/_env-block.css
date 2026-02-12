@@ -1,0 +1,30 @@
+#env-block {
+  padding: var(--sp-1) var(--sp-2);
+  display: flex;
+  flex-direction: row;
+  gap: var(--sp-3);
+  border-right: var(--env-border-w) solid var(--ink);
+  border-left: var(--env-border-w) solid var(--ink);
+  background-color: var(--ink-low);
+  width: var(--env-block-w);
+}
+
+.info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: var(--fs-security);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-tight);
+}
+
+.info-value {
+  font-size: var(--body-size);
+  color: var(--phosphor-hi);
+  letter-spacing: var(--ls-tight);
+  white-space: nowrap;
+}

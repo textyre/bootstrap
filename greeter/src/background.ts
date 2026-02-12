@@ -1,17 +1,18 @@
-export function initBackground(): void {
-  const bgEl = document.getElementById('background');
+import { SELECTORS } from './config/selectors';
+import type { IGreeterConfigAdapter } from './adapters/greeter-config.adapter';
+import { createGreeterConfigAdapter } from './adapters/greeter-config.adapter';
+
+export function initBackground(adapter?: IGreeterConfigAdapter): void {
+  const bgEl = document.getElementById(SELECTORS.BACKGROUND);
   if (!bgEl) return;
 
-  const config = window.greeter_config;
-  const utils = window.theme_utils;
-
-  if (!config || !utils) return;
+  const config = adapter ?? createGreeterConfigAdapter();
 
   try {
-    const bgDir = config.branding.background_images_dir;
+    const bgDir = config.getBackgroundImagesDir();
     if (!bgDir) return;
 
-    utils.dirlist(bgDir, true, (images: string[]) => {
+    config.listImages(bgDir, (images: string[]) => {
       if (images.length > 0) {
         bgEl.style.backgroundImage = `url('${images[0]}')`;
       }

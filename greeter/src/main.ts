@@ -1,55 +1,46 @@
 import '../styles/main.css';
 
-import { runBootAnimation } from './boot-animation';
-import { initClock } from './clock';
-import { initCube } from './cube';
+import { runBootAnimation } from './animation/boot-orchestrator';
+import { createClock } from './components/clock/clock';
+import { createCube } from './components/cube/cube';
 import { initTypewriter } from './typewriter';
-import { renderUsernameBarcode, renderSecurityBarcode } from './barcode';
-import { loadSystemInfo, renderSystemInfo } from './system-info';
-import { initAuth, startAuth, respondToPrompt, launchSession, getFirstUser } from './auth';
+import { renderUsernameBarcode } from './components/barcode/username-barcode';
+import { renderSecurityBarcode } from './components/barcode/security-barcode';
+import { loadSystemInfo } from './services/system-info.service';
+import { renderSystemInfo } from './components/env-block/env-block';
 import { initBackground } from './background';
-
-function getElements() {
-  return {
-    passwordInput: document.getElementById('password-input') as HTMLInputElement,
-    loginForm: document.getElementById('login-form') as HTMLFormElement,
-    usernameText: document.getElementById('username-text') as HTMLElement,
-    authMessage: document.getElementById('auth-message') as HTMLElement,
-  };
-}
-
-function showAuthMessage(el: HTMLElement, text: string): void {
-  el.textContent = text;
-  el.classList.add('visible');
-  setTimeout(() => el.classList.remove('visible'), 3000);
-}
+import { createLightDMAdapter } from './adapters/lightdm.adapter';
+import { createEventBus } from './services/event-bus';
+import { createAuthService } from './services/auth.service';
+import { initAuthForm } from './components/auth-form/auth-form';
+import { SELECTORS } from './config/selectors';
+import { MESSAGES } from './config/messages';
 
 async function boot(): Promise<void> {
-  const els = getElements();
-  let waitingForPrompt = false;
-  let currentUsername = '';
+  // Create core services
+  const ldmAdapter = createLightDMAdapter();
+  const bus = createEventBus();
+  const auth = createAuthService(ldmAdapter, bus);
 
-  // Load system info synchronously before anything else (local file, <5ms)
+  // Load system info
   const info = await loadSystemInfo();
-  const user = getFirstUser();
-  const username = user ? user.username : 'unknown';
+  const user = auth.getFirstUser();
+  const username = user ? user.username : MESSAGES.UNKNOWN_USER;
 
   // Set os-prefix text before animation starts
-  const prefixEl = document.getElementById('os-prefix');
+  const prefixEl = document.getElementById(SELECTORS.OS_PREFIX);
   if (prefixEl) {
-    prefixEl.textContent = info.os_name || 'arch';
+    prefixEl.textContent = info.os_name || MESSAGES.DEFAULT_OS;
   }
 
   // Render system info into DOM (hidden by boot-pre, revealed by animation)
   renderSystemInfo(info);
 
-  // Clock — start ticking (updates hidden elements)
-  initClock();
-
-  // Cube — start rAF loop (SVG manipulation on hidden element)
-  initCube();
-
-  // Background
+  // Initialize components
+  const clock = createClock();
+  clock.start();
+  const cube = createCube();
+  cube.start();
   initBackground();
 
   // Render all data into DOM before animation starts
@@ -62,69 +53,29 @@ async function boot(): Promise<void> {
   initTypewriter(info, username);
 
   // Set username + barcode before animation
-  if (user) {
-    els.usernameText.textContent = user.username.toUpperCase();
+  const usernameText = document.getElementById(SELECTORS.USERNAME_TEXT);
+  if (user && usernameText) {
+    usernameText.textContent = user.username.toUpperCase();
     renderUsernameBarcode(user.username);
-  } else {
-    els.usernameText.textContent = 'UNKNOWN';
-    renderUsernameBarcode('unknown');
+  } else if (usernameText) {
+    usernameText.textContent = MESSAGES.UNKNOWN_DISPLAY;
+    renderUsernameBarcode(MESSAGES.UNKNOWN_USER);
   }
 
   // Run boot animation — visual gate (reveals already-rendered content)
   await runBootAnimation();
 
-  // Auth wiring
-  initAuth({
-    onAuthStart(uname) {
-      currentUsername = uname;
-      els.passwordInput.value = '';
-      els.passwordInput.focus();
-    },
+  // Wire auth form (subscribes to bus events)
+  initAuthForm(bus, auth);
 
-    onAuthSuccess() {
-      els.authMessage.textContent = 'SESSION STARTING';
-      els.authMessage.classList.add('visible');
-      setTimeout(() => launchSession(), 500);
-    },
-
-    onAuthFailure(message) {
-      showAuthMessage(els.authMessage, message);
-      setTimeout(() => {
-        if (currentUsername) startAuth(currentUsername);
-      }, 1000);
-    },
-
-    onPrompt(_message, isSecret) {
-      if (isSecret) {
-        waitingForPrompt = true;
-        els.passwordInput.focus();
-      }
-    },
-
-    onMessage(message, isError) {
-      if (isError) {
-        showAuthMessage(els.authMessage, message);
-      }
-    },
-  });
-
-  // Start auth after animation
+  // Start authentication
   if (user) {
-    currentUsername = user.username;
-    startAuth(user.username);
+    auth.startAuth(user.username);
   }
 
-  // Form submit
-  els.loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (waitingForPrompt) {
-      waitingForPrompt = false;
-      respondToPrompt(els.passwordInput.value);
-    }
-  });
-
-  // Focus password after boot animation completes
-  els.passwordInput.focus();
+  // Focus password input
+  const passwordInput = document.getElementById(SELECTORS.PASSWORD_INPUT) as HTMLInputElement;
+  if (passwordInput) passwordInput.focus();
 }
 
 window.addEventListener('GreeterReady', () => {

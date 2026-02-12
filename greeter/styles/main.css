@@ -2,11 +2,23 @@
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/700.css';
 
-@import './_variables.css';
+/* Foundation */
+@import './_tokens.css';
+@import './_reset.css';
+@import './_animation-keyframes.css';
+
+/* Layout */
 @import './_layout.css';
 @import './_grid-overlay.css';
+
+/* Components */
 @import './_cube.css';
+@import './_clock.css';
+@import './_env-block.css';
+@import './_barcode.css';
 @import './_form.css';
 @import './_typewriter.css';
-@import './_barcode.css';
-@import './_boot.css';
+
+/* Boot animation (must be after components) */
+@import './_boot-states.css';
+@import './_boot-phases.css';

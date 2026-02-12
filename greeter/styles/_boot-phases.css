@@ -1,0 +1,197 @@
+/* === Phase 1: Logo loader bar === */
+
+#ctos-block {
+  clip-path: inset(0 100% 0 0);
+}
+
+@keyframes logo-load {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+
+#ctos-block.boot-loading {
+  animation: logo-load var(--boot-loader-duration) var(--boot-ease-loader) both;
+}
+
+/* === Phase 2: Block pullback === */
+
+@keyframes block-pullback {
+  from { width: var(--logo-block-w); }
+  to   { width: var(--logo-block-w-rest); }
+}
+
+#ctos-block.boot-pullback {
+  clip-path: inset(0 0% 0 0);
+  width: var(--logo-block-w-rest);
+  overflow: hidden;
+  animation: block-pullback var(--boot-pullback-duration) var(--boot-ease-decel) both;
+}
+
+#ctos-block.boot-pullback #os-prefix {
+  animation: fade-in var(--boot-prefix-fade-duration) ease-out both;
+  animation-delay: var(--boot-prefix-fade-delay);
+}
+
+/* === Phase 2: OS text reveal === */
+
+.os.boot-reveal {
+  animation: fade-in var(--boot-fade-duration) ease-out both;
+}
+
+/* === Phase 1: License fade-in (concurrent) === */
+
+@keyframes license-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+#license.boot-enter {
+  animation: license-fade var(--boot-fade-duration) ease-out both;
+  animation-delay: var(--boot-license-delay);
+}
+
+/* === Phase 3: Logo shift up === */
+
+@keyframes logo-shift-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+#ctos-logo.boot-shift-up {
+  animation: logo-shift-up var(--boot-shift-duration) var(--boot-ease-decel) both;
+}
+
+/* === Phase 3: Form slides in === */
+
+.form-container.boot-pre {
+  transform: translateY(100%);
+}
+
+@keyframes form-slide-in {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.form-container.boot-enter {
+  animation: form-slide-in var(--boot-form-duration) var(--boot-ease-decel) both;
+}
+
+/* === Peripheral: Security bar flicker === */
+
+@keyframes lamp-flicker {
+  0%   { opacity: 0; }
+  5%   { opacity: 0.7; }
+  8%   { opacity: 0; }
+  15%  { opacity: 0.9; }
+  18%  { opacity: 0.1; }
+  22%  { opacity: 0; }
+  30%  { opacity: 0.8; }
+  33%  { opacity: 0; }
+  40%  { opacity: 0.6; }
+  42%  { opacity: 0; }
+  50%  { opacity: 0.9; }
+  55%  { opacity: 0.3; }
+  60%  { opacity: 0.8; }
+  65%  { opacity: 0; }
+  72%  { opacity: 1; }
+  76%  { opacity: 0.4; }
+  82%  { opacity: 1; }
+  88%  { opacity: 0.6; }
+  94%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+#right-edge.boot-flicker {
+  animation: lamp-flicker var(--boot-fade-duration) step-end both;
+  animation-delay: var(--boot-flicker-delay);
+}
+
+/* === Peripheral: Security meta slide === */
+
+#security-meta.boot-pre {
+  transform: translateX(100%);
+}
+
+@keyframes meta-slide-out {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+#security-meta.boot-slide {
+  animation: meta-slide-out var(--boot-fade-duration) var(--boot-ease-decel) both;
+  animation-delay: var(--boot-meta-delay);
+}
+
+/* === Peripheral: Clock fade from top === */
+
+#clock.boot-pre {
+  transform: translateY(-20px);
+}
+
+@keyframes fade-from-top {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#clock.boot-enter {
+  animation: fade-from-top var(--boot-shift-duration) var(--boot-ease-decel) both;
+  animation-delay: var(--boot-clock-delay);
+}
+
+/* === Peripheral: Date fade from top (staggered) === */
+
+#date-box.boot-pre {
+  transform: translateY(-20px);
+}
+
+#date-box.boot-enter {
+  animation: fade-from-top var(--boot-shift-duration) var(--boot-ease-decel) both;
+  animation-delay: var(--boot-date-delay);
+}
+
+/* === Peripheral: Arch logo scale-in === */
+
+#arch-logo.boot-pre {
+  transform: scale(0.5);
+}
+
+@keyframes arch-scale-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+#arch-logo.boot-enter {
+  animation: arch-scale-in var(--boot-arch-duration) var(--boot-ease-decel) both;
+  animation-delay: var(--boot-arch-delay);
+}
+
+/* === Peripheral: Env block 3-phase reveal === */
+
+#env-block.boot-pre {
+  clip-path: inset(calc(50% - 1px) calc(50% - 1px) calc(50% - 1px) calc(50% - 1px));
+}
+
+@keyframes env-expand {
+  0%   { clip-path: inset(calc(50% - 1px) calc(50% - 1px) calc(50% - 1px) calc(50% - 1px)); opacity: 0; }
+  5%   { clip-path: inset(calc(50% - 1px) calc(50% - 1px) calc(50% - 1px) calc(50% - 1px)); opacity: 1; }
+  20%  { clip-path: inset(0% calc(50% - 1px) 0% calc(50% - 1px)); opacity: 1; }
+  52%  { clip-path: inset(0% calc(50% - 1px) 0% calc(50% - 1px)); opacity: 1; }
+  100% { clip-path: inset(0% 0% 0% 0%); opacity: 1; }
+}
+
+#env-block.boot-expand {
+  animation: env-expand var(--boot-env-duration) linear both;
+  animation-delay: var(--boot-env-delay);
+}
+
+#env-block.boot-expand .info-col {
+  opacity: 0;
+  animation: fade-in var(--boot-prefix-fade-duration) ease-out both;
+  animation-delay: var(--boot-env-text-delay);
+}
+
+/* === Peripheral: Bottom-left fade-in === */
+
+#bottom-left.boot-enter {
+  animation: fade-in var(--boot-bottom-fade-duration) ease-out both;
+}

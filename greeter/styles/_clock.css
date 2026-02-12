@@ -1,0 +1,18 @@
+#clock {
+  font-size: var(--clock-size);
+  font-weight: var(--fw-light);
+  color: var(--phosphor-hi);
+  line-height: 1;
+  letter-spacing: var(--ls-normal);
+}
+
+#date-box {
+  border: var(--border);
+  padding: var(--sp-micro) var(--sp-1);
+}
+
+#date {
+  font-size: var(--date-size);
+  color: var(--phosphor);
+  letter-spacing: var(--ls-tight);
+}

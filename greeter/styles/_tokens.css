@@ -1,0 +1,128 @@
+:root {
+  /* === Palette === */
+  --void:        #000000;
+  --phosphor:    #e8e6e3;
+  --phosphor-hi: #ffffff;
+  --ghost:       rgba(255, 255, 255, 0.06);
+  --grid:        rgba(255, 255, 255, 0.03);
+  --ink-low:     rgba(255, 255, 255, 0.06);
+  --ink:         rgba(255, 255, 255, 0.12);
+  --muted:       rgba(255, 255, 255, 0.4);
+  --fail:        #ff3b30;
+
+  /* === Typography === */
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* === Spacing (8px base) === */
+  --sp-micro: 4px;
+  --sp-1:     8px;
+  --sp-2:     16px;
+  --sp-3:     24px;
+  --sp-4:     32px;
+  --sp-6:     48px;
+
+  /* === Font Sizes === */
+  --clock-size:    48px;
+  --date-size:     13px;
+  --label-size:    11px;
+  --body-size:     14px;
+  --input-size:    16px;
+  --logo-size:     64px;
+  --terminal-size: 12px;
+  --version-size:  11px;
+  --fs-security:   9px;
+  --fs-license:    10px;
+  --fs-os-prefix:  32px;
+
+  /* === Font Weights === */
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-bold:    700;
+
+  /* === Sizing === */
+  --logo-block-w:      250px;
+  --logo-block-w-rest: 170px;
+  --logo-h:            64px;
+  --form-width:        280px;
+  --input-height:      40px;
+  --terminal-width:    600px;
+  --terminal-min-h:    140px;
+  --license-max-w:     400px;
+  --arch-logo-size:    48px;
+  --cursor-w:          7px;
+  --cursor-h:          14px;
+  --barcode-username-h: 14px;
+  --fp-barcode-h:      12px;
+  --env-block-w:       250px;
+  --env-border-w:      3px;
+  --security-meta-offset: 28px;
+  --bg-bleed:          20px;
+
+  /* === Letter Spacing === */
+  --ls-logo:   -1px;
+  --ls-tight:  1px;
+  --ls-normal: 2px;
+  --ls-wide:   4px;
+
+  /* === Border === */
+  --border: 1px solid var(--ink);
+
+  /* === Grid Overlay === */
+  --grid-cell:        80px;
+  --scanline-h:       4px;
+  --scanline-opacity: 0.15;
+
+  /* === Opacity === */
+  --op-line:          0.8;
+  --op-sep:           0.5;
+  --op-hover:         0.85;
+  --op-active:        0.7;
+  --op-fp-hover:      0.8;
+  --placeholder-opacity: 0.3;
+
+  /* === Transitions === */
+  --tr-fast:   0.15s;
+  --tr-normal: 0.2s;
+  --tr-slow:   0.3s;
+
+  /* === Animation === */
+  --typewriter-char: 18ms;
+  --typewriter-line-pause: 400ms;
+
+  /* === Boot Animation === */
+  --boot-loader-duration:     1800ms;
+  --boot-loader-delay:        300ms;
+  --boot-ease-decel:          cubic-bezier(0.16, 1, 0.3, 1);
+  --boot-ease-loader:         cubic-bezier(0.11, 0, 0.5, 0);
+  --boot-pullback-duration:   700ms;
+  --boot-fade-duration:       600ms;
+  --boot-shift-duration:      1000ms;
+  --boot-form-duration:       1000ms;
+  --boot-flicker-delay:       1000ms;
+  --boot-meta-delay:          1300ms;
+  --boot-clock-delay:         800ms;
+  --boot-date-delay:          850ms;
+  --boot-arch-delay:          800ms;
+  --boot-arch-duration:       3000ms;
+  --boot-env-delay:           600ms;
+  --boot-env-duration:        800ms;
+  --boot-env-text-delay:      1000ms;
+  --boot-license-delay:       3000ms;
+  --boot-prefix-fade-delay:   300ms;
+  --boot-prefix-fade-duration: 300ms;
+  --boot-bottom-fade-duration: 400ms;
+
+  /* === Cursor === */
+  --cursor-blink-speed: 0.8s;
+
+  /* === Background Effects === */
+  --bg-blur:       12px;
+  --bg-brightness: 0.2;
+
+  /* === Z-index Scale === */
+  --z-background:  1;
+  --z-grid:        5;
+  --z-scanlines:   6;
+  --z-hud:         10;
+  --z-logo-block:  1;
+}

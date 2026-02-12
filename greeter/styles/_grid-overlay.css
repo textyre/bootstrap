@@ -2,21 +2,21 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 5;
+  z-index: var(--z-grid);
   background:
     repeating-linear-gradient(
       90deg,
       var(--grid) 0px,
       var(--grid) 1px,
       transparent 1px,
-      transparent 80px
+      transparent var(--grid-cell)
     ),
     repeating-linear-gradient(
       0deg,
       var(--grid) 0px,
       var(--grid) 1px,
       transparent 1px,
-      transparent 80px
+      transparent var(--grid-cell)
     );
 }
 
@@ -24,23 +24,23 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 6;
+  z-index: var(--z-scanlines);
   background: repeating-linear-gradient(
     0deg,
     transparent 0px,
     transparent 2px,
-    rgba(0, 0, 0, 0.15) 2px,
-    rgba(0, 0, 0, 0.15) 4px
+    rgb(0 0 0 / var(--scanline-opacity)) 2px,
+    rgb(0 0 0 / var(--scanline-opacity)) 4px
   );
 }
 
 #background {
   position: fixed;
-  inset: -20px;
-  z-index: 1;
+  inset: calc(-1 * var(--bg-bleed));
+  z-index: var(--z-background);
   background-color: var(--void);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(12px) brightness(0.2);
+  filter: blur(var(--bg-blur)) brightness(var(--bg-brightness));
 }
