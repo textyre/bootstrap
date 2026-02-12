@@ -19,5 +19,8 @@ xrandr --newmode $modename $mode
 xrandr --addmode "$output" "$modename"
 xrandr --output "$output" --mode "$modename"
 
+# Paint X root window black to prevent gray flash before greeter loads
+xsetroot -solid "#000000"
+
 # Always return success or lightdm goes into infinite loop
 exit 0
