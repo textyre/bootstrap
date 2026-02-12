@@ -107,6 +107,14 @@
     mode: '0644'
   tags: ['lightdm', 'display', 'greeter']
 
+- name: Fix ctOS theme file permissions
+  ansible.builtin.shell: |
+    chown -R root:root /usr/share/web-greeter/themes/{{ lightdm_greeter_theme }}
+    find /usr/share/web-greeter/themes/{{ lightdm_greeter_theme }} -type d -exec chmod 755 {} +
+    find /usr/share/web-greeter/themes/{{ lightdm_greeter_theme }} -type f -exec chmod 644 {} +
+  changed_when: true
+  tags: ['lightdm', 'display', 'greeter']
+
 # ---- ctOS Greeter: обои ----
 
 - name: Check wallpaper source directory exists

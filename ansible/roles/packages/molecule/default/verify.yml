@@ -1,6 +1,5 @@
 ---
-# Molecule verify playbook
-# Проверяет что пакеты установлены корректно
+# Verify that all packages from the test set are installed
 
 - name: Verify
   hosts: all
@@ -10,35 +9,39 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
-    - name: Check that base packages are installed
-      ansible.builtin.package:
-        name: "{{ item }}"
-        state: present
-      check_mode: true
-      register: _packages_pkg_check
-      failed_when: _packages_pkg_check is changed
-      loop:
-        - git
-        - curl
-        - vim
+    - name: Build combined package list
+      ansible.builtin.set_fact:
+        _packages_all: >-
+          {{ packages_base
+             + packages_editors
+             + packages_docker
+             + packages_xorg
+             + packages_wm
+             + packages_filemanager
+             + packages_network
+             + packages_media
+             + packages_desktop
+             + packages_graphics
+             + packages_session
+             + packages_terminal
+             + packages_fonts
+             + packages_theming
+             + packages_search
+             + packages_viewers
+             + (packages_distro[ansible_facts['os_family']] | default([])) }}
 
-    - name: Check that jq is installed
-      ansible.builtin.package:
-        name: jq
-        state: present
-      check_mode: true
-      register: _packages_jq_check
-      failed_when: _packages_jq_check is changed
-
-    - name: Verify git is executable  # noqa: command-instead-of-module
-      ansible.builtin.command: git --version
+    - name: Verify all packages are installed (Arch)
+      ansible.builtin.command: "pacman -Q {{ item }}"
+      loop: "{{ _packages_all }}"
       changed_when: false
-      register: _packages_git_version
+      when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Show test results
+    - name: Verify all packages are installed (Debian)
+      ansible.builtin.command: "dpkg -l {{ item }}"
+      loop: "{{ _packages_all }}"
+      changed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Show verification results
       ansible.builtin.debug:
-        msg:
-          - "All checks passed!"
-          - "git: {{ _packages_git_version.stdout }}"
-          - "Base packages: installed"
-          - "Tools packages: installed"
+        msg: "All {{ _packages_all | length }} packages verified as installed"

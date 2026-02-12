@@ -13,3 +13,7 @@ yay_build_deps:
   - base-devel
   - git
   - go
+
+# AUR package management — shared variables from group_vars/all/packages.yml
+packages_aur: []  # noqa: var-naming[no-role-prefix]
+packages_aur_remove_conflicts: []  # noqa: var-naming[no-role-prefix]

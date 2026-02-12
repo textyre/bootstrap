@@ -112,16 +112,31 @@ function boot(): void {
   els.passwordInput.focus();
 }
 
-// Wait for nody-greeter GreeterReady event, or boot immediately in dev
-if (window.lightdm) {
-  boot();
-} else {
-  window.addEventListener('GreeterReady', () => boot());
-  // Fallback: if GreeterReady never fires (dev mode), boot after timeout
+// nody-greeter race condition: the preload script creates window.lightdm as
+// an IPC proxy immediately, but the main process backends are initialized via
+// setInterval(100ms) polling in S.whenReady(). If we access the proxy before
+// the interval fires, the main process crashes with:
+//   "Cannot use 'in' operator to search for 'branding' in undefined"
+//
+// GreeterReady fires after window_metadata IPC round-trip, which can complete
+// BEFORE the 100ms interval. So even GreeterReady doesn't guarantee readiness.
+//
+// Fix: always wait for GreeterReady + 150ms buffer (> 100ms poll interval).
+let booted = false;
+window.addEventListener('GreeterReady', () => {
   setTimeout(() => {
-    if (!window.lightdm) {
-      console.warn('[ctOS] No lightdm detected — running in dev mode');
+    if (!booted) {
+      booted = true;
       boot();
     }
-  }, 2000);
-}
+  }, 150);
+});
+
+// Dev mode fallback: no nody-greeter, no GreeterReady event
+setTimeout(() => {
+  if (!booted && !window.lightdm) {
+    console.warn('[ctOS] No lightdm detected — running in dev mode');
+    booted = true;
+    boot();
+  }
+}, 2000);

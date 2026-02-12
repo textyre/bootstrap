@@ -1,0 +1,9 @@
+---
+# Debian/Ubuntu: Install packages via apt
+
+- name: Install packages (apt)
+  ansible.builtin.apt:
+    name: "{{ _packages_all }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

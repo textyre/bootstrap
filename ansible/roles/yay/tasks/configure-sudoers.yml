@@ -1,0 +1,16 @@
+---
+# === NOPASSWD sudoers for pacman ===
+# Required by kewlfft.aur: makepkg/yay internally call `sudo pacman`.
+# Without this, the subprocess hangs waiting for a password.
+# Ref: https://github.com/kewlfft/ansible-aur#create-the-aur_builder-user
+
+- name: Allow yay_build_user to run pacman without password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/yay-pacman
+    line: "{{ yay_build_user }} ALL=(root) NOPASSWD: /usr/bin/pacman"
+    create: true
+    mode: '0440'
+    owner: root
+    group: root
+    validate: '/usr/sbin/visudo -cf %s'
+  tags: ['aur', 'sudoers']
