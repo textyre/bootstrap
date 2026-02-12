@@ -16,7 +16,7 @@
   background: var(--phosphor-hi);
 }
 
-.ct {
+#os-prefix {
   font-weight: 300;
   color: var(--phosphor-hi);
 }

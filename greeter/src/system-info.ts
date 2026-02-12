@@ -23,6 +23,7 @@ export async function loadSystemInfo(): Promise<SystemInfo> {
       display_output: 'unknown',
       display_resolution: 'unknown',
       ssh_fingerprint: 'unknown',
+      os_name: '',
     };
     return cached;
   }

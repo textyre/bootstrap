@@ -11,4 +11,5 @@ export interface SystemInfo {
   display_output: string;
   display_resolution: string;
   ssh_fingerprint: string;
+  os_name: string;
 }

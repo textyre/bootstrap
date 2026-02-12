@@ -43,6 +43,13 @@ function boot(): void {
 
   loadSystemInfo().then((info) => {
     renderSystemInfo(info);
+
+    // Dynamic logo: archOS, debianOS, etc. — fallback to ctOS
+    const prefixEl = document.getElementById('os-prefix');
+    if (prefixEl) {
+      prefixEl.textContent = info.os_name || 'ct';
+    }
+
     renderSecurityBarcode({
       hostname: info.hostname,
       username,
