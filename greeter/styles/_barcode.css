@@ -1,19 +1,22 @@
 /* === Username barcode (center) === */
 
 #username-barcode {
-  height: 40px;
-  max-width: 280px;
+  height: 14px;
+  width: auto;
+  image-rendering: pixelated;
 }
 
 /* === Security matrix (right edge) === */
 
 #security-matrix {
   width: 40px;
-  height: 300px;
+  height: auto;
+  max-height: 300px;
   image-rendering: pixelated;
 }
 
 #security-meta {
+  display: flex;
   font-size: 9px;
   color: var(--muted);
   text-align: center;
@@ -21,6 +24,7 @@
   writing-mode: vertical-rl;
   text-orientation: mixed;
   letter-spacing: 1px;
+  gap: var(--sp-1);
 }
 
 /* === Top-right env block === */

@@ -1,0 +1,30 @@
+---
+# === Конфигурация ctOS Greeter ===
+# Тема гритера, system-info, обои
+
+# Имя темы
+greeter_theme: "ctos"
+
+# Версия проекта (отображается в гритере)
+greeter_ctos_version: "1.0.0"
+
+# Путь к собранной теме (greeter/dist/ в корне репозитория)
+greeter_dist_dir: "{{ lookup('env', 'REPO_ROOT') }}/greeter/dist"
+
+# Путь к index.yml темы
+greeter_index_yml: "{{ lookup('env', 'REPO_ROOT') }}/greeter/index.yml"
+
+# Конфигурация web-greeter
+greeter_debug_mode: false
+greeter_screensaver_timeout: 300
+greeter_secure_mode: true
+greeter_time_language: ""
+greeter_background_images_dir: "/usr/share/backgrounds"
+
+# Путь к обоям пользователя (копируются в /usr/share/backgrounds/)
+greeter_wallpaper_source_dir: "/home/{{ ansible_facts['env']['SUDO_USER'] | default('textyre') }}/.local/share/wallpapers"
+
+# Префикс региона для гритера (код страны, например "KZ")
+# Используется с городом из timezone: "KZ" + "Almaty" → "KZ-ALMATY-1"
+# Если пуст — гритер использует первые 2 буквы континента (AS, EU, AM...)
+greeter_region_prefix: ""

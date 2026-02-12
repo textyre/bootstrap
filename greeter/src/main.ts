@@ -49,6 +49,7 @@ function boot(): void {
       ip: info.ip_address,
       kernel: info.kernel,
     });
+    initTypewriter(info, username);
   });
 
   // Auth wiring
@@ -92,11 +93,10 @@ function boot(): void {
     currentUsername = user.username;
     els.usernameText.textContent = user.username.toUpperCase();
     renderUsernameBarcode(user.username);
-    initTypewriter(user.username);
     startAuth(user.username);
   } else {
     els.usernameText.textContent = 'UNKNOWN';
-    initTypewriter('unknown');
+    renderUsernameBarcode('unknown');
   }
 
   // Form submit
@@ -115,3 +115,8 @@ function boot(): void {
 window.addEventListener('GreeterReady', () => {
   boot();
 });
+
+// Local dev: no LightDM, fire boot manually
+if (!window.lightdm) {
+  document.addEventListener('DOMContentLoaded', () => boot());
+}

@@ -2,11 +2,13 @@
   font-size: var(--terminal-size);
   color: var(--phosphor);
   line-height: 1.6;
-  max-width: 600px;
+  width: 600px;
   min-height: 140px;
 }
 
 .log-line {
+  display: flex;
+  align-items: center;
   white-space: pre;
   overflow: hidden;
   opacity: 0.8;
@@ -27,6 +29,53 @@
 
 @keyframes cursor-blink {
   50% { opacity: 0; }
+}
+
+/* === Fingerprint barcode === */
+
+.fp-container {
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.fp-container.visible {
+  opacity: 1;
+}
+
+.fp-barcode {
+  display: inline-block;
+  height: 12px;
+  vertical-align: middle;
+  image-rendering: pixelated;
+  transition: opacity 0.2s;
+}
+
+.fp-text {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  white-space: nowrap;
+  color: var(--phosphor);
+  font-size: inherit;
+  background: var(--void);
+  padding: 0 2px;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.fp-container:hover .fp-barcode {
+  opacity: 0;
+}
+
+.fp-container:hover .fp-text {
+  opacity: 0.8;
+  pointer-events: auto;
 }
 
 /* === Version line === */

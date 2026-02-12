@@ -26,13 +26,20 @@
   color: var(--phosphor-hi);
 }
 
+.form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+}
+
 /* === Username === */
 
 #username-section {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
 }
 
 #username-label {

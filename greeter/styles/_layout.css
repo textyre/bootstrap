@@ -25,9 +25,9 @@ html, body {
   grid-template-columns: 1fr 1fr auto;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "tl tr re"
-    "ct ct re"
-    "bl bl re";
+    "tl tr"
+    "ct ct"
+    "bl re";
   padding: var(--sp-4);
   z-index: 10;
 }
@@ -54,6 +54,8 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #bottom-left {
@@ -61,14 +63,14 @@ html, body {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  width: fit-content;
   gap: var(--sp-1);
 }
 
 #right-edge {
   grid-area: re;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
   gap: var(--sp-2);
   padding-left: var(--sp-3);

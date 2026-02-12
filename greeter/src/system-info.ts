@@ -12,10 +12,17 @@ export async function loadSystemInfo(): Promise<SystemInfo> {
   } catch {
     cached = {
       kernel: 'unknown',
-      environment: 'unknown',
+      virtualization_type: 'unknown',
       ip_address: '0.0.0.0',
       hostname: 'unknown',
       project_version: '1.0.0',
+      timezone: 'UTC',
+      region_prefix: '',
+      systemd_version: 'unknown',
+      machine_id: '00000000000000000000000000000000',
+      display_output: 'unknown',
+      display_resolution: 'unknown',
+      ssh_fingerprint: 'unknown',
     };
     return cached;
   }
@@ -27,7 +34,7 @@ export function renderSystemInfo(info: SystemInfo): void {
   const versionProject = document.getElementById('version-project');
   const versionKernel = document.getElementById('version-kernel');
 
-  if (envEl) envEl.textContent = info.environment;
+  if (envEl) envEl.textContent = info.virtualization_type;
   if (ipEl) ipEl.textContent = info.ip_address;
   if (versionProject) versionProject.textContent = `ctos-${info.project_version}`;
   if (versionKernel) versionKernel.textContent = info.kernel;

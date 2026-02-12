@@ -70,6 +70,7 @@ tasks:
       - task: test-firewall
       - task: test-xorg
       - task: test-lightdm
+      - task: test-greeter
       - task: test-chezmoi
       - task: test-zen-browser
       - 'echo "All tests passed!"'
@@ -204,6 +205,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing lightdm role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-greeter:
+    desc: "Run molecule tests for greeter"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/greeter'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing greeter role..."'
       - '{{.PREFIX}} molecule test'
 
   test-chezmoi:

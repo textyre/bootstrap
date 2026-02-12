@@ -55,8 +55,9 @@
         <span class="ct">ct</span><span class="os">OS</span>
       </div>
 
-      <div id="username-section">
-        <svg id="username-barcode"></svg>
+      <div class="form-container">
+        <div id="username-section">
+        <canvas id="username-barcode"></canvas>
         <div id="username-label">PROFIL: <span id="username-text">---</span></div>
       </div>
 
@@ -70,6 +71,7 @@
         >
         <button type="submit" id="login-btn">LOGIN</button>
       </form>
+      </div>
 
       <div id="auth-message"></div>
 
@@ -91,11 +93,11 @@
 
     <!-- Right edge: security signature -->
     <section id="right-edge">
-      <canvas id="security-matrix" width="40" height="300"></canvas>
       <div id="security-meta">
         <div id="security-uuid"></div>
         <div id="security-coords"></div>
       </div>
+      <canvas id="security-matrix" width="40" height="300"></canvas>
     </section>
 
   </main>

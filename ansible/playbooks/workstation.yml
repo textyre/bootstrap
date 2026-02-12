@@ -88,6 +88,9 @@
     - role: lightdm
       tags: [lightdm, display]
 
+    - role: greeter
+      tags: [greeter, display]
+
     - role: zen_browser
       tags: [zen_browser, browser]
       when: ansible_facts['os_family'] == 'Archlinux'

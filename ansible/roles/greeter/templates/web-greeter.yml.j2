@@ -1,0 +1,23 @@
+branding:
+    background_images_dir: {{ greeter_background_images_dir }}
+    logo_image: ""
+    user_image: ""
+
+greeter:
+    debug_mode: {{ greeter_debug_mode | capitalize }}
+    detect_theme_errors: True
+    screensaver_timeout: {{ greeter_screensaver_timeout }}
+    secure_mode: {{ greeter_secure_mode | capitalize }}
+    theme: {{ greeter_theme }}
+    icon_theme:
+    time_language:{{ ' ' + greeter_time_language if greeter_time_language else '' }}
+
+layouts:
+    - us
+
+features:
+    battery: False
+    backlight:
+        enabled: False
+        value: 10
+        steps: 0

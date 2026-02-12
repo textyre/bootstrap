@@ -1,7 +1,0 @@
-{
-  "kernel": "{{ ansible_kernel | default('unknown') }}",
-  "environment": "{{ ansible_facts['virtualization_type'] | default('bare-metal') }}",
-  "ip_address": "{{ ansible_default_ipv4.address | default('0.0.0.0') }}",
-  "hostname": "{{ ansible_hostname | default('unknown') }}",
-  "project_version": "{{ lightdm_ctos_version }}"
-}

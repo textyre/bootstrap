@@ -1,0 +1,181 @@
+---
+# === Конфигурация ctOS Greeter ===
+# Тема гритера, system-info, обои
+
+# ---- Конфиг web-greeter ----
+
+- name: Deploy web-greeter.yml config
+  ansible.builtin.template:
+    src: web-greeter.yml.j2
+    dest: /etc/lightdm/web-greeter.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['greeter', 'display']
+
+# ---- Тема ctOS ----
+
+- name: Resolve greeter dist directory
+  ansible.builtin.stat:
+    path: "{{ greeter_dist_dir }}"
+  register: _greeter_dist_stat
+  tags: ['greeter', 'display']
+
+- name: Assert greeter dist directory exists
+  ansible.builtin.assert:
+    that:
+      - _greeter_dist_stat.stat.exists
+      - _greeter_dist_stat.stat.isdir
+    fail_msg: "Greeter dist не найден: {{ greeter_dist_dir }}. Запустите 'task greeter:build'."
+  tags: ['greeter', 'display']
+
+- name: Create ctOS theme directory
+  ansible.builtin.file:
+    path: "/usr/share/web-greeter/themes/{{ greeter_theme }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['greeter', 'display']
+
+- name: Clean ctOS theme before deploy (remove stale hashed bundles)
+  ansible.builtin.shell: |
+    rm -rf /usr/share/web-greeter/themes/{{ greeter_theme }}/assets
+    rm -rf /usr/share/web-greeter/themes/{{ greeter_theme }}/dist
+    rm -f /usr/share/web-greeter/themes/{{ greeter_theme }}/index.html
+  changed_when: true
+  tags: ['greeter', 'display']
+
+- name: Deploy ctOS greeter theme files
+  ansible.builtin.copy:
+    src: "{{ greeter_dist_dir }}/"
+    dest: "/usr/share/web-greeter/themes/{{ greeter_theme }}/"
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+    remote_src: true
+  tags: ['greeter', 'display']
+
+- name: Deploy index.yml theme metadata
+  ansible.builtin.copy:
+    src: "{{ greeter_index_yml }}"
+    dest: "/usr/share/web-greeter/themes/{{ greeter_theme }}/index.yml"
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: true
+  tags: ['greeter', 'display']
+
+# ---- Сбор системной информации ----
+
+- name: Get system timezone
+  ansible.builtin.command: timedatectl show -p Timezone --value
+  register: _greeter_timezone
+  changed_when: false
+  failed_when: false
+  tags: ['greeter', 'display']
+
+- name: Get systemd version
+  ansible.builtin.shell: systemctl --version 2>/dev/null | head -1 | cut -d' ' -f2
+  register: _greeter_systemd_ver
+  changed_when: false
+  failed_when: false
+  tags: ['greeter', 'display']
+
+- name: Get connected display name (DRM sysfs)
+  ansible.builtin.shell: >
+    for d in /sys/class/drm/card*-*; do
+      [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && basename "$d" | sed 's/^card[0-9]*-//' && break;
+    done
+  register: _greeter_display_name
+  changed_when: false
+  failed_when: false
+  tags: ['greeter', 'display']
+
+- name: Get display resolution (DRM sysfs)
+  ansible.builtin.shell: >
+    for d in /sys/class/drm/card*-*; do
+      [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && head -1 "$d/modes" && break;
+    done
+  register: _greeter_display_res
+  changed_when: false
+  failed_when: false
+  tags: ['greeter', 'display']
+
+- name: Get SSH host key fingerprint
+  ansible.builtin.shell: >
+    ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 2>/dev/null
+    || ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub -E sha256 2>/dev/null
+    || echo "unknown"
+  register: _greeter_ssh_fp_raw
+  changed_when: false
+  failed_when: false
+  tags: ['greeter', 'display']
+
+- name: Extract SSH fingerprint hash
+  ansible.builtin.set_fact:
+    _greeter_ssh_fp_hash:
+      stdout: "{{ (_greeter_ssh_fp_raw.stdout | default('unknown')).split()[1] | default('unknown') }}"
+  tags: ['greeter', 'display']
+
+# ---- Генерация system-info.json ----
+
+- name: Generate system-info.json for ctOS theme
+  ansible.builtin.template:
+    src: system-info.json.j2
+    dest: "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['greeter', 'display']
+
+# ---- Права доступа ----
+
+- name: Fix ctOS theme file permissions
+  ansible.builtin.shell: |
+    chown -R root:root /usr/share/web-greeter/themes/{{ greeter_theme }}
+    find /usr/share/web-greeter/themes/{{ greeter_theme }} -type d -exec chmod 755 {} +
+    find /usr/share/web-greeter/themes/{{ greeter_theme }} -type f -exec chmod 644 {} +
+  changed_when: true
+  tags: ['greeter', 'display']
+
+# ---- Обои ----
+
+- name: Check wallpaper source directory exists
+  ansible.builtin.stat:
+    path: "{{ greeter_wallpaper_source_dir }}"
+  register: _greeter_wallpaper_stat
+  tags: ['greeter', 'display']
+
+- name: Create backgrounds directory
+  ansible.builtin.file:
+    path: /usr/share/backgrounds
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: _greeter_wallpaper_stat.stat.exists | default(false)
+  tags: ['greeter', 'display']
+
+- name: Copy wallpapers to system backgrounds
+  ansible.builtin.copy:
+    src: "{{ greeter_wallpaper_source_dir }}/"
+    dest: /usr/share/backgrounds/
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+    remote_src: true
+  when: _greeter_wallpaper_stat.stat.exists | default(false)
+  tags: ['greeter', 'display']
+
+# ---- Отчёт ----
+
+- name: Report greeter configuration
+  ansible.builtin.debug:
+    msg:
+      - "Тема: {{ greeter_theme }}"
+      - "Версия: {{ greeter_ctos_version }}"
+      - "Timezone: {{ _greeter_timezone.stdout | default('unknown') }}"
+  tags: ['greeter']
