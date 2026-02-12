@@ -72,6 +72,6 @@ html, body {
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
   padding-left: var(--sp-3);
 }

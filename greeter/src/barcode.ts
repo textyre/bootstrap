@@ -68,9 +68,10 @@ export function renderSecurityBarcode(data: SecurityData): void {
     bwipjs.toCanvas(canvas, {
       bcid: 'pdf417',
       text: identity,
-      scale: 1,
-      height: 4,
-      width: 40,
+      scaleX: 2,
+      scaleY: 1,
+      height: 12,
+      columns: 8,
       backgroundcolor: '',
       barcolor: 'ffffff',
       rotate: 'R',

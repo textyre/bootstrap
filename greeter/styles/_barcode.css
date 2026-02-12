@@ -9,9 +9,8 @@
 /* === Security matrix (right edge) === */
 
 #security-matrix {
-  width: 40px;
+  width: auto;
   height: auto;
-  max-height: 300px;
   image-rendering: pixelated;
 }
 
