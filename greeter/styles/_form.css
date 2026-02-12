@@ -1,29 +1,43 @@
 /* === ctOS Logo === */
 
 #ctos-logo {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
+  position: relative;
   font-size: var(--logo-size);
   line-height: 1;
   letter-spacing: -1px;
-  margin-bottom: var(--sp-2);
+  width: 250px;
+  height: 64px;
+  transform: translateY(100%);
 }
 
 #ctos-block {
-  width: 28px;
-  height: 48px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 250px;
+  height: 100%;
   background: var(--phosphor-hi);
+  z-index: 1;
 }
 
 #os-prefix {
-  font-weight: 300;
-  color: var(--phosphor-hi);
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--void);
+  line-height: 1;
+  opacity: 0;
 }
 
 .os {
+  position: absolute;
+  right: 0;
+  bottom: 0;
   font-weight: 700;
   color: var(--phosphor-hi);
+  line-height: 1;
 }
 
 .form-container {
@@ -31,6 +45,13 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--sp-1);
+}
+
+.center-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 /* === Username === */
@@ -112,6 +133,10 @@
   letter-spacing: 1px;
   opacity: 0;
   transition: opacity 0.2s;
+}
+
+#auth-message:empty {
+  display: none;
 }
 
 #auth-message.visible {

@@ -1,5 +1,6 @@
 import '../styles/main.css';
 
+import { runBootAnimation } from './boot-animation';
 import { initClock } from './clock';
 import { initCube } from './cube';
 import { initTypewriter } from './typewriter';
@@ -23,46 +24,59 @@ function showAuthMessage(el: HTMLElement, text: string): void {
   setTimeout(() => el.classList.remove('visible'), 3000);
 }
 
-function boot(): void {
+async function boot(): Promise<void> {
   const els = getElements();
   let waitingForPrompt = false;
   let currentUsername = '';
 
-  // Clock
+  // Load system info synchronously before anything else (local file, <5ms)
+  const info = await loadSystemInfo();
+  const user = getFirstUser();
+  const username = user ? user.username : 'unknown';
+
+  // Set os-prefix text before animation starts
+  const prefixEl = document.getElementById('os-prefix');
+  if (prefixEl) {
+    prefixEl.textContent = info.os_name || 'arch';
+  }
+
+  // Render system info into DOM (hidden by boot-pre, revealed by animation)
+  renderSystemInfo(info);
+
+  // Clock — start ticking (updates hidden elements)
   initClock();
 
-  // Cube (CSS-only, no-op init)
+  // Cube — start rAF loop (SVG manipulation on hidden element)
   initCube();
 
   // Background
   initBackground();
 
-  // System info + security signature
-  const user = getFirstUser();
-  const username = user ? user.username : 'unknown';
-
-  loadSystemInfo().then((info) => {
-    renderSystemInfo(info);
-
-    // Dynamic logo: archOS, debianOS, etc. — fallback to ctOS
-    const prefixEl = document.getElementById('os-prefix');
-    if (prefixEl) {
-      prefixEl.textContent = info.os_name || 'ct';
-    }
-
-    renderSecurityBarcode({
-      hostname: info.hostname,
-      username,
-      ip: info.ip_address,
-      kernel: info.kernel,
-    });
-    initTypewriter(info, username);
+  // Render all data into DOM before animation starts
+  renderSecurityBarcode({
+    hostname: info.hostname,
+    username,
+    ip: info.ip_address,
+    kernel: info.kernel,
   });
+  initTypewriter(info, username);
+
+  // Set username + barcode before animation
+  if (user) {
+    els.usernameText.textContent = user.username.toUpperCase();
+    renderUsernameBarcode(user.username);
+  } else {
+    els.usernameText.textContent = 'UNKNOWN';
+    renderUsernameBarcode('unknown');
+  }
+
+  // Run boot animation — visual gate (reveals already-rendered content)
+  await runBootAnimation();
 
   // Auth wiring
   initAuth({
-    onAuthStart(username) {
-      currentUsername = username;
+    onAuthStart(uname) {
+      currentUsername = uname;
       els.passwordInput.value = '';
       els.passwordInput.focus();
     },
@@ -75,7 +89,6 @@ function boot(): void {
 
     onAuthFailure(message) {
       showAuthMessage(els.authMessage, message);
-      // Re-authenticate
       setTimeout(() => {
         if (currentUsername) startAuth(currentUsername);
       }, 1000);
@@ -95,15 +108,10 @@ function boot(): void {
     },
   });
 
-  // Get user and start
+  // Start auth after animation
   if (user) {
     currentUsername = user.username;
-    els.usernameText.textContent = user.username.toUpperCase();
-    renderUsernameBarcode(user.username);
     startAuth(user.username);
-  } else {
-    els.usernameText.textContent = 'UNKNOWN';
-    renderUsernameBarcode('unknown');
   }
 
   // Form submit
@@ -115,7 +123,7 @@ function boot(): void {
     }
   });
 
-  // Focus password on load
+  // Focus password after boot animation completes
   els.passwordInput.focus();
 }
 

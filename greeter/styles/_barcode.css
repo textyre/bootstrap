@@ -12,10 +12,12 @@
   width: auto;
   height: auto;
   image-rendering: pixelated;
+  position: absolute;
 }
 
 #security-meta {
   display: flex;
+  position: relative;
   font-size: 9px;
   color: var(--muted);
   text-align: center;
@@ -23,7 +25,7 @@
   writing-mode: vertical-rl;
   text-orientation: mixed;
   letter-spacing: 1px;
-  gap: var(--sp-1);
+  right: 28px;
 }
 
 /* === Top-right env block === */
@@ -36,6 +38,7 @@
   border-right: 3px solid var(--ink);
   border-left: 3px solid var(--ink);
   background-color: var(--ink-low);
+  width: 250px;;
 }
 
 .info-col {

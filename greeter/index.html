@@ -16,7 +16,7 @@
 
     <!-- Top-left: cube logo + clock + date -->
     <section id="top-left">
-      <div id="arch-logo">
+      <div id="arch-logo" class="boot-pre">
         <svg viewBox="-2 -2 276 276" width="48" height="48" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <path id="arch" d="M128 0c-11.395 27.937-18.313 46.237-31 73.344 7.779 8.245 17.338 17.812 32.844 28.656-16.67-6.86-28.034-13.729-36.531-20.875C77.076 115.005 51.622 163.246 0 256c40.563-23.418 72.008-37.862 101.313-43.375-1.254-5.404-1.924-11.278-1.875-17.375l.031-1.281c.644-25.994 14.17-45.982 30.188-44.625 16.018 1.357 28.487 23.537 27.843 49.531-.121 4.896-.69 9.601-1.656 13.969C184.833 218.517 215.982 232.897 256 256c-7.892-14.53-14.961-27.62-21.688-40.094-10.596-8.213-21.643-18.897-44.187-30.469 15.496 4.027 26.602 8.683 35.25 13.875C156.98 71.973 151.454 55.04 128 0z"/>
@@ -28,15 +28,15 @@
           <use href="#arch" fill="var(--phosphor)"/>
         </svg>
       </div>
-      <div id="clock">00:00</div>
-      <div id="date-box">
+      <div id="clock" class="boot-pre">00:00</div>
+      <div id="date-box" class="boot-pre">
         <span id="date">Monday 01 January</span>
       </div>
     </section>
 
     <!-- Top-right: environment info -->
     <section id="top-right">
-      <div id="env-block">
+      <div id="env-block" class="boot-pre">
         <div class="info-col">
           <span class="info-label">ENV</span>
           <span class="info-value" id="env-value">Workstation</span>
@@ -50,12 +50,12 @@
 
     <!-- Center: auth form -->
     <section id="center">
-      <div id="ctos-logo">
-        <div id="ctos-block"></div>
-        <span id="os-prefix">ct</span><span class="os">OS</span>
-      </div>
+      <div class="center-wrapper">
+        <div id="ctos-logo">
+          <div id="ctos-block"><span id="os-prefix">arch</span></div><span class="os boot-pre">OS</span>
+        </div>
 
-      <div class="form-container">
+      <div class="form-container boot-pre">
         <div id="username-section">
         <canvas id="username-barcode"></canvas>
         <div id="username-label">PROFIL: <span id="username-text">---</span></div>
@@ -75,9 +75,10 @@
 
       <div id="auth-message"></div>
 
-      <div id="license">
+      <div id="license" class="boot-pre">
         <span id="license-icon">&#9881;</span>
         Property of Blume Corp. All usage is subject to Sentinel Active Monitoring.
+      </div>
       </div>
     </section>
 
@@ -92,8 +93,8 @@
     </section>
 
     <!-- Right edge: security signature -->
-    <section id="right-edge">
-      <div id="security-meta">
+    <section id="right-edge" class="boot-pre">
+      <div id="security-meta" class="boot-pre">
         <div id="security-uuid"></div>
         <div id="security-coords"></div>
       </div>

@@ -37,4 +37,9 @@
   /* === Animation === */
   --typewriter-char: 18ms;
   --typewriter-line-pause: 400ms;
+
+  /* === Boot Animation === */
+  --boot-loader-duration: 1800ms;
+  --boot-loader-delay: 300ms;
+  --boot-ease-decel: cubic-bezier(0.16, 1, 0.3, 1);
 }
