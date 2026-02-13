@@ -1,11 +1,11 @@
 import type { SystemInfo } from './types/global';
 import type { LogLine } from './components/typewriter/log-generator';
-import { TIMING } from './config/constants';
+import { TIMINGS } from './config/timings';
 import { SELECTORS, CSS_CLASSES } from './config/selectors';
 import { delay } from './utils/delay';
 import { Typewriter } from './components/typewriter/typewriter';
 import { generateLogLines } from './components/typewriter/log-generator';
-import { FingerprintBarcode } from './components/barcode/fingerprint-barcode';
+import { FingerprintBarcode } from './components/barcode/FingerprintBarcode';
 
 /**
  * Orchestrates the terminal log typewriter sequence.
@@ -26,7 +26,7 @@ export class TypewriterController {
 
     for (const line of lines) {
       await this.renderLine(container, line);
-      await delay(TIMING.LINE_PAUSE);
+      await delay(TIMINGS.TYPEWRITER.LINE_PAUSE);
     }
   }
 

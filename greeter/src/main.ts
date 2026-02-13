@@ -11,8 +11,8 @@ import { EnvBlock } from './components/env-block/env-block';
 import { initBackground } from './background';
 import { LightDMAdapter } from './adapters/lightdm.adapter';
 import { createEventBus } from './services/event-bus';
-import { AuthService } from './services/auth.service';
-import { AuthForm } from './components/auth-form/auth-form';
+import { AuthService } from './services/AuthService';
+import { AuthForm } from './components/AuthForm/AuthForm';
 import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
 

@@ -1,5 +1,6 @@
-import { TIMING, CUBE } from '../../config/constants';
+import { CUBE } from '../../config/constants';
 import { SELECTORS } from '../../config/selectors';
+import { TIMINGS } from '../../config/timings';
 
 export class Cube {
   private rafId: number | null = null;
@@ -37,7 +38,7 @@ export class Cube {
 
     const CX = CUBE.CENTER_X;
     const D = CUBE.DEPTH;
-    const PERIOD = TIMING.CUBE_PERIOD;
+    const PERIOD = TIMINGS.CUBE_PERIOD;
 
     this.rafId = requestAnimationFrame((t) => this.frame(t, svg, frontFace, backFace, pts, sides, CX, D, PERIOD));
   }

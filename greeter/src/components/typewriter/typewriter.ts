@@ -1,4 +1,4 @@
-import { TIMING } from '../../config/constants';
+import { TIMINGS } from './../../config/timings';
 import { CSS_CLASSES } from '../../config/selectors';
 
 /**
@@ -28,7 +28,7 @@ export class Typewriter {
           this.removeCursor();
           resolve();
         }
-      }, TIMING.CHAR_DELAY);
+      }, TIMINGS.TYPEWRITER.CHAR_DELAY);
     });
   }
 

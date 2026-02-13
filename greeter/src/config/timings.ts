@@ -1,0 +1,38 @@
+
+
+const BOOT = {
+    BOOT_INITIAL_DELAY: 300,
+  PERIPHERAL_DELAY: 600,
+  PHASE_GAP: 300,
+  FINAL_SETTLE: 100,
+}
+
+const AUTH = {
+  AUTH_MESSAGE_DISPLAY: 3000,
+  AUTH_RETRY_DELAY: 1000,
+  SESSION_LAUNCH_DELAY: 500,
+}
+
+const TYPEWRITER = {
+    CHAR_DELAY: 18,
+    LINE_PAUSE: 400,
+}
+
+const FINGERPRINT = {
+    SCRAMBLE_FRAMES: 15,
+    SCRAMBLE_INTERVAL: 60,
+}
+
+export const TIMINGS = {
+
+  BOOT,
+  AUTH,
+  TYPEWRITER,
+  FINGERPRINT,
+
+  // Clock
+  CLOCK_TICK: 1000,
+
+  // Cube
+  CUBE_PERIOD: 12000,
+} as const;
