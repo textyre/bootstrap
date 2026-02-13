@@ -15,6 +15,8 @@ import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
 
 async function boot(): Promise<void> {
+  new BackgroundManager().init();
+
   // Create core services
   const ldmAdapter = new LightDMAdapter();  
   const bus = createEventBus();
@@ -40,7 +42,6 @@ async function boot(): Promise<void> {
   clock.start();
   const cube = new Cube();
   cube.start();
-  new BackgroundManager().init();
 
   // Render all data into DOM before animation starts
   await new SecurityBarcode({
