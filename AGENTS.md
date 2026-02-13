@@ -8,6 +8,22 @@ All project interactions (linting, testing, ansible-playbook runs, molecule test
 
 NEVER perform multi-file operations directly in the main conversation. ALWAYS delegate to the appropriate subagent using the Task tool.
 
+### Available Skills
+
+**Infrastructure & Operations:**
+- `/remote` — Execute commands on the remote Arch Linux VM
+- `/ansible` — Run Ansible playbooks, roles, syntax checks, and linting
+- `/ansible-debug` — Diagnose Ansible failures (playbook errors, module issues)
+- `/ansible-role-creator` — Scaffold new Ansible role with tests and integration
+
+**Configuration & Development:**
+- `/dotfiles` — Deploy dotfile changes using chezmoi with service restarts
+- `/self-hosted` — Reference patterns for self-hosted services with Caddy/Docker
+- `/interface-design` — UI design system (dashboards, apps, tools)
+
+**Research & Analysis:**
+- `claudette-researcher` — Deep research with multi-source verification and synthesis. Use for technical investigations, literature reviews, comparative analysis, and fact-finding requiring authoritative sources with explicit citations.
+
 ### Routing rules
 
 **Prefer skills over generic agents when available.** Use `/skill-name` for specialized workflows.
@@ -18,6 +34,7 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 | Dotfile deployment | `/dotfiles` skill | "Deploy ewwii config changes" |
 | Ansible operations | `/ansible` skill | "Run caddy role" |
 | Ansible debugging | `/ansible-debug` skill | "Why did the docker role fail?" |
+| Research with citations | `claudette-researcher` | "Research React state management best practices across multiple sources" |
 | Explore/read code, gather context | `reader` | "Find all files using relative paths" |
 | Run tests, linters, checks | `linter` | "Run shellcheck on all .sh files" |
 | Fix errors, modify code | `fixer` | "Convert relative paths to absolute" |
@@ -26,7 +43,12 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 
 ### Chaining workflow
 
-For tasks requiring research + validation + fix, chain subagents sequentially:
+For tasks requiring **external research** (web sources, documentation, comparative analysis):
+
+1. `claudette-researcher` — investigate questions across authoritative sources with citations
+2. `reader` / `fixer` — apply findings to codebase (if implementation needed)
+
+For tasks requiring **codebase research** + validation + fix, chain subagents sequentially:
 
 1. `reader` — gather context, identify affected files
 2. `linter` — run checks, collect errors (if applicable)
@@ -49,21 +71,21 @@ Pass the subagent name as `subagent_type` in the Task tool. Include a specific, 
 
 Never run git write operations (commit, push, reset, rebase, merge). Show the user ready-to-run commands instead.
 
-## MEMORY — запись находок и открытий
+## Memory Management
 
-Все агенты при работе ДОЛЖНЫ записывать найденную информацию в auto memory (`MEMORY.md` и тематические файлы в директории memory).
+All agents MUST record findings in auto memory (`MEMORY.md` and topic files in the memory directory).
 
-### Что записывать
-- Найденные паттерны, архитектурные решения, конвенции проекта
-- Результаты исследований: какие подходы работают, какие нет
-- Обнаруженные зависимости, пути, конфигурации
-- Решения проблем и workaround-ы
+### What to record
+- Patterns, architectural decisions, project conventions
+- Research results: what works, what doesn't
+- Dependencies, paths, configurations
+- Problem solutions and workarounds
 
-### Правило обновления
-Если новая информация **противоречит** ранее записанной — старую запись **НЕ удалять**. Пометить её:
-> ⚠️ Старая информация, вернуться позже
+### Update rule
+If new information **contradicts** previous records — DO NOT delete the old entry. Mark it:
+> ⚠️ Old information, revisit later
 
-Затем добавить новую информацию ниже.
+Then add new information below.
 
-### Чего НЕ делать
-- Не записывать временные данные (текущий вывод команд, промежуточные логи)
+### What NOT to record
+- Temporary data (command output, intermediate logs)
