@@ -38,7 +38,7 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 | Explore/read code, gather context | `reader` | "Find all files using relative paths" |
 | Run tests, linters, checks | `linter` | "Run shellcheck on all .sh files" |
 | Fix errors, modify code | `fixer` | "Convert relative paths to absolute" |
-| Complex multi-step task | `claudette` | "Refactor authentication system" |
+| Complex multi-step task | `claudette-auto` | "Refactor authentication system" |
 | Simple question, single-line fix | Do it yourself | "What does this function do?" |
 
 ### Chaining workflow
@@ -55,7 +55,7 @@ For tasks requiring **codebase research** + validation + fix, chain subagents se
 3. `fixer` — apply fixes based on reader/linter output
 4. `linter` — verify fixes pass (repeat fixer → linter until clean)
 
-For autonomous complex tasks, delegate to `claudette` which handles the full cycle independently.
+For autonomous complex tasks, delegate to `claudette-auto` which handles the full cycle independently.
 
 ### How to delegate
 
