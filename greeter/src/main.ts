@@ -4,12 +4,11 @@ import { BootAnimator } from './animation/boot-orchestrator';
 import { Clock } from './components/clock/clock';
 import { Cube } from './components/cube/cube';
 import { TypewriterController } from './typewriter';
-import { renderUsernameBarcode } from './components/barcode/username-barcode';
-import { SecurityBarcode } from './components/barcode/security-barcode';
+import { SecurityBarcode } from './components/barcode/SecurityBarcode';
 import { loadSystemInfo } from './services/system-info.service';
-import { EnvBlock } from './components/env-block/env-block';
+import { EnvBlock } from './components/env-block/EnvBlock';
 import { initBackground } from './background';
-import { LightDMAdapter } from './adapters/lightdm.adapter';
+import { LightDMAdapter } from './adapters/LightDM.adapter';
 import { createEventBus } from './services/event-bus';
 import { AuthService } from './services/AuthService';
 import { SELECTORS } from './config/selectors';
@@ -17,14 +16,13 @@ import { MESSAGES } from './config/messages';
 
 async function boot(): Promise<void> {
   // Create core services
-  const ldmAdapter = new LightDMAdapter();
+  const ldmAdapter = new LightDMAdapter();  
   const bus = createEventBus();
   const auth = new AuthService(ldmAdapter, bus);
 
   // Load system info
   const info = await loadSystemInfo();
-  const user = auth.getFirstUser();
-  const username = user ? user.username : MESSAGES.UNKNOWN_USER;
+  const username = auth.getUsernameForDisplay();
   
   new TypewriterController(info, username).run();
 
@@ -52,27 +50,16 @@ async function boot(): Promise<void> {
     kernel: info.kernel,
   }).render();
 
-  // Set username + barcode before animation
-  const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);
-  if (user && usernameText) {
-    usernameText.textContent = user.username.toUpperCase();
-    await renderUsernameBarcode(user.username);
-  } else if (usernameText) {
-    usernameText.textContent = MESSAGES.UNKNOWN_DISPLAY;
-    await renderUsernameBarcode(MESSAGES.UNKNOWN_USER);
-  }
+  // Wire auth form (subscribes to bus events) and render user
+  const { AuthForm } = await import('./components/AuthForm/AuthForm');
+  const authForm = new AuthForm(bus, auth);
+  await authForm.renderUser(username);
+
+  // Start authentication
+  auth.startAuth(username);
 
   // Run boot animation — visual gate (reveals already-rendered content)
   await new BootAnimator().run();
-
-  // Wire auth form (subscribes to bus events)
-  const { AuthForm } = await import('./components/AuthForm/AuthForm');
-  new AuthForm(bus, auth);
-
-  // Start authentication
-  if (user) {
-    auth.startAuth(user.username);
-  }
 
   // Focus password input
   const passwordInput = document.querySelector(SELECTORS.PASSWORD_INPUT) as HTMLInputElement;

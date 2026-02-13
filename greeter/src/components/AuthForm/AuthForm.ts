@@ -3,6 +3,7 @@ import type { IAuthService } from '../../services/AuthService';
 import { TIMINGS } from '../../config/timings';
 import { SELECTORS, CSS_CLASSES } from '../../config/selectors';
 import { MESSAGES } from '../../config/messages';
+import { renderUsernameBarcode } from '../barcode/username-barcode';
 
 export class AuthForm {
   private waitingForPrompt = false;
@@ -16,6 +17,14 @@ export class AuthForm {
     this.loginForm = document.querySelector(SELECTORS.LOGIN_FORM) as HTMLFormElement;
     this.authMessage = document.querySelector(SELECTORS.AUTH_MESSAGE) as HTMLElement;
     this.bindEvents();
+  }
+
+  async renderUser(username: string): Promise<void> {
+    const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);
+    if (usernameText) {
+      usernameText.textContent = username.toUpperCase();
+    }
+    await renderUsernameBarcode(username);
   }
 
   private bindEvents(): void {

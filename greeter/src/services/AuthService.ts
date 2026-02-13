@@ -1,10 +1,11 @@
-import type { ILightDMAdapter } from '../adapters/lightdm.adapter';
+import type { ILightDMAdapter } from '../adapters/LightDM.adapter';
 import type { IEventBus } from './event-bus';
 import type { AuthUser } from '../types/auth.types';
 import { MESSAGES } from '../config/messages';
 
 export interface IAuthService {
   getFirstUser(): AuthUser | null;
+  getUsernameForDisplay(): string;
   startAuth(username: string): void;
   respondToPrompt(response: string): void;
   launchSession(): void;
@@ -20,7 +21,14 @@ export class AuthService implements IAuthService {
     return users.length > 0 ? users[0] : null;
   }
 
+  getUsernameForDisplay(): string {
+    const user = this.getFirstUser();
+    return user ? user.username : MESSAGES.UNKNOWN_USER;
+  }
+
   startAuth(username: string): void {
+    if (!username) return;
+    
     if (this.ldm.inAuthentication) {
       this.ldm.cancelAuthentication();
     }
