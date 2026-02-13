@@ -79,6 +79,7 @@ const PREFIX_FADE_DLY = 0.3;
 
 // SELECTORS already include the '.' prefix (class selectors), so use them directly.
 const S_CTOS_BLOCK = SELECTORS.CTOS_BLOCK;
+const S_CTOS_LOGO = SELECTORS.CTOS_LOGO;
 const S_LICENSE = SELECTORS.LICENSE;
 const S_RIGHT_EDGE = SELECTORS.RIGHT_EDGE;
 const S_SECURITY_META = SELECTORS.SECURITY_META;
@@ -86,9 +87,7 @@ const S_ARCH_LOGO = SELECTORS.ARCH_LOGO;
 const S_CLOCK = SELECTORS.CLOCK;
 const S_DATE_BOX = SELECTORS.DATE_BOX;
 const S_ENV_BLOCK = SELECTORS.ENV_BLOCK;
-const S_CTOS_LOGO = SELECTORS.CTOS_LOGO;
 const S_OS_PREFIX = SELECTORS.OS_PREFIX;
-const S_BOTTOM_LEFT = '.bottom-left';
 
 /**
  * All selectors whose `.boot-pre` class must be removed before animating.
@@ -102,11 +101,9 @@ export const BOOT_ANIMATED_SELECTORS: readonly string[] = [
   S_CLOCK,
   S_DATE_BOX,
   S_ENV_BLOCK,
-  S_CTOS_LOGO,
   '.form-container',
   '.os',
   S_OS_PREFIX,
-  S_BOTTOM_LEFT,
 ];
 
 /**
@@ -130,7 +127,7 @@ export function buildBootSequence(): AnimationSequence {
     [
       S_CTOS_BLOCK,
       { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'] },
-      { duration: LOADER_DUR, ease: EASE_LOADER, at: p1 },
+      { duration: LOADER_DUR, ease: EASE_LOADER },
     ],
 
     // License fade-in (concurrent, with long delay)
@@ -224,11 +221,11 @@ export function buildBootSequence(): AnimationSequence {
 
     // ===== Phase 3: Form reveal =====
 
-    // Logo shifts up (opacity included to prevent flash after boot-pre removal)
+    // Logo shifts up (fill: forwards prevents backwards fill hiding logo during phases 1-2)
     [
       S_CTOS_LOGO,
-      { opacity: [0, 1], transform: ['translateY(100%)', 'translateY(0)'] },
-      { duration: SHIFT_DUR, ease: EASE_DECEL, at: p3 },
+      { transform: ['translateY(100%)', 'translateY(0)'] },
+      { duration: SHIFT_DUR, ease: EASE_DECEL, at: p3, fill: 'forwards' as unknown as undefined },
     ],
 
     // Form slides in
@@ -236,13 +233,6 @@ export function buildBootSequence(): AnimationSequence {
       '.form-container',
       { opacity: [0, 1], transform: ['translateY(100%)', 'translateY(0)'] },
       { duration: FORM_DUR, ease: EASE_DECEL, at: p3 },
-    ],
-
-    // Bottom-left fade-in (concurrent with form reveal)
-    [
-      S_BOTTOM_LEFT,
-      { opacity: [0, 1] },
-      { duration: BOTTOM_FADE_DUR, ease: 'easeOut' as const, at: p3 },
     ],
   ];
 }

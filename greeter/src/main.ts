@@ -26,6 +26,8 @@ async function boot(): Promise<void> {
   const info = await loadSystemInfo();
   const user = auth.getFirstUser();
   const username = user ? user.username : MESSAGES.UNKNOWN_USER;
+  
+  new TypewriterController(info, username).run();
 
   // Set os-prefix text before animation starts
   const prefixEl = document.querySelector(SELECTORS.OS_PREFIX);
@@ -50,7 +52,6 @@ async function boot(): Promise<void> {
     ip: info.ip_address,
     kernel: info.kernel,
   }).render();
-  new TypewriterController(info, username).run();
 
   // Set username + barcode before animation
   const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);

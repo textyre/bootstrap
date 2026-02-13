@@ -1,7 +1,11 @@
 import { animate } from 'motion';
 import { CSS_CLASSES } from '../config/selectors';
 import { delay } from '../utils/delay';
-import { buildBootSequence, BOOT_ANIMATED_SELECTORS, BOOT_SETTLE_DELAY_S } from './animation-phases';
+import {
+  buildBootSequence,
+  BOOT_ANIMATED_SELECTORS,
+  BOOT_SETTLE_DELAY_S,
+} from './animation-phases';
 
 /**
  * Orchestrates the boot animation sequence using Motion.
