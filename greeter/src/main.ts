@@ -12,7 +12,6 @@ import { initBackground } from './background';
 import { LightDMAdapter } from './adapters/lightdm.adapter';
 import { createEventBus } from './services/event-bus';
 import { AuthService } from './services/AuthService';
-import { AuthForm } from './components/AuthForm/AuthForm';
 import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
 
@@ -57,16 +56,17 @@ async function boot(): Promise<void> {
   const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);
   if (user && usernameText) {
     usernameText.textContent = user.username.toUpperCase();
-    renderUsernameBarcode(user.username);
+    await renderUsernameBarcode(user.username);
   } else if (usernameText) {
     usernameText.textContent = MESSAGES.UNKNOWN_DISPLAY;
-    renderUsernameBarcode(MESSAGES.UNKNOWN_USER);
+    await renderUsernameBarcode(MESSAGES.UNKNOWN_USER);
   }
 
   // Run boot animation — visual gate (reveals already-rendered content)
   await new BootAnimator().run();
 
   // Wire auth form (subscribes to bus events)
+  const { AuthForm } = await import('./components/AuthForm/AuthForm');
   new AuthForm(bus, auth);
 
   // Start authentication

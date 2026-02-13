@@ -1,4 +1,4 @@
-import { animate } from 'motion';
+import { animateSequence } from 'motion/mini';
 import { CSS_CLASSES } from '../config/selectors';
 import { delay } from '../utils/delay';
 import {
@@ -24,7 +24,7 @@ export class BootAnimator {
 
     // Build and run the full boot animation sequence
     const sequence = buildBootSequence();
-    const controls = animate(sequence);
+    const controls = animateSequence(sequence);
 
     // Wait for entire sequence to finish
     await controls.finished;

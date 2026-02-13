@@ -27,7 +27,7 @@ export class SecurityBarcode {
     const sig = toHex(bytes, SIG_BYTES);
 
     try {
-      renderPDF417(canvas, BARCODE.SECURITY, identity);
+      await renderPDF417(canvas, BARCODE.SECURITY, identity);
     } catch (err) {
       logError('barcode:security', err);
     }

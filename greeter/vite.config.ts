@@ -5,6 +5,22 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    assetsInlineLimit: 0,
+    target: 'es2022',
+    minify: 'esbuild',
+    cssMinify: 'esbuild',
+    cssCodeSplit: false,
+    sourcemap: false,
+    rollupOptions: {
+      output: { compact: true },
+      treeshake: {
+        moduleSideEffects: 'no-external',
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false,
+      },
+    },
+  },
+  esbuild: {
+    legalComments: 'none',
+    treeShaking: true,
   },
 });
