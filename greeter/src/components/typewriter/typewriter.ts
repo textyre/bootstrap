@@ -1,11 +1,13 @@
 import { TIMINGS } from './../../config/timings';
 import { CSS_CLASSES } from '../../config/selectors';
+import { DOMAdapter } from '../../adapters/DOM.adapter';
 
 /**
  * Types text character-by-character into a container element with a blinking cursor.
  * Call `type()` to start; the returned promise resolves when all characters have been typed.
  */
 export class Typewriter {
+  private readonly adapter = new DOMAdapter();
   private charIdx = 0;
   private readonly cursor: HTMLElement;
 
@@ -13,7 +15,7 @@ export class Typewriter {
     private readonly container: HTMLElement,
     private readonly text: string,
   ) {
-    this.cursor = document.createElement('span');
+    this.cursor = this.adapter.createElement('span');
     this.cursor.className = CSS_CLASSES.LOG_CURSOR;
     this.container.appendChild(this.cursor);
   }

@@ -7,7 +7,7 @@ import { TypewriterController } from './typewriter';
 import { SecurityBarcode } from './components/barcode/SecurityBarcode';
 import { loadSystemInfo } from './services/system-info.service';
 import { EnvBlock } from './components/env-block/EnvBlock';
-import { initBackground } from './background';
+import { BackgroundManager } from './BackgroundManager';
 import { LightDMAdapter } from './adapters/LightDM.adapter';
 import { createEventBus } from './services/event-bus';
 import { AuthService } from './services/AuthService';
@@ -40,7 +40,7 @@ async function boot(): Promise<void> {
   clock.start();
   const cube = new Cube();
   cube.start();
-  initBackground();
+  new BackgroundManager().init();
 
   // Render all data into DOM before animation starts
   await new SecurityBarcode({

@@ -1,16 +1,18 @@
 import { CUBE } from '../../config/constants';
 import { SELECTORS } from '../../config/selectors';
 import { TIMINGS } from '../../config/timings';
+import { DOMAdapter } from '../../adapters/DOM.adapter';
 
 export class Cube {
+  private readonly adapter = new DOMAdapter();
   private rafId: number | null = null;
 
   start(): void {
-    const el = document.querySelector(SELECTORS.ARCH_LOGO + ' svg');
+    const el = this.adapter.queryElement(SELECTORS.ARCH_LOGO + ' svg');
     if (!(el instanceof SVGSVGElement)) return;
     const svg: SVGSVGElement = el;
 
-    const pathEl = document.querySelector(SELECTORS.ARCH_PATH);
+    const pathEl = this.adapter.queryElement(SELECTORS.ARCH_PATH);
     if (!(pathEl instanceof SVGPathElement)) return;
 
     const uses = svg.querySelectorAll('use');

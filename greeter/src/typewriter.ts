@@ -6,6 +6,7 @@ import { delay } from './utils/delay';
 import { Typewriter } from './components/typewriter/typewriter';
 import { generateLogLines } from './components/typewriter/log-generator';
 import { FingerprintBarcode } from './components/barcode/FingerprintBarcode';
+import { DOMAdapter } from './adapters/DOM.adapter';
 
 /**
  * Orchestrates the terminal log typewriter sequence.
@@ -13,13 +14,15 @@ import { FingerprintBarcode } from './components/barcode/FingerprintBarcode';
  * using the appropriate renderer for each line type.
  */
 export class TypewriterController {
+  private readonly adapter = new DOMAdapter();
+
   constructor(
     private readonly info: SystemInfo,
     private readonly username: string,
   ) {}
 
   async run(): Promise<void> {
-    const container = document.querySelector(SELECTORS.TERMINAL_LOG) as HTMLElement | null;
+    const container = this.adapter.queryElement(SELECTORS.TERMINAL_LOG, HTMLElement);
     if (!container) return;
 
     const lines = generateLogLines(this.info, this.username);
@@ -42,7 +45,7 @@ export class TypewriterController {
 
   private async renderText(container: HTMLElement, line: LogLine): Promise<void> {
     if (line.type !== 'text') return;
-    const lineEl = document.createElement('div');
+    const lineEl = this.adapter.createElement('div');
     lineEl.className = line.divider
       ? CSS_CLASSES.LOG_LINE + ' ' + CSS_CLASSES.LOG_DIVIDER
       : CSS_CLASSES.LOG_LINE;
@@ -52,7 +55,7 @@ export class TypewriterController {
 
   private async renderFingerprint(container: HTMLElement, line: LogLine): Promise<void> {
     if (line.type !== 'fingerprint') return;
-    const lineEl = document.createElement('div');
+    const lineEl = this.adapter.createElement('div');
     lineEl.className = CSS_CLASSES.LOG_LINE + ' ' + CSS_CLASSES.LOG_FINGERPRINT;
     container.appendChild(lineEl);
 

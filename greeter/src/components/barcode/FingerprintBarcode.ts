@@ -4,6 +4,7 @@ import { CSS_CLASSES } from '../../config/selectors';
 import { logError } from '../../utils/logger';
 import { randomString } from '../../utils/random';
 import { renderPDF417 } from './barcode.renderer';
+import { DOMAdapter } from '../../adapters/DOM.adapter';
 
 /**
  * Creates a fingerprint barcode element with canvas + text overlay.
@@ -11,18 +12,19 @@ import { renderPDF417 } from './barcode.renderer';
  * Call `scramble()` to animate random frames before settling on the real fingerprint.
  */
 export class FingerprintBarcode {
+  private readonly adapter = new DOMAdapter();
   readonly container: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly textEl: HTMLElement;
 
   constructor(private readonly fingerprint: string) {
-    this.container = document.createElement('span');
+    this.container = this.adapter.createElement('span');
     this.container.className = CSS_CLASSES.FP_CONTAINER;
 
-    this.canvas = document.createElement('canvas');
+    this.canvas = this.adapter.createElement('canvas');
     this.canvas.classList.add(CSS_CLASSES.FP_BARCODE);
 
-    this.textEl = document.createElement('span');
+    this.textEl = this.adapter.createElement('span');
     this.textEl.className = CSS_CLASSES.FP_TEXT;
     this.textEl.textContent = this.fingerprint;
 
@@ -54,7 +56,7 @@ export class FingerprintBarcode {
 
   private renderToCanvas(text: string): void {
     try {
-      const tmp = document.createElement('canvas');
+      const tmp = this.adapter.createElement('canvas');
       renderPDF417(tmp, BARCODE.FINGERPRINT, text);
 
       const ratio = BARCODE.FP_HEIGHT / tmp.height;
