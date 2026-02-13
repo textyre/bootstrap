@@ -1,7 +1,7 @@
 import type { AnimationSequence } from 'motion';
 import { steps } from 'motion-utils';
-import { TIMING } from '../config/constants';
 import { SELECTORS } from '../config/selectors';
+import { TIMINGS } from '../config/timings';
 
 /* eslint-disable @typescript-eslint/naming-convention */
 
@@ -50,10 +50,10 @@ const ENV_OPACITIES = [0, 1, 1, 1, 1];
 
 // ---- Timing constants (seconds for Motion API) ----
 
-const INITIAL_DELAY_S = TIMING.BOOT_INITIAL_DELAY / 1000;
-const PERIPHERAL_OFFSET_S = TIMING.PERIPHERAL_DELAY / 1000;
-const PHASE_GAP_S = TIMING.PHASE_GAP / 1000;
-const FINAL_SETTLE_S = TIMING.FINAL_SETTLE / 1000;
+const INITIAL_DELAY_S = TIMINGS.BOOT.BOOT_INITIAL_DELAY / 1000;
+const PERIPHERAL_OFFSET_S = TIMINGS.BOOT.PERIPHERAL_DELAY / 1000;
+const PHASE_GAP_S = TIMINGS.BOOT.PHASE_GAP / 1000;
+const FINAL_SETTLE_S = TIMINGS.BOOT.FINAL_SETTLE / 1000;
 
 // Duration values (seconds)
 const LOADER_DUR = 1.8;

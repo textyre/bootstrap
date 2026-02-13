@@ -1,4 +1,4 @@
-import { TIMING } from '../../config/constants';
+import { TIMINGS } from '../../config/timings';
 import { SELECTORS } from '../../config/selectors';
 
 export class Clock {
@@ -21,7 +21,7 @@ export class Clock {
 
   start(): void {
     this.update();
-    this.intervalId = setInterval(() => this.update(), TIMING.CLOCK_TICK);
+    this.intervalId = setInterval(() => this.update(), TIMINGS.CLOCK_TICK);
   }
 
   stop(): void {

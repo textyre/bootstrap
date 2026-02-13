@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../services/event-bus';
-import type { IAuthService } from '../../services/auth.service';
-import { TIMING } from '../../config/constants';
+import type { IAuthService } from '../../services/AuthService';
+import { TIMINGS } from '../../config/timings';
 import { SELECTORS, CSS_CLASSES } from '../../config/selectors';
 import { MESSAGES } from '../../config/messages';
 
@@ -28,14 +28,14 @@ export class AuthForm {
     this.bus.on('auth:success', () => {
       this.authMessage.textContent = MESSAGES.SESSION_STARTING;
       this.authMessage.classList.add(CSS_CLASSES.VISIBLE);
-      setTimeout(() => this.auth.launchSession(), TIMING.SESSION_LAUNCH_DELAY);
+      setTimeout(() => this.auth.launchSession(), TIMINGS.AUTH.SESSION_LAUNCH_DELAY);
     });
 
     this.bus.on('auth:failure', ({ message }) => {
       this.showMessage(message);
       setTimeout(() => {
         if (this.currentUsername) this.auth.startAuth(this.currentUsername);
-      }, TIMING.AUTH_RETRY_DELAY);
+      }, TIMINGS.AUTH.AUTH_RETRY_DELAY);
     });
 
     this.bus.on('auth:prompt', ({ isSecret }) => {
@@ -63,6 +63,6 @@ export class AuthForm {
   private showMessage(text: string): void {
     this.authMessage.textContent = text;
     this.authMessage.classList.add(CSS_CLASSES.VISIBLE);
-    setTimeout(() => this.authMessage.classList.remove(CSS_CLASSES.VISIBLE), TIMING.AUTH_MESSAGE_DISPLAY);
+    setTimeout(() => this.authMessage.classList.remove(CSS_CLASSES.VISIBLE), TIMINGS.AUTH.AUTH_MESSAGE_DISPLAY);
   }
 }

@@ -1,4 +1,5 @@
-import { TIMING, BARCODE } from '../../config/constants';
+import { BARCODE } from '../../config/constants';
+import { TIMINGS } from '../../config/timings';
 import { CSS_CLASSES } from '../../config/selectors';
 import { logError } from '../../utils/logger';
 import { randomString } from '../../utils/random';
@@ -36,14 +37,14 @@ export class FingerprintBarcode {
       let frame = 0;
       const interval = setInterval(() => {
         frame++;
-        if (frame < TIMING.SCRAMBLE_FRAMES) {
+        if (frame < TIMINGS.FINGERPRINT.SCRAMBLE_FRAMES) {
           this.renderToCanvas(randomString(this.fingerprint.length));
         } else {
           clearInterval(interval);
           this.renderToCanvas(this.fingerprint);
           resolve();
         }
-      }, TIMING.SCRAMBLE_INTERVAL);
+      }, TIMINGS.FINGERPRINT.SCRAMBLE_INTERVAL);
     });
   }
 

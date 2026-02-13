@@ -11,8 +11,8 @@ import { EnvBlock } from './components/env-block/env-block';
 import { initBackground } from './background';
 import { LightDMAdapter } from './adapters/lightdm.adapter';
 import { createEventBus } from './services/event-bus';
-import { AuthService } from './services/auth.service';
-import { AuthForm } from './components/auth-form/auth-form';
+import { AuthService } from './services/AuthService';
+import { AuthForm } from './components/AuthForm/AuthForm';
 import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
 
@@ -26,6 +26,8 @@ async function boot(): Promise<void> {
   const info = await loadSystemInfo();
   const user = auth.getFirstUser();
   const username = user ? user.username : MESSAGES.UNKNOWN_USER;
+  
+  new TypewriterController(info, username).run();
 
   // Set os-prefix text before animation starts
   const prefixEl = document.querySelector(SELECTORS.OS_PREFIX);
@@ -50,7 +52,6 @@ async function boot(): Promise<void> {
     ip: info.ip_address,
     kernel: info.kernel,
   }).render();
-  new TypewriterController(info, username).run();
 
   // Set username + barcode before animation
   const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);
