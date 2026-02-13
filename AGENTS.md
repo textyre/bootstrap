@@ -4,31 +4,20 @@
 
 All project interactions (linting, testing, ansible-playbook runs, molecule tests, package operations) MUST be performed on the remote VM, not on the local Windows host. Use the `remote-executor` subagent or SSH commands to execute operations on the VM. The local machine is only for editing files and git operations.
 
-### Deploying dotfile changes (chezmoi)
-
-`chezmoi apply` on the remote reads from its own local source at `/home/textyre/.local/share/chezmoi/`, NOT from the Windows host. After editing templates locally, sync them before applying:
-
-1. **Copy changed files** to remote chezmoi source:
-   ```
-   bash scripts/ssh-scp-to.sh dotfiles/<path> /home/textyre/.local/share/chezmoi/<path>
-   ```
-2. **Apply and restart ewwii:**
-   ```
-   bash scripts/ssh-run.sh "chezmoi apply && pkill ewwii; sleep 1; nohup ~/.config/ewwii/launch.sh > /dev/null 2>&1 & disown"
-   ```
-
-Notes:
-- If renaming a file (e.g. `.conf` to `.conf.tmpl`), delete the old file from remote chezmoi source first
-- Helper scripts: `scripts/ssh-scp-to.sh` (copy), `scripts/ssh-run.sh` (execute)
-
 ## Mandatory subagent delegation
 
 NEVER perform multi-file operations directly in the main conversation. ALWAYS delegate to the appropriate subagent using the Task tool.
 
 ### Routing rules
 
+**Prefer skills over generic agents when available.** Use `/skill-name` for specialized workflows.
+
 | Task type | Delegate to | Example |
 |-----------|------------|---------|
+| Remote command execution | `/remote` skill | "Check if nginx is running on VM" |
+| Dotfile deployment | `/dotfiles` skill | "Deploy ewwii config changes" |
+| Ansible operations | `/ansible` skill | "Run caddy role" |
+| Ansible debugging | `/ansible-debug` skill | "Why did the docker role fail?" |
 | Explore/read code, gather context | `reader` | "Find all files using relative paths" |
 | Run tests, linters, checks | `linter` | "Run shellcheck on all .sh files" |
 | Fix errors, modify code | `fixer` | "Convert relative paths to absolute" |
