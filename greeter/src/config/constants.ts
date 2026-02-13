@@ -39,7 +39,7 @@ export const CUBE = {
   SEGMENTS: 40,
   SIDE_OPACITY: '0.35',
   FRONT_OPACITY: '1',
-  BACK_OPACITY: '1',
+  BACK_OPACITY: '0.15',
   SVG_NS: 'http://www.w3.org/2000/svg',
 } as const;
 

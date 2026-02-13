@@ -1,5 +1,5 @@
 .terminal-log {
-  font-size: var(--text-md);
+  font-size: var(--font-size-small);
   color: var(--text-primary);
   line-height: 1.6;
   width: var(--terminal-width);
@@ -77,7 +77,7 @@
 /* === Version line === */
 
 .version-line {
-  font-size: var(--text-sm);
+  font-size: var(--font-size-small);
   color: var(--text-muted);
   padding-top: var(--size-px-2);
   border-top: var(--border);

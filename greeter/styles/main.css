@@ -6,10 +6,11 @@
 @import '@fontsource/jetbrains-mono/latin-700.css';
 @import '@fontsource/jetbrains-mono/cyrillic-700.css';
 
-/* Open Props (partial — easings, sizes, z-index only) */
+/* Open Props (partial — easings, sizes, z-index, fonts) */
 @import 'open-props/easings.min.css' layer(tokens);
 @import 'open-props/sizes.min.css' layer(tokens);
 @import 'open-props/zindex.min.css' layer(tokens);
+@import 'open-props/fonts.min.css' layer(tokens);
 
 /* Foundation */
 @import './_reset.css' layer(reset);

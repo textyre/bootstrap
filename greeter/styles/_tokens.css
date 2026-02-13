@@ -1,6 +1,7 @@
 :root {
   /* ── Palette (project-specific) ── */
   --surface-base: #000000;
+  --phosphor: #e8e6e3;
   --text-primary: #e8e6e3;
   --text-emphasis: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.4);
@@ -12,23 +13,10 @@
 
   /* ── Typography ── */
   --font-mono: 'JetBrains Mono', monospace;
-  --fw-light: 300;
-  --fw-regular: 400;
-  --fw-bold: 700;
-  --text-xs: 9px;
-  --text-sm: 11px;
-  --text-md: 13px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 32px;
-  --text-2xl: 48px;
-  --text-display: 64px;
 
-  /* ── Letter Spacing ── */
-  --ls-logo: -1px;
-  --ls-tight: 1px;
-  --ls-normal: 2px;
-  --ls-wide: 4px;
+  /* Font size overrides (1rem = 14px due to html font-size: 87.5%) */
+  --font-size-base: 1rem;   /* 14px */
+  --font-size-small: 0.857rem; /* 12px */
 
   /* ── Border ── */
   --border: 1px solid var(--border-subtle);
