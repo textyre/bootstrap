@@ -68,7 +68,11 @@ async function boot(): Promise<void> {
   //   pixelRatio: 6,
   // });
 
-  await Promise.all([archIcon.start(), gentooIcon.start(), ubuntuIcon.start()]);
+  await Promise.all([
+    archIcon.start(), 
+    // gentooIcon.start(), 
+    // ubuntuIcon.start()
+  ]);
 
   // Render all data into DOM before animation starts
   await new SecurityBarcode({
