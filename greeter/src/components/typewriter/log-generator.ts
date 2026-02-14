@@ -1,6 +1,6 @@
 import type { SystemInfo } from '../../types/global';
 import { LOG_TEMPLATES } from '../../config/messages';
-import { formatRegion, formatMachineId, formatProtocol } from '../../utils/format';
+import { Formatter } from '../../utils/Formatter';
 
 export interface TextLine {
   type: 'text';
@@ -17,9 +17,9 @@ export interface FingerprintLine {
 export type LogLine = TextLine | FingerprintLine;
 
 export function generateLogLines(info: SystemInfo, username: string): LogLine[] {
-  const region = formatRegion(info.timezone, info.region_prefix);
-  const machineUuid = formatMachineId(info.machine_id);
-  const protocol = formatProtocol(info.virtualization_type);
+  const region = Formatter.region(info.timezone, info.region_prefix);
+  const machineUuid = Formatter.machineId(info.machine_id);
+  const protocol = Formatter.protocol(info.virtualization_type);
 
   return [
     {

@@ -1,12 +1,11 @@
 import '../styles/main.css';
 
 import { BootAnimator } from './animation/BootAnimator';
-import { Clock } from './components/clock/clock';
-import { Cube } from './components/cube/cube';
+import { Clock } from './components/Clock';
 import { TypewriterController } from './typewriter';
-import { SecurityBarcode } from './components/barcode/SecurityBarcode';
+import { SecurityBarcode } from './components/Barcode/SecurityBarcode';
 import { SystemInfoService } from './services/SystemInfoService';
-import { EnvBlock } from './components/env-block/EnvBlock';
+import { EnvBlock } from './components/EnvBlock/EnvBlock';
 import { BackgroundManager } from './BackgroundManager';
 import { LightDMAdapter } from './adapters/LightDM.adapter';
 import { AuthService } from './services/AuthService';
@@ -34,11 +33,7 @@ async function boot(): Promise<void> {
   // Initialize components
   const clock = new Clock();
   clock.start();
-  const cube = new Cube();
-  cube.start();
 
-  // DEMO: Svg3DIcon - Uncomment to test 3D icon
-  // To use: Add <div class="svg-3d-icon-container boot-pre"></div> to index.html
   const svg3dIcon = new Svg3DIcon('.svg-3d-icon-container', {
     svgPath: '/assets/svgs/arch-logo.svg',
     animations: ['rotate-slow'],

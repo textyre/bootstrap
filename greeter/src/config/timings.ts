@@ -42,7 +42,4 @@ export const TIMINGS = {
 
   // Clock
   CLOCK_TICK: 1000,
-
-  // Cube
-  CUBE_PERIOD: 12000,
 } as const;

@@ -5,7 +5,7 @@ import { SELECTORS, CSS_CLASSES } from './config/selectors';
 import { delay } from './utils/delay';
 import { Typewriter } from './components/typewriter/typewriter';
 import { generateLogLines } from './components/typewriter/log-generator';
-import { FingerprintBarcode } from './components/barcode/FingerprintBarcode';
+import { FingerprintBarcode } from './components/Barcode/FingerprintBarcode';
 import { DOMAdapter } from './adapters/DOM.adapter';
 
 /**

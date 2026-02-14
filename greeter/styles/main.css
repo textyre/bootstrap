@@ -21,7 +21,7 @@
 @import './_grid-overlay.css' layer(layout);
 
 /* Components */
-@import './_cube.css' layer(components);
+@import './_arch-logo.css' layer(components);
 @import './_clock.css' layer(components);
 @import './_env-block.css' layer(components);
 @import './_barcode.css' layer(components);

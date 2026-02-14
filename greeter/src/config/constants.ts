@@ -33,16 +33,6 @@ export const BARCODE = {
   FP_HEIGHT: 12,
 } as const;
 
-export const CUBE = {
-  CENTER_X: 128,
-  DEPTH: 36,
-  SEGMENTS: 40,
-  SIDE_OPACITY: '0.35',
-  FRONT_OPACITY: '1',
-  BACK_OPACITY: '0.15',
-  SVG_NS: 'http://www.w3.org/2000/svg',
-} as const;
-
 export const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
 export const SVG3D_DEFAULTS = {
