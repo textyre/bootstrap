@@ -45,28 +45,28 @@ async function boot(): Promise<void> {
     pixelRatio: 6,
   });
 
-  const gentooIcon = new Svg3DIcon('.svg-3d-icon-gentoo', {
-    svgPath: '/assets/svgs/gentoo-3d.svg',
-    animations: ['rotate-slow'],
-    enableBloom: false,
-    depth: 36,
-    color: 0xe8e6e3,
-    edgeColor: 0x8a8a8a,
-    targetSize: 43,
-    pixelRatio: 6,
-    initialRotation: { x: -45 },
-  });
+  // const gentooIcon = new Svg3DIcon('.svg-3d-icon-gentoo', {
+  //   svgPath: '/assets/svgs/gentoo-3d.svg',
+  //   animations: ['rotate-slow'],
+  //   enableBloom: false,
+  //   depth: 36,
+  //   color: 0xe8e6e3,
+  //   edgeColor: 0x8a8a8a,
+  //   targetSize: 43,
+  //   pixelRatio: 6,
+  //   initialRotation: { x: -45 },
+  // });
 
-  const ubuntuIcon = new Svg3DIcon('.svg-3d-icon-ubuntu', {
-    svgPath: '/assets/svgs/ubuntu-3d.svg',
-    animations: ['rotate-slow'],
-    enableBloom: false,
-    depth: 36,
-    color: 0xe8e6e3,
-    edgeColor: 0x8a8a8a,
-    targetSize: 43,
-    pixelRatio: 6,
-  });
+  // const ubuntuIcon = new Svg3DIcon('.svg-3d-icon-ubuntu', {
+  //   svgPath: '/assets/svgs/ubuntu-3d.svg',
+  //   animations: ['rotate-slow'],
+  //   enableBloom: false,
+  //   depth: 36,
+  //   color: 0xe8e6e3,
+  //   edgeColor: 0x8a8a8a,
+  //   targetSize: 43,
+  //   pixelRatio: 6,
+  // });
 
   await Promise.all([archIcon.start(), gentooIcon.start(), ubuntuIcon.start()]);
 
