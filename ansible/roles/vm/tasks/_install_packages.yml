@@ -1,0 +1,41 @@
+---
+# =========================================================================
+# _install_packages.yml
+# =========================================================================
+# Common task file: Install VM guest packages with retry logic
+#
+# This file extracts the "install packages with retries" pattern used
+# across all hypervisor-specific task files (hyperv.yml, vmware.yml,
+# virtualbox.yml).
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _install_packages.yml
+#     vars:
+#       _vm_pkg_list: "{{ packages_hyperv_guest }}"
+#       _vm_pkg_label: "Hyper-V"
+#
+# Required parameters:
+#   _vm_pkg_list (list)   - List of package names to install
+#   _vm_pkg_label (string) - Hypervisor name for task names (e.g., "Hyper-V", "VMware")
+#
+# Behavior:
+#   - Installs packages using ansible.builtin.package with state=present
+#   - Retries up to 3 times with 5-second delay between attempts
+#   - Only runs when _vm_pkg_list is not empty
+#   - Registers result as _vm_pkg_install_result for inspection by caller
+#
+# Exit conditions:
+#   - Success: All packages installed successfully (or list is empty)
+#   - Failure: Package installation failed after 3 retries
+# =========================================================================
+
+- name: "{{ _vm_pkg_label }}: Install guest packages"
+  ansible.builtin.package:
+    name: "{{ _vm_pkg_list }}"
+    state: present
+  when: _vm_pkg_list | length > 0
+  register: _vm_pkg_install_result
+  retries: 3
+  delay: 5
+  until: _vm_pkg_install_result is succeeded
+  tags: ['vm', 'vm:install']

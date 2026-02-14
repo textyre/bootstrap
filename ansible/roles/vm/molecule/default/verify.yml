@@ -13,6 +13,22 @@
         vm_verify_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
         vm_verify_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
 
+    # === Custom facts verification (removed in refactor) ===
+
+    - name: Verify custom fact does NOT exist (removed in refactor)
+      ansible.builtin.stat:
+        path: /etc/ansible/facts.d/vm_guest.fact
+      register: vm_verify_custom_fact
+      when: vm_verify_virt_role == 'guest'
+
+    - name: Assert custom fact was cleaned up
+      ansible.builtin.assert:
+        that: not (vm_verify_custom_fact.stat.exists | default(false))
+        fail_msg: "Stale custom fact vm_guest.fact found - should have been removed"
+      when:
+        - vm_verify_virt_role == 'guest'
+        - vm_verify_custom_fact.stat is defined
+
     # === VirtualBox verification ===
 
     - name: Check if vboxadd-service unit exists (ISO GA)
@@ -87,7 +103,7 @@
              | default(['unknown'], true) | first | trim }}
       when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
 
-    - name: Report version enforcement result
+    - name: Report VBox version enforcement result
       ansible.builtin.debug:
         msg:
           - "GA version: {{ vm_verify_ga_version | default('unknown') }}"
@@ -147,7 +163,25 @@
         fail_msg: "vmw_balloon kernel module not loaded"
       when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
 
+    - name: Check vmxnet3 module status (VMware only, optional)
+      ansible.builtin.debug:
+        msg: "{{ 'vmxnet3 module loaded' if 'vmxnet3' in vm_verify_vmware_lsmod.stdout else 'vmxnet3 module not loaded (optional)' }}"
+      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
+
     # === Hyper-V verification ===
+
+    - name: Check hv_fcopy_daemon is running (Hyper-V only)
+      ansible.builtin.systemd:
+        name: hv_fcopy_daemon
+      register: vm_verify_hv_fcopy
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Assert hv_fcopy_daemon is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_hv_fcopy.status.ActiveState == 'active'
+        fail_msg: "hv_fcopy_daemon is not running"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
 
     - name: Check hv_kvp_daemon is running (Hyper-V only)
       ansible.builtin.systemd:
@@ -160,6 +194,19 @@
         that:
           - vm_verify_hv_kvp.status.ActiveState == 'active'
         fail_msg: "hv_kvp_daemon is not running"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Check hv_vss_daemon is running (Hyper-V only)
+      ansible.builtin.systemd:
+        name: hv_vss_daemon
+      register: vm_verify_hv_vss
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    - name: Assert hv_vss_daemon is active
+      ansible.builtin.assert:
+        that:
+          - vm_verify_hv_vss.status.ActiveState == 'active'
+        fail_msg: "hv_vss_daemon is not running"
       when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
 
     - name: Check Hyper-V kernel modules loaded
@@ -175,20 +222,40 @@
         fail_msg: "hv_vmbus kernel module not loaded"
       when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
 
-    # === Custom facts verification ===
+    - name: Check hv_storvsc module status (Hyper-V only, optional)
+      ansible.builtin.debug:
+        msg: "{{ 'hv_storvsc module loaded' if 'hv_storvsc' in vm_verify_hyperv_lsmod.stdout else 'hv_storvsc module not loaded (optional)' }}"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
 
-    - name: Check custom facts deployment
-      ansible.builtin.stat:
-        path: /etc/ansible/facts.d/vm_guest.fact
-      register: vm_verify_custom_fact
-      when: vm_verify_virt_role == 'guest'
+    - name: Check hv_netvsc module status (Hyper-V only, optional)
+      ansible.builtin.debug:
+        msg: "{{ 'hv_netvsc module loaded' if 'hv_netvsc' in vm_verify_hyperv_lsmod.stdout else 'hv_netvsc module not loaded (optional)' }}"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
 
-    - name: Assert custom fact exists
+    - name: Check hv_utils module status (Hyper-V only, optional)
+      ansible.builtin.debug:
+        msg: "{{ 'hv_utils module loaded' if 'hv_utils' in vm_verify_hyperv_lsmod.stdout else 'hv_utils module not loaded (optional)' }}"
+      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
+
+    # === Common checks for all guest VMs ===
+
+    - name: Verify _vm_reboot_required fact exists
       ansible.builtin.assert:
         that:
-          - vm_verify_custom_fact.stat.exists
-          - vm_verify_custom_fact.stat.executable
-        fail_msg: "Custom fact vm_guest.fact not deployed or not executable"
+          - _vm_reboot_required is defined
+        fail_msg: "_vm_reboot_required fact not set by role"
+      when: vm_verify_virt_role == 'guest'
+
+    - name: Check systemd-timesyncd status
+      ansible.builtin.systemd:
+        name: systemd-timesyncd
+      register: vm_verify_timesyncd
+      failed_when: false
+      when: vm_verify_virt_role == 'guest'
+
+    - name: Report time sync status
+      ansible.builtin.debug:
+        msg: "{{ 'systemd-timesyncd is active' if vm_verify_timesyncd.status.ActiveState == 'active' else 'systemd-timesyncd not active (informational)' }}"
       when: vm_verify_virt_role == 'guest'
 
     # === Summary ===
@@ -198,3 +265,5 @@
         msg:
           - "Virtualization: {{ vm_verify_virt_type }} ({{ vm_verify_virt_role }})"
           - "VM guest verification passed"
+          - "Reboot required: {{ _vm_reboot_required | default('unknown') }}"
+      when: vm_verify_virt_role == 'guest'

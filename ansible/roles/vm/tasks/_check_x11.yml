@@ -1,0 +1,52 @@
+---
+# =========================================================================
+# _check_x11.yml
+# =========================================================================
+# Common task file: Check X11/desktop integration files
+#
+# This file verifies the presence of X11 integration components for VM
+# guest tools. These are optional (headless systems won't have them) but
+# important for desktop environments.
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _check_x11.yml
+#     vars:
+#       _vm_x11_label: "VirtualBox"
+#       _vm_x11_paths:
+#         - path: /etc/xdg/autostart/vboxclient.desktop
+#           description: "VBoxClient X11 autostart"
+#         - path: /usr/bin/VBoxClient
+#           description: "VBoxClient binary"
+#
+# Required parameters:
+#   _vm_x11_label (string)       - Hypervisor name for task names
+#   _vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
+#     - path (string)        - Absolute path to file or directory
+#     - description (string) - Human-readable description for reporting
+#
+# Behavior:
+#   - Uses ansible.builtin.stat to check each path
+#   - Reports "configured" if path exists
+#   - Reports "not found (headless OK)" if path does not exist
+#   - Never fails (X11 integration is optional)
+#
+# Exit conditions:
+#   - Always succeeds (informational only, no failures)
+# =========================================================================
+
+- name: "{{ _vm_x11_label }}: Check X11 integration files"
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ _vm_x11_paths }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: _vm_x11_stat_result
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_x11_label }}: Report X11 integration status"
+  ansible.builtin.debug:
+    msg: "{{ item.item.description }}: {{ 'configured' if item.stat.exists else 'not found (headless OK)' }}"
+  loop: "{{ _vm_x11_stat_result.results }}"
+  loop_control:
+    label: "{{ item.item.description }}"
+  tags: ['vm', 'vm:verify']

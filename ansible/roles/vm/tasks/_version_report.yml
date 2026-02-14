@@ -1,0 +1,82 @@
+---
+# =========================================================================
+# _version_report.yml
+# =========================================================================
+# Common task file: Report VM guest tools version information
+#
+# This file provides standardized version reporting for VM guest tools
+# across all hypervisors. Supports both a main version command and
+# optional additional commands for extended information.
+#
+# Usage (basic):
+#   - ansible.builtin.include_tasks: _version_report.yml
+#     vars:
+#       _vm_ver_label: "VMware"
+#       _vm_ver_command: "vmware-toolbox-cmd -v"
+#
+# Usage (with extra commands):
+#   - ansible.builtin.include_tasks: _version_report.yml
+#     vars:
+#       _vm_ver_label: "VMware"
+#       _vm_ver_command: "vmware-toolbox-cmd -v"
+#       _vm_ver_extra_commands:
+#         - cmd: "vmware-toolbox-cmd stat raw text vmprovider"
+#           label: "Host platform"
+#
+# Required parameters:
+#   _vm_ver_label (string)   - Hypervisor name for task names
+#   _vm_ver_command (string) - Shell command to get version info
+#
+# Optional parameters:
+#   _vm_ver_extra_commands (list of dicts) - Additional commands to run. Each dict:
+#     - cmd (string)   - Shell command to execute
+#     - label (string) - Description for output
+#
+# Behavior:
+#   - Runs the main version command, stores output
+#   - Optionally runs extra commands if _vm_ver_extra_commands is defined
+#   - Reports version information via debug task
+#   - If main command fails: reports "version info not available"
+#   - Never fails (version reporting is informational only)
+#
+# Exit conditions:
+#   - Always succeeds (informational only, no failures)
+# =========================================================================
+
+- name: "{{ _vm_ver_label }}: Get version information"
+  ansible.builtin.command:
+    cmd: "{{ _vm_ver_command }}"
+  register: _vm_ver_main_result
+  changed_when: false
+  failed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_ver_label }}: Get additional version information"
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  loop: "{{ _vm_ver_extra_commands | default([]) }}"
+  loop_control:
+    label: "{{ item.label }}"
+  register: _vm_ver_extra_result
+  changed_when: false
+  failed_when: false
+  when: _vm_ver_extra_commands is defined
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_ver_label }}: Report version information"
+  ansible.builtin.debug:
+    msg: >-
+      {{ _vm_ver_label }} guest tools version: {{ _vm_ver_main_result.stdout | default('not available') }}
+      {% if _vm_ver_extra_result is defined and _vm_ver_extra_result.results is defined %}
+      {% for result in _vm_ver_extra_result.results %}
+      {{ result.item.label }}: {{ result.stdout | default('not available') }}
+      {% endfor %}
+      {% endif %}
+  when: _vm_ver_main_result.rc | default(1) == 0
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_ver_label }}: Version info not available"
+  ansible.builtin.debug:
+    msg: "{{ _vm_ver_label }} guest tools version information not available"
+  when: _vm_ver_main_result.rc | default(1) != 0
+  tags: ['vm', 'vm:verify']

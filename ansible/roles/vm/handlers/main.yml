@@ -1,39 +1,33 @@
 ---
-- name: Restart vboxservice
-  ansible.builtin.systemd:
-    name: vboxservice
+# === VM role handlers ===
+# These handlers are triggered by notify directives in task files.
+
+- name: Restart VirtualBox services
+  ansible.builtin.service:
+    name: "{{ _vm_vbox_service_name | default('vboxservice') }}"
     state: restarted
   failed_when: false
-  when: ansible_facts['virtualization_type'] | default('') == 'virtualbox'
+  listen: "Restart virtualbox services"
 
-- name: Restart vboxadd-service
-  ansible.builtin.systemd:
-    name: vboxadd-service
+- name: Restart VMware services
+  ansible.builtin.service:
+    name: "{{ item }}"
     state: restarted
+  loop:
+    - vmtoolsd
+    - vgauthd
   failed_when: false
-  when: ansible_facts['virtualization_type'] | default('') == 'virtualbox'
+  listen: "Restart vmware services"
 
-- name: Restart vmtoolsd
-  ansible.builtin.systemd:
-    name: vmtoolsd
-    state: restarted
-  when: ansible_facts['virtualization_type'] | default('') == 'VMware'
-
-- name: Restart vgauthd
-  ansible.builtin.systemd:
-    name: vgauthd
-    state: restarted
-  when: ansible_facts['virtualization_type'] | default('') == 'VMware'
-
-- name: Restart vmware-vmblock-fuse
+- name: Restart VMware vmblock-fuse
   ansible.builtin.systemd:
     name: vmware-vmblock-fuse
     state: restarted
   failed_when: false
-  when: ansible_facts['virtualization_type'] | default('') == 'VMware'
+  listen: "Restart vmware services"
 
-- name: Restart hyperv daemons
-  ansible.builtin.systemd:
+- name: Restart Hyper-V services
+  ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
   loop:
@@ -41,10 +35,9 @@
     - hv_kvp_daemon
     - hv_vss_daemon
   failed_when: false
-  when: ansible_facts['virtualization_type'] | default('') == 'hyperv'
+  listen: "Restart hyper-v services"
 
-- name: Regenerate initramfs
-  ansible.builtin.command:
-    cmd: mkinitcpio -P
-  changed_when: true
-  when: ansible_facts['os_family'] == 'Archlinux'
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: "Reload systemd daemon"

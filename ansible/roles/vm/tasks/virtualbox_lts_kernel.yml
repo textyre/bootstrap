@@ -1,0 +1,51 @@
+---
+# ===================================================================
+# VirtualBox Guest Additions - LTS Kernel DKMS Support
+# ===================================================================
+#
+# Purpose:
+#   Install DKMS-based Guest Additions and LTS kernel headers
+#   when running on linux-lts kernel (Arch Linux only).
+#
+# Called from:
+#   virtualbox.yml (only for pacman path, not ISO path)
+#
+# Expected variables:
+#   - _vm_vbox_iso_installed: should be false or undefined
+#   - _vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
+#
+# Behavior:
+#   - Detects kernel version via uname -r
+#   - If kernel contains 'lts' AND OS is Archlinux:
+#     installs virtualbox-guest-dkms + linux-lts-headers
+#   - Otherwise: skips (standard kernel uses prebuilt modules)
+#
+# ===================================================================
+
+- name: "VirtualBox: Check if running linux-lts kernel"
+  ansible.builtin.command:
+    cmd: uname -r
+  register: _vm_vbox_kernel
+  changed_when: false
+  when:
+    - not (_vm_vbox_iso_installed | default(false))
+    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+  tags: ['vm', 'vbox', 'vm:install']
+
+- name: "VirtualBox: Install LTS kernel headers and DKMS"
+  ansible.builtin.package:
+    name:
+      - virtualbox-guest-dkms
+      - linux-lts-headers
+    state: present
+  when:
+    - not (_vm_vbox_iso_installed | default(false))
+    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - ansible_facts['os_family'] == 'Archlinux'
+    - _vm_vbox_kernel.stdout is defined
+    - "'lts' in _vm_vbox_kernel.stdout"
+  register: _vm_vbox_lts_install
+  retries: 3
+  delay: 5
+  until: _vm_vbox_lts_install is succeeded
+  tags: ['vm', 'vbox', 'vm:install']

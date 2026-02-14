@@ -1,0 +1,49 @@
+---
+# =========================================================================
+# _check_timesync.yml
+# =========================================================================
+# Common task file: Check for systemd-timesyncd conflicts
+#
+# This file checks if systemd-timesyncd is running and warns about
+# potential conflicts with hypervisor time synchronization services.
+#
+# Many hypervisors (VMware, VirtualBox, Hyper-V) provide their own time
+# synchronization mechanisms that can conflict with systemd-timesyncd.
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _check_timesync.yml
+#     vars:
+#       _vm_timesync_label: "VMware"
+#       _vm_timesync_service: "vmtoolsd"
+#
+# Required parameters:
+#   _vm_timesync_label (string)   - Hypervisor name for task names
+#   _vm_timesync_service (string) - Name of the hypervisor service that manages time sync
+#
+# Behavior:
+#   - Queries systemd to check if systemd-timesyncd is active
+#   - If active: displays a warning with recommendation to disable it
+#   - If inactive or not found: no action taken
+#   - Never fails, only warns
+#
+# Exit conditions:
+#   - Always succeeds (warning only, no failures)
+# =========================================================================
+
+- name: "{{ _vm_timesync_label }}: Get systemd-timesyncd status"
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+  register: _vm_timesync_status
+  failed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_timesync_label }}: Warn about time sync conflict"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: systemd-timesyncd is active. {{ _vm_timesync_service }} also manages time sync.
+      Consider disabling systemd-timesyncd to avoid conflicts:
+      systemctl disable --now systemd-timesyncd
+  when:
+    - _vm_timesync_status.status is defined
+    - _vm_timesync_status.status.ActiveState == 'active'
+  tags: ['vm', 'vm:verify']

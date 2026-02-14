@@ -1,85 +1,99 @@
 ---
-# === Hyper-V Guest Daemons ===
-# Install packages, enable services, verify modules
+# === Hyper-V Guest Integration Services ===
+#
+# Daemons:
+#   hv_fcopy_daemon  -- file copy between host and guest
+#   hv_kvp_daemon    -- key-value pair exchange (network config, metadata)
+#   hv_vss_daemon    -- Volume Shadow Copy (live backup support)
+#
+# Kernel modules:
+#   hv_vmbus   -- VMBus communication layer (REQUIRED foundation)
+#   hv_storvsc -- virtual storage controller
+#   hv_netvsc  -- virtual network adapter
+#   hv_utils   -- integration utilities (shutdown, heartbeat, time sync)
 
-# ---- Install packages with retries ----
+# ---- Install packages ----
 
-- name: "Hyper-V: Install guest packages"
-  ansible.builtin.package:
-    name: "{{ packages_hyperv_guest }}"
-    state: present
-  when: packages_hyperv_guest | length > 0
-  register: _vm_hyperv_pkg_install
-  retries: 3
-  delay: 5
-  until: _vm_hyperv_pkg_install is succeeded
-  tags: ['vm', 'hyperv', 'vm:install']
+- ansible.builtin.include_tasks:
+    file: _install_packages.yml
+  vars:
+    _vm_pkg_list: "{{ _vm_hyperv_pkg_map[ansible_facts['os_family']] | default(packages_hyperv_guest) }}"
+    _vm_pkg_label: "Hyper-V"
+  tags: ['vm', 'hyperv']
 
-# ---- Enable and start services ----
+# ---- Check time sync ----
 
-- name: "Hyper-V: Enable guest daemons"
-  tags: ['vm', 'hyperv', 'vm:service']
-  block:
-    - name: "Hyper-V: Enable daemons"
-      ansible.builtin.service:
-        name: "{{ item }}"
-        enabled: true
-        state: started
-      loop:
-        - hv_fcopy_daemon
-        - hv_kvp_daemon
-        - hv_vss_daemon
-      register: _vm_hyperv_daemons
-      failed_when: false
+- ansible.builtin.include_tasks:
+    file: _check_timesync.yml
+  vars:
+    _vm_timesync_label: "Hyper-V"
+    _vm_timesync_service: "hv_utils (via hv_vmbus)"
+  tags: ['vm', 'hyperv']
 
-    - name: "Hyper-V: Check journald for daemon errors"
-      ansible.builtin.command:
-        cmd: journalctl -u {{ item }} -n 20 --no-pager
-      loop:
-        - hv_fcopy_daemon
-        - hv_kvp_daemon
-        - hv_vss_daemon
-      register: _vm_hyperv_journals
-      changed_when: false
-      failed_when: false
+# ---- Manage services ----
 
-    - name: "Hyper-V: Report daemon health"
-      ansible.builtin.debug:
-        msg: "Hyper-V guest daemons started successfully"
-      when: _vm_hyperv_daemons is succeeded
-  rescue:
-    - name: "Hyper-V: Daemon start failed"
-      ansible.builtin.fail:
-        msg: >-
-          Failed to start one or more Hyper-V daemons.
-          Check journal output for details.
+- ansible.builtin.include_tasks:
+    file: _manage_services.yml
+  vars:
+    _vm_svc_list:
+      - name: hv_fcopy_daemon
+        description: "file copy between host and guest"
+        required: true
+      - name: hv_kvp_daemon
+        description: "key-value pair exchange (network config, metadata)"
+        required: true
+      - name: hv_vss_daemon
+        description: "Volume Shadow Copy (live backup support)"
+        required: true
+    _vm_svc_label: "Hyper-V"
+  tags: ['vm', 'hyperv']
 
 # ---- Verify kernel modules ----
 
-- name: "Hyper-V: Check kernel modules loaded"
-  ansible.builtin.command: lsmod
-  register: _vm_hyperv_lsmod
-  changed_when: false
-  tags: ['vm', 'hyperv', 'vm:verify']
+- ansible.builtin.include_tasks:
+    file: _verify_modules.yml
+  vars:
+    _vm_mod_list:
+      - name: hv_vmbus
+        description: "VMBus communication layer (REQUIRED foundation)"
+        required: true
+      - name: hv_storvsc
+        description: "virtual storage controller"
+        required: false
+      - name: hv_netvsc
+        description: "virtual network adapter"
+        required: false
+      - name: hv_utils
+        description: "integration utilities (shutdown, heartbeat, time sync)"
+        required: false
+    _vm_mod_label: "Hyper-V"
+  tags: ['vm', 'hyperv']
 
-- name: "Hyper-V: Verify hv_vmbus module loaded"
-  ansible.builtin.assert:
-    that: "'hv_vmbus' in _vm_hyperv_lsmod.stdout"
-    fail_msg: "hv_vmbus kernel module not loaded. Reboot may be required."
-    success_msg: "hv_vmbus module loaded successfully"
-  tags: ['vm', 'hyperv', 'vm:verify']
+# ---- Version report ----
 
-- name: "Hyper-V: Check additional modules"
-  ansible.builtin.debug:
-    msg:
-      - "hv_storvsc: {{ 'loaded' if 'hv_storvsc' in _vm_hyperv_lsmod.stdout else 'not loaded' }}"
-      - "hv_netvsc: {{ 'loaded' if 'hv_netvsc' in _vm_hyperv_lsmod.stdout else 'not loaded' }}"
-      - "hv_utils: {{ 'loaded' if 'hv_utils' in _vm_hyperv_lsmod.stdout else 'not loaded' }}"
-  tags: ['vm', 'hyperv', 'vm:verify']
+- ansible.builtin.include_tasks:
+    file: _version_report.yml
+  vars:
+    _vm_ver_label: "Hyper-V"
+    _vm_ver_command: "dmesg | grep -i 'hyper-v' | head -5"
+  tags: ['vm', 'hyperv']
 
-# ---- Report ----
+# ---- Check X11 integration ----
 
-- name: "Hyper-V: Report configuration"
-  ansible.builtin.debug:
-    msg: "Hyper-V guest integration services installed and enabled"
+- ansible.builtin.include_tasks:
+    file: _check_x11.yml
+  vars:
+    _vm_x11_label: "Hyper-V"
+    _vm_x11_paths:
+      - path: /usr/bin/xrdp
+        description: "xrdp remote desktop (Enhanced Session)"
+  tags: ['vm', 'hyperv']
+
+# ---- Check reboot requirement ----
+
+- ansible.builtin.include_tasks:
+    file: _reboot_flag.yml
+  vars:
+    _vm_reboot_label: "Hyper-V"
+    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('hv_vmbus' not in _vm_lsmod_output.stdout) }}"
   tags: ['vm', 'hyperv']

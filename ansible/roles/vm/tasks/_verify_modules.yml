@@ -1,0 +1,63 @@
+---
+# =========================================================================
+# _verify_modules.yml
+# =========================================================================
+# Common task file: Verify kernel modules are loaded
+#
+# This file extracts the "lsmod + assert" pattern used for kernel module
+# verification across all hypervisor-specific task files.
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _verify_modules.yml
+#     vars:
+#       _vm_mod_list:
+#         - name: hv_vmbus
+#           description: "Hyper-V VMBus driver"
+#           required: true
+#         - name: hv_storvsc
+#           description: "Hyper-V storage driver"
+#           required: false
+#       _vm_mod_label: "Hyper-V"
+#
+# Required parameters:
+#   _vm_mod_list (list of dicts) - Kernel modules to verify. Each dict must have:
+#     - name (string)        - Kernel module name (as shown in lsmod output)
+#     - description (string) - Human-readable description for error messages
+#     - required (bool)      - If true, missing module will abort playbook.
+#                              If false, status is logged but no failure.
+#   _vm_mod_label (string)   - Hypervisor name for task names
+#
+# Behavior:
+#   - Runs lsmod once and stores output
+#   - For required modules: asserts presence, fails with clear message if missing
+#   - For optional modules: reports status (loaded / not loaded) without failure
+#   - All failure messages include "Reboot may be required."
+#
+# Exit conditions:
+#   - Success: All required modules are loaded
+#   - Failure: Any required module is missing
+# =========================================================================
+
+- name: "{{ _vm_mod_label }}: Check kernel modules loaded"
+  ansible.builtin.command: lsmod
+  register: _vm_lsmod_output
+  changed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_mod_label }}: Verify required modules loaded"
+  ansible.builtin.assert:
+    that: "item.name in _vm_lsmod_output.stdout"
+    fail_msg: "{{ item.name }} kernel module ({{ item.description }}) not loaded. Reboot may be required."
+    success_msg: "{{ item.name }} module loaded successfully"
+  loop: "{{ _vm_mod_list | selectattr('required', 'equalto', true) | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: ['vm', 'vm:verify']
+
+- name: "{{ _vm_mod_label }}: Check optional modules"
+  ansible.builtin.debug:
+    msg: "{{ item.name }} ({{ item.description }}): {{ 'loaded' if item.name in _vm_lsmod_output.stdout else 'not loaded' }}"
+  loop: "{{ _vm_mod_list | selectattr('required', 'equalto', false) | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: ['vm', 'vm:verify']

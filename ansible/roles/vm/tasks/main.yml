@@ -22,13 +22,12 @@
     _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
-# ---- Deploy custom facts ----
+# ---- Initialize reboot flag ----
 
-- name: Include custom facts deployment
-  ansible.builtin.include_tasks:
-    file: facts.yml
-  when: _vm_is_guest | bool
-  tags: ['vm', 'vm:facts']
+- name: Initialize reboot required flag
+  ansible.builtin.set_fact:
+    _vm_reboot_required: false
+  tags: ['vm']
 
 # ---- Dispatch to hypervisor-specific tasks ----
 
@@ -37,16 +36,6 @@
     file: "{{ _vm_hypervisor_map[_vm_hypervisor] }}"
   when: _vm_is_guest | bool
   tags: ['vm']
-
-# ---- Initramfs configuration ----
-
-- name: Include mkinitcpio configuration
-  ansible.builtin.include_tasks:
-    file: mkinitcpio.yml
-  when:
-    - _vm_is_guest | bool
-    - ansible_facts['os_family'] == 'Archlinux'
-  tags: ['vm', 'vm:mkinitcpio']
 
 # ---- Skip messages ----
 
@@ -78,4 +67,5 @@
       - "Detected hypervisor: {{ _vm_hypervisor }}"
       - "Guest utilities installed: {{ _vm_is_guest | bool }}"
       - "Container/WSL2: {{ _vm_is_container | bool }}"
+      - "Reboot required: {{ _vm_reboot_required | default(false) }}"
   tags: ['vm']

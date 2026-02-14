@@ -97,6 +97,11 @@
         - packages_hyperv_guest | length > 0
       failed_when: false
 
+    - name: Remove stale custom fact (removed in refactor)
+      ansible.builtin.file:
+        path: /etc/ansible/facts.d/vm_guest.fact
+        state: absent
+
     - name: Report prepare completion
       ansible.builtin.debug:
         msg: "Prepare complete for {{ vm_prepare_virt_type }} hypervisor"

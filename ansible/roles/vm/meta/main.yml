@@ -10,5 +10,5 @@ galaxy_info:
       versions: [all]
     - name: Debian
       versions: [all]
-  galaxy_tags: [vm, virtualbox, vmware, hyperv, guest, virtualization, mkinitcpio]
+  galaxy_tags: [vm, virtualbox, vmware, hyperv, guest, virtualization]
 dependencies: []

@@ -1,168 +1,95 @@
 ---
 # === VMware Guest Tools (open-vm-tools) ===
-# Install packages, enable services, verify modules
+#
+# Services:
+#   vmtoolsd              -- core VMware Tools daemon (status, time sync, display resize)
+#   vgauthd               -- guest authentication for vSphere operations
+#   vmware-vmblock-fuse   -- drag-and-drop via FUSE (optional, desktop only)
+#
+# Kernel modules:
+#   vmw_balloon -- dynamic memory management (host reclaims unused guest memory)
+#   vmxnet3     -- paravirtual high-performance network adapter (optional, depends on VM NIC config)
 
-# ---- Install packages with retries ----
+# ---- Install packages ----
 
-- name: "VMware: Install guest packages"
-  ansible.builtin.package:
-    name: "{{ packages_vmware_guest }}"
-    state: present
-  when: packages_vmware_guest | length > 0
-  register: _vm_vmware_pkg_install
-  retries: 3
-  delay: 5
-  until: _vm_vmware_pkg_install is succeeded
-  tags: ['vm', 'vmware', 'vm:install']
+- ansible.builtin.include_tasks:
+    file: _install_packages.yml
+  vars:
+    _vm_pkg_list: "{{ packages_vmware_guest }}"
+    _vm_pkg_label: "VMware"
+  tags: ['vm', 'vmware']
 
-# ---- Time sync conflict check ----
+# ---- Check time sync ----
 
-- name: "VMware: Check for systemd-timesyncd conflicts"
-  tags: ['vm', 'vmware', 'vm:verify']
-  block:
-    - name: "VMware: Get systemd-timesyncd status"
-      ansible.builtin.systemd:
-        name: systemd-timesyncd
-      register: _vm_vmware_timesyncd
-      failed_when: false
+- ansible.builtin.include_tasks:
+    file: _check_timesync.yml
+  vars:
+    _vm_timesync_label: "VMware"
+    _vm_timesync_service: "vmtoolsd"
+  tags: ['vm', 'vmware']
 
-    - name: "VMware: Warn about time sync conflict"
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: systemd-timesyncd is active. vmtoolsd also manages time sync.
-          Consider disabling systemd-timesyncd to avoid conflicts:
-          systemctl disable --now systemd-timesyncd
-      when:
-        - _vm_vmware_timesyncd.status is defined
-        - _vm_vmware_timesyncd.status.ActiveState == 'active'
+# ---- Manage services ----
 
-# ---- Enable and start services ----
-
-- name: "VMware: Enable and start vgauthd service"
-  tags: ['vm', 'vmware', 'vm:service']
-  block:
-    - name: "VMware: Enable vgauthd"
-      ansible.builtin.service:
-        name: vgauthd
-        enabled: true
-        state: started
-      register: _vm_vmware_vgauthd
-
-    - name: "VMware: Check journald for vgauthd errors"
-      ansible.builtin.command:
-        cmd: journalctl -u vgauthd -n 20 --no-pager
-      register: _vm_vmware_vgauthd_journal
-      changed_when: false
-      failed_when: false
-
-    - name: "VMware: Report vgauthd health"
-      ansible.builtin.debug:
-        msg: "vgauthd started successfully"
-      when: _vm_vmware_vgauthd is succeeded
-  rescue:
-    - name: "VMware: vgauthd start failed"
-      ansible.builtin.fail:
-        msg: >-
-          Failed to start vgauthd. Journal output:
-          {{ _vm_vmware_vgauthd_journal.stdout | default('N/A') }}
-
-- name: "VMware: Enable and start vmtoolsd service"
-  tags: ['vm', 'vmware', 'vm:service']
-  block:
-    - name: "VMware: Enable vmtoolsd"
-      ansible.builtin.service:
-        name: vmtoolsd
-        enabled: true
-        state: started
-      register: _vm_vmware_vmtoolsd
-
-    - name: "VMware: Check journald for vmtoolsd errors"
-      ansible.builtin.command:
-        cmd: journalctl -u vmtoolsd -n 20 --no-pager
-      register: _vm_vmware_vmtoolsd_journal
-      changed_when: false
-      failed_when: false
-
-    - name: "VMware: Report vmtoolsd health"
-      ansible.builtin.debug:
-        msg: "vmtoolsd started successfully"
-      when: _vm_vmware_vmtoolsd is succeeded
-  rescue:
-    - name: "VMware: vmtoolsd start failed"
-      ansible.builtin.fail:
-        msg: >-
-          Failed to start vmtoolsd. Journal output:
-          {{ _vm_vmware_vmtoolsd_journal.stdout | default('N/A') }}
-
-- name: "VMware: Enable vmware-vmblock-fuse service"
-  ansible.builtin.systemd:
-    name: vmware-vmblock-fuse
-    enabled: true
-    state: started
-  register: _vm_vmware_vmblock
-  failed_when: false
-  tags: ['vm', 'vmware', 'vm:service']
-
-- name: "VMware: Report vmblock-fuse status"
-  ansible.builtin.debug:
-    msg: "{{ 'vmware-vmblock-fuse enabled' if _vm_vmware_vmblock is succeeded else 'vmware-vmblock-fuse not available (optional)' }}"
-  tags: ['vm', 'vmware', 'vm:service']
+- ansible.builtin.include_tasks:
+    file: _manage_services.yml
+  vars:
+    _vm_svc_list:
+      - name: vgauthd
+        description: "guest authentication for vSphere operations"
+        required: true
+      - name: vmtoolsd
+        description: "core VMware Tools daemon (status, time sync, display resize)"
+        required: true
+      - name: vmware-vmblock-fuse
+        description: "drag-and-drop via FUSE (optional, desktop only)"
+        required: false
+    _vm_svc_label: "VMware"
+  tags: ['vm', 'vmware']
 
 # ---- Verify kernel modules ----
 
-- name: "VMware: Check kernel modules loaded"
-  ansible.builtin.command: lsmod
-  register: _vm_vmware_lsmod
-  changed_when: false
-  tags: ['vm', 'vmware', 'vm:verify']
+- ansible.builtin.include_tasks:
+    file: _verify_modules.yml
+  vars:
+    _vm_mod_list:
+      - name: vmw_balloon
+        description: "dynamic memory management (host reclaims unused guest memory)"
+        required: true
+      - name: vmxnet3
+        description: "paravirtual high-performance network adapter (optional, depends on VM NIC config)"
+        required: false
+    _vm_mod_label: "VMware"
+  tags: ['vm', 'vmware']
 
-- name: "VMware: Verify vmw_balloon module loaded"
-  ansible.builtin.assert:
-    that: "'vmw_balloon' in _vm_vmware_lsmod.stdout"
-    fail_msg: "vmw_balloon kernel module not loaded. Reboot may be required."
-    success_msg: "vmw_balloon module loaded successfully"
-  tags: ['vm', 'vmware', 'vm:verify']
+# ---- Version report ----
 
-- name: "VMware: Check vmxnet3 module (optional)"
-  ansible.builtin.debug:
-    msg: "{{ 'vmxnet3 module loaded' if 'vmxnet3' in _vm_vmware_lsmod.stdout else 'vmxnet3 not loaded (uses e1000/other NIC)' }}"
-  tags: ['vm', 'vmware', 'vm:verify']
-
-# ---- Version reporting ----
-
-- name: "VMware: Get vmware-toolbox-cmd version"
-  ansible.builtin.command:
-    cmd: vmware-toolbox-cmd -v
-  register: _vm_vmware_version
-  changed_when: false
-  failed_when: false
+- ansible.builtin.include_tasks:
+    file: _version_report.yml
+  vars:
+    _vm_ver_label: "VMware"
+    _vm_ver_command: "vmware-toolbox-cmd -v"
+    _vm_ver_extra_commands:
+      - cmd: "vmware-toolbox-cmd stat raw text vmprovider"
+        label: "Host platform"
   when: vm_vmware_version_report
-  tags: ['vm', 'vmware', 'vm:verify']
+  tags: ['vm', 'vmware']
 
-- name: "VMware: Attempt to detect host version"
-  ansible.builtin.command:
-    cmd: vmware-toolbox-cmd stat raw text vmprovider
-  register: _vm_vmware_host_info
-  changed_when: false
-  failed_when: false
-  when: vm_vmware_version_report
-  tags: ['vm', 'vmware', 'vm:verify']
+# ---- Check X11 integration ----
 
-- name: "VMware: Version report"
-  ansible.builtin.debug:
-    msg:
-      - "Guest tools version: {{ _vm_vmware_version.stdout | default('unknown') }}"
-      - "Host platform: {{ _vm_vmware_host_info.stdout | default('not available') }}"
-      - "NOTE: VMware recommends distro-provided open-vm-tools regardless of host version"
-  when:
-    - vm_vmware_version_report
-    - _vm_vmware_version.rc | default(1) == 0
-  tags: ['vm', 'vmware', 'vm:verify']
+- ansible.builtin.include_tasks:
+    file: _check_x11.yml
+  vars:
+    _vm_x11_label: "VMware"
+    _vm_x11_paths:
+      - path: /etc/xdg/autostart/vmware-user.desktop
+        description: "VMware user agent autostart"
+  tags: ['vm', 'vmware']
 
-- name: "VMware: Version report skipped"
-  ansible.builtin.debug:
-    msg: "VMware tools version reporting disabled or vmware-toolbox-cmd not available"
-  when: >-
-    not vm_vmware_version_report
-    or (_vm_vmware_version.rc | default(1) != 0)
-  tags: ['vm', 'vmware', 'vm:verify']
+# ---- Check reboot requirement ----
+
+- ansible.builtin.include_tasks:
+    file: _reboot_flag.yml
+  vars:
+    _vm_reboot_label: "VMware"
+    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('vmw_balloon' not in _vm_lsmod_output.stdout) }}"
+  tags: ['vm', 'vmware']

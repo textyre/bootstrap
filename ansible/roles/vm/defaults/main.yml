@@ -23,17 +23,8 @@ _vm_supported_hypervisors:
   - VMware
   - hyperv
 
-# Initramfs kernel modules per hypervisor (Arch Linux only)
-vm_mkinitcpio_modules:
-  virtualbox:
-    - vboxguest
-    - vboxsf
-    - vboxvideo
-  vmware:
-    - vmw_balloon
-    - vmxnet3
-  hyperv:
-    - hv_vmbus
-    - hv_storvsc
-    - hv_netvsc
-    - hv_utils
+# Debian package mapping (Hyper-V package name differs)
+_vm_hyperv_pkg_map:
+  Archlinux: "{{ packages_hyperv_guest }}"
+  Debian:
+    - hyperv-daemons
