@@ -5,7 +5,7 @@ import { Clock } from './components/clock/clock';
 import { Cube } from './components/cube/cube';
 import { TypewriterController } from './typewriter';
 import { SecurityBarcode } from './components/barcode/SecurityBarcode';
-import { loadSystemInfo } from './services/system-info.service';
+import { SystemInfoService } from './services/SystemInfoService';
 import { EnvBlock } from './components/env-block/EnvBlock';
 import { BackgroundManager } from './BackgroundManager';
 import { LightDMAdapter } from './adapters/LightDM.adapter';
@@ -25,7 +25,7 @@ async function boot(): Promise<void> {
   const auth = new AuthService(ldmAdapter);
 
   // Load system info
-  const info = await loadSystemInfo();
+  const info = await new SystemInfoService().load();
   const username = auth.getUsernameForDisplay();
   
   new TypewriterController(info, username).run();

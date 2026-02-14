@@ -1,5 +1,3 @@
-import type { SystemInfo } from '../types/global';
-
 export const MESSAGES = {
   AUTH_DENIED: 'ACCESS DENIED',
   SESSION_STARTING: 'SESSION STARTING',
@@ -22,19 +20,3 @@ export const LOG_TEMPLATES = {
   BLUME_SESSION: (username: string) =>
     `>> [BLUME_IDP] Opened session for user(${username})`,
 } as const;
-
-export const DEFAULT_SYSTEM_INFO: SystemInfo = {
-  kernel: 'unknown',
-  virtualization_type: 'unknown',
-  ip_address: '0.0.0.0',
-  hostname: 'unknown',
-  project_version: '1.0.0',
-  timezone: 'UTC',
-  region_prefix: '',
-  systemd_version: 'unknown',
-  machine_id: '00000000000000000000000000000000',
-  display_output: 'unknown',
-  display_resolution: 'unknown',
-  ssh_fingerprint: 'unknown',
-  os_name: '',
-};
