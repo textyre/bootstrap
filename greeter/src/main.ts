@@ -14,6 +14,10 @@ import { AuthService } from './services/AuthService';
 import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
 
+// Uncomment to test Svg3DIcon component
+import { Svg3DIcon } from './components/svg-3d-icon/Svg3DIcon';
+// import { SVG3D_PRESETS } from './components/svg-3d-icon/presets';
+
 async function boot(): Promise<void> {
   new BackgroundManager().init();
 
@@ -42,6 +46,20 @@ async function boot(): Promise<void> {
   clock.start();
   const cube = new Cube();
   cube.start();
+
+  // DEMO: Svg3DIcon - Uncomment to test 3D icon
+  // To use: Add <div class="svg-3d-icon-container boot-pre"></div> to index.html
+  const svg3dIcon = new Svg3DIcon('.svg-3d-icon-container', {
+    svgPath: '/assets/svgs/arch-logo.svg',
+    animations: ['rotate-slow'],
+    enableBloom: false,
+    depth: 36,           // Как у старого куба
+    color: 0xe8e6e3,     // --phosphor цвет для передней/задней грани
+    edgeColor: 0x8a8a8a, // Темнее для боковых ребер
+    targetSize: 43,      // 90% от контейнера 48x48
+    pixelRatio: 6,       // Очень высокое качество
+  });
+  await svg3dIcon.start();
 
   // Render all data into DOM before animation starts
   await new SecurityBarcode({

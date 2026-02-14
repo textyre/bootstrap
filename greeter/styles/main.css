@@ -27,6 +27,7 @@
 @import './_barcode.css' layer(components);
 @import './_form.css' layer(components);
 @import './_typewriter.css' layer(components);
+@import './_svg-3d-icon.css' layer(components);
 
 /* States & animations (after components — higher priority) */
 @import './_boot-states.css' layer(states);

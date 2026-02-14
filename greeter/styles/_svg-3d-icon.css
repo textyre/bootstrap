@@ -1,0 +1,28 @@
+.svg-3d-icon-container {
+  position: relative;
+  display: inline-block;
+  width: 200px;
+  height: 200px;
+}
+
+.svg-3d-icon-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Specific placements */
+.svg-3d-icon-container.logo-placement {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 120px;
+  height: 120px;
+}
+
+/* Hide during boot animation */
+.svg-3d-icon-container.boot-pre {
+  opacity: 0;
+  transform: translateY(-20px);
+}
