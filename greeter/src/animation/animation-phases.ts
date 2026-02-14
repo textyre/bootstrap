@@ -61,7 +61,7 @@ const PULLBACK_DUR = 0.7;
 const FADE_DUR = 0.6;
 const SHIFT_DUR = 1.0;
 const FORM_DUR = 1.0;
-const ARCH_DUR = 3.0;
+const DISTR_DUR = 3.0;
 const ENV_DUR = 0.8;
 const PREFIX_FADE_DUR = 0.3;
 const BOTTOM_FADE_DUR = 0.4;
@@ -71,7 +71,7 @@ const FLICKER_DLY = 1.0;
 const META_DLY = 1.3;
 const CLOCK_DLY = 0.8;
 const DATE_DLY = 0.85;
-const ARCH_DLY = 0.8;
+const DISTR_DLY = 0.8;
 const ENV_DLY = 0.6;
 const ENV_TEXT_DLY = 1.0;
 const LICENSE_DLY = 3.0;
@@ -104,6 +104,7 @@ export const BOOT_ANIMATED_SELECTORS: readonly string[] = [
   '.form-container',
   '.os',
   S_OS_PREFIX,
+  '.svg-3d-icon-container',
 ];
 
 /**
@@ -156,11 +157,11 @@ export function buildBootSequence(): AnimationSequence {
       { duration: FADE_DUR, ease: EASE_DECEL, at: periph + META_DLY },
     ],
 
-    // Arch logo scale-in
+    // 3D icon scale-in (appears with clock)
     [
-      S_ARCH_LOGO,
+      '.svg-3d-icon-container',
       { opacity: [0, 1], transform: ['scale(0.5)', 'scale(1)'] },
-      { duration: ARCH_DUR, ease: EASE_DECEL, at: periph + ARCH_DLY },
+      { duration: DISTR_DUR, ease: EASE_DECEL, at: periph + DISTR_DLY },
     ],
 
     // Clock fade from top

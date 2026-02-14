@@ -1,5 +1,5 @@
-import type { IEventBus } from '../../services/event-bus';
 import type { IAuthService } from '../../services/AuthService';
+import { bus } from '../../services/bus';
 import { TIMINGS } from '../../config/timings';
 import { SELECTORS, CSS_CLASSES } from '../../config/selectors';
 import { MESSAGES } from '../../config/messages';
@@ -12,7 +12,7 @@ export class AuthForm {
   private readonly loginForm: HTMLFormElement;
   private readonly authMessage: HTMLElement;
 
-  constructor(private readonly bus: IEventBus, private readonly auth: IAuthService) {
+  constructor(private readonly auth: IAuthService) {
     this.passwordInput = document.querySelector(SELECTORS.PASSWORD_INPUT) as HTMLInputElement;
     this.loginForm = document.querySelector(SELECTORS.LOGIN_FORM) as HTMLFormElement;
     this.authMessage = document.querySelector(SELECTORS.AUTH_MESSAGE) as HTMLElement;
@@ -28,33 +28,33 @@ export class AuthForm {
   }
 
   private bindEvents(): void {
-    this.bus.on('auth:start', ({ username }) => {
+    bus.on('auth:start', ({ username }) => {
       this.currentUsername = username;
       this.passwordInput.value = '';
       this.passwordInput.focus();
     });
 
-    this.bus.on('auth:success', () => {
+    bus.on('auth:success', () => {
       this.authMessage.textContent = MESSAGES.SESSION_STARTING;
       this.authMessage.classList.add(CSS_CLASSES.VISIBLE);
       setTimeout(() => this.auth.launchSession(), TIMINGS.AUTH.SESSION_LAUNCH_DELAY);
     });
 
-    this.bus.on('auth:failure', ({ message }) => {
+    bus.on('auth:failure', ({ message }) => {
       this.showMessage(message);
       setTimeout(() => {
         if (this.currentUsername) this.auth.startAuth(this.currentUsername);
       }, TIMINGS.AUTH.AUTH_RETRY_DELAY);
     });
 
-    this.bus.on('auth:prompt', ({ isSecret }) => {
+    bus.on('auth:prompt', ({ isSecret }) => {
       if (isSecret) {
         this.waitingForPrompt = true;
         this.passwordInput.focus();
       }
     });
 
-    this.bus.on('auth:message', ({ message, isError }) => {
+    bus.on('auth:message', ({ message, isError }) => {
       if (isError) {
         this.showMessage(message);
       }

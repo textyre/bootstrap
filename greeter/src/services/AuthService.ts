@@ -1,6 +1,6 @@
 import type { ILightDMAdapter } from '../adapters/LightDM.adapter';
-import type { IEventBus } from './event-bus';
 import type { AuthUser } from '../types/auth.types';
+import { bus } from './bus';
 import { MESSAGES } from '../config/messages';
 
 export interface IAuthService {
@@ -12,7 +12,7 @@ export interface IAuthService {
 }
 
 export class AuthService implements IAuthService {
-  constructor(private readonly ldm: ILightDMAdapter, private readonly bus: IEventBus) {
+  constructor(private readonly ldm: ILightDMAdapter) {
     this.wireSignals();
   }
 
@@ -32,7 +32,7 @@ export class AuthService implements IAuthService {
     if (this.ldm.inAuthentication) {
       this.ldm.cancelAuthentication();
     }
-    this.bus.emit('auth:start', { username });
+    bus.emit('auth:start', { username });
     this.ldm.authenticate(username);
   }
 
@@ -54,18 +54,18 @@ export class AuthService implements IAuthService {
 
   private wireSignals(): void {
     this.ldm.onShowPrompt((message, isSecret) => {
-      this.bus.emit('auth:prompt', { message, isSecret });
+      bus.emit('auth:prompt', { message, isSecret });
     });
 
     this.ldm.onShowMessage((message, isError) => {
-      this.bus.emit('auth:message', { message, isError });
+      bus.emit('auth:message', { message, isError });
     });
 
     this.ldm.onAuthenticationComplete((isAuthenticated) => {
       if (isAuthenticated) {
-        this.bus.emit('auth:success', undefined);
+        bus.emit('auth:success', undefined);
       } else {
-        this.bus.emit('auth:failure', { message: MESSAGES.AUTH_DENIED });
+        bus.emit('auth:failure', { message: MESSAGES.AUTH_DENIED });
       }
     });
   }

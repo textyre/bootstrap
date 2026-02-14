@@ -9,7 +9,6 @@ import { loadSystemInfo } from './services/system-info.service';
 import { EnvBlock } from './components/env-block/EnvBlock';
 import { BackgroundManager } from './BackgroundManager';
 import { LightDMAdapter } from './adapters/LightDM.adapter';
-import { createEventBus } from './services/event-bus';
 import { AuthService } from './services/AuthService';
 import { SELECTORS } from './config/selectors';
 import { MESSAGES } from './config/messages';
@@ -23,8 +22,7 @@ async function boot(): Promise<void> {
 
   // Create core services
   const ldmAdapter = new LightDMAdapter();  
-  const bus = createEventBus();
-  const auth = new AuthService(ldmAdapter, bus);
+  const auth = new AuthService(ldmAdapter);
 
   // Load system info
   const info = await loadSystemInfo();
@@ -71,7 +69,7 @@ async function boot(): Promise<void> {
 
   // Wire auth form (subscribes to bus events) and render user
   const { AuthForm } = await import('./components/AuthForm/AuthForm');
-  const authForm = new AuthForm(bus, auth);
+  const authForm = new AuthForm(auth);
   await authForm.renderUser(username);
 
   // Start authentication
