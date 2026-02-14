@@ -104,7 +104,7 @@ export const BOOT_ANIMATED_SELECTORS: readonly string[] = [
   '.form-container',
   '.os',
   S_OS_PREFIX,
-  '.svg-3d-icon-container',
+  '.distro-icons',
 ];
 
 /**
@@ -159,7 +159,7 @@ export function buildBootSequence(): AnimationSequence {
 
     // 3D icon scale-in (appears with clock)
     [
-      '.svg-3d-icon-container',
+      '.distro-icons',
       { opacity: [0, 1], transform: ['scale(0.5)', 'scale(1)'] },
       { duration: DISTR_DUR, ease: EASE_DECEL, at: periph + DISTR_DLY },
     ],

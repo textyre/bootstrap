@@ -21,8 +21,15 @@
   height: 120px;
 }
 
+/* Distro icons row wrapper */
+.distro-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--size-px-2);
+}
+
 /* Hide during boot animation */
-.svg-3d-icon-container.boot-pre {
+.distro-icons.boot-pre {
   opacity: 0;
   transform: translateY(-20px);
 }

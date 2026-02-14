@@ -34,17 +34,41 @@ async function boot(): Promise<void> {
   const clock = new Clock();
   clock.start();
 
-  const svg3dIcon = new Svg3DIcon('.svg-3d-icon-container', {
+  const archIcon = new Svg3DIcon('.svg-3d-icon-arch', {
     svgPath: '/assets/svgs/arch-logo.svg',
     animations: ['rotate-slow'],
     enableBloom: false,
-    depth: 36,           // Как у старого куба
-    color: 0xe8e6e3,     // --phosphor цвет для передней/задней грани
-    edgeColor: 0x8a8a8a, // Темнее для боковых ребер
-    targetSize: 43,      // 90% от контейнера 48x48
-    pixelRatio: 6,       // Очень высокое качество
+    depth: 36,
+    color: 0xe8e6e3,
+    edgeColor: 0x8a8a8a,
+    targetSize: 43,
+    pixelRatio: 6,
   });
-  await svg3dIcon.start();
+
+  const gentooIcon = new Svg3DIcon('.svg-3d-icon-gentoo', {
+    svgPath: '/assets/svgs/gentoo-3d.svg',
+    animations: ['rotate-slow'],
+    enableBloom: false,
+    depth: 36,
+    color: 0xe8e6e3,
+    edgeColor: 0x8a8a8a,
+    targetSize: 43,
+    pixelRatio: 6,
+    initialRotation: { x: -45 },
+  });
+
+  const ubuntuIcon = new Svg3DIcon('.svg-3d-icon-ubuntu', {
+    svgPath: '/assets/svgs/ubuntu-3d.svg',
+    animations: ['rotate-slow'],
+    enableBloom: false,
+    depth: 36,
+    color: 0xe8e6e3,
+    edgeColor: 0x8a8a8a,
+    targetSize: 43,
+    pixelRatio: 6,
+  });
+
+  await Promise.all([archIcon.start(), gentooIcon.start(), ubuntuIcon.start()]);
 
   // Render all data into DOM before animation starts
   await new SecurityBarcode({

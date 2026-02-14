@@ -309,6 +309,15 @@ export class Svg3DIcon {
 
     group.scale.multiplyScalar(scale);
 
+    // Apply initial rotation if configured (degrees → radians)
+    const rot = this.config.initialRotation;
+    if (rot) {
+      const deg2rad = Math.PI / 180;
+      if (rot.x) group.rotation.x += rot.x * deg2rad;
+      if (rot.y) group.rotation.y += rot.y * deg2rad;
+      if (rot.z) group.rotation.z += rot.z * deg2rad;
+    }
+
     this.mesh = group;
     this.scene!.add(this.mesh);
   }

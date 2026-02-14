@@ -65,6 +65,9 @@ export interface Svg3DIconConfig {
   cameraDistance?: number;
   cameraFov?: number;
 
+  // Initial rotation (degrees, -360..360) applied to the mesh before animations
+  initialRotation?: { x?: number; y?: number; z?: number };
+
   // Behavior
   autoRotate?: boolean;
   transparent?: boolean;
