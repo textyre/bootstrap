@@ -3,7 +3,7 @@ import type { LogLine } from './components/typewriter/log-generator';
 import { TIMINGS } from './config/timings';
 import { SELECTORS, CSS_CLASSES } from './config/selectors';
 import { delay } from './utils/delay';
-import { Typewriter } from './components/typewriter/typewriter';
+import { TypewriterEngine } from './components/typewriter/TypewriterEngine';
 import { generateLogLines } from './components/typewriter/log-generator';
 import { FingerprintBarcode } from './components/Barcode/FingerprintBarcode';
 import { DOMAdapter } from './adapters/DOM.adapter';
@@ -50,7 +50,7 @@ export class TypewriterController {
       ? CSS_CLASSES.LOG_LINE + ' ' + CSS_CLASSES.LOG_DIVIDER
       : CSS_CLASSES.LOG_LINE;
     container.appendChild(lineEl);
-    await new Typewriter(lineEl, line.text).type();
+    await new TypewriterEngine(lineEl, line.text).type();
   }
 
   private async renderFingerprint(container: HTMLElement, line: LogLine): Promise<void> {
@@ -60,7 +60,7 @@ export class TypewriterController {
     container.appendChild(lineEl);
 
     // Type prefix using the shared typewriter engine
-    await new Typewriter(lineEl, line.prefix).type();
+    await new TypewriterEngine(lineEl, line.prefix).type();
 
     // Insert barcode, fade in, then scramble
     const fp = new FingerprintBarcode(line.fingerprint);
