@@ -1,12 +1,26 @@
 import type { SystemInfo } from './types/global';
-import type { LogLine } from './components/typewriter/log-generator';
 import { TIMINGS } from './config/timings';
 import { SELECTORS, CSS_CLASSES } from './config/selectors';
+import { LOG_TEMPLATES } from './config/messages';
 import { delay } from './utils/delay';
-import { TypewriterEngine } from './components/typewriter/TypewriterEngine';
-import { generateLogLines } from './components/typewriter/log-generator';
+import { Formatter } from './utils/Formatter';
+import { TypewriterEngine } from './components/TypewriterEngine';
 import { FingerprintBarcode } from './components/Barcode/FingerprintBarcode';
 import { DOMAdapter } from './adapters/DOM.adapter';
+
+interface TextLine {
+  type: 'text';
+  text: string;
+  divider?: boolean;
+}
+
+interface FingerprintLine {
+  type: 'fingerprint';
+  prefix: string;
+  fingerprint: string;
+}
+
+type LogLine = TextLine | FingerprintLine;
 
 /**
  * Orchestrates the terminal log typewriter sequence.
@@ -25,12 +39,51 @@ export class TypewriterController {
     const container = this.adapter.queryElement(SELECTORS.TERMINAL_LOG, HTMLElement);
     if (!container) return;
 
-    const lines = generateLogLines(this.info, this.username);
+    const lines = this.generateLogLines();
 
     for (const line of lines) {
       await this.renderLine(container, line);
       await delay(TIMINGS.TYPEWRITER.LINE_PAUSE);
     }
+  }
+
+  private generateLogLines(): LogLine[] {
+    const region = Formatter.region(this.info.timezone, this.info.region_prefix);
+    const machineUuid = Formatter.machineId(this.info.machine_id);
+    const protocol = Formatter.protocol(this.info.virtualization_type);
+
+    return [
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.REGION_LINK(region),
+      },
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.SYSTEMD_JOURNAL(this.info.systemd_version, machineUuid),
+      },
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.X11_DISPLAY(this.info.display_output, this.info.display_resolution),
+      },
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.DIVIDER,
+        divider: true,
+      },
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.BLUME_PROTOCOL(protocol),
+      },
+      {
+        type: 'fingerprint',
+        prefix: LOG_TEMPLATES.SENTINEL_PREFIX,
+        fingerprint: this.info.ssh_fingerprint,
+      },
+      {
+        type: 'text',
+        text: LOG_TEMPLATES.BLUME_SESSION(this.username),
+      },
+    ];
   }
 
   private async renderLine(container: HTMLElement, line: LogLine): Promise<void> {
