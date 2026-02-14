@@ -1,6 +1,6 @@
 import '../styles/main.css';
 
-import { BootAnimator } from './animation/boot-orchestrator';
+import { BootAnimator } from './animation/BootAnimator';
 import { Clock } from './components/clock/clock';
 import { Cube } from './components/cube/cube';
 import { TypewriterController } from './typewriter';
@@ -10,8 +10,6 @@ import { EnvBlock } from './components/env-block/EnvBlock';
 import { BackgroundManager } from './BackgroundManager';
 import { LightDMAdapter } from './adapters/LightDM.adapter';
 import { AuthService } from './services/AuthService';
-import { SELECTORS } from './config/selectors';
-import { MESSAGES } from './config/messages';
 
 // Uncomment to test Svg3DIcon component
 import { Svg3DIcon } from './components/svg-3d-icon/Svg3DIcon';
@@ -29,12 +27,6 @@ async function boot(): Promise<void> {
   const username = auth.getUsernameForDisplay();
   
   new TypewriterController(info, username).run();
-
-  // Set os-prefix text before animation starts
-  const prefixEl = document.querySelector(SELECTORS.OS_PREFIX);
-  if (prefixEl) {
-    prefixEl.textContent = info.os_name || MESSAGES.DEFAULT_OS;
-  }
 
   // Render system info into DOM (hidden by boot-pre, revealed by animation)
   new EnvBlock().render(info);
@@ -70,6 +62,7 @@ async function boot(): Promise<void> {
   // Wire auth form (subscribes to bus events) and render user
   const { AuthForm } = await import('./components/AuthForm/AuthForm');
   const authForm = new AuthForm(auth);
+  authForm.renderOsPrefix(info.os_name);
   await authForm.renderUser(username);
 
   // Start authentication
@@ -79,8 +72,7 @@ async function boot(): Promise<void> {
   await new BootAnimator().run();
 
   // Focus password input
-  const passwordInput = document.querySelector(SELECTORS.PASSWORD_INPUT) as HTMLInputElement;
-  if (passwordInput) passwordInput.focus();
+  authForm.focus();
 }
 
 window.addEventListener('GreeterReady', () => {

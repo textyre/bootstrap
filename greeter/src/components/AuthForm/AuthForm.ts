@@ -3,7 +3,7 @@ import { bus } from '../../services/bus';
 import { TIMINGS } from '../../config/timings';
 import { SELECTORS, CSS_CLASSES } from '../../config/selectors';
 import { MESSAGES } from '../../config/messages';
-import { renderUsernameBarcode } from '../barcode/username-barcode';
+import { UsernameBarcode } from '../barcode/UsernameBarcode';
 
 export class AuthForm {
   private waitingForPrompt = false;
@@ -19,12 +19,23 @@ export class AuthForm {
     this.bindEvents();
   }
 
+  renderOsPrefix(osName: string): void {
+    const prefixEl = document.querySelector(SELECTORS.OS_PREFIX);
+    if (prefixEl) {
+      prefixEl.textContent = osName || MESSAGES.DEFAULT_OS;
+    }
+  }
+
   async renderUser(username: string): Promise<void> {
     const usernameText = document.querySelector(SELECTORS.USERNAME_TEXT);
     if (usernameText) {
       usernameText.textContent = username.toUpperCase();
     }
-    await renderUsernameBarcode(username);
+    await new UsernameBarcode().render(username);
+  }
+
+  focus(): void {
+    this.passwordInput.focus();
   }
 
   private bindEvents(): void {

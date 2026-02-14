@@ -1,23 +1,22 @@
 import { BARCODE } from '../../config/constants';
 import { TIMINGS } from '../../config/timings';
 import { CSS_CLASSES } from '../../config/selectors';
-import { logError } from '../../utils/logger';
 import { randomString } from '../../utils/random';
-import { renderPDF417 } from './barcode.renderer';
 import { DOMAdapter } from '../../adapters/DOM.adapter';
+import { Barcode } from './Barcode';
 
-/**
- * Creates a fingerprint barcode element with canvas + text overlay.
- * After construction, `container` is ready for DOM insertion.
- * Call `scramble()` to animate random frames before settling on the real fingerprint.
- */
-export class FingerprintBarcode {
+export class FingerprintBarcode extends Barcode {
+  protected readonly config = BARCODE.FINGERPRINT as Record<string, unknown>;
+  protected readonly logTag = 'barcode:fingerprint';
+
   private readonly adapter = new DOMAdapter();
   readonly container: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly textEl: HTMLElement;
 
   constructor(private readonly fingerprint: string) {
+    super();
+
     this.container = this.adapter.createElement('span');
     this.container.className = CSS_CLASSES.FP_CONTAINER;
 
@@ -31,45 +30,29 @@ export class FingerprintBarcode {
     this.container.appendChild(this.canvas);
     this.container.appendChild(this.textEl);
 
-    this.renderInitial();
+    this.renderScaled(randomString(this.fingerprint.length));
   }
 
   async scramble(): Promise<void> {
-    return new Promise((resolve) => {
-      let frame = 0;
-      const interval = setInterval(() => {
-        frame++;
-        if (frame < TIMINGS.FINGERPRINT.SCRAMBLE_FRAMES) {
-          this.renderToCanvas(randomString(this.fingerprint.length));
-        } else {
-          clearInterval(interval);
-          this.renderToCanvas(this.fingerprint);
-          resolve();
-        }
-      }, TIMINGS.FINGERPRINT.SCRAMBLE_INTERVAL);
-    });
+    for (let frame = 0; frame < TIMINGS.FINGERPRINT.SCRAMBLE_FRAMES; frame++) {
+      await this.renderScaled(randomString(this.fingerprint.length));
+      await new Promise((r) => setTimeout(r, TIMINGS.FINGERPRINT.SCRAMBLE_INTERVAL));
+    }
+    await this.renderScaled(this.fingerprint);
   }
 
-  private renderInitial(): void {
-    this.renderToCanvas(randomString(this.fingerprint.length));
-  }
+  private async renderScaled(text: string): Promise<void> {
+    const tmp = this.adapter.createElement('canvas');
+    await this.renderToCanvas(tmp, text);
 
-  private renderToCanvas(text: string): void {
-    try {
-      const tmp = this.adapter.createElement('canvas');
-      renderPDF417(tmp, BARCODE.FINGERPRINT, text);
+    const ratio = BARCODE.FP_HEIGHT / tmp.height;
+    this.canvas.width = Math.round(tmp.width * ratio);
+    this.canvas.height = BARCODE.FP_HEIGHT;
 
-      const ratio = BARCODE.FP_HEIGHT / tmp.height;
-      this.canvas.width = Math.round(tmp.width * ratio);
-      this.canvas.height = BARCODE.FP_HEIGHT;
-
-      const ctx = this.canvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(tmp, 0, 0, this.canvas.width, this.canvas.height);
-      }
-    } catch (err) {
-      logError('barcode:fingerprint', err);
+    const ctx = this.canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tmp, 0, 0, this.canvas.width, this.canvas.height);
     }
   }
 }
