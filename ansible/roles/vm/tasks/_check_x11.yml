@@ -23,11 +23,13 @@
 #   _vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
 #     - path (string)        - Absolute path to file or directory
 #     - description (string) - Human-readable description for reporting
+#     - content (string, optional) - Content to write if file is missing
 #
 # Behavior:
 #   - Uses ansible.builtin.stat to check each path
-#   - Reports "configured" if path exists
-#   - Reports "not found (headless OK)" if path does not exist
+#   - If path exists: reports "configured"
+#   - If path missing and content provided: creates file from content
+#   - If path missing and no content: reports "not found (headless OK)"
 #   - Never fails (X11 integration is optional)
 #
 # Exit conditions:
@@ -43,10 +45,24 @@
   register: _vm_x11_stat_result
   tags: ['vm', 'vm:verify']
 
+- name: "{{ _vm_x11_label }}: Create missing X11 autostart files"
+  ansible.builtin.copy:
+    dest: "{{ item.item.path }}"
+    content: "{{ item.item.content }}"
+    mode: '0644'
+  loop: "{{ _vm_x11_stat_result.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  when:
+    - not item.stat.exists
+    - item.item.content is defined
+    - item.item.content | length > 0
+  tags: ['vm', 'vm:verify']
+
 - name: "{{ _vm_x11_label }}: Report X11 integration status"
   ansible.builtin.debug:
     msg: "{{ item.item.description }}: {{ 'configured' if item.stat.exists else 'not found (headless OK)' }}"
   loop: "{{ _vm_x11_stat_result.results }}"
   loop_control:
     label: "{{ item.item.description }}"
-  tags: ['vm', 'vm:verify']
+  tags: ['vm', 'vm:verify', 'vm:report']

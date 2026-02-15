@@ -17,8 +17,9 @@
 - ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    _vm_pkg_list: "{{ _vm_hyperv_pkg_map[ansible_facts['os_family']] | default(packages_hyperv_guest) }}"
+    _vm_pkg_list: "{{ _vm_hyperv_packages }}"
     _vm_pkg_label: "Hyper-V"
+    _vm_notify_handler: "Restart hyper-v services"
   tags: ['vm', 'hyperv']
 
 # ---- Check time sync ----
@@ -75,7 +76,10 @@
     file: _version_report.yml
   vars:
     _vm_ver_label: "Hyper-V"
-    _vm_ver_command: "dmesg | grep -i 'hyper-v' | head -5"
+    _vm_ver_command: "modinfo -F version hv_vmbus"
+    _vm_ver_extra_commands:
+      - cmd: "modinfo -F vermagic hv_vmbus"
+        label: "Kernel compatibility"
   tags: ['vm', 'hyperv']
 
 # ---- Check X11 integration ----

@@ -1,0 +1,82 @@
+---
+# === QEMU/KVM Guest Agent ===
+#
+# Services:
+#   qemu-guest-agent -- QEMU Guest Agent (filesystem freeze, shutdown, exec)
+#
+# Kernel modules:
+#   virtio_balloon -- dynamic memory management (host reclaims unused guest memory)
+#   virtio_net     -- paravirtual network adapter (optional, depends on VM NIC config)
+#   virtio_blk     -- paravirtual block device (optional, depends on VM disk config)
+#   virtio_scsi    -- paravirtual SCSI controller (optional, depends on VM disk config)
+
+# ---- Install packages ----
+
+- ansible.builtin.include_tasks:
+    file: _install_packages.yml
+  vars:
+    _vm_pkg_list: "{{ _vm_kvm_packages }}"
+    _vm_pkg_label: "KVM"
+    _vm_notify_handler: "Restart kvm services"
+  tags: ['vm', 'kvm']
+
+# ---- Check time sync ----
+
+- ansible.builtin.include_tasks:
+    file: _check_timesync.yml
+  vars:
+    _vm_timesync_label: "KVM"
+    _vm_timesync_service: "qemu-guest-agent"
+  tags: ['vm', 'kvm']
+
+# ---- Manage services ----
+
+- ansible.builtin.include_tasks:
+    file: _manage_services.yml
+  vars:
+    _vm_svc_list:
+      - name: qemu-guest-agent
+        description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
+        required: true
+    _vm_svc_label: "KVM"
+  tags: ['vm', 'kvm']
+
+# ---- Verify kernel modules ----
+
+- ansible.builtin.include_tasks:
+    file: _verify_modules.yml
+  vars:
+    _vm_mod_list:
+      - name: virtio_balloon
+        description: "dynamic memory management (host reclaims unused guest memory)"
+        required: false
+      - name: virtio_net
+        description: "paravirtual network adapter (optional, depends on VM NIC config)"
+        required: false
+      - name: virtio_blk
+        description: "paravirtual block device (optional, depends on VM disk config)"
+        required: false
+      - name: virtio_scsi
+        description: "paravirtual SCSI controller (optional, depends on VM disk config)"
+        required: false
+    _vm_mod_label: "KVM"
+  tags: ['vm', 'kvm']
+
+# ---- Version report ----
+
+- ansible.builtin.include_tasks:
+    file: _version_report.yml
+  vars:
+    _vm_ver_label: "KVM"
+    _vm_ver_command: "qemu-ga --version"
+  when: vm_kvm_version_report
+  tags: ['vm', 'kvm']
+
+# ---- Check reboot requirement ----
+
+- ansible.builtin.include_tasks:
+    file: _reboot_flag.yml
+  vars:
+    _vm_reboot_label: "KVM"
+    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('virtio_balloon' not in _vm_lsmod_output.stdout) }}"
+  tags: ['vm', 'kvm']

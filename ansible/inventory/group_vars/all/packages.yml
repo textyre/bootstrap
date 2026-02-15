@@ -169,6 +169,11 @@ packages_vmware_guest:
 packages_hyperv_guest:
   - hyperv                   # hv_fcopy, hv_kvp, hv_vss daemons
 
+# --- QEMU/KVM Guest Agent (only if running in KVM/QEMU VM) ---
+# Used by role: vm
+packages_kvm_guest:
+  - qemu-guest-agent         # Guest Agent (filesystem freeze, shutdown, exec)
+
 # --- Пакеты конфликтующие с AUR заменами ---
 # Удаляются перед установкой AUR пакетов
 packages_aur_remove_conflicts:

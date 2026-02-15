@@ -1,0 +1,45 @@
+---
+# =========================================================================
+# _remove_packages.yml
+# =========================================================================
+# Common task file: Remove VM guest packages and disable services
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _remove_packages.yml
+#     vars:
+#       _vm_pkg_list: "{{ packages_vmware_guest }}"
+#       _vm_pkg_label: "VMware"
+#       _vm_svc_list: ['vmtoolsd', 'vgauthd']
+#
+# Required parameters:
+#   _vm_pkg_list (list)    - List of package names to remove
+#   _vm_pkg_label (string) - Hypervisor name for task names
+#
+# Optional parameters:
+#   _vm_svc_list (list)    - List of service names to stop and disable
+# =========================================================================
+
+- name: "{{ _vm_pkg_label }}: Stop and disable services"
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ _vm_svc_list | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  failed_when: false
+  tags: ['vm', 'vm:service']
+
+- name: "{{ _vm_pkg_label }}: Remove guest packages"
+  ansible.builtin.package:
+    name: "{{ _vm_pkg_list }}"
+    state: absent
+  when: _vm_pkg_list | length > 0
+  register: _vm_pkg_remove_result
+  tags: ['vm', 'vm:install']
+
+- name: "{{ _vm_pkg_label }}: Report removal"
+  ansible.builtin.debug:
+    msg: "{{ _vm_pkg_label }} guest tools removed"
+  when: _vm_pkg_remove_result is changed
+  tags: ['vm', 'vm:install', 'vm:report']

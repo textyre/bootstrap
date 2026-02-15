@@ -20,7 +20,7 @@
   listen: "Restart vmware services"
 
 - name: Restart VMware vmblock-fuse
-  ansible.builtin.systemd:
+  ansible.builtin.service:
     name: vmware-vmblock-fuse
     state: restarted
   failed_when: false
@@ -37,7 +37,15 @@
   failed_when: false
   listen: "Restart hyper-v services"
 
+- name: Restart KVM services
+  ansible.builtin.service:
+    name: qemu-guest-agent
+    state: restarted
+  failed_when: false
+  listen: "Restart kvm services"
+
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
+  when: _vm_service_manager | default('systemd') == 'systemd'
   listen: "Reload systemd daemon"

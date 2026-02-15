@@ -60,4 +60,4 @@
   loop: "{{ _vm_mod_list | selectattr('required', 'equalto', false) | list }}"
   loop_control:
     label: "{{ item.name }}"
-  tags: ['vm', 'vm:verify']
+  tags: ['vm', 'vm:verify', 'vm:report']

@@ -1,7 +1,40 @@
 ---
 # === Virtualization guest tools (VM role) ===
 # Detects hypervisor and installs appropriate guest utilities
-# Supported: VirtualBox, VMware, Hyper-V
+# Supported: VirtualBox, VMware, Hyper-V, KVM
+
+# ---- Prerequisites ----
+
+- name: Validate role prerequisites
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['virtualization_type'] is defined
+      - ansible_facts['virtualization_role'] is defined
+    fail_msg: >-
+      Missing virtualization facts. Ensure 'gather_facts: true' is set
+      and the system supports virtualization detection.
+    success_msg: "Virtualization facts available"
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Validate prerequisites"
+  tags: ['vm']
+
+# ---- Load OS-specific variables ----
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "default.yml"
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Load OS variables"
+    _vm_rpt_detail: "{{ ansible_facts['os_family'] }}"
+  tags: ['vm']
 
 # ---- Detection ----
 
@@ -22,6 +55,24 @@
     _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Detect virtualization"
+    _vm_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Container/WSL2 check"
+    _vm_rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Guest determination"
+    _vm_rpt_detail: "hypervisor={{ _vm_hypervisor }}"
+  tags: ['vm']
+
 # ---- Initialize reboot flag ----
 
 - name: Initialize reboot required flag
@@ -29,12 +80,74 @@
     _vm_reboot_required: false
   tags: ['vm']
 
+# ---- State: absent (remove guest tools) ----
+
+- name: Remove guest tools (state=absent)
+  ansible.builtin.include_tasks:
+    file: _remove_packages.yml
+  vars:
+    _vm_pkg_list: >-
+      {{ packages_virtualbox_guest + packages_vmware_guest
+         + (_vm_hyperv_packages | default(packages_hyperv_guest))
+         + (_vm_kvm_packages | default(packages_kvm_guest)) }}
+    _vm_pkg_label: "All hypervisors"
+    _vm_svc_list:
+      - vboxservice
+      - vboxadd-service
+      - vmtoolsd
+      - vgauthd
+      - vmware-vmblock-fuse
+      - hv_fcopy_daemon
+      - hv_kvp_daemon
+      - hv_vss_daemon
+      - qemu-guest-agent
+  when:
+    - vm_state == 'absent'
+    - _vm_is_guest | bool
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Remove guest tools"
+    _vm_rpt_detail: "state=absent"
+  when:
+    - vm_state == 'absent'
+    - _vm_is_guest | bool
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Remove guest tools"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "state={{ vm_state }}"
+  when: not (vm_state == 'absent' and (_vm_is_guest | bool))
+  tags: ['vm']
+
 # ---- Dispatch to hypervisor-specific tasks ----
 
 - name: Include hypervisor-specific tasks
   ansible.builtin.include_tasks:
     file: "{{ _vm_hypervisor_map[_vm_hypervisor] }}"
-  when: _vm_is_guest | bool
+  when:
+    - _vm_is_guest | bool
+    - vm_state == 'present'
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Install guest tools"
+    _vm_rpt_detail: "{{ _vm_hypervisor }}"
+  when:
+    - _vm_is_guest | bool
+    - vm_state == 'present'
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Install guest tools"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "{{ 'not a guest' if not (_vm_is_guest | bool) else 'state=absent' }}"
+  when: not ((_vm_is_guest | bool) and vm_state == 'present')
   tags: ['vm']
 
 # ---- Skip messages ----
@@ -45,7 +158,7 @@
       Container or WSL2 environment detected (type={{ _vm_virt_type }}).
       Guest tools not applicable for containers.
   when: _vm_is_container | bool
-  tags: ['vm']
+  tags: ['vm', 'vm:report']
 
 - name: Skip - not a supported guest VM
   ansible.builtin.debug:
@@ -55,17 +168,43 @@
   when:
     - not (_vm_is_guest | bool)
     - not (_vm_is_container | bool)
+  tags: ['vm', 'vm:report']
+
+# ---- Persist facts for downstream roles ----
+
+- name: Persist VM guest facts
+  ansible.builtin.include_tasks:
+    file: _set_facts.yml
+  when: vm_state == 'present'
   tags: ['vm']
 
-# ---- Summary report ----
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Persist custom facts"
+    _vm_rpt_detail: "vm_guest.fact"
+  when: vm_state == 'present'
+  tags: ['vm']
 
-- name: Report VM guest configuration
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Persist custom facts"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "state=absent"
+  when: vm_state != 'present'
+  tags: ['vm']
+
+# ---- Execution report ----
+
+- name: "VM Role - Execution Report"
   ansible.builtin.debug:
-    msg:
-      - "Virtualization type: {{ _vm_virt_type }}"
-      - "Virtualization role: {{ _vm_virt_role }}"
-      - "Detected hypervisor: {{ _vm_hypervisor }}"
-      - "Guest utilities installed: {{ _vm_is_guest | bool }}"
-      - "Container/WSL2: {{ _vm_is_container | bool }}"
-      - "Reboot required: {{ _vm_reboot_required | default(false) }}"
-  tags: ['vm']
+    msg: "{{ _header + (_vm_phases | default([])) + _footer }}"
+  vars:
+    _header:
+      - "+----------------------------+------------+--------------------------+"
+      - "| Phase                      | Status     | Details                  |"
+      - "+----------------------------+------------+--------------------------+"
+    _footer:
+      - "+----------------------------+------------+--------------------------+"
+      - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((_vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
+      - "+----------------------------+------------+--------------------------+"
+  tags: ['vm', 'vm:report']

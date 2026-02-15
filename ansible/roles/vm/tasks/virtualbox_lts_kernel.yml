@@ -41,7 +41,7 @@
   when:
     - not (_vm_vbox_iso_installed | default(false))
     - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
-    - ansible_facts['os_family'] == 'Archlinux'
+    - _vm_vbox_lts_kernel_support | default(false)
     - _vm_vbox_kernel.stdout is defined
     - "'lts' in _vm_vbox_kernel.stdout"
   register: _vm_vbox_lts_install

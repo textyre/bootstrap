@@ -1,0 +1,27 @@
+---
+# =========================================================================
+# _set_facts.yml
+# =========================================================================
+# Write persistent custom fact for downstream roles
+# =========================================================================
+
+- name: Ensure facts directory exists
+  ansible.builtin.file:
+    path: /etc/ansible/facts.d
+    state: directory
+    mode: '0755'
+  tags: ['vm']
+
+- name: Write VM guest custom fact
+  ansible.builtin.copy:
+    content: |
+      {
+        "hypervisor": "{{ _vm_hypervisor }}",
+        "is_guest": {{ _vm_is_guest | bool | lower }},
+        "is_container": {{ _vm_is_container | bool | lower }},
+        "reboot_required": {{ _vm_reboot_required | default(false) | bool | lower }}
+      }
+    dest: /etc/ansible/facts.d/vm_guest.fact
+    mode: '0644'
+  when: _vm_is_guest | bool
+  tags: ['vm']

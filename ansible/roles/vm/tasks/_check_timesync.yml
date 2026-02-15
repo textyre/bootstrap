@@ -46,4 +46,4 @@
   when:
     - _vm_timesync_status.status is defined
     - _vm_timesync_status.status.ActiveState == 'active'
-  tags: ['vm', 'vm:verify']
+  tags: ['vm', 'vm:verify', 'vm:report']

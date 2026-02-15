@@ -18,6 +18,9 @@
 #   _vm_pkg_list (list)   - List of package names to install
 #   _vm_pkg_label (string) - Hypervisor name for task names (e.g., "Hyper-V", "VMware")
 #
+# Optional parameters:
+#   _vm_notify_handler (string) - Handler name to notify when packages change (default: empty)
+#
 # Behavior:
 #   - Installs packages using ansible.builtin.package with state=present
 #   - Retries up to 3 times with 5-second delay between attempts
@@ -38,4 +41,5 @@
   retries: 3
   delay: 5
   until: _vm_pkg_install_result is succeeded
+  notify: "{{ _vm_notify_handler | default(omit) }}"
   tags: ['vm', 'vm:install']

@@ -48,6 +48,7 @@
   retries: 3
   delay: 5
   until: _vm_vbox_initial_install is succeeded
+  notify: "Restart virtualbox services"
   tags: ['vm', 'vbox', 'vm:install']
 
 # ---- Phase 3: Version detection and ISO enforcement ----
@@ -57,7 +58,7 @@
   when: vm_vbox_version_check
   tags: ['vm', 'vbox', 'vm:verify', 'vm:install']
 
-# ---- Phase 5: Pacman path (versions match OR version check disabled) ----
+# ---- Phase 4: Pacman path (versions match OR version check disabled) ----
 
 - name: "VirtualBox: Ensure pacman GA packages (versions match)"
   ansible.builtin.package:
@@ -75,15 +76,16 @@
   retries: 3
   delay: 5
   until: _vm_vbox_pkg_install is succeeded
+  notify: "Restart virtualbox services"
   tags: ['vm', 'vbox', 'vm:install']
 
-# ---- Phase 6: LTS kernel DKMS support (only for pacman path) ----
+# ---- Phase 5: LTS kernel DKMS support (only for pacman path) ----
 
 - name: "VirtualBox: LTS kernel DKMS support"
   ansible.builtin.include_tasks: virtualbox_lts_kernel.yml
   tags: ['vm', 'vbox', 'vm:install']
 
-# ---- Phase 7: Determine active service name ----
+# ---- Phase 6: Determine active service name ----
 
 - name: "VirtualBox: Determine active service name"
   ansible.builtin.set_fact:
@@ -93,7 +95,7 @@
          else 'vboxservice' }}
   tags: ['vm', 'vbox', 'vm:service']
 
-# ---- Phase 8: Time sync conflict check ----
+# ---- Phase 7: Time sync conflict check ----
 
 - name: "VirtualBox: Check time sync conflicts"
   ansible.builtin.include_tasks:
@@ -103,7 +105,7 @@
     _vm_timesync_service: "{{ _vm_vbox_service_name }}"
   tags: ['vm', 'vbox']
 
-# ---- Phase 9: Service management ----
+# ---- Phase 8: Service management ----
 
 - name: "VirtualBox: Manage guest services"
   ansible.builtin.include_tasks:
@@ -117,7 +119,7 @@
   when: not (_vm_vbox_iso_installed | default(false))
   tags: ['vm', 'vbox']
 
-# ---- Phase 10: Module verification ----
+# ---- Phase 9: Module verification ----
 
 - name: "VirtualBox: Verify kernel modules"
   ansible.builtin.include_tasks:
@@ -136,7 +138,7 @@
         required: false
   tags: ['vm', 'vbox']
 
-# ---- Phase 11: X11 autostart check ----
+# ---- Phase 10: X11 autostart check ----
 
 - name: "VirtualBox: Check desktop integration"
   ansible.builtin.include_tasks:
@@ -146,9 +148,15 @@
     _vm_x11_paths:
       - path: /etc/xdg/autostart/vboxclient.desktop
         description: "VBoxClient X11 autostart (clipboard, seamless, display resize)"
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=VBoxClient
+          Exec=/usr/bin/VBoxClient-all
+          X-GNOME-Autostart-enabled=true
   tags: ['vm', 'vbox']
 
-# ---- Phase 12: Final version verification ----
+# ---- Phase 11: Final version verification ----
 
 - name: "VirtualBox: Report version"
   ansible.builtin.include_tasks:
@@ -159,7 +167,7 @@
   when: vm_vbox_version_check
   tags: ['vm', 'vbox']
 
-# ---- Phase 13: Reboot flag ----
+# ---- Phase 12: Reboot flag ----
 
 - name: "VirtualBox: Check reboot requirement"
   ansible.builtin.include_tasks:

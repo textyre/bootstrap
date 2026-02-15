@@ -73,10 +73,10 @@
       {% endfor %}
       {% endif %}
   when: _vm_ver_main_result.rc | default(1) == 0
-  tags: ['vm', 'vm:verify']
+  tags: ['vm', 'vm:verify', 'vm:report']
 
 - name: "{{ _vm_ver_label }}: Version info not available"
   ansible.builtin.debug:
     msg: "{{ _vm_ver_label }} guest tools version information not available"
   when: _vm_ver_main_result.rc | default(1) != 0
-  tags: ['vm', 'vm:verify']
+  tags: ['vm', 'vm:verify', 'vm:report']

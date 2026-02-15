@@ -1,10 +1,11 @@
 ---
-# === Virtualization guest tools (VirtualBox, VMware, Hyper-V) ===
+# === Virtualization guest tools (VirtualBox, VMware, Hyper-V, KVM) ===
 # Packages defined in group_vars/all/packages.yml
 
 packages_virtualbox_guest: []  # noqa: var-naming[no-role-prefix]
 packages_vmware_guest: []  # noqa: var-naming[no-role-prefix]
 packages_hyperv_guest: []  # noqa: var-naming[no-role-prefix]
+packages_kvm_guest: []  # noqa: var-naming[no-role-prefix]
 
 # VBox version mismatch: warn (not fail) when guest != host
 vm_vbox_version_check: true
@@ -12,19 +13,21 @@ vm_vbox_version_check: true
 # VMware version reporting: show vmware-toolbox-cmd version
 vm_vmware_version_report: true
 
+# KVM version reporting: show qemu-ga version
+vm_kvm_version_report: true
+
+# Role state: 'present' installs guest tools, 'absent' removes them
+vm_state: present
+
 # Internal: map virtualization_type fact value → task file
 _vm_hypervisor_map:
   virtualbox: virtualbox.yml
   VMware: vmware.yml
   hyperv: hyperv.yml
+  kvm: kvm.yml
 
 _vm_supported_hypervisors:
   - virtualbox
   - VMware
   - hyperv
-
-# Debian package mapping (Hyper-V package name differs)
-_vm_hyperv_pkg_map:
-  Archlinux: "{{ packages_hyperv_guest }}"
-  Debian:
-    - hyperv-daemons
+  - kvm

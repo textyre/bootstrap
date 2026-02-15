@@ -96,6 +96,7 @@
     - name: "VirtualBox: Show ISO installer output"
       ansible.builtin.debug:
         msg: "{{ _vm_vbox_iso_install_result.stdout_lines | default([]) }}"
+      tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
     - name: "VirtualBox: Load vboxguest module"
       ansible.builtin.command:
@@ -120,6 +121,7 @@
           [Install]
           WantedBy=multi-user.target
         mode: '0644'
+      notify: "Reload systemd daemon"
 
     - name: "VirtualBox: Reload systemd daemon"
       ansible.builtin.systemd:
@@ -176,6 +178,7 @@
           WARNING: ISO GA install failed. Reverted to pacman packages ({{ _vm_vbox_guest_ver }}).
           Version mismatch persists (host={{ _vm_vbox_host_ver }}).
       when: _vm_vbox_recovery is succeeded
+      tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
   always:
     - name: "VirtualBox: Unmount ISO"

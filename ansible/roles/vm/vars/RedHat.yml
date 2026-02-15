@@ -1,0 +1,16 @@
+---
+# === RedHat/Fedora/CentOS specific variables ===
+
+# Service manager: systemd
+_vm_service_manager: systemd
+
+# Hyper-V package names (Fedora/RHEL uses 'hyperv-daemons')
+_vm_hyperv_packages:
+  - hyperv-daemons
+
+# KVM package names
+_vm_kvm_packages:
+  - qemu-guest-agent
+
+# VirtualBox LTS kernel support: not applicable
+_vm_vbox_lts_kernel_support: false

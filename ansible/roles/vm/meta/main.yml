@@ -2,7 +2,7 @@
 galaxy_info:
   role_name: vm
   author: textyre
-  description: VM guest integration (VirtualBox, VMware, Hyper-V) with auto-detection and kernel module management
+  description: VM guest integration (VirtualBox, VMware, Hyper-V, KVM) with auto-detection and kernel module management
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -10,5 +10,13 @@ galaxy_info:
       versions: [all]
     - name: Debian
       versions: [all]
-  galaxy_tags: [vm, virtualbox, vmware, hyperv, guest, virtualization]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: EL
+      versions: ["8", "9"]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [vm, virtualbox, vmware, hyperv, kvm, guest, virtualization]
 dependencies: []

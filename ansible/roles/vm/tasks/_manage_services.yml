@@ -62,6 +62,7 @@
   register: _vm_svc_journal
   changed_when: false
   failed_when: false
+  when: _vm_service_manager | default('systemd') == 'systemd'
   tags: ['vm', 'vm:service']
 
 - name: "{{ _vm_svc_label }}: Report service status"
@@ -71,4 +72,4 @@
   loop_control:
     label: "{{ item.name }}"
     index_var: idx
-  tags: ['vm', 'vm:service']
+  tags: ['vm', 'vm:service', 'vm:report']

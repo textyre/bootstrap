@@ -1,0 +1,16 @@
+---
+# === Gentoo specific variables ===
+
+# Service manager: detect at runtime (may be OpenRC or systemd)
+_vm_service_manager: "{{ ansible_facts['service_mgr'] | default('openrc') }}"
+
+# Hyper-V package names
+_vm_hyperv_packages:
+  - sys-apps/hv_kvp_daemon
+
+# KVM package names
+_vm_kvm_packages:
+  - app-emulation/qemu-guest-agent
+
+# VirtualBox LTS kernel support: not applicable (Gentoo has own kernel management)
+_vm_vbox_lts_kernel_support: false

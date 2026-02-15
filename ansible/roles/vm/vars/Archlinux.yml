@@ -1,0 +1,14 @@
+---
+# === Arch Linux specific variables ===
+
+# Service manager: systemd (always on Arch)
+_vm_service_manager: systemd
+
+# Hyper-V package names (Arch uses 'hyperv' meta-package)
+_vm_hyperv_packages: "{{ packages_hyperv_guest }}"
+
+# KVM package names
+_vm_kvm_packages: "{{ packages_kvm_guest }}"
+
+# VirtualBox LTS kernel support available
+_vm_vbox_lts_kernel_support: true

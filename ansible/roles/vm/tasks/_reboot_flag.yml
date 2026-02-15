@@ -45,4 +45,4 @@
   when:
     - _vm_reboot_required | default(false)
     - _vm_reboot_condition | bool
-  tags: ['vm']
+  tags: ['vm', 'vm:report']
