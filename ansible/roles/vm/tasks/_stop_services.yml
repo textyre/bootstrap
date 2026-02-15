@@ -1,24 +1,25 @@
 ---
 # =========================================================================
-# _remove_packages.yml
+# _stop_services.yml
 # =========================================================================
-# Remove VM guest packages (per-package for granular reporting).
+# Stop and disable VM guest services.
 #
 # Required parameters:
-#   _vm_pkg_list  (list)   - Package names to remove
+#   _vm_svc_list  (list)   - Service names to stop
 #   _vm_pkg_label (string) - Hypervisor name for task names
 #
 # Output:
-#   _vm_pkg_remove_result (register) - Per-package results
+#   _vm_svc_stop_result (register) - Per-service results
 # =========================================================================
 
-- name: "{{ _vm_pkg_label }}: Remove guest packages"
-  ansible.builtin.package:
+- name: "{{ _vm_pkg_label }}: Stop and disable services"
+  ansible.builtin.service:
     name: "{{ item }}"
-    state: absent
-  loop: "{{ _vm_pkg_list | default([]) }}"
+    enabled: false
+    state: stopped
+  loop: "{{ _vm_svc_list | default([]) }}"
   loop_control:
     label: "{{ item }}"
-  register: _vm_pkg_remove_result
+  register: _vm_svc_stop_result
   failed_when: false
-  tags: ['vm', 'vm:install']
+  tags: ['vm', 'vm:service']

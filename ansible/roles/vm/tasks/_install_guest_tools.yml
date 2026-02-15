@@ -1,0 +1,87 @@
+---
+# =========================================================================
+# _install_guest_tools.yml
+# =========================================================================
+# Install hypervisor-specific guest tools and persist facts.
+#
+# Expected variables (set by main.yml detection phase):
+#   _vm_is_guest    (bool)   - Whether running as guest
+#   _vm_hypervisor  (string) - Detected hypervisor name
+#   _vm_is_container (bool)  - Whether running in container/WSL2
+#   _vm_virt_type   (string) - Virtualization type
+#   _vm_virt_role   (string) - Virtualization role
+# =========================================================================
+
+# ---- Dispatch to hypervisor-specific tasks ----
+
+- name: Include hypervisor-specific tasks
+  ansible.builtin.include_tasks:
+    file: "{{ _vm_hypervisor_map[_vm_hypervisor] }}"
+  when: _vm_is_guest | bool
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Install guest tools"
+    _vm_rpt_detail: "{{ _vm_hypervisor }}"
+  when: _vm_is_guest | bool
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Install guest tools"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "not a guest"
+  when: not (_vm_is_guest | bool)
+  tags: ['vm']
+
+# ---- Skip messages ----
+
+- name: Skip - container/WSL2 environment detected
+  ansible.builtin.debug:
+    msg: >-
+      Container or WSL2 environment detected (type={{ _vm_virt_type }}).
+      Guest tools not applicable for containers.
+  when: _vm_is_container | bool
+  tags: ['vm', 'vm:report']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Environment check"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "container/WSL2 ({{ _vm_virt_type }})"
+  when: _vm_is_container | bool
+  tags: ['vm']
+
+- name: Skip - not a supported guest VM
+  ansible.builtin.debug:
+    msg: >-
+      Not a supported guest VM (type={{ _vm_virt_type }}, role={{ _vm_virt_role }}).
+      No guest tools to install.
+  when:
+    - not (_vm_is_guest | bool)
+    - not (_vm_is_container | bool)
+  tags: ['vm', 'vm:report']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Environment check"
+    _vm_rpt_status: "skip"
+    _vm_rpt_detail: "not a guest ({{ _vm_virt_type }}/{{ _vm_virt_role }})"
+  when:
+    - not (_vm_is_guest | bool)
+    - not (_vm_is_container | bool)
+  tags: ['vm']
+
+# ---- Persist facts for downstream roles ----
+
+- name: Persist VM guest facts
+  ansible.builtin.include_tasks:
+    file: _set_facts.yml
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Persist custom facts"
+    _vm_rpt_detail: "vm_guest.fact"
+  tags: ['vm']

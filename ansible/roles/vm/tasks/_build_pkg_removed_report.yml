@@ -1,0 +1,32 @@
+---
+# =========================================================================
+# _build_pkg_removed_report.yml
+# =========================================================================
+# Build package report rows from _vm_pkg_remove_result.
+#
+# Expected variables:
+#   _vm_pkg_label          (string)   - Hypervisor label
+#   _vm_pkg_remove_result  (register) - Per-package remove results
+#
+# Output:
+#   _vm_rpt_pkg_rows (list) - Formatted table rows
+# =========================================================================
+
+- name: "{{ _vm_pkg_label }}: Initialize package report"
+  ansible.builtin.set_fact:
+    _vm_rpt_pkg_rows: []
+  tags: ['vm', 'vm:report']
+
+- name: "{{ _vm_pkg_label }}: Collect package results"
+  ansible.builtin.set_fact:
+    _vm_rpt_pkg_rows: "{{ _vm_rpt_pkg_rows + [_row] }}"
+  vars:
+    _failed: "{{ item.failed | default(false) | bool }}"
+    _changed: "{{ item.changed | default(false) | bool }}"
+    _st: "{{ '! fail' if _failed else ('+ removed' if _changed else '- skipped') }}"
+    _detail: "{{ (item.msg | default('error')) | truncate(28, true, '..') if _failed else ('not installed' if not _changed else '') }}"
+    _row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(_detail) }} |"
+  loop: "{{ _vm_pkg_remove_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  tags: ['vm', 'vm:report']

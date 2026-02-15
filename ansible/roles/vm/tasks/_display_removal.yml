@@ -1,0 +1,37 @@
+---
+# =========================================================================
+# _display_removal.yml
+# =========================================================================
+# Display removal report tables for services and packages.
+#
+# Expected variables:
+#   _vm_pkg_label      (string) - Hypervisor label
+#   _vm_rpt_svc_rows   (list)  - Service table rows (from _build_svc_report.yml)
+#   _vm_rpt_pkg_rows   (list)  - Package table rows (from _build_pkg_report.yml)
+# =========================================================================
+
+- name: "{{ _vm_pkg_label }}: Removal report — Services"
+  ansible.builtin.debug:
+    msg: "{{ _header + _vm_rpt_svc_rows + [_border] }}"
+  vars:
+    _border: "+----------------------+------------+------------------------------+"
+    _header:
+      - "{{ _vm_pkg_label }} — Services"
+      - "{{ _border }}"
+      - "| {{ '%-20s' | format('Service') }} | {{ '%-10s' | format('Status') }} | {{ '%-28s' | format('Details') }} |"
+      - "{{ _border }}"
+  when: _vm_rpt_svc_rows | length > 0
+  tags: ['vm', 'vm:report']
+
+- name: "{{ _vm_pkg_label }}: Removal report — Packages"
+  ansible.builtin.debug:
+    msg: "{{ _header + _vm_rpt_pkg_rows + [_border] }}"
+  vars:
+    _border: "+----------------------+------------+------------------------------+"
+    _header:
+      - "{{ _vm_pkg_label }} — Packages"
+      - "{{ _border }}"
+      - "| {{ '%-20s' | format('Package') }} | {{ '%-10s' | format('Status') }} | {{ '%-28s' | format('Details') }} |"
+      - "{{ _border }}"
+  when: _vm_rpt_pkg_rows | length > 0
+  tags: ['vm', 'vm:report']

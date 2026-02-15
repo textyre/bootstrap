@@ -1,0 +1,78 @@
+---
+# =========================================================================
+# _remove_guest_tools.yml
+# =========================================================================
+# Orchestrator: stop services, remove packages, remove facts, display report.
+#
+# Expected variables (set by main.yml detection phase):
+#   _vm_is_guest    (bool)   - Whether running as guest
+#   _vm_virt_type   (string) - Virtualization type
+#   _vm_virt_role   (string) - Virtualization role
+# =========================================================================
+
+# ---- Stop services and remove packages ----
+
+- ansible.builtin.include_tasks: _stop_services.yml
+  vars:
+    _vm_pkg_label: "All hypervisors"
+    _vm_svc_list:
+      # VirtualBox
+      - vboxservice        # guest service from package manager (time sync, clipboard, seamless)
+      - vboxadd-service    # guest service from ISO install (same role as vboxservice)
+      # VMware
+      - vmtoolsd           # core VMware Tools daemon (status, time sync, display resize)
+      - vgauthd            # guest authentication for vSphere operations
+      - vmware-vmblock-fuse  # drag-and-drop via FUSE (optional, desktop only)
+      # Hyper-V
+      - hv_fcopy_daemon    # file copy between host and guest
+      - hv_kvp_daemon      # key-value pair exchange (network config, metadata)
+      - hv_vss_daemon      # Volume Shadow Copy (live backup support)
+      # KVM
+      - qemu-guest-agent   # QEMU Guest Agent (filesystem freeze, shutdown, exec)
+  tags: ['vm', 'vm:service']
+
+- ansible.builtin.include_tasks: _remove_packages.yml
+  vars:
+    _vm_pkg_label: "All hypervisors"
+    _vm_pkg_list: >-
+      {{ packages_virtualbox_guest + packages_vmware_guest
+         + (_vm_hyperv_packages | default(packages_hyperv_guest))
+         + (_vm_kvm_packages | default(packages_kvm_guest)) }}
+  tags: ['vm', 'vm:install']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Remove guest tools"
+    _vm_rpt_detail: "state=absent"
+  tags: ['vm']
+
+# ---- Remove persisted facts ----
+
+- name: Remove VM guest facts
+  ansible.builtin.file:
+    path: /etc/ansible/facts.d/vm_guest.fact
+    state: absent
+  tags: ['vm']
+
+- ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _vm_rpt_phase: "Remove custom facts"
+    _vm_rpt_detail: "vm_guest.fact"
+  tags: ['vm']
+
+# ---- Removal report ----
+
+- ansible.builtin.include_tasks: _build_svc_stopped_report.yml
+  vars:
+    _vm_pkg_label: "All hypervisors"
+  tags: ['vm', 'vm:report']
+
+- ansible.builtin.include_tasks: _build_pkg_removed_report.yml
+  vars:
+    _vm_pkg_label: "All hypervisors"
+  tags: ['vm', 'vm:report']
+
+- ansible.builtin.include_tasks: _display_removal.yml
+  vars:
+    _vm_pkg_label: "All hypervisors"
+  tags: ['vm', 'vm:report']
