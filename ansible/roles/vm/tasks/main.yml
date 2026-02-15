@@ -16,7 +16,8 @@
     success_msg: "Virtualization facts available"
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Validate prerequisites"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Validate prerequisites"
   tags: ['vm']
@@ -30,7 +31,8 @@
     - "default.yml"
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Load OS variables"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Load OS variables"
     _vm_rpt_detail: "{{ ansible_facts['os_family'] }}"
@@ -55,19 +57,22 @@
     _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Detect virtualization"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Detect virtualization"
     _vm_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Container/WSL2 check"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Container/WSL2 check"
     _vm_rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Guest determination"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Guest determination"
     _vm_rpt_detail: "hypervisor={{ _vm_hypervisor }}"

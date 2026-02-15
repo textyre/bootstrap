@@ -67,7 +67,7 @@
 
 - name: "{{ _vm_svc_label }}: Report service status"
   ansible.builtin.debug:
-    msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if _vm_svc_result.results[idx].state == 'started' else 'unavailable' }}"
+    msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if (_vm_svc_result.results[idx].state | default('unknown')) == 'started' else 'unavailable' }}"
   loop: "{{ _vm_svc_list }}"
   loop_control:
     label: "{{ item.name }}"

@@ -45,5 +45,5 @@
       systemctl disable --now systemd-timesyncd
   when:
     - _vm_timesync_status.status is defined
-    - _vm_timesync_status.status.ActiveState == 'active'
+    - _vm_timesync_status.status.ActiveState | default('') == 'active'
   tags: ['vm', 'vm:verify', 'vm:report']

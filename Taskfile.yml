@@ -23,15 +23,9 @@ tasks:
 
   bootstrap:
     desc: "Install all dependencies (run once on fresh system)"
-    dir: '{{.ANSIBLE_DIR}}'
     cmds:
-      - echo "==> Creating Python virtual environment..."
-      - python -m venv .venv
-      - echo "==> Installing Python dependencies..."
-      - '{{.PREFIX}} pip install --upgrade pip'
-      - '{{.PREFIX}} pip install -r requirements.txt'
-      - echo "==> Installing Ansible Galaxy collections..."
-      - '{{.PREFIX}} ansible-galaxy collection install -r requirements.yml'
+      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh'
+      - '{{.TASKFILE_DIR}}/scripts/setup-galaxy.sh'
       - echo "Bootstrap complete! Run 'task check' or 'task test'"
 
   check:
@@ -293,20 +287,8 @@ tasks:
   vault-create:
     desc: "Create encrypted vault.yml with sudo password"
     deps: [_ensure-venv, _ensure-vault-pass]
-    dir: '{{.ANSIBLE_DIR}}'
-    status:
-      - test -f inventory/group_vars/all/vault.yml
     cmds:
-      - echo "==> Creating encrypted vault.yml..."
-      - |
-        read -s -r -p "Enter sudo password for ansible_become_password: " sudo_pass
-        echo
-        echo "ansible_become_password: \"${sudo_pass}\"" | \
-          {{.PREFIX}} ansible-vault encrypt \
-            --output inventory/group_vars/all/vault.yml -
-        chmod 600 inventory/group_vars/all/vault.yml
-        unset sudo_pass
-      - echo "vault.yml created and encrypted"
+      - '{{.TASKFILE_DIR}}/scripts/setup-vault.sh'
 
   vault-edit:
     desc: "Edit encrypted vault.yml"
@@ -341,12 +323,10 @@ tasks:
   _ensure-vault-pass:
     internal: true
     silent: true
-    preconditions:
-      - sh: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh >/dev/null 2>&1'
-        msg: |
-          Vault password not configured. Setup:
-            1. echo 'password' > ~/.vault-pass && chmod 600 ~/.vault-pass
-            2. pass insert ansible/vault-password
+    status:
+      - '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh >/dev/null 2>&1'
+    cmds:
+      - '{{.TASKFILE_DIR}}/scripts/setup-vault-pass.sh'
 
   _check-vault:
     internal: true

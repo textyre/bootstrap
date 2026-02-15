@@ -155,7 +155,7 @@
       failed_when: false
 
     - name: "VirtualBox: Collect failure diagnostics"
-      ansible.builtin.command:
+      ansible.builtin.shell:
         cmd: "{{ item }}"
       loop:
         - "uname -r"

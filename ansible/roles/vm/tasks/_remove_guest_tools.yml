@@ -12,7 +12,8 @@
 
 # ---- Stop services and remove packages ----
 
-- ansible.builtin.include_tasks: _stop_services.yml
+- name: "Stop services: All hypervisors"
+  ansible.builtin.include_tasks: _stop_services.yml
   vars:
     _vm_pkg_label: "All hypervisors"
     _vm_svc_list:
@@ -31,7 +32,8 @@
       - qemu-guest-agent   # QEMU Guest Agent (filesystem freeze, shutdown, exec)
   tags: ['vm', 'vm:service']
 
-- ansible.builtin.include_tasks: _remove_packages.yml
+- name: "Remove packages: All hypervisors"
+  ansible.builtin.include_tasks: _remove_packages.yml
   vars:
     _vm_pkg_label: "All hypervisors"
     _vm_pkg_list: >-
@@ -40,7 +42,8 @@
          + (_vm_kvm_packages | default(packages_kvm_guest)) }}
   tags: ['vm', 'vm:install']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Remove guest tools"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Remove guest tools"
     _vm_rpt_detail: "state=absent"
@@ -54,7 +57,8 @@
     state: absent
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Remove custom facts"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Remove custom facts"
     _vm_rpt_detail: "vm_guest.fact"
@@ -62,17 +66,20 @@
 
 # ---- Removal report ----
 
-- ansible.builtin.include_tasks: _build_svc_stopped_report.yml
+- name: "Build service stopped report: All hypervisors"
+  ansible.builtin.include_tasks: _build_svc_stopped_report.yml
   vars:
     _vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
-- ansible.builtin.include_tasks: _build_pkg_removed_report.yml
+- name: "Build package removed report: All hypervisors"
+  ansible.builtin.include_tasks: _build_pkg_removed_report.yml
   vars:
     _vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
-- ansible.builtin.include_tasks: _display_removal.yml
+- name: "Display removal report: All hypervisors"
+  ansible.builtin.include_tasks: _display_removal.yml
   vars:
     _vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']

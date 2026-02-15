@@ -20,14 +20,16 @@
   when: _vm_is_guest | bool
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Install guest tools"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Install guest tools"
     _vm_rpt_detail: "{{ _vm_hypervisor }}"
   when: _vm_is_guest | bool
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Install guest tools (skip)"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Install guest tools"
     _vm_rpt_status: "skip"
@@ -45,7 +47,8 @@
   when: _vm_is_container | bool
   tags: ['vm', 'vm:report']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Environment check (container)"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Environment check"
     _vm_rpt_status: "skip"
@@ -63,7 +66,8 @@
     - not (_vm_is_container | bool)
   tags: ['vm', 'vm:report']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Environment check (not a guest)"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Environment check"
     _vm_rpt_status: "skip"
@@ -80,7 +84,8 @@
     file: _set_facts.yml
   tags: ['vm']
 
-- ansible.builtin.include_tasks: _report_phase.yml
+- name: "Report: Persist custom facts"
+  ansible.builtin.include_tasks: _report_phase.yml
   vars:
     _vm_rpt_phase: "Persist custom facts"
     _vm_rpt_detail: "vm_guest.fact"
