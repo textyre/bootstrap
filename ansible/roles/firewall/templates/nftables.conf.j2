@@ -22,8 +22,9 @@ table inet filter {
         ip6 nexthdr icmpv6 limit rate 10/second accept
 
 {% if firewall_allow_ssh %}
-        # SSH
-        tcp dport 22 accept
+        # SSH с rate limiting (защита от brute-force)
+        tcp dport 22 ct state new limit rate 4/minute accept
+        tcp dport 22 ct state new log prefix "[nftables] ssh-rate: " drop
 {% endif %}
 {% for port in firewall_allow_tcp_ports %}
         tcp dport {{ port }} accept

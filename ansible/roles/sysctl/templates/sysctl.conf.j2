@@ -21,6 +21,32 @@ net.ipv4.tcp_tw_reuse = {{ sysctl_net_ipv4_tcp_tw_reuse }}
 # ---- Kernel ----
 kernel.unprivileged_userns_clone = {{ sysctl_kernel_unprivileged_userns_clone }}
 
+{% if sysctl_security_enabled %}
+# ---- Security: Kernel hardening ----
+kernel.randomize_va_space = {{ sysctl_kernel_randomize_va_space }}
+kernel.kptr_restrict = {{ sysctl_kernel_kptr_restrict }}
+kernel.dmesg_restrict = {{ sysctl_kernel_dmesg_restrict }}
+kernel.yama.ptrace_scope = {{ sysctl_kernel_yama_ptrace_scope }}
+
+# ---- Security: Network anti-spoofing ----
+net.ipv4.conf.all.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
+net.ipv4.conf.default.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
+net.ipv4.tcp_syncookies = {{ sysctl_net_ipv4_tcp_syncookies }}
+net.ipv4.conf.all.accept_redirects = {{ sysctl_net_ipv4_accept_redirects }}
+net.ipv4.conf.default.accept_redirects = {{ sysctl_net_ipv4_accept_redirects }}
+net.ipv4.conf.all.send_redirects = {{ sysctl_net_ipv4_send_redirects }}
+net.ipv4.conf.default.send_redirects = {{ sysctl_net_ipv4_send_redirects }}
+net.ipv4.conf.all.accept_source_route = {{ sysctl_net_ipv4_accept_source_route }}
+net.ipv4.conf.default.accept_source_route = {{ sysctl_net_ipv4_accept_source_route }}
+net.ipv4.conf.all.log_martians = {{ sysctl_net_ipv4_log_martians }}
+net.ipv4.icmp_echo_ignore_broadcasts = {{ sysctl_net_ipv4_icmp_echo_ignore_broadcasts }}
+net.ipv4.icmp_ignore_bogus_error_responses = {{ sysctl_net_ipv4_icmp_ignore_bogus_error_responses }}
+
+# ---- Security: Filesystem protection ----
+fs.protected_hardlinks = {{ sysctl_fs_protected_hardlinks }}
+fs.protected_symlinks = {{ sysctl_fs_protected_symlinks }}
+{% endif %}
+
 {% if sysctl_custom_params | length > 0 %}
 # ---- Custom parameters ----
 {% for param in sysctl_custom_params %}

@@ -16,3 +16,9 @@ docker_log_driver: "json-file"
 docker_log_max_size: "10m"
 docker_log_max_file: "3"
 docker_storage_driver: ""
+
+# Security features
+docker_userns_remap: ""          # "default" для user namespace isolation (ломает volume permissions!)
+docker_icc: true                 # false = изоляция контейнер-контейнер
+docker_live_restore: false       # true = контейнеры живут при рестарте демона
+docker_no_new_privileges: false  # true = запрет повышения привилегий в контейнерах

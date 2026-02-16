@@ -45,6 +45,27 @@
     state: present
   tags: ['system', 'hostname']
 
+# ---- Console keymap ----
+
+- name: Set console keymap
+  ansible.builtin.copy:
+    dest: /etc/vconsole.conf
+    content: "KEYMAP={{ base_system_keymap }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['system', 'keymap']
+
+# ---- NTP ----
+
+- name: Enable systemd-timesyncd
+  ansible.builtin.service:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+  when: base_system_ntp_enabled
+  tags: ['system', 'ntp']
+
 # ---- OS-специфичная конфигурация ----
 
 - name: Include OS-specific configuration
@@ -61,4 +82,6 @@
       - "Таймзона: {{ base_system_timezone }}"
       - "Локаль: {{ base_system_locale }}"
       - "Hostname: {{ base_system_hostname }}"
+      - "Keymap: {{ base_system_keymap }}"
+      - "NTP: {{ 'enabled' if base_system_ntp_enabled else 'disabled' }}"
   tags: ['system']

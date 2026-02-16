@@ -26,6 +26,29 @@ sysctl_net_ipv4_tcp_tw_reuse: 1
 # ---- Kernel ----
 sysctl_kernel_unprivileged_userns_clone: 1
 
+# ---- Security ----
+sysctl_security_enabled: true
+
+# Kernel hardening
+sysctl_kernel_randomize_va_space: 2   # Полный ASLR
+sysctl_kernel_kptr_restrict: 2        # Скрыть указатели ядра
+sysctl_kernel_dmesg_restrict: 1       # Ограничить dmesg
+sysctl_kernel_yama_ptrace_scope: 2    # Запретить ptrace кроме root
+
+# Network anti-spoofing
+sysctl_net_ipv4_rp_filter: 1                       # Reverse path filtering
+sysctl_net_ipv4_tcp_syncookies: 1                   # SYN flood protection
+sysctl_net_ipv4_accept_redirects: 0                 # Блокировать ICMP redirect
+sysctl_net_ipv4_send_redirects: 0                   # Не отправлять ICMP redirect
+sysctl_net_ipv4_accept_source_route: 0              # Блокировать source routing
+sysctl_net_ipv4_log_martians: 1                     # Логировать spoofed пакеты
+sysctl_net_ipv4_icmp_echo_ignore_broadcasts: 1      # Игнорировать broadcast ICMP
+sysctl_net_ipv4_icmp_ignore_bogus_error_responses: 1
+
+# Filesystem protection
+sysctl_fs_protected_hardlinks: 1
+sysctl_fs_protected_symlinks: 1
+
 # ---- Custom parameters ----
 # List of dicts: [{name: "kernel.param", value: "1"}]
 sysctl_custom_params: []

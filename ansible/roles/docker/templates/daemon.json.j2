@@ -5,5 +5,13 @@
     "max-file": "{{ docker_log_max_file }}"
   }{% if docker_storage_driver | length > 0 %},
   "storage-driver": "{{ docker_storage_driver }}"
+{% endif %}{% if docker_userns_remap | length > 0 %},
+  "userns-remap": "{{ docker_userns_remap }}"
+{% endif %}{% if not docker_icc %},
+  "icc": false
+{% endif %}{% if docker_live_restore %},
+  "live-restore": true
+{% endif %}{% if docker_no_new_privileges %},
+  "no-new-privileges": true
 {% endif %}
 }

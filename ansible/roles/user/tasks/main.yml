@@ -15,16 +15,21 @@
     create_home: true
   tags: ['user']
 
-- name: Ensure wheel group has sudo access
+- name: Ensure wheel group has sudo access with hardening
   ansible.builtin.copy:
     dest: /etc/sudoers.d/wheel
-    content: "%wheel ALL=(ALL:ALL) ALL\n"
+    content: |
+      # Managed by Ansible
+      %wheel ALL=(ALL:ALL) ALL
+      Defaults timestamp_timeout=5
+      Defaults use_pty
+      Defaults logfile="/var/log/sudo.log"
     owner: root
     group: root
     mode: '0440'
     validate: '/usr/sbin/visudo -cf %s'
   when: user_create_sudo_rule
-  tags: ['user', 'sudo']
+  tags: ['user', 'sudo', 'security']
 
 - name: Report user configuration
   ansible.builtin.debug:

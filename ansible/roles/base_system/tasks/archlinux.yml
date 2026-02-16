@@ -32,15 +32,17 @@
   ansible.builtin.copy:
     dest: /etc/security/faillock.conf
     content: |
-      # Managed by Ansible — suppress pam_faillock warnings
+      # Managed by Ansible
       dir = /run/faillock
-      deny = 5
-      fail_interval = 900
-      unlock_time = 600
+      deny = {{ base_system_faillock_deny }}
+      fail_interval = {{ base_system_faillock_fail_interval }}
+      unlock_time = {{ base_system_faillock_unlock_time }}
+      audit
+      silent
     owner: root
     group: root
     mode: '0644'
-  tags: ['system', 'pam']
+  tags: ['system', 'pam', 'security']
 
 # ---- Внешний кэш pacman (опционально) ----
 
