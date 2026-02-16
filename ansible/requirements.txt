@@ -11,3 +11,11 @@ molecule==25.12.0
 
 # Additional useful tools
 jmespath==1.1.0
+
+# Terminal output
+rich>=13.0.0
+
+# Ansible Run Analysis (web UI for playbook results)
+ara[server]>=1.7.0
+# ARA 1.7.x requires health_check.db, removed in django-health-check 4.0
+django-health-check>=3.18,<4.0

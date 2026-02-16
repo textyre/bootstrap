@@ -13,6 +13,9 @@ env:
   ANSIBLE_ROLES_PATH: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles:{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/playbooks/roles:~/.ansible/roles:/usr/share/ansible/roles'
   ANSIBLE_INVENTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/inventory/hosts.yml'
   ANSIBLE_VAULT_PASSWORD_FILE: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh'
+  ARA_API_CLIENT: offline
+  ANSIBLE_CALLBACK_PLUGINS:
+    sh: '{{.PREFIX}} python3 -c "import ara.setup; print(\"{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/callback_plugins:\" + ara.setup.callback_plugins)" 2>/dev/null || echo "{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/callback_plugins"'
 
 tasks:
   default:
@@ -257,6 +260,12 @@ tasks:
     cmds:
       - 'echo "==> Setting up workstation..."'
       - '{{.ANSIBLE}} playbooks/workstation.yml -v {{.CLI_ARGS}}'
+
+  ara:
+    desc: "Start ARA web UI (browse playbook results at localhost:8000)"
+    deps: [_ensure-venv]
+    cmds:
+      - '{{.PREFIX}} ara-manage runserver 0.0.0.0:8000'
 
   # --- ctOS Greeter ---
 

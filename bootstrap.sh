@@ -28,6 +28,13 @@ ANSIBLE_DIR="${SCRIPT_DIR}/ansible"
 
 echo "==> Running workstation playbook..."
 cd "${ANSIBLE_DIR}"
+
+# Add ARA callback plugins path if available (pip package, not a collection)
+ARA_CB="$(python3 -m ara.setup.callback_plugins 2>/dev/null)" || true
+if [[ -n "${ARA_CB}" ]]; then
+    export ANSIBLE_CALLBACK_PLUGINS="callback_plugins:${ARA_CB}"
+fi
+
 ansible-playbook playbooks/workstation.yml -v "$@"
 
 echo "==> Bootstrap complete!"
