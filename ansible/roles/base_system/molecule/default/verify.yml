@@ -1,6 +1,6 @@
 ---
 # Molecule verify playbook for base_system role
-# Проверяет что базовая настройка системы применена корректно
+# Проверяет: таймзона, локаль, hostname, keymap, NTP (chrony)
 
 - name: Verify
   hosts: all
@@ -12,51 +12,58 @@
   tasks:
     - name: Check timezone is set
       ansible.builtin.command: timedatectl show --property=Timezone --value
-      register: _base_system_verify_timezone
+      register: _verify_timezone
       changed_when: false
-      failed_when: _base_system_verify_timezone.stdout | length == 0
+      failed_when: _verify_timezone.stdout | length == 0
 
-    - name: Check locale.conf exists
-      ansible.builtin.stat:
-        path: /etc/locale.conf
-      register: _base_system_verify_locale_conf
-      failed_when: not _base_system_verify_locale_conf.stat.exists
-
-    - name: Check locale.conf content
+    - name: Check locale.conf exists and valid
       ansible.builtin.slurp:
         src: /etc/locale.conf
-      register: _base_system_verify_locale_content
-      failed_when: "'LANG=' not in (_base_system_verify_locale_content.content | b64decode)"
+      register: _verify_locale
+      failed_when: "'LANG=' not in (_verify_locale.content | b64decode)"
 
     - name: Check hostname is set
       ansible.builtin.slurp:
         src: /etc/hostname
-      register: _base_system_verify_hostname
-      failed_when: (_base_system_verify_hostname.content | b64decode | trim) | length == 0
+      register: _verify_hostname
+      failed_when: (_verify_hostname.content | b64decode | trim) | length == 0
 
     - name: Check /etc/hosts contains hostname entry
       ansible.builtin.command: grep '127.0.1.1' /etc/hosts
-      register: _base_system_verify_hosts
+      register: _verify_hosts
       changed_when: false
-      failed_when: _base_system_verify_hosts.rc != 0
+      failed_when: _verify_hosts.rc != 0
 
-    - name: Check pacman.conf has ParallelDownloads
-      ansible.builtin.command: grep '^ParallelDownloads' /etc/pacman.conf
-      register: _base_system_verify_pacman_parallel
-      changed_when: false
-      failed_when: _base_system_verify_pacman_parallel.rc != 0
+    - name: Check vconsole.conf exists (systemd keymap)
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: _verify_keymap
+      failed_when: "'KEYMAP=' not in (_verify_keymap.content | b64decode)"
+      when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Check pacman.conf has Color
-      ansible.builtin.command: grep '^Color' /etc/pacman.conf
-      register: _base_system_verify_pacman_color
+    - name: Check chrony is installed
+      ansible.builtin.command: which chronyd
+      register: _verify_chrony
       changed_when: false
-      failed_when: _base_system_verify_pacman_color.rc != 0
+      failed_when: _verify_chrony.rc != 0
+
+    - name: Check chronyd service is running
+      ansible.builtin.service_facts:
+
+    - name: Verify chronyd is active
+      ansible.builtin.assert:
+        that:
+          - "'chronyd.service' in ansible_facts.services"
+          - "ansible_facts.services['chronyd.service'].state == 'running'"
+        fail_msg: "chronyd is not running"
+      when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Show test results
       ansible.builtin.debug:
         msg:
-          - "All checks passed!"
-          - "Timezone: {{ _base_system_verify_timezone.stdout }}"
-          - "Hostname: {{ _base_system_verify_hostname.content | b64decode | trim }}"
-          - "locale.conf exists and valid"
-          - "pacman.conf configured (ParallelDownloads, Color)"
+          - "All base_system checks passed!"
+          - "Timezone: {{ _verify_timezone.stdout }}"
+          - "Hostname: {{ _verify_hostname.content | b64decode | trim }}"
+          - "Locale: valid"
+          - "Keymap: valid"
+          - "NTP (chrony): installed and running"

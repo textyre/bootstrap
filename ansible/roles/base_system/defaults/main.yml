@@ -1,11 +1,6 @@
 ---
 # === Базовая настройка системы ===
-# Локаль, таймзона, hostname, конфигурация пакетного менеджера
-
-# Поддерживаемые OS families (для include_tasks)
-_base_system_supported_os:
-  - Archlinux
-  - Debian
+# Идентичность машины: локаль, таймзона, hostname, keymap, NTP
 
 # Локаль системы
 base_system_locale: "en_US.UTF-8"
@@ -16,28 +11,9 @@ base_system_timezone: "Asia/Almaty"
 # Hostname
 base_system_hostname: "archbox"
 
-# Console keymap (vconsole.conf, systemd-only)
+# Console keymap (TTY)
 base_system_keymap: "us"
 
 # NTP time sync
 base_system_ntp_enabled: true
-
-# Конфигурация pacman.conf (Arch Linux only)
-base_system_pacman_parallel_downloads: 5
-base_system_pacman_color: true
-base_system_pacman_verbose_pkg_lists: true
-
-# PAM faillock (защита от brute-force)
-base_system_faillock_enabled: true
-base_system_faillock_deny: 3              # Блокировка после N попыток
-base_system_faillock_fail_interval: 900   # Окно отслеживания (секунды)
-base_system_faillock_unlock_time: 900     # Время блокировки (секунды)
-# root_unlock_time: 900 = автоматическая разблокировка через 15 мин (безопасно для single-user)
-# -1 = перманентная блокировка (требует другой admin аккаунт или live media для восстановления)
-base_system_faillock_root_unlock_time: 900
-base_system_faillock_audit: true          # Логировать попытки в audit log
-base_system_faillock_silent: false         # Не показывать сообщение пользователю при блокировке
-
-# Внешний кэш pacman (опционально, для externals)
-base_system_setup_pacman_cache: false
-base_system_pacman_cache_root: ""
+base_system_ntp_daemon: "chrony"  # chrony | openntpd

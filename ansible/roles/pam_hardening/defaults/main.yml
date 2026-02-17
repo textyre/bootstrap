@@ -1,0 +1,14 @@
+---
+# === PAM hardening ===
+# Конфигурация PAM-модулей безопасности
+
+# PAM faillock (защита от brute-force)
+pam_faillock_enabled: true
+pam_faillock_deny: 3              # Блокировка после N попыток
+pam_faillock_fail_interval: 900   # Окно отслеживания (секунды)
+pam_faillock_unlock_time: 900     # Время блокировки (секунды)
+# root_unlock_time: 900 = автоматическая разблокировка через 15 мин
+# -1 = перманентная блокировка (требует другой admin аккаунт)
+pam_faillock_root_unlock_time: 900
+pam_faillock_audit: true          # Логировать попытки в audit log
+pam_faillock_silent: false        # Не показывать сообщение при блокировке

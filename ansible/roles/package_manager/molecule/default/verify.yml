@@ -1,0 +1,36 @@
+---
+# Molecule verify playbook for package_manager role
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check pacman.conf has ParallelDownloads
+      ansible.builtin.command: grep '^ParallelDownloads' /etc/pacman.conf
+      register: _verify_pacman_parallel
+      changed_when: false
+      failed_when: _verify_pacman_parallel.rc != 0
+
+    - name: Check pacman.conf has Color
+      ansible.builtin.command: grep '^Color' /etc/pacman.conf
+      register: _verify_pacman_color
+      changed_when: false
+      failed_when: _verify_pacman_color.rc != 0
+
+    - name: Check pacman.conf has VerbosePkgLists
+      ansible.builtin.command: grep '^VerbosePkgLists' /etc/pacman.conf
+      register: _verify_pacman_verbose
+      changed_when: false
+      failed_when: _verify_pacman_verbose.rc != 0
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All package_manager checks passed!"
+          - "ParallelDownloads: {{ _verify_pacman_parallel.stdout }}"
+          - "Color: enabled"
+          - "VerbosePkgLists: enabled"

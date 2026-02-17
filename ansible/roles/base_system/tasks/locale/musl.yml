@@ -1,0 +1,20 @@
+---
+# === Locale для musl-систем ===
+# Alpine Linux (musl libc — нет locale.gen)
+
+- name: Install musl-locales (Alpine)
+  ansible.builtin.package:
+    name: musl-locales
+    state: present
+  tags: ['system', 'locale']
+
+- name: Set locale via profile.d (Alpine)
+  ansible.builtin.copy:
+    dest: /etc/profile.d/10-locale.sh
+    content: |
+      export LANG={{ base_system_locale }}
+      export LC_ALL={{ base_system_locale }}
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['system', 'locale']

@@ -1,8 +1,8 @@
 ---
 galaxy_info:
-  role_name: base_system
+  role_name: pam_hardening
   author: textyre
-  description: "Базовая настройка системы: локаль, таймзона, hostname, keymap, NTP"
+  description: PAM security hardening (faillock, password quality)
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -14,7 +14,5 @@ galaxy_info:
       versions: [all]
     - name: EL
       versions: [all]
-    - name: Alpine
-      versions: [all]
-  galaxy_tags: [system, locale, timezone, hostname, ntp, keymap]
+  galaxy_tags: [security, pam, hardening, faillock]
 dependencies: []

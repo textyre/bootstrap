@@ -1,0 +1,24 @@
+---
+# === Внутренние маппинги (не для пользователя) ===
+
+# Стратегия hostname модуля по OS family
+_base_system_hostname_strategy:
+  Archlinux: systemd
+  Debian: debian
+  RedHat: redhat
+  Alpine: debian      # workaround: alpine-backend баг с reporting
+  Void: generic       # runit читает /etc/hostname напрямую
+
+# Имя сервиса NTP по init-системе
+_base_system_ntp_service:
+  systemd: chronyd
+  openrc: chronyd
+  runit: chronyd
+
+# Имя пакета NTP по OS family
+_base_system_ntp_package:
+  Archlinux: chrony
+  Debian: chrony
+  RedHat: chrony
+  Alpine: chrony
+  Void: chrony

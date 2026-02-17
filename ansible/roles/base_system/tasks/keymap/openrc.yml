@@ -1,0 +1,14 @@
+---
+# === Console keymap: OpenRC ===
+# /etc/conf.d/keymaps (Gentoo, Alpine)
+
+- name: Set console keymap (OpenRC)
+  ansible.builtin.lineinfile:
+    path: /etc/conf.d/keymaps
+    regexp: '^#?\s*keymap='
+    line: 'keymap="{{ base_system_keymap }}"'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['system', 'keymap']

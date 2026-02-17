@@ -1,0 +1,12 @@
+---
+# Molecule converge playbook for pam_hardening role
+
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  roles:
+    - role: pam_hardening

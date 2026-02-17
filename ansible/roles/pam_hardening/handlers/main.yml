@@ -1,0 +1,7 @@
+---
+# Handlers for pam_hardening role
+
+- name: Update PAM configuration
+  ansible.builtin.command: pam-auth-update --enable faillock
+  changed_when: true
+  when: ansible_facts['os_family'] == 'Debian'

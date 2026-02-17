@@ -1,0 +1,39 @@
+---
+# Molecule verify playbook for pam_hardening role
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check faillock.conf exists
+      ansible.builtin.stat:
+        path: /etc/security/faillock.conf
+      register: _verify_faillock_conf
+      failed_when: not _verify_faillock_conf.stat.exists
+
+    - name: Check faillock.conf content
+      ansible.builtin.slurp:
+        src: /etc/security/faillock.conf
+      register: _verify_faillock_content
+
+    - name: Verify faillock deny setting
+      ansible.builtin.assert:
+        that:
+          - "'deny =' in (_verify_faillock_content.content | b64decode)"
+        fail_msg: "faillock.conf does not contain deny setting"
+
+    - name: Verify faillock unlock_time setting
+      ansible.builtin.assert:
+        that:
+          - "'unlock_time =' in (_verify_faillock_content.content | b64decode)"
+        fail_msg: "faillock.conf does not contain unlock_time setting"
+
+    - name: Show test results
+      ansible.builtin.debug:
+        msg:
+          - "All pam_hardening checks passed!"
+          - "faillock.conf exists and configured"

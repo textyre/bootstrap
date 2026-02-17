@@ -1,0 +1,67 @@
+---
+# === Arch Linux: конфигурация pacman ===
+
+# ---- Pacman configuration ----
+
+- name: Enable ParallelDownloads in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*ParallelDownloads'
+    line: "ParallelDownloads = {{ pkgmgr_pacman_parallel_downloads }}"
+  tags: ['packages', 'pacman']
+
+- name: Enable Color in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*Color'
+    line: "Color"
+  when: pkgmgr_pacman_color
+  tags: ['packages', 'pacman']
+
+- name: Enable VerbosePkgLists in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^#?\s*VerbosePkgLists'
+    line: "VerbosePkgLists"
+  when: pkgmgr_pacman_verbose_pkg_lists
+  tags: ['packages', 'pacman']
+
+# ---- Внешний кэш pacman (опционально) ----
+
+- name: Setup external pacman cache
+  when: pkgmgr_pacman_external_cache and pkgmgr_pacman_cache_root | length > 0
+  tags: ['packages', 'pacman-cache']
+  block:
+    - name: Create pacman cache directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - "{{ pkgmgr_pacman_cache_root }}/var/lib/pacman/sync"
+        - "{{ pkgmgr_pacman_cache_root }}/var/cache/pacman/pkg"
+        - "{{ pkgmgr_pacman_cache_root }}/etc/pacman.d"
+
+    - name: Check if alpm user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: alpm
+      register: _pkgmgr_alpm_user
+      failed_when: false
+
+    - name: Set alpm ownership on pacman cache dirs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: alpm
+        state: directory
+        mode: '2775'
+      loop:
+        - "{{ pkgmgr_pacman_cache_root }}/var/lib/pacman/sync"
+        - "{{ pkgmgr_pacman_cache_root }}/var/cache/pacman/pkg"
+        - "{{ pkgmgr_pacman_cache_root }}/etc/pacman.d"
+      when: >
+        _pkgmgr_alpm_user.ansible_facts.getent_passwd is defined
+        and 'alpm' in _pkgmgr_alpm_user.ansible_facts.getent_passwd

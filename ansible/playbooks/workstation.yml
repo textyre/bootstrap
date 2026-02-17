@@ -28,6 +28,12 @@
     - role: base_system
       tags: [base, system]
 
+    - role: package_manager
+      tags: [packages, pacman]
+
+    - role: pam_hardening
+      tags: [pam, security, hardening]
+
     - role: vm
       tags: [vm, vbox, vmware, hyperv]
 

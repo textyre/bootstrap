@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: package_manager
+  author: textyre
+  description: Конфигурация пакетного менеджера (pacman, apt, dnf)
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+  galaxy_tags: [packages, pacman, apt, system]
+dependencies: []

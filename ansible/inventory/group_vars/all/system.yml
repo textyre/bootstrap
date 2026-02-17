@@ -22,13 +22,18 @@ dotfiles_base_dir: "{{ lookup('env', 'REPO_ROOT') }}/dotfiles"
 base_system_locale: "en_US.UTF-8"
 base_system_timezone: "Asia/Almaty"
 base_system_hostname: "archbox"
-base_system_pacman_parallel_downloads: 5
-base_system_pacman_color: true
-base_system_pacman_verbose_pkg_lists: true
+
+# ============================================================
+#  package_manager — роль roles/package_manager
+# ============================================================
+
+pkgmgr_pacman_parallel_downloads: 5
+pkgmgr_pacman_color: true
+pkgmgr_pacman_verbose_pkg_lists: true
 
 # Внешний кэш pacman (опционально)
-base_system_setup_pacman_cache: false
-base_system_pacman_cache_root: ""
+pkgmgr_pacman_external_cache: false
+pkgmgr_pacman_cache_root: ""
 
 # ============================================================
 #  user — роль roles/user

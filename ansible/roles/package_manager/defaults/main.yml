@@ -1,0 +1,17 @@
+---
+# === Конфигурация пакетного менеджера ===
+# Настройки pacman (Arch), apt (Debian), dnf (Fedora)
+
+# Поддерживаемые OS families
+_pkgmgr_supported_os:
+  - Archlinux
+  - Debian
+
+# --- Pacman (Arch Linux) ---
+pkgmgr_pacman_parallel_downloads: 5
+pkgmgr_pacman_color: true
+pkgmgr_pacman_verbose_pkg_lists: true
+
+# Внешний кэш pacman (опционально)
+pkgmgr_pacman_external_cache: false
+pkgmgr_pacman_cache_root: ""

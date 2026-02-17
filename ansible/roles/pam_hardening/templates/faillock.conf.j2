@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# PAM faillock configuration — brute-force protection
+dir = /run/faillock
+deny = {{ pam_faillock_deny }}
+fail_interval = {{ pam_faillock_fail_interval }}
+unlock_time = {{ pam_faillock_unlock_time }}
+root_unlock_time = {{ pam_faillock_root_unlock_time }}
+{% if pam_faillock_audit %}
+audit
+{% endif %}
+{% if pam_faillock_silent %}
+silent
+{% endif %}

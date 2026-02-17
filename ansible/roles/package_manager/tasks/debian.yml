@@ -1,0 +1,8 @@
+---
+# === Debian/Ubuntu: конфигурация apt ===
+# Placeholder для будущей конфигурации apt
+
+- name: Debian package manager configuration placeholder
+  ansible.builtin.debug:
+    msg: "No custom apt configuration defined"
+  tags: ['packages', 'apt']

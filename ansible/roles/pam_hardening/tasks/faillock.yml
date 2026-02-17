@@ -1,18 +1,18 @@
 ---
-# === Debian/Ubuntu: системная конфигурация ===
+# === PAM faillock — защита от brute-force ===
+# Кросс-дистрибутивная конфигурация
 
-# ---- PAM faillock ----
-
-- name: Configure pam_faillock defaults (Debian)
+# Общий template для всех дистрибутивов
+- name: Configure pam_faillock defaults
   ansible.builtin.template:
     src: faillock.conf.j2
     dest: /etc/security/faillock.conf
     owner: root
     group: root
     mode: '0644'
-  when: base_system_faillock_enabled
-  tags: ['system', 'pam', 'security']
+  tags: ['pam', 'security', 'faillock']
 
+# Debian-специфичный pam-auth-update профиль
 - name: Deploy pam-auth-update faillock profile (Debian)
   ansible.builtin.copy:
     dest: /usr/share/pam-configs/faillock
@@ -31,6 +31,6 @@
     owner: root
     group: root
     mode: '0644'
-  when: base_system_faillock_enabled
+  when: ansible_facts['os_family'] == 'Debian'
   notify: Update PAM configuration
-  tags: ['system', 'pam', 'security']
+  tags: ['pam', 'security', 'faillock']

@@ -1,9 +1,16 @@
 ---
 # === Базовая настройка системы ===
-# Кроссплатформенные задачи: локаль, таймзона, hostname
-# OS-специфичные задачи: tasks/<os_family>.yml
+# Идентичность машины: таймзона, локаль, hostname, keymap, NTP
+# Дистро-агностик, инит-агностик
 
 # ---- Таймзона ----
+
+- name: Install tzdata (Alpine)
+  ansible.builtin.package:
+    name: tzdata
+    state: present
+  when: ansible_facts['os_family'] == 'Alpine'
+  tags: ['system', 'timezone']
 
 - name: Set timezone
   community.general.timezone:
@@ -12,22 +19,8 @@
 
 # ---- Локаль ----
 
-- name: Uncomment locale in locale.gen
-  ansible.builtin.lineinfile:
-    path: /etc/locale.gen
-    regexp: '^#?\s*{{ base_system_locale }}'
-    line: "{{ base_system_locale }} UTF-8"
-    state: present
-  notify: Generate locale
-  tags: ['system', 'locale']
-
-- name: Set default locale
-  ansible.builtin.copy:
-    dest: /etc/locale.conf
-    content: "LANG={{ base_system_locale }}\n"
-    owner: root
-    group: root
-    mode: '0644'
+- name: Configure locale
+  ansible.builtin.include_tasks: "locale/{{ 'musl' if ansible_facts['os_family'] == 'Alpine' else 'glibc' }}.yml"
   tags: ['system', 'locale']
 
 # ---- Hostname ----
@@ -35,6 +28,7 @@
 - name: Set hostname
   ansible.builtin.hostname:
     name: "{{ base_system_hostname }}"
+    use: "{{ _base_system_hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
   tags: ['system', 'hostname']
 
 - name: Ensure /etc/hosts contains hostname
@@ -47,42 +41,27 @@
 
 # ---- Console keymap ----
 
-- name: Set console keymap (systemd)
-  ansible.builtin.copy:
-    dest: /etc/vconsole.conf
-    content: "KEYMAP={{ base_system_keymap }}\n"
-    owner: root
-    group: root
-    mode: '0644'
-  when: ansible_facts['service_mgr'] == 'systemd'
+- name: Configure console keymap
+  ansible.builtin.include_tasks: keymap/main.yml
   tags: ['system', 'keymap']
 
 # ---- NTP ----
 
-- name: Enable systemd-timesyncd
-  ansible.builtin.service:
-    name: systemd-timesyncd
-    enabled: true
-    state: started
+- name: Configure NTP
+  ansible.builtin.include_tasks: ntp.yml
   when: base_system_ntp_enabled
   tags: ['system', 'ntp']
-
-# ---- OS-специфичная конфигурация ----
-
-- name: Include OS-specific configuration
-  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
-  when: ansible_facts['os_family'] in _base_system_supported_os
-  tags: ['system']
 
 # ---- Отчёт ----
 
 - name: Report base system configuration
   ansible.builtin.debug:
     msg:
-      - "OS: {{ ansible_facts['os_family'] }}"
-      - "Таймзона: {{ base_system_timezone }}"
-      - "Локаль: {{ base_system_locale }}"
+      - "OS: {{ ansible_facts['os_family'] }} ({{ ansible_facts['distribution'] | default('unknown') }})"
+      - "Init: {{ ansible_facts['service_mgr'] | default('unknown') }}"
+      - "Timezone: {{ base_system_timezone }}"
+      - "Locale: {{ base_system_locale }}"
       - "Hostname: {{ base_system_hostname }}"
       - "Keymap: {{ base_system_keymap }}"
-      - "NTP: {{ 'enabled' if base_system_ntp_enabled else 'disabled' }}"
+      - "NTP: {{ base_system_ntp_daemon if base_system_ntp_enabled else 'disabled' }}"
   tags: ['system']

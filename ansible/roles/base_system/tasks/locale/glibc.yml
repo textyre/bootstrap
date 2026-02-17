@@ -1,0 +1,43 @@
+---
+# === Locale для glibc-систем ===
+# Arch Linux, Debian, Ubuntu, Fedora, Void (glibc)
+
+# Arch / Debian / Ubuntu: community.general.locale_gen
+- name: Generate locale (Arch/Debian)
+  community.general.locale_gen:
+    name: "{{ base_system_locale }}"
+    state: present
+  when: ansible_facts['os_family'] in ['Archlinux', 'Debian']
+  tags: ['system', 'locale']
+
+# RedHat / Fedora: locale.conf + localectl
+- name: Write /etc/locale.conf (RedHat)
+  ansible.builtin.copy:
+    dest: /etc/locale.conf
+    content: "LANG={{ base_system_locale }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags: ['system', 'locale']
+
+# Void Linux: /etc/default/libc-locales + locale.conf
+- name: Enable locale in libc-locales (Void)
+  ansible.builtin.lineinfile:
+    path: /etc/default/libc-locales
+    regexp: '^#?\s*{{ base_system_locale }}'
+    line: "{{ base_system_locale }} UTF-8"
+    state: present
+  when: ansible_facts['distribution'] == 'Void'
+  notify: Reconfigure glibc-locales (Void)
+  tags: ['system', 'locale']
+
+# Общий /etc/locale.conf для всех glibc-систем
+- name: Set default locale
+  ansible.builtin.copy:
+    dest: /etc/locale.conf
+    content: "LANG={{ base_system_locale }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['system', 'locale']
