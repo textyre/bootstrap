@@ -11,6 +11,11 @@ firewall_enable_service: true
 # Разрешить SSH (порт 22)
 firewall_allow_ssh: true
 
+# SSH rate limiting (per-source-IP, защита от brute-force)
+firewall_ssh_rate_limit_enabled: true
+firewall_ssh_rate_limit: "4/minute"
+firewall_ssh_rate_limit_burst: 2
+
 # Дополнительные TCP-порты для входящих
 firewall_allow_tcp_ports: []
 

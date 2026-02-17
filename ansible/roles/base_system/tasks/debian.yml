@@ -1,8 +1,36 @@
 ---
 # === Debian/Ubuntu: системная конфигурация ===
-# Заглушка для будущей реализации
 
-- name: Debian system configuration placeholder
-  ansible.builtin.debug:
-    msg: "Debian/Ubuntu system configuration — not yet implemented"
-  tags: ['system']
+# ---- PAM faillock ----
+
+- name: Configure pam_faillock defaults (Debian)
+  ansible.builtin.template:
+    src: faillock.conf.j2
+    dest: /etc/security/faillock.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: base_system_faillock_enabled
+  tags: ['system', 'pam', 'security']
+
+- name: Deploy pam-auth-update faillock profile (Debian)
+  ansible.builtin.copy:
+    dest: /usr/share/pam-configs/faillock
+    content: |
+      Name: Enforce failed login attempt counter
+      Default: yes
+      Priority: 0
+      Auth-Type: Primary
+      Auth:
+        requisite  pam_faillock.so preauth
+      Auth-Final:
+        authfail   pam_faillock.so authfail
+      Account-Type: Primary
+      Account:
+        required   pam_faillock.so
+    owner: root
+    group: root
+    mode: '0644'
+  when: base_system_faillock_enabled
+  notify: Update PAM configuration
+  tags: ['system', 'pam', 'security']

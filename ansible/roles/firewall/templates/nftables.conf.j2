@@ -5,6 +5,14 @@
 flush ruleset
 
 table inet filter {
+{% if firewall_allow_ssh and firewall_ssh_rate_limit_enabled %}
+    set ssh_ratelimit {
+        type ipv4_addr
+        flags dynamic,timeout
+        timeout 1m
+    }
+{% endif %}
+
     chain input {
         type filter hook input priority 0; policy drop;
 
@@ -22,9 +30,12 @@ table inet filter {
         ip6 nexthdr icmpv6 limit rate 10/second accept
 
 {% if firewall_allow_ssh %}
-        # SSH с rate limiting (защита от brute-force)
-        tcp dport 22 ct state new limit rate 4/minute accept
-        tcp dport 22 ct state new log prefix "[nftables] ssh-rate: " drop
+{% if firewall_ssh_rate_limit_enabled %}
+        # SSH с per-source-IP rate limiting (защита от brute-force)
+        tcp dport 22 ct state new add @ssh_ratelimit { ip saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } log prefix "[nftables] ssh-rate: " drop
+{% endif %}
+        # SSH — разрешить
+        tcp dport 22 ct state new accept
 {% endif %}
 {% for port in firewall_allow_tcp_ports %}
         tcp dport {{ port }} accept

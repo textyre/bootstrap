@@ -43,6 +43,26 @@ The code does NOT implement this. The documentation describes per-IP rate limiti
 
 **Fix:** Replace `limit rate 4/minute accept` with a dynamic set and meter using `ip saddr` for per-source-IP tracking. The template must also add a `set ssh_ratelimit` block inside the `table inet filter` definition.
 
+> **Research Note: Explanation and Context**
+>
+> The global `limit rate` in nftables uses a single token bucket shared across ALL source IPs. Per-IP rate limiting requires **dynamic sets with meters** ([nftables wiki — Meters](https://wiki.nftables.org/wiki-nftables/index.php/Meters)). The correct pattern uses `add @ssh_meter { ip saddr timeout 1m limit rate over 4/minute burst 2 packets }` which creates a separate bucket per source IP.
+>
+> **IP Allowlists and lockout prevention:**
+> - An allowlist (`set ssh_allowlist { type ipv4_addr; flags interval }`) is recommended for known admin IPs
+> - If the allowlist is wrong, SSH access is lost. **Out-of-band access (IPMI, VPS console) is mandatory** — not optional
+> - Recovery technique: `echo 'nft flush ruleset' | at now + 5 minutes` before applying rules, cancel after verifying access
+> - Always test with `ansible-playbook --check` before firewall changes
+>
+> **fail2ban vs nftables native rate limiting** — they are complementary, not alternatives. nftables blocks volumetric connection floods (kernel space, instant). fail2ban blocks credential stuffing after real auth failures (user space, log-based). Use both ([fail2ban documentation](https://www.fail2ban.org/wiki/index.php/Main_Page)).
+>
+> **How big tech handles SSH rate limiting:**
+> - **Google BeyondCorp**: SSH not exposed publicly; Identity-Aware Proxy verifies device + user before SSH connection ([Google BeyondCorp](https://cloud.google.com/beyondcorp))
+> - **Meta**: SSH CA with short-lived certificates (TTL hours), password auth disabled entirely
+> - **Cloudflare**: Zero Trust Tunnel — no public SSH endpoint ([Cloudflare Zero Trust](https://www.cloudflare.com/products/zero-trust/))
+> - **Netflix BLESS**: Lambda-issued ephemeral SSH certificates after MFA ([Netflix BLESS on GitHub](https://github.com/Netflix/bless))
+>
+> Rate limiting is the **last line of defense**, not the primary control. Standards: [NIST 800-53 SC-5](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) (Denial of Service Protection).
+
 ---
 
 ### CRIT-02: Docker security features ALL disabled by default -- documentation claims security improvement
@@ -68,6 +88,22 @@ Running this role with default variables provides **zero additional security** o
 **Pre-identified issue #3: CONFIRMED.**
 
 **Fix:** Either (a) change defaults to secure values with clear documentation that they may break existing workloads, or (b) add a prominent warning in the defaults file and Quick-Wins.md that security features are opt-in and NOT enabled by default. The current state is deceptive -- the documentation implies security while the code provides none.
+
+> **Research Note: Feature Explanations and Standards**
+>
+> **`userns-remap: "default"` — User Namespace Remapping**
+> Maps container root (UID 0) to unprivileged host UID (~100000). Container escape without this = full host root. Required by [CIS Docker Benchmark v1.6, Control 2.2](https://www.cisecurity.org/benchmark/docker) (Level 2) and [NIST SP 800-190 Section 3.1.3](https://csrc.nist.gov/publications/detail/sp/800/190/final). **Breaks**: volume permissions (files owned by UID 100000 on host), `--pid=host`/`--network=host`. Fix: use named Docker volumes or `chown 100000:100000` ([Docker userns-remap docs](https://docs.docker.com/engine/security/userns-remap/)).
+>
+> **`icc: false` — Inter-Container Communication**
+> When `true`, every container on `docker0` bridge can reach every other container on any port — enabling lateral movement after a single container compromise. Required by [CIS Docker Benchmark v1.6, Control 2.1](https://www.cisecurity.org/benchmark/docker) (Level 1 — essential). **Breaks**: legacy single-bridge setups. Fix: use Docker Compose user-defined networks (created automatically per project, unaffected by ICC flag).
+>
+> **`live-restore: true` — Keep Containers Running During Daemon Restart**
+> Without this, stopping dockerd stops ALL containers. Required by [CIS Docker Benchmark v1.6, Control 2.14](https://www.cisecurity.org/benchmark/docker) (Level 1). **Breaks**: Docker Swarm mode only (not used in this project). Lowers barrier to applying Docker security patches promptly.
+>
+> **`no-new-privileges: true` — Prevent Privilege Escalation via setuid**
+> Sets kernel `PR_SET_NO_NEW_PRIVS` flag. Without this, setuid binaries inside containers enable two-step escalation: non-root → root-in-container → host root via escape. Required by [CIS Docker Benchmark v1.6, Control 5.25](https://www.cisecurity.org/benchmark/docker) (Level 1) and [NIST SP 800-190 Section 3.5](https://csrc.nist.gov/publications/detail/sp/800/190/final). **Breaks**: `su`/`sudo` inside containers. Fix: `--cap-add` instead of setuid, or per-container override `--security-opt no-new-privileges=false`.
+>
+> **Big tech approach**: Google Cloud Run, AWS Fargate, and Azure Container Instances run containers in dedicated VMs (hypervisor isolation), making userns-remap less critical. For self-managed Docker: enable all four. Audit tool: [docker/docker-bench-security](https://github.com/docker/docker-bench-security).
 
 ---
 
@@ -110,6 +146,22 @@ The comma logic is technically correct in all 32 combinations. However, the temp
 
 **Fix:** Add `validate: 'python3 -m json.tool %s'` to the template task, or better: construct the JSON using a Jinja2 dictionary and `| to_nice_json` filter, which eliminates the fragile comma management entirely.
 
+> **Research Note: What is the Docker Daemon?**
+>
+> `dockerd` is the persistent background service (daemon) that manages the Docker lifecycle on a Linux host. It listens for API requests on `/var/run/docker.sock`, manages containers, images, volumes, and networks, and interfaces with the OCI runtime (containerd/runc). It runs as root — the Docker socket is effectively a root backdoor ([Docker daemon docs](https://docs.docker.com/reference/cli/dockerd/)).
+>
+> **What daemon.json configures** ([Docker daemon.json reference](https://docs.docker.com/reference/cli/dockerd/#daemon-configuration-file)):
+> - **Logging**: `log-driver`, `log-opts` (max-size, max-file, tag)
+> - **Storage**: `storage-driver` (overlay2, btrfs, zfs)
+> - **Security**: `userns-remap`, `icc`, `no-new-privileges`, `seccomp-profile`, `apparmor-profile`
+> - **Networking**: `iptables`, `ip-forward`, `ip-masq`, `userland-proxy`, `dns`
+> - **Runtime**: `live-restore`, `runtimes` (gVisor, Kata), `default-runtime`
+> - **TLS/API**: `tls`, `tlsverify`, `hosts`
+>
+> **When daemon.json has invalid JSON**: dockerd refuses to start, ALL containers stop, all dependent services fail. Recovery requires manual editing on the host. This is why `validate: 'python3 -m json.tool %s'` is essential.
+>
+> **`to_nice_json` approach** ([Ansible filters docs](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_filters.html#formatting-data-to-nice-json)): Build a Python dict in Jinja2 and serialize via `{{ config | to_nice_json }}`. This calls Python's `json.dumps()` — invalid JSON is impossible by construction, eliminating all fragile comma management.
+
 ---
 
 ### CRIT-04: PAM faillock only configured on Arch Linux -- Debian gets NO brute-force protection
@@ -146,6 +198,26 @@ On Debian systems, the faillock task is never executed. This violates the distro
 
 **Fix:** Create faillock tasks for Debian in `debian.yml`, or move the faillock configuration to `main.yml` (it uses `/etc/security/faillock.conf` which exists on both distros). The PAM integration (`/etc/pam.d/common-auth` for Debian vs `/etc/pam.d/system-auth` for Arch) requires OS-specific tasks as documented in Quick-Wins.md lines 507-529, but the `faillock.conf` itself is cross-platform.
 
+> **Research Note: PAM faillock — Cross-Platform Details**
+>
+> `pam_faillock` is a PAM module that counts per-user auth failures and locks accounts after a threshold ([pam_faillock(8) man page](https://man7.org/linux/man-pages/man8/pam_faillock.8.html)). It replaced deprecated `pam_tally2` (removed in Linux-PAM 1.5.0, 2020).
+>
+> **`/etc/security/faillock.conf` IS cross-platform** — it is part of Linux-PAM itself, identical on Arch, Debian, Ubuntu, RHEL. Supported on Linux-PAM >= 1.4.0 (Debian 11+, Ubuntu 22.04+, Arch since ~2021). The gap is the PAM stack insertion, not the config file.
+>
+> **Arch PAM integration** (`/etc/pam.d/system-auth`): Direct `lineinfile` insertion of `pam_faillock.so preauth/authfail/authsucc` entries.
+>
+> **Debian PAM integration**: CRITICAL — directly editing `/etc/pam.d/common-auth` is NOT safe; `pam-auth-update` overwrites manual changes. The Debian-correct approach is creating a profile at `/usr/share/pam-configs/faillock` and running `pam-auth-update --enable faillock` ([Debian Wiki — PAM](https://wiki.debian.org/PAM)).
+>
+> **Security standards requiring account lockout:**
+> - [NIST SP 800-53 Rev 5, AC-7](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final): max 3 consecutive failures within 15 min, lock >= 15 min
+> - [CIS Debian 12 Benchmark, Section 5.3.2](https://www.cisecurity.org/benchmark/debian_linux): `deny=5`, `fail_interval=900`, `unlock_time=900`
+> - [PCI-DSS v4.0, Requirement 8.3.4](https://www.pcisecuritystandards.org/document_library/): max 10 attempts, lock >= 30 min
+> - DISA STIG (RHEL-09-411040): max 3 attempts, 900 seconds
+>
+> Current defaults (`deny=3`, `fail_interval=900`, `unlock_time=900`) are **compliant with all four frameworks**.
+>
+> **Big tech supplements PAM faillock** with: fail2ban (IP-level banning before PAM), SSH key-only auth (making password brute-force irrelevant for SSH), MFA (TOTP/FIDO2), and certificate-based SSH.
+
 ---
 
 ### CRIT-05: SSH AllowGroups applied without verifying user is in the allowed group
@@ -179,6 +251,31 @@ This is a **self-lockout scenario** on a single-user workstation with no other a
 
 **Fix:** Add a pre-task that verifies `ssh_user` is a member of at least one group listed in `ssh_allow_groups`, and fail with a clear error message if not. Alternatively, add an `assert` task that checks group membership before applying AllowGroups.
 
+> **Research Note: Why "wheel" and Big Tech Practices**
+>
+> **History of "wheel"**: The name comes from "big wheel" (slang for authority figure), originating in TENEX/TOPS-20 (1970s), adopted by BSD Unix. On Arch/Red Hat/Fedora, `wheel` = sudoers group. On Debian/Ubuntu, `sudo` group is used instead. `AllowGroups wheel` ties SSH access to the same group trusted with sudo — consistent access control.
+>
+> **This is NOT related to Q1 (rate limiting)** — they are independent security layers. nftables (Q1) operates at network level (connection flood prevention). AllowGroups operates at application level (auth restriction). They are complementary.
+>
+> **How big tech manages SSH access:**
+> - **Google**: Identity-Aware Proxy, accounts via LDAP/AD, not local groups ([Google IAP docs](https://cloud.google.com/iap/docs/concepts-overview))
+> - **Meta**: SSH CA with `TrustedUserCAKeys` + `AuthorizedPrincipalsFile`, no static groups needed
+> - **Cloudflare**: Zero Trust Tunnel authenticates before SSH reaches server ([Cloudflare Access](https://www.cloudflare.com/products/zero-trust/access/))
+> - **HashiCorp**: Vault SSH Secrets Engine with `allowed_users` in role definition ([Vault SSH docs](https://developer.hashicorp.com/vault/docs/secrets/ssh))
+>
+> **Self-lockout prevention pattern** (used by [dev-sec/ansible-collection-hardening](https://github.com/dev-sec/ansible-collection-hardening)):
+> ```yaml
+> - name: Verify ansible_user is in SSH allowed groups
+>   ansible.builtin.command: "id -nG {{ ansible_user }}"
+>   register: user_groups
+>   changed_when: false
+>
+> - name: Fail if user not in any AllowGroups
+>   ansible.builtin.fail:
+>     msg: "LOCKOUT RISK: {{ ansible_user }} not in {{ ssh_allow_groups }}"
+>   when: ssh_allow_groups | intersect(user_groups.stdout.split()) | length == 0
+> ```
+
 ---
 
 ## 2. Serious Gaps (high impact)
@@ -208,6 +305,28 @@ Quick-Wins.md (lines 651-675) describes a logrotate template and task:
 **Pre-identified issue #6: CONFIRMED.**
 
 **Fix:** Create `ansible/roles/user/templates/sudo_logrotate.j2` and add a logrotate task to the user role as documented in Quick-Wins.md.
+
+> **Research Note: Logrotate and Central Logging Alternatives**
+>
+> **Standard logrotate config for sudo.log** ([logrotate(8) man page](https://man7.org/linux/man-pages/man8/logrotate.8.html)):
+> ```
+> /var/log/sudo.log {
+>     weekly
+>     rotate 13          # 13 weeks ≈ 90 days (CIS minimum)
+>     compress
+>     delaycompress
+>     missingok
+>     notifempty
+>     create 0640 root adm
+> }
+> ```
+> Note: `sudo` opens/closes the logfile on every invocation — no `postrotate` signal needed.
+>
+> **Alternative: switch to journald** — remove `Defaults logfile="/var/log/sudo.log"` from sudoers. Sudo logs to syslog by default → captured by journald. journald auto-manages retention via `SystemMaxUse`/`MaxRetentionSec` in `/etc/systemd/journald.conf` ([journald.conf(5)](https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html)). Zero logrotate config needed. Query with `journalctl _COMM=sudo`.
+>
+> **Central logging** (ELK, Loki, Splunk) is overkill for a 2-machine setup but is the big tech pattern: local journald/rsyslog → Filebeat/Promtail → central aggregator. Netflix, Google, Meta all use this pattern. logrotate becomes a local safety net.
+>
+> **CIS requirement**: [CIS Benchmark Section 4.2](https://www.cisecurity.org/benchmark/distribution_independent_linux) mandates log rotation; minimum 90-day retention. [NIST 800-53 AU-4](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) (Audit Storage Capacity).
 
 ---
 
@@ -320,6 +439,23 @@ Quick-Wins.md describes these as separate variables (`sudo_timestamp_timeout: 5`
 
 Additionally, Quick-Wins.md specifies the file should be a template (`sudoers_hardening.j2`), but the code uses `ansible.builtin.copy` with inline content instead of `ansible.builtin.template`. This is a design shortcut that reduces flexibility and testability.
 
+> **Research Note: What is Sudoers Hardening and Is It Safe?**
+>
+> **`Defaults timestamp_timeout=5`**: Credential cache timeout in minutes. After successful sudo auth, subsequent sudo calls within this window skip re-authentication. Default is 15 min. [CIS Benchmark Section 5.3.6](https://www.cisecurity.org/benchmark/debian_linux): must be <= 5 minutes. Current value is compliant.
+>
+> **`Defaults use_pty`**: Forces sudo commands to run in a pseudo-terminal. Prevents **pty injection attack** — without it, a malicious program run via sudo can fork and capture the controlling terminal of a privileged process ([sudoers(5) man page](https://www.sudo.ws/docs/man/sudoers.man/)). Required by [CIS Benchmark Section 5.3.2](https://www.cisecurity.org/benchmark/debian_linux) and DISA STIG.
+>
+> **`Defaults logfile="/var/log/sudo.log"`**: Logs every sudo invocation (user, command, TTY, timestamp). Does NOT log stdout/stderr (needs `log_output` for that). Required by [CIS Benchmark Section 5.3.3](https://www.cisecurity.org/benchmark/debian_linux).
+>
+> **Missing directives** documented in Quick-Wins.md: `Defaults passwd_timeout=1` (password entry timeout), `Defaults log_output` / `Defaults log_input` (session I/O recording, stored in `/var/log/sudo-io/`, viewable via `sudoreplay`).
+>
+> **Is sudoers hardening safe?** Yes — current directives are standard and widely deployed. `validate: '/usr/sbin/visudo -cf %s'` catches syntax errors before deployment. The only dangerous directive is `Defaults !authenticate` (disables password requirement) — NOT present in code.
+>
+> **Why template is better than `copy content:`** ([Ansible template module docs](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html)):
+> - `%wheel` is Arch-specific; Debian uses `sudo` group. Template can use `{{ 'wheel' if ansible_facts['os_family'] == 'Archlinux' else 'sudo' }}`
+> - Variables in `defaults/main.yml` are self-documenting and overridable via inventory
+> - Pattern used by [dev-sec/ansible-collection-hardening](https://github.com/dev-sec/ansible-collection-hardening), [geerlingguy/ansible-role-security](https://github.com/geerlingguy/ansible-role-security), and [konstruktoid/ansible-role-hardening](https://github.com/konstruktoid/ansible-role-hardening)
+
 ---
 
 ### GAP-06: Sysctl missing 7 security parameters documented in Quick-Wins.md
@@ -352,6 +488,24 @@ Quick-Wins.md (lines 118-177) specifies these parameters. The following are **NO
 
 **Pre-identified issue (related to #3 -- docs vs code): CONFIRMED for sysctl.**
 
+> **Research Note: Explanation of Missing Parameters**
+>
+> **`kernel.perf_event_paranoid: 3`** — Restricts hardware performance counter access. perf counters are a side-channel attack vector (Spectre/Meltdown, Flush+Reload, Prime+Probe). Level 3 = only root can use perf_event_open(2). [DISA STIG RHEL 9 V-258076](https://www.stigviewer.com/stig/red_hat_enterprise_linux_9/); [CIS Linux Benchmark Control 3.3.7](https://www.cisecurity.org/benchmark/distribution_independent_linux). Tradeoff: non-root users cannot run `perf stat`, `perf record`.
+>
+> **`kernel.unprivileged_bpf_disabled: 1`** — Blocks non-root access to `bpf()` syscall. eBPF verifier bugs are a **primary kernel privilege escalation vector** (CVE-2021-3490, CVE-2021-4204, CVE-2022-23222). All require unprivileged BPF access. [DISA STIG RHEL 9 V-258076](https://www.stigviewer.com/stig/red_hat_enterprise_linux_9/). **Most critical missing parameter.**
+>
+> **`net.ipv4.tcp_timestamps: 0`** — Disables TCP timestamps ([RFC 1323](https://datatracker.ietf.org/doc/html/rfc1323)). Timestamps reveal system uptime (inferring patch schedule) and enable OS fingerprinting. [CIS Linux Benchmark Control 3.3.10](https://www.cisecurity.org/benchmark/distribution_independent_linux); [DISA STIG RHEL 8 V-230527](https://www.stigviewer.com/stig/red_hat_enterprise_linux_8/). Negligible performance impact for typical connections.
+>
+> **`net.ipv6.conf.all.disable_ipv6: 1`** — Disables IPv6 entirely. Eliminates IPv6 attack surface (RA spoofing, etc.) if IPv6 is unused. [CIS Linux Benchmark Control 3.1.1](https://www.cisecurity.org/benchmark/distribution_independent_linux): "Ensure IPv6 is disabled **if not needed**." **Caution**: may break DNS resolution, Docker networking, browsers (Happy Eyeballs). Should be opt-in, not default.
+>
+> **`fs.suid_dumpable: 0`** — Disables core dumps for setuid/setgid processes. When a setuid binary (sudo, passwd) crashes, the core dump contains root-process memory (passwords, keys). An attacker can trigger crashes and read the dump. [CIS Linux Benchmark Control 1.6.4](https://www.cisecurity.org/benchmark/distribution_independent_linux); [DISA STIG RHEL 8 V-230462](https://www.stigviewer.com/stig/red_hat_enterprise_linux_8/).
+>
+> **`net.ipv6.conf.all.accept_redirects: 0`** — Rejects ICMPv6 redirects, preventing MITM routing attacks. IPv4 equivalent already in code. [CIS Linux Benchmark Control 3.3.2](https://www.cisecurity.org/benchmark/distribution_independent_linux); [DISA STIG RHEL 8 V-230532](https://www.stigviewer.com/stig/red_hat_enterprise_linux_8/).
+>
+> **`net.ipv6.conf.all.accept_source_route: 0`** — Rejects IPv6 source-routed packets. IPv6 Type 0 Routing Header deprecated by [RFC 5095](https://datatracker.ietf.org/doc/html/rfc5095) (2007) due to DoS amplification. IPv4 equivalent already in code. [CIS Linux Benchmark Control 3.3.1](https://www.cisecurity.org/benchmark/distribution_independent_linux); [DISA STIG RHEL 8 V-230537](https://www.stigviewer.com/stig/red_hat_enterprise_linux_8/).
+>
+> **Why comments are essential in sysctl configs**: Parameter names like `kernel.yama.ptrace_scope = 2` are opaque without context. Each should document: what it does, value choices (why 2 not 1?), CIS/DISA control number, and tradeoffs. Reference implementation: [dev-sec/ansible-collection-hardening sysctl template](https://github.com/dev-sec/ansible-collection-hardening/blob/master/roles/os_hardening/templates/sysctl.conf.j2).
+
 ---
 
 ## 3. Medium Issues (medium)
@@ -371,6 +525,21 @@ These are significantly different policies:
 The documentation value is significantly more restrictive. The code value (`10:30:60`) is barely restrictive at all -- 60 simultaneous unauthenticated connections is generous for a workstation. Neither value matches the other, and there is no explanation for the divergence.
 
 **CHECK 1.3: CONFIRMED -- there is a discrepancy.** The code has the more permissive value.
+
+> **Research Note: MaxStartups Format and Standards**
+>
+> `MaxStartups` controls **unauthenticated** SSH connections (TCP accepted but auth not completed). Format `start:rate:full` implements probabilistic throttling ([OpenSSH sshd_config man page](https://man.openbsd.org/sshd_config)):
+> - Below `start`: all connections accepted
+> - Between `start` and `full`: each new connection refused with probability calculated as `rate + (100-rate) × (count-start)/(full-start)` percent
+> - Above `full`: 100% refusal
+>
+> **Standards comparison:**
+> - [Mozilla OpenSSH Guidelines (Modern profile)](https://infosec.mozilla.org/guidelines/openssh): `10:30:60`
+> - [CIS Linux Benchmark (SSH section)](https://www.cisecurity.org/benchmark/distribution_independent_linux): `10:30:60`
+> - DISA STIG for RHEL 9: `10:30:100`
+> - [NIST 800-53 SC-5](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) and AC-10: require limiting concurrent unauthenticated sessions (no specific value)
+>
+> **Tradeoff**: VS Code Remote SSH and Ansible open multiple SSH connections simultaneously. A very low `start` (2–4) can cause intermittent connection refusals during bursts. `4:50:10` is appropriate for single-user personal servers. `10:30:60` is safer for multi-tool workflows.
 
 ---
 
@@ -402,6 +571,19 @@ Neither the code nor the documentation lists the minimum OpenSSH version require
 
 **CHECK 1.2: PARTIALLY CONFIRMED.** The selected ciphers and KexAlgorithms require OpenSSH 6.7-7.3+. This is not documented as a requirement. PuTTY compatibility is not addressed.
 
+> **Research Note: Key Exchange Algorithm Explanations**
+>
+> Key Exchange (Kex) algorithms determine how client and server **establish a shared secret** at the start of each connection. This secret derives session keys for encryption. All listed algorithms provide forward secrecy ([OpenSSH sshd_config](https://man.openbsd.org/sshd_config)).
+>
+> **Algorithm analysis:**
+> - **`curve25519-sha256`** ([RFC 8731, 2020](https://datatracker.ietf.org/doc/html/rfc8731)): ECDH using Curve25519 (Bernstein). Fastest, designed to avoid NIST P-curve backdoor concerns. **Gold standard.**
+> - **`curve25519-sha256@libssh.org`**: Identical algorithm, pre-IETF identifier from libssh project. Both included for backward compatibility with OpenSSH < 7.4 (2016).
+> - **`diffie-hellman-group16-sha512`** ([RFC 8268, 2017](https://datatracker.ietf.org/doc/html/rfc8268)): Finite-field DH with 4096-bit prime, SHA-512. Strong fallback for clients without Curve25519.
+> - **`diffie-hellman-group18-sha512`** ([RFC 8268, 2017](https://datatracker.ietf.org/doc/html/rfc8268)): 8192-bit prime, SHA-512. Highest classical security but very slow on embedded hardware.
+> - **`diffie-hellman-group-exchange-sha256`** ([RFC 4419, 2006](https://datatracker.ietf.org/doc/html/rfc4419)): Dynamic group size from `/etc/ssh/moduli`. Security depends on moduli file quality. [Mozilla SSH Guidelines](https://infosec.mozilla.org/guidelines/openssh) recommend filtering: `awk '$5 >= 3071' /etc/ssh/moduli > /tmp/moduli && mv /tmp/moduli /etc/ssh/moduli`.
+>
+> **Current code (group16+group18) is actually MORE secure than Quick-Wins.md (group-exchange-sha256)** — fixed large groups with SHA-512 are stronger than dynamic groups with SHA-256. Optimal set: combine both for maximum compatibility.
+
 ---
 
 ### MED-03: SSH `ssh_host_key_algorithms` not implemented
@@ -420,6 +602,14 @@ ssh_host_key_algorithms:
 
 **Neither the variable nor the `HostKeyAlgorithms` sshd_config directive exists in the code.** The SSH hardening task's loop (lines 53-65) does not include a `HostKeyAlgorithms` entry. This means the server will accept connections using any host key algorithm including older, weaker ones.
 
+> **Research Note: What HostKeyAlgorithms Is**
+>
+> `HostKeyAlgorithms` controls which **server signature algorithms** the client accepts for server identity verification ([OpenSSH sshd_config](https://man.openbsd.org/sshd_config)). This is distinct from `KexAlgorithms` (session key establishment) and `PubkeyAcceptedAlgorithms` (user authentication).
+>
+> Without restriction, servers can offer `ssh-rsa` (SHA-1, collision-broken per [RFC 8332, 2018](https://datatracker.ietf.org/doc/html/rfc8332)) or `ssh-dss` (DSA, 1024-bit, broken), enabling **downgrade attacks**. OpenSSH >= 8.8 (2021) disables SHA-1 RSA by default, but explicit configuration is best practice for compliance.
+>
+> [CIS Linux Benchmark (SSH section)](https://www.cisecurity.org/benchmark/distribution_independent_linux) recommends exactly: `ssh-ed25519,rsa-sha2-512,rsa-sha2-256`. [DISA STIG RHEL 9 (V-255095)](https://www.stigviewer.com/stig/red_hat_enterprise_linux_9/) prohibits `ssh-rsa` (SHA-1) in HostKeyAlgorithms list.
+
 ---
 
 ### MED-04: SSH `ssh_max_sessions` not implemented
@@ -433,6 +623,18 @@ ssh_max_sessions: 10
 ```
 
 This variable does not exist in the code. The `MaxSessions` directive is not set in sshd_config. Default OpenSSH value is 10, which happens to match, but this is implicit rather than explicit hardening.
+
+> **Research Note: MaxSessions vs MaxStartups**
+>
+> `MaxSessions` limits open shell/login/subsystem sessions per **single multiplexed connection** (post-authentication). This is about SSH connection multiplexing via `ControlMaster`/`ControlPersist` ([OpenSSH sshd_config](https://man.openbsd.org/sshd_config)). Distinct from `MaxStartups` which limits **pre-authentication** connections:
+>
+> ```
+> TCP SYN → MaxStartups check (pre-auth pipeline)
+>   → Auth completes
+>     → MaxSessions check (per-connection multiplexed sessions)
+> ```
+>
+> **Standards**: [Mozilla SSH Guidelines](https://infosec.mozilla.org/guidelines/openssh): MaxSessions 10. [NIST 800-53 AC-10](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) (Concurrent Session Control): requires a limit, no specific value. Ansible uses multiplexing by default (`ControlMaster=auto`) — MaxSessions < 10 may cause task failures.
 
 ---
 
@@ -458,6 +660,14 @@ ssh_macs:
 
 The code omits `umac-128-etm@openssh.com`. This is actually a more conservative choice (fewer MACs = smaller attack surface), but it diverges from the documentation without explanation.
 
+> **Research Note: What MACs Are and Why ETM Matters**
+>
+> MACs (Message Authentication Codes) provide **integrity verification** for each SSH packet — preventing packet tampering and replay attacks ([RFC 4253 — SSH Transport](https://datatracker.ietf.org/doc/html/rfc4253)).
+>
+> **"etm" = Encrypt-then-MAC** — the cryptographically secure ordering. MAC-then-Encrypt (non-etm) is vulnerable to **Padding Oracle attacks** (Vaudenay, 2002) and **Lucky Thirteen** (AlFardan & Paterson, 2013). With ETM, the MAC is computed over ciphertext — tampered packets are rejected before decryption even occurs. **Never use non-etm MACs.**
+>
+> **`umac-128-etm@openssh.com`** ([RFC 4418](https://datatracker.ietf.org/doc/html/rfc4418)): Universal MAC, faster than HMAC-SHA2 on AES-NI hardware. Included in [Mozilla SSH Guidelines (Modern profile)](https://infosec.mozilla.org/guidelines/openssh) but **NOT in NIST approved algorithms** and NOT in [CIS Linux Benchmark](https://www.cisecurity.org/benchmark/distribution_independent_linux). Current code (omitting umac) is more conservative and CIS-compliant. Including it aligns with Mozilla.
+
 ---
 
 ### MED-06: Docker `docker_log_driver` default does not match Quick-Wins.md
@@ -471,6 +681,24 @@ Quick-Wins.md (line 247): `docker_log_driver: "journald"`
 Quick-Wins.md identifies `json-file` without rotation as a problem (line 221: "Logging through json-file without rotation (disk overflow)"). The code keeps `json-file` as default but adds `max-size` and `max-file` rotation options. This addresses the rotation concern but does not switch to journald as documented.
 
 **CHECK 3.3: CONFIRMED.** The log driver was NOT changed to `journald` as specified in Quick-Wins.md. The code has `json-file` with rotation, which is a reasonable alternative but does not match the documented plan.
+
+> **Research Note: Docker Log Driver Types**
+>
+> Docker log drivers control where container stdout/stderr is sent ([Docker logging docs](https://docs.docker.com/config/containers/logging/configure/)):
+>
+> | Driver | `docker logs` works? | Best for |
+> |--------|---------------------|----------|
+> | `json-file` | Yes | Default; needs `max-size`/`max-file` for rotation |
+> | `journald` | No (use `journalctl`) | systemd hosts; auto-rotation via [journald.conf](https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html) |
+> | `local` | Yes | Like json-file but faster binary format |
+> | `syslog` | No | rsyslog/syslog-ng infrastructure |
+> | `fluentd` | No | Centralized ELK/S3/BigQuery collection |
+> | `awslogs` | No | AWS CloudWatch native |
+> | `splunk` | No | Splunk HEC native |
+>
+> **For this project (Arch Linux with systemd)**: `journald` is optimal — integrates with systemd, auto-manages retention, logs survive container removal. `json-file` with `max-size`/`max-file` (current code) is a valid alternative that preserves `docker logs` functionality.
+>
+> **Big tech patterns**: Google GKE uses Fluentd → Cloud Logging. Netflix uses sidecars → Elasticsearch. GitHub uses journald for infra Docker, Fluentd for Kubernetes.
 
 ---
 
@@ -488,6 +716,25 @@ sysctl_kernel_yama_ptrace_scope: 2    # Prohibit ptrace except root
 The only toggle is the global `sysctl_security_enabled: true`. There is no separate variable to control ptrace independently, so disabling ptrace requires disabling ALL sysctl security parameters.
 
 **CHECK 2.1: CONFIRMED.** There is no per-parameter toggle and no warning in the defaults file about the development impact.
+
+> **Research Note: YAMA ptrace_scope Levels**
+>
+> `ptrace(2)` is the system call behind gdb, strace, ltrace, and perf. YAMA LSM ([kernel YAMA documentation](https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html)) restricts who can ptrace whom:
+>
+> | Level | Who can ptrace | Breaks | Recommended for |
+> |-------|---------------|--------|-----------------|
+> | 0 | Any process → any same-UID process | Nothing | Not recommended |
+> | 1 | Only child processes | `gdb --pid=<external>` attach | **Developer workstation** |
+> | 2 | Only root / CAP_SYS_PTRACE | `strace -p`, `perf record -p`, `ltrace -p` | **Production server** |
+> | 3 | Nobody, including root | All debugging | Maximum security |
+>
+> **Level 2 on a developer workstation breaks**: attaching debugger to running processes (`gdb --pid=$(pgrep app)`), system call tracing (`strace -p`), performance profiling (`perf record -p`). Note: `gdb ./myapp` (launching fresh) still works at level 2 because the target is a child process.
+>
+> **Standards**: [CIS Linux Benchmark](https://www.cisecurity.org/benchmark/distribution_independent_linux): minimum level 1. ANSSI (French NCSA): level 1 for workstations, level 2 for servers. Ubuntu default: level 1. Red Hat default: level 0.
+>
+> **Big tech**: Google/Meta use level 1 on developer workstations (tooling requires ptrace), level 2 on production servers.
+>
+> **Recommendation**: Change default from 2 to 1 for this workstation bootstrap project. Add dedicated variable `sysctl_kernel_yama_ptrace_scope: 1` with inline documentation explaining levels and tradeoffs.
 
 ---
 
@@ -507,6 +754,14 @@ The only toggle is the global `sysctl_security_enabled: true`. There is no separ
 Per MEMORY.md project conventions: "Handlers use `listen:` for cross-role notification." The SSH handler does not have a `listen:` directive. This means other roles cannot trigger an sshd restart via a generic notification name.
 
 Similarly, the Docker handler (`docker/handlers/main.yml`) lacks `listen:` on the "Restart docker" handler.
+
+> **Research Note: What `listen:` Is and Why It Matters**
+>
+> The `listen:` directive in Ansible handlers creates **topic-based subscriptions** ([Ansible handlers docs](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_handlers.html)). Without it, only tasks that know the exact handler `name:` can trigger it. With `listen: "restart sshd"`, any role can `notify: "restart sshd"` — enabling cross-role notification.
+>
+> **Why it matters for this project**: The `base_system` role may modify PAM (requiring sshd restart), the `firewall` role may change SSH port, the `user` role may modify groups. Without `listen:`, these roles cannot trigger sshd restart without tight coupling to the ssh role's handler name.
+>
+> **Used by**: [dev-sec/ansible-collection-hardening](https://github.com/dev-sec/ansible-collection-hardening) (`listen: "restart sshd service"`), [geerlingguy/ansible-role-security](https://github.com/geerlingguy/ansible-role-security) (`listen: "restart ssh"`).
 
 ---
 

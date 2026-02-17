@@ -15,20 +15,28 @@
     create_home: true
   tags: ['user']
 
-- name: Ensure wheel group has sudo access with hardening
-  ansible.builtin.copy:
-    dest: /etc/sudoers.d/wheel
-    content: |
-      # Managed by Ansible
-      %wheel ALL=(ALL:ALL) ALL
-      Defaults timestamp_timeout=5
-      Defaults use_pty
-      Defaults logfile="/var/log/sudo.log"
+- name: Deploy sudoers hardening configuration
+  ansible.builtin.template:
+    src: sudoers_hardening.j2
+    dest: "/etc/sudoers.d/{{ user_sudo_group }}"
     owner: root
     group: root
     mode: '0440'
     validate: '/usr/sbin/visudo -cf %s'
   when: user_create_sudo_rule
+  tags: ['user', 'sudo', 'security']
+
+- name: Configure logrotate for sudo log
+  ansible.builtin.template:
+    src: sudo_logrotate.j2
+    dest: /etc/logrotate.d/sudo
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - user_create_sudo_rule
+    - user_sudo_logrotate_enabled
+    - user_sudo_logfile | length > 0
   tags: ['user', 'sudo', 'security']
 
 - name: Report user configuration

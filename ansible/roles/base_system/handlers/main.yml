@@ -4,3 +4,8 @@
 - name: Generate locale
   ansible.builtin.command: locale-gen
   changed_when: true
+
+- name: Update PAM configuration
+  ansible.builtin.command: pam-auth-update --enable faillock
+  changed_when: true
+  when: ansible_facts['os_family'] == 'Debian'

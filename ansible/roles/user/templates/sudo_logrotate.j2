@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+{{ user_sudo_logfile }} {
+    {{ user_sudo_logrotate_frequency }}
+    rotate {{ user_sudo_logrotate_rotate }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root adm
+}

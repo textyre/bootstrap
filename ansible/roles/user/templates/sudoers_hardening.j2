@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+%{{ user_sudo_group }} ALL=(ALL:ALL) ALL
+Defaults timestamp_timeout={{ user_sudo_timestamp_timeout }}
+{% if user_sudo_use_pty %}
+Defaults use_pty
+{% endif %}
+{% if user_sudo_logfile | length > 0 %}
+Defaults logfile="{{ user_sudo_logfile }}"
+{% endif %}
+{% if user_sudo_log_input %}
+Defaults log_input
+{% endif %}
+{% if user_sudo_log_output %}
+Defaults log_output
+{% endif %}
+{% if user_sudo_passwd_timeout is defined %}
+Defaults passwd_timeout={{ user_sudo_passwd_timeout }}
+{% endif %}

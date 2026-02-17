@@ -14,3 +14,17 @@ user_groups:
 
 # Создать правило sudo для группы wheel
 user_create_sudo_rule: true
+
+# Sudo hardening
+user_sudo_group: "{{ 'wheel' if ansible_facts['os_family'] == 'Archlinux' else 'sudo' }}"
+user_sudo_timestamp_timeout: 5        # Таймаут кэша sudo (минуты), CIS <= 5
+user_sudo_use_pty: true               # Запуск через PTY (защита от pty injection)
+user_sudo_logfile: "/var/log/sudo.log" # Логирование sudo команд
+user_sudo_log_input: false            # Записывать stdin sudo-сессий
+user_sudo_log_output: false           # Записывать stdout/stderr sudo-сессий
+user_sudo_passwd_timeout: 1           # Таймаут ввода пароля (минуты)
+
+# Logrotate для sudo.log
+user_sudo_logrotate_enabled: true
+user_sudo_logrotate_frequency: "weekly"
+user_sudo_logrotate_rotate: 13        # 13 недель ~ 90 дней (CIS minimum)

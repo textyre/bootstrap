@@ -41,6 +41,29 @@
   when: ssh_generate_key
   tags: ['ssh']
 
+# ---- Pre-flight: проверка AllowGroups ----
+
+- name: Get current user groups
+  ansible.builtin.command: "id -nG {{ ssh_user }}"
+  register: _ssh_user_groups
+  changed_when: false
+  when:
+    - ssh_harden_sshd
+    - ssh_allow_groups | length > 0
+  tags: ['ssh', 'security']
+
+- name: Verify user is in at least one SSH allowed group
+  ansible.builtin.fail:
+    msg: >-
+      LOCKOUT RISK: User '{{ ssh_user }}' is not a member of any group in
+      ssh_allow_groups {{ ssh_allow_groups }}. Current groups: {{ _ssh_user_groups.stdout }}.
+      AllowGroups will NOT be applied to prevent SSH lockout.
+  when:
+    - ssh_harden_sshd
+    - ssh_allow_groups | length > 0
+    - ssh_allow_groups | intersect(_ssh_user_groups.stdout.split()) | length == 0
+  tags: ['ssh', 'security']
+
 # ---- Hardening sshd ----
 
 - name: Harden sshd configuration
@@ -60,9 +83,11 @@
     - { regexp: '^#?\s*ClientAliveCountMax', line: "ClientAliveCountMax {{ ssh_client_alive_count_max }}" }
     - { regexp: '^#?\s*LoginGraceTime', line: "LoginGraceTime {{ ssh_login_grace_time }}" }
     - { regexp: '^#?\s*MaxStartups', line: "MaxStartups {{ ssh_max_startups }}" }
+    - { regexp: '^#?\s*MaxSessions', line: "MaxSessions {{ ssh_max_sessions }}" }
     - { regexp: '^#?\s*Ciphers', line: "Ciphers {{ ssh_ciphers | join(',') }}" }
     - { regexp: '^#?\s*MACs', line: "MACs {{ ssh_macs | join(',') }}" }
     - { regexp: '^#?\s*KexAlgorithms', line: "KexAlgorithms {{ ssh_kex_algorithms | join(',') }}" }
+    - { regexp: '^#?\s*HostKeyAlgorithms', line: "HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}" }
   when: ssh_harden_sshd
   notify: Restart sshd
   tags: ['ssh', 'security']

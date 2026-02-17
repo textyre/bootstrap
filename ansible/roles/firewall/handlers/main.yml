@@ -3,3 +3,4 @@
   ansible.builtin.service:
     name: nftables
     state: restarted
+  listen: "restart nftables"

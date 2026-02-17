@@ -29,19 +29,13 @@
 # ---- PAM faillock ----
 
 - name: Configure pam_faillock defaults
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: faillock.conf.j2
     dest: /etc/security/faillock.conf
-    content: |
-      # Managed by Ansible
-      dir = /run/faillock
-      deny = {{ base_system_faillock_deny }}
-      fail_interval = {{ base_system_faillock_fail_interval }}
-      unlock_time = {{ base_system_faillock_unlock_time }}
-      audit
-      silent
     owner: root
     group: root
     mode: '0644'
+  when: base_system_faillock_enabled
   tags: ['system', 'pam', 'security']
 
 # ---- Внешний кэш pacman (опционально) ----

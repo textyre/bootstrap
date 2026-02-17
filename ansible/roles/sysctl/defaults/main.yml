@@ -29,13 +29,25 @@ sysctl_kernel_unprivileged_userns_clone: 1
 # ---- Security ----
 sysctl_security_enabled: true
 
-# Kernel hardening
-sysctl_kernel_randomize_va_space: 2   # Полный ASLR
-sysctl_kernel_kptr_restrict: 2        # Скрыть указатели ядра
-sysctl_kernel_dmesg_restrict: 1       # Ограничить dmesg
-sysctl_kernel_yama_ptrace_scope: 2    # Запретить ptrace кроме root
+# Per-feature toggles (позволяют отключить отдельные группы параметров)
+sysctl_security_kernel_hardening: true
+sysctl_security_network_hardening: true
+sysctl_security_filesystem_hardening: true
+sysctl_security_ipv6_disable: false       # ОСТОРОЖНО: может сломать DNS, Docker, Happy Eyeballs
 
-# Network anti-spoofing
+# Kernel hardening
+sysctl_kernel_randomize_va_space: 2       # Полный ASLR (DISA STIG)
+sysctl_kernel_kptr_restrict: 2            # Скрыть указатели ядра
+sysctl_kernel_dmesg_restrict: 1           # Ограничить dmesg
+# ptrace_scope: 1 = только child-процессы (для dev-workstation, gdb ./app работает)
+# ptrace_scope: 2 = только root (ломает gdb --pid=, strace -p, perf record -p)
+sysctl_kernel_yama_ptrace_scope: 1
+# Ограничить доступ к perf counters (защита от Spectre side-channel)
+sysctl_kernel_perf_event_paranoid: 3
+# Заблокировать непривилегированный доступ к bpf() (CVE-2021-3490, CVE-2022-23222)
+sysctl_kernel_unprivileged_bpf_disabled: 1
+
+# Network anti-spoofing (IPv4)
 sysctl_net_ipv4_rp_filter: 1                       # Reverse path filtering
 sysctl_net_ipv4_tcp_syncookies: 1                   # SYN flood protection
 sysctl_net_ipv4_accept_redirects: 0                 # Блокировать ICMP redirect
@@ -44,10 +56,18 @@ sysctl_net_ipv4_accept_source_route: 0              # Блокировать sou
 sysctl_net_ipv4_log_martians: 1                     # Логировать spoofed пакеты
 sysctl_net_ipv4_icmp_echo_ignore_broadcasts: 1      # Игнорировать broadcast ICMP
 sysctl_net_ipv4_icmp_ignore_bogus_error_responses: 1
+# Отключить TCP timestamps (скрыть uptime от fingerprinting, CIS 3.3.10)
+sysctl_net_ipv4_tcp_timestamps: 0
+
+# IPv6 anti-spoofing
+sysctl_net_ipv6_accept_redirects: 0                 # Блокировать ICMPv6 redirect
+sysctl_net_ipv6_accept_source_route: 0              # Блокировать IPv6 source routing
 
 # Filesystem protection
 sysctl_fs_protected_hardlinks: 1
 sysctl_fs_protected_symlinks: 1
+# Запретить core dump SUID-бинарников (пароли, ключи в дампе)
+sysctl_fs_suid_dumpable: 0
 
 # ---- Custom parameters ----
 # List of dicts: [{name: "kernel.param", value: "1"}]

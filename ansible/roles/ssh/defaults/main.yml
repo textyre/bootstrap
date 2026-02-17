@@ -26,7 +26,8 @@ ssh_allow_groups: ["wheel"]    # Только члены этих групп м�
 ssh_allow_users: []            # Конкретные пользователи (пустой = по группам)
 
 # DoS защита
-ssh_max_startups: "10:30:60"   # После 10 неаутентиф. соединений дроп 30%, после 60 — все
+ssh_max_startups: "10:30:60"   # start:rate:full — CIS/Mozilla стандарт
+ssh_max_sessions: 10           # Макс. мультиплексированных сессий на соединение
 
 # Криптографические ограничения
 ssh_ciphers:
@@ -36,8 +37,14 @@ ssh_ciphers:
 ssh_macs:
   - hmac-sha2-512-etm@openssh.com
   - hmac-sha2-256-etm@openssh.com
+  - umac-128-etm@openssh.com
 ssh_kex_algorithms:
   - curve25519-sha256
   - curve25519-sha256@libssh.org
   - diffie-hellman-group16-sha512
   - diffie-hellman-group18-sha512
+  - diffie-hellman-group-exchange-sha256
+ssh_host_key_algorithms:
+  - ssh-ed25519
+  - rsa-sha2-512
+  - rsa-sha2-256

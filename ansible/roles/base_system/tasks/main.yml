@@ -47,13 +47,14 @@
 
 # ---- Console keymap ----
 
-- name: Set console keymap
+- name: Set console keymap (systemd)
   ansible.builtin.copy:
     dest: /etc/vconsole.conf
     content: "KEYMAP={{ base_system_keymap }}\n"
     owner: root
     group: root
     mode: '0644'
+  when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['system', 'keymap']
 
 # ---- NTP ----

@@ -12,13 +12,21 @@ docker_add_user_to_group: true
 docker_enable_service: true
 
 # Конфигурация daemon.json
-docker_log_driver: "json-file"
+docker_log_driver: "journald"
 docker_log_max_size: "10m"
 docker_log_max_file: "3"
 docker_storage_driver: ""
 
-# Security features
-docker_userns_remap: ""          # "default" для user namespace isolation (ломает volume permissions!)
-docker_icc: true                 # false = изоляция контейнер-контейнер
-docker_live_restore: false       # true = контейнеры живут при рестарте демона
-docker_no_new_privileges: false  # true = запрет повышения привилегий в контейнерах
+# Security features (CIS Docker Benchmark defaults)
+# WARNING: userns-remap ломает volume permissions — используйте named volumes
+# или chown 100000:100000 на хосте. Подробности: https://docs.docker.com/engine/security/userns-remap/
+docker_userns_remap: "default"
+# ICC false блокирует прямое общение контейнеров через docker0.
+# Используйте user-defined networks (Docker Compose создаёт их автоматически)
+docker_icc: false
+# live-restore позволяет контейнерам работать при рестарте dockerd.
+# Несовместимо с Docker Swarm (не используется в данном проекте)
+docker_live_restore: true
+# no-new-privileges блокирует повышение привилегий через setuid в контейнерах.
+# При необходимости — per-container override: --security-opt no-new-privileges=false
+docker_no_new_privileges: true
