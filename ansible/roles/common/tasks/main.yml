@@ -1,0 +1,3 @@
+---
+# common role — shared utilities for all roles
+# Пустой main.yml — роль используется через include_role + tasks_from

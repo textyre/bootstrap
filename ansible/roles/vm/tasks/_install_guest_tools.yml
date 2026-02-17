@@ -21,19 +21,25 @@
   tags: ['vm']
 
 - name: "Report: Install guest tools"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Install guest tools"
-    _vm_rpt_detail: "{{ _vm_hypervisor }}"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Install guest tools"
+    _rpt_detail: "{{ _vm_hypervisor }}"
   when: _vm_is_guest | bool
   tags: ['vm']
 
 - name: "Report: Install guest tools (skip)"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Install guest tools"
-    _vm_rpt_status: "skip"
-    _vm_rpt_detail: "not a guest"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Install guest tools"
+    _rpt_status: "skip"
+    _rpt_detail: "not a guest"
   when: not (_vm_is_guest | bool)
   tags: ['vm']
 
@@ -48,11 +54,14 @@
   tags: ['vm', 'vm:report']
 
 - name: "Report: Environment check (container)"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Environment check"
-    _vm_rpt_status: "skip"
-    _vm_rpt_detail: "container/WSL2 ({{ _vm_virt_type }})"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Environment check"
+    _rpt_status: "skip"
+    _rpt_detail: "container/WSL2 ({{ _vm_virt_type }})"
   when: _vm_is_container | bool
   tags: ['vm']
 
@@ -67,11 +76,14 @@
   tags: ['vm', 'vm:report']
 
 - name: "Report: Environment check (not a guest)"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Environment check"
-    _vm_rpt_status: "skip"
-    _vm_rpt_detail: "not a guest ({{ _vm_virt_type }}/{{ _vm_virt_role }})"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Environment check"
+    _rpt_status: "skip"
+    _rpt_detail: "not a guest ({{ _vm_virt_type }}/{{ _vm_virt_role }})"
   when:
     - not (_vm_is_guest | bool)
     - not (_vm_is_container | bool)
@@ -85,8 +97,11 @@
   tags: ['vm']
 
 - name: "Report: Persist custom facts"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Persist custom facts"
-    _vm_rpt_detail: "vm_guest.fact"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Persist custom facts"
+    _rpt_detail: "vm_guest.fact"
   tags: ['vm']

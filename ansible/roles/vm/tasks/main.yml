@@ -17,9 +17,12 @@
   tags: ['vm']
 
 - name: "Report: Validate prerequisites"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Validate prerequisites"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Validate prerequisites"
   tags: ['vm']
 
 # ---- Load OS-specific variables ----
@@ -32,10 +35,13 @@
   tags: ['vm']
 
 - name: "Report: Load OS variables"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Load OS variables"
-    _vm_rpt_detail: "{{ ansible_facts['os_family'] }}"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Load OS variables"
+    _rpt_detail: "{{ ansible_facts['os_family'] }}"
   tags: ['vm']
 
 # ---- Detection ----
@@ -58,24 +64,33 @@
   tags: ['vm']
 
 - name: "Report: Detect virtualization"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Detect virtualization"
-    _vm_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Detect virtualization"
+    _rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
   tags: ['vm']
 
 - name: "Report: Container/WSL2 check"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Container/WSL2 check"
-    _vm_rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Container/WSL2 check"
+    _rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
   tags: ['vm']
 
 - name: "Report: Guest determination"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Guest determination"
-    _vm_rpt_detail: "hypervisor={{ _vm_hypervisor }}"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Guest determination"
+    _rpt_detail: "hypervisor={{ _vm_hypervisor }}"
   tags: ['vm']
 
 # ---- Initialize reboot flag ----
@@ -104,15 +119,12 @@
 # ---- Execution report ----
 
 - name: "VM Role - Execution Report"
-  ansible.builtin.debug:
-    msg: "{{ _header + (_vm_phases | default([])) + _footer }}"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
   vars:
-    _header:
-      - "+----------------------------+------------+--------------------------+"
-      - "| Phase                      | Status     | Details                  |"
-      - "+----------------------------+------------+--------------------------+"
-    _footer:
-      - "+----------------------------+------------+--------------------------+"
+    _rpt_fact: "_vm_phases"
+    _rpt_title: "vm"
+    _rpt_footer_rows:
       - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((_vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
-      - "+----------------------------+------------+--------------------------+"
   tags: ['vm', 'vm:report']

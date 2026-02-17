@@ -37,9 +37,10 @@ base_system_ntp_daemon: "chrony"
 
 # ---- /etc/hosts ----
 
-# hostctl: profile-based /etc/hosts management (opt-in)
-# Требует AUR: hostctl-bin
-base_system_hostctl_enabled: false
+# hostctl: profile-based /etc/hosts management
+# Установка: package manager (Arch: pacman/AUR, Debian: apt, и т.д.)
+# или бинарник с GitHub releases
+base_system_hostctl_enabled: true
 base_system_hostctl_profiles: {}
 # Пример:
 #   base_system_hostctl_profiles:

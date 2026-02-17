@@ -41,8 +41,11 @@
 
 # Логирование
 - name: "Report: Timezone"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Set timezone"
     _rpt_detail: "{{ base_system_timezone }}"
   tags: ['system', 'timezone', 'report']
@@ -57,8 +60,11 @@
 
 # Логирование (проверки внутри glibc.yml / musl.yml)
 - name: "Report: Locale"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Configure locale"
     _rpt_detail: "{{ base_system_locales | join(', ') | truncate(24, True) }}"
   tags: ['system', 'locale', 'report']
@@ -90,8 +96,11 @@
 
 # Логирование
 - name: "Report: Hostname"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Set hostname"
     _rpt_detail: "{{ base_system_hostname }}"
   tags: ['system', 'hostname', 'report']
@@ -122,8 +131,11 @@
   tags: ['system', 'ntp']
 
 - name: "Report: NTP (disabled)"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Configure NTP"
     _rpt_status: "skip"
     _rpt_detail: "disabled by user"
@@ -135,16 +147,13 @@
 # ======================================================================
 
 - name: "base_system — Execution Report"
-  ansible.builtin.debug:
-    msg: "{{ _header + (_base_system_phases | default([])) + _footer }}"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
   vars:
-    _header:
-      - "+----------------------------+------------+--------------------------+"
-      - "| Phase                      | Status     | Details                  |"
-      - "+----------------------------+------------+--------------------------+"
-    _footer:
-      - "+----------------------------+------------+--------------------------+"
+    _rpt_fact: "_base_system_phases"
+    _rpt_title: "base_system"
+    _rpt_footer_rows:
       - "| {{ '%-26s' | format('OS') }} | {{ '%-10s' | format(ansible_facts['os_family']) }} | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |"
       - "| {{ '%-26s' | format('Init system') }} | {{ '%-10s' | format(ansible_facts['service_mgr'] | default('unknown')) }} | {{ '%-24s' | format('') }} |"
-      - "+----------------------------+------------+--------------------------+"
   tags: ['system', 'report']

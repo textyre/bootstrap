@@ -43,10 +43,13 @@
   tags: ['vm', 'vm:install']
 
 - name: "Report: Remove guest tools"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Remove guest tools"
-    _vm_rpt_detail: "state=absent"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Remove guest tools"
+    _rpt_detail: "state=absent"
   tags: ['vm']
 
 # ---- Remove persisted facts ----
@@ -58,10 +61,13 @@
   tags: ['vm']
 
 - name: "Report: Remove custom facts"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
-    _vm_rpt_phase: "Remove custom facts"
-    _vm_rpt_detail: "vm_guest.fact"
+    _rpt_fact: "_vm_phases"
+    _rpt_phase: "Remove custom facts"
+    _rpt_detail: "vm_guest.fact"
   tags: ['vm']
 
 # ---- Removal report ----

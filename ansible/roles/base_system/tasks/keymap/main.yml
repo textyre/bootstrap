@@ -39,8 +39,11 @@
 # ---- Логирование ----
 
 - name: "Report: Keymap"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Console keymap"
     _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in ['systemd', 'openrc', 'runit'] else 'skip' }}"
     _rpt_detail: "{{ base_system_keymap }} ({{ ansible_facts['service_mgr'] }})"

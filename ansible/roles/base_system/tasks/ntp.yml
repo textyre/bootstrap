@@ -54,8 +54,11 @@
 # ---- Логирование ----
 
 - name: "Report: NTP"
-  ansible.builtin.include_tasks: _report_phase.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
   vars:
+    _rpt_fact: "_base_system_phases"
     _rpt_phase: "Configure NTP"
     _rpt_detail: "chrony ({{ _base_system_ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})"
   tags: ['system', 'ntp', 'report']
