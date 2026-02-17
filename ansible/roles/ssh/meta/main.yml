@@ -2,11 +2,15 @@
 galaxy_info:
   role_name: ssh
   author: textyre
-  description: Настройка SSH (генерация ключей, hardening sshd)
+  description: Полный hardening SSH (генерация ключей, sshd_config, модули, баннер)
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [ssh, security, hardening]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+  galaxy_tags: [ssh, security, hardening, sshd, crypto]
 dependencies: []

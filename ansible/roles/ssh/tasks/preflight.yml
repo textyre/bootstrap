@@ -1,0 +1,63 @@
+---
+# === Pre-flight: защита от блокировки SSH ===
+# Проверяем что текущий пользователь не потеряет доступ
+# после применения AllowGroups/AllowUsers/DenyGroups/DenyUsers
+
+# ---- Получение текущих групп пользователя ----
+
+- name: Get current user groups
+  ansible.builtin.command: "id -nG {{ ssh_user }}"
+  register: _ssh_user_groups
+  changed_when: false
+  tags: ['ssh', 'security']
+
+# ---- Проверка AllowGroups ----
+
+- name: Verify user is in at least one SSH allowed group
+  ansible.builtin.fail:
+    msg: >-
+      LOCKOUT RISK: Пользователь '{{ ssh_user }}' не является членом ни одной группы
+      из ssh_allow_groups {{ ssh_allow_groups }}.
+      Текущие группы: {{ _ssh_user_groups.stdout }}.
+      AllowGroups НЕ будет применён для предотвращения блокировки SSH.
+  when:
+    - ssh_allow_groups | length > 0
+    - ssh_allow_groups | intersect(_ssh_user_groups.stdout.split()) | length == 0
+  tags: ['ssh', 'security']
+
+# ---- Проверка AllowUsers ----
+
+- name: Verify user is in AllowUsers list (if configured)
+  ansible.builtin.fail:
+    msg: >-
+      LOCKOUT RISK: Пользователь '{{ ssh_user }}' отсутствует в
+      ssh_allow_users {{ ssh_allow_users }}.
+      AllowUsers НЕ будет применён для предотвращения блокировки SSH.
+  when:
+    - ssh_allow_users | length > 0
+    - ssh_user not in ssh_allow_users
+  tags: ['ssh', 'security']
+
+# ---- Проверка DenyGroups ----
+
+- name: Verify user is NOT in any denied group
+  ansible.builtin.fail:
+    msg: >-
+      LOCKOUT RISK: Пользователь '{{ ssh_user }}' состоит в группе из
+      ssh_deny_groups {{ ssh_deny_groups }}, что заблокирует SSH-доступ.
+  when:
+    - ssh_deny_groups | length > 0
+    - ssh_deny_groups | intersect(_ssh_user_groups.stdout.split()) | length > 0
+  tags: ['ssh', 'security']
+
+# ---- Проверка DenyUsers ----
+
+- name: Verify user is NOT in DenyUsers list
+  ansible.builtin.fail:
+    msg: >-
+      LOCKOUT RISK: Пользователь '{{ ssh_user }}' находится в
+      ssh_deny_users {{ ssh_deny_users }}, что заблокирует SSH-доступ.
+  when:
+    - ssh_deny_users | length > 0
+    - ssh_user in ssh_deny_users
+  tags: ['ssh', 'security']

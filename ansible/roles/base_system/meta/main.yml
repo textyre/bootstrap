@@ -2,7 +2,10 @@
 galaxy_info:
   role_name: base_system
   author: textyre
-  description: "Базовая настройка системы: локаль, таймзона, hostname, keymap, NTP"
+  description: >-
+    Base system configuration: locale (multi-locale, LC_* overrides),
+    timezone, hostname, /etc/hosts (+ hostctl profiles), keymap, NTP (chrony).
+    Tested on Arch Linux. Supports Debian, Ubuntu, EL, Alpine, Void Linux.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -16,5 +19,7 @@ galaxy_info:
       versions: [all]
     - name: Alpine
       versions: [all]
-  galaxy_tags: [system, locale, timezone, hostname, ntp, keymap]
+    # Void Linux: supported in code (runit keymap, glibc locale)
+    # but no Galaxy platform identifier available
+  galaxy_tags: [system, locale, timezone, hostname, ntp, keymap, hostctl]
 dependencies: []

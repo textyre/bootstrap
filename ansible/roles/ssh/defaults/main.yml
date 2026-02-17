@@ -1,50 +1,204 @@
 ---
-# === Настройка SSH ===
-# Генерация ключей, клиентский конфиг, hardening sshd
+# =====================================================================
+#  SSH role — полная конфигурация hardening
+#  Источники: dev-sec.io, konstruktoid, CIS Benchmark, Mozilla Modern
+# =====================================================================
 
-# Целевой пользователь
+# ---- Целевой пользователь ----
+
+# Пользователь для генерации ключей и проверки блокировки
 ssh_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
-# Генерация SSH-ключа
+# ---- Генерация SSH-ключа ----
+
+# Генерировать ключевую пару для ssh_user
 ssh_generate_key: true
+# Тип ключа (ed25519 — наиболее безопасный и быстрый)
 ssh_key_type: ed25519
+# Комментарий ключа (идентификация на удалённых серверах)
 ssh_key_comment: "{{ ssh_user }}@{{ ansible_hostname }}"
 
-# Hardening sshd
+# ---- Общий флаг hardening ----
+
+# Включить hardening sshd (развёртывание конфигурации)
 ssh_harden_sshd: true
-ssh_permit_root_login: "no"
-ssh_password_authentication: "no"
-ssh_pubkey_authentication: "yes"
-ssh_x11_forwarding: "no"
-ssh_max_auth_tries: 3
-ssh_client_alive_interval: 300
-ssh_client_alive_count_max: 2
-ssh_login_grace_time: 60
 
-# Ограничение доступа
-ssh_allow_groups: ["wheel"]    # Только члены этих групп могут подключаться (пустой = все)
-ssh_allow_users: []            # Конкретные пользователи (пустой = по группам)
+# ---- Сеть и порт ----
 
-# DoS защита
-ssh_max_startups: "10:30:60"   # start:rate:full — CIS/Mozilla стандарт
-ssh_max_sessions: 10           # Макс. мультиплексированных сессий на соединение
+# Порт SSH-сервера (стандарт 22; смена снижает шум автосканеров)
+ssh_port: 22
+# Семейство адресов: inet (IPv4), inet6 (IPv6), any (оба)
+ssh_address_family: "inet"
+# Адреса для прослушивания (пустой список = все интерфейсы)
+ssh_listen_addresses: []
 
-# Криптографические ограничения
-ssh_ciphers:
-  - chacha20-poly1305@openssh.com
-  - aes256-gcm@openssh.com
-  - aes128-gcm@openssh.com
-ssh_macs:
-  - hmac-sha2-512-etm@openssh.com
-  - hmac-sha2-256-etm@openssh.com
-  - umac-128-etm@openssh.com
+# ---- Host-ключи сервера ----
+
+# Пути к файлам host-ключей (порядок = приоритет согласования)
+ssh_host_keys:
+  - /etc/ssh/ssh_host_ed25519_key
+  - /etc/ssh/ssh_host_rsa_key
+
+# Удалить слабые host-ключи (DSA, ECDSA) — рекомендация dev-sec
+ssh_host_key_cleanup: true
+
+# ---- Криптография ----
+
+# Алгоритмы обмена ключами — только современные с forward secrecy
 ssh_kex_algorithms:
   - curve25519-sha256
   - curve25519-sha256@libssh.org
   - diffie-hellman-group16-sha512
   - diffie-hellman-group18-sha512
   - diffie-hellman-group-exchange-sha256
+
+# Симметричные шифры — только AEAD (authenticated encryption)
+ssh_ciphers:
+  - chacha20-poly1305@openssh.com
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+
+# Коды аутентификации сообщений — только ETM (encrypt-then-MAC)
+ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+  - umac-128-etm@openssh.com
+
+# Алгоритмы host-ключей (ed25519 предпочтительнее, RSA как fallback)
 ssh_host_key_algorithms:
   - ssh-ed25519
   - rsa-sha2-512
   - rsa-sha2-256
+
+# Перегенерация ключей сессии (объём и время на одном ключе)
+# 512M 1h — рекомендация dev-sec (защита от long-session compromise)
+ssh_rekey_limit: "512M 1h"
+
+# ---- Аутентификация ----
+
+# Время на аутентификацию после подключения (секунды)
+ssh_login_grace_time: 60
+# Запретить вход root (no | prohibit-password | without-password | yes)
+ssh_permit_root_login: "no"
+# Строгая проверка прав на ~/.ssh (защита от чтения чужих ключей)
+ssh_strict_modes: "yes"
+# Максимум попыток аутентификации на одно соединение
+ssh_max_auth_tries: 3
+# Максимум SSH-сессий в одном соединении
+ssh_max_sessions: 10
+
+# Аутентификация по открытому ключу (основной метод)
+ssh_pubkey_authentication: "yes"
+# Аутентификация по паролю (отключить если у всех есть ключи)
+ssh_password_authentication: "no"
+# Пустые пароли — ВСЕГДА запрещено (CIS, DISA STIG)
+ssh_permit_empty_passwords: "no"
+
+# Аутентификация по хосту (устаревший .rhosts/.shosts метод)
+ssh_hostbased_authentication: "no"
+# Игнорировать файлы .rhosts/.shosts (устаревшие файлы доверия)
+ssh_ignore_rhosts: "yes"
+
+# Challenge-Response аутентификация (PAM keyboard-interactive)
+ssh_challenge_response_auth: "no"
+
+# Методы аутентификации (publickey = только ключи)
+ssh_authentication_methods: "publickey"
+# Пользовательские переменные окружения (блокирует LD_PRELOAD, PATH подмену)
+ssh_permit_user_environment: "no"
+# PAM — нужен для account/session management даже без password auth
+ssh_use_pam: "yes"
+
+# ---- Контроль доступа ----
+
+# Группы с разрешённым SSH-доступом (whitelist; пустой = все)
+ssh_allow_groups: ["wheel"]
+# Пользователи с разрешённым SSH-доступом (whitelist; пустой = по группам)
+ssh_allow_users: []
+# Группы с запрещённым SSH-доступом (blacklist; пустой = нет запретов)
+ssh_deny_groups: []
+# Пользователи с запрещённым SSH-доступом (blacklist; пустой = нет запретов)
+ssh_deny_users: []
+
+# ---- Перенаправление и туннели ----
+
+# X11-перенаправление (графика через SSH; отключить = защита от X11 sniffing)
+ssh_x11_forwarding: "no"
+# TCP-перенаправление (проброс портов; отключить = защита от обхода firewall)
+ssh_allow_tcp_forwarding: "no"
+# Перенаправление SSH-агента (проброс ключей; отключить = защита ключей)
+ssh_allow_agent_forwarding: "no"
+# VPN-туннель через SSH (tun-устройство)
+ssh_permit_tunnel: "no"
+# Привязка перенаправленных портов (no = только localhost)
+ssh_gateway_ports: "no"
+
+# ---- Логирование ----
+
+# Уровень: VERBOSE — записывает fingerprint ключа при каждом входе (CIS, DISA)
+ssh_log_level: "VERBOSE"
+# Facility syslog: AUTH — стандартный журнал безопасности
+ssh_syslog_facility: "AUTH"
+
+# ---- Сессия и окружение ----
+
+# Интервал keepalive от сервера к клиенту (секунды)
+ssh_client_alive_interval: 300
+# Количество keepalive без ответа до разрыва (тайм-аут = interval * count)
+ssh_client_alive_count_max: 2
+# TCP keepalive на уровне транспорта (менее надёжен чем ClientAlive)
+ssh_tcp_keepalive: "no"
+
+# Показывать MOTD при входе
+ssh_print_motd: "no"
+# Показывать время последнего входа
+ssh_print_last_log: "yes"
+
+# Принимаемые переменные окружения от клиента (локализация)
+ssh_accept_env: "LANG LC_*"
+
+# ---- Сеть и DNS ----
+
+# Обратный DNS клиента (замедляет подключение, бесполезен для безопасности)
+ssh_use_dns: "no"
+# Сжатие трафика (отключено — вектор для CRIME-подобных атак)
+ssh_compression: "no"
+
+# ---- DoS-защита ----
+
+# MaxStartups start:rate:full (CIS/Mozilla: 10:30:60)
+ssh_max_startups: "10:30:60"
+
+# ---- SSH баннер (опционально) ----
+
+# Включить баннер (/etc/issue.net) показываемый до аутентификации
+ssh_banner_enabled: false
+# Путь к файлу баннера
+ssh_banner_path: "/etc/issue.net"
+# Текст баннера (юридическое предупреждение)
+ssh_banner_text: |
+  ===================================================================
+  ВНИМАНИЕ: Несанкционированный доступ к данной системе запрещён.
+  Все действия записываются и могут быть переданы правоохранительным
+  органам. Подключаясь, вы подтверждаете согласие с мониторингом.
+  ===================================================================
+
+# ---- SFTP (опционально) ----
+
+# Включить подсистему SFTP
+ssh_sftp_enabled: true
+# Путь к серверу SFTP (internal-sftp работает в chroot)
+ssh_sftp_server: "internal-sftp"
+# Включить SFTP chroot для указанной группы
+ssh_sftp_chroot_enabled: false
+# Группа для chroot-ограничения
+ssh_sftp_chroot_group: "sftponly"
+# Каталог chroot (%h = домашний каталог пользователя)
+ssh_sftp_chroot_directory: "/home/%u"
+
+# ---- DH модули (опционально) ----
+
+# Удалить слабые DH-модули из /etc/ssh/moduli
+ssh_moduli_cleanup: false
+# Минимальный размер DH-модуля в битах (3072 — рекомендация NIST/Mozilla)
+ssh_moduli_minimum_bits: 3072

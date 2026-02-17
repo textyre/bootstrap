@@ -1,6 +1,6 @@
 ---
 # === Настройка SSH ===
-# Генерация ключей, hardening sshd
+# Полный hardening sshd: ключи, конфиг, модули, баннер, сервис
 
 # ---- Установка openssh (OS-specific) ----
 
@@ -10,117 +10,55 @@
 
 # ---- Генерация SSH-ключа ----
 
-- name: Get user home directory
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ ssh_user }}"
-  tags: ['ssh']
-
-- name: Set user home fact
-  ansible.builtin.set_fact:
-    _ssh_user_home: "{{ getent_passwd[ssh_user][4] }}"
-  tags: ['ssh']
-
-- name: Ensure .ssh directory exists
-  ansible.builtin.file:
-    path: "{{ _ssh_user_home }}/.ssh"
-    state: directory
-    owner: "{{ ssh_user }}"
-    group: "{{ ssh_user }}"
-    mode: '0700'
-  tags: ['ssh']
-
 - name: Generate SSH key pair
-  community.crypto.openssh_keypair:
-    path: "{{ _ssh_user_home }}/.ssh/id_{{ ssh_key_type }}"
-    type: "{{ ssh_key_type }}"
-    comment: "{{ ssh_key_comment }}"
-    owner: "{{ ssh_user }}"
-    group: "{{ ssh_user }}"
-    mode: '0600'
+  ansible.builtin.include_tasks: keygen.yml
   when: ssh_generate_key
-  tags: ['ssh']
+  tags: ['ssh', 'keygen']
 
-# ---- Pre-flight: проверка AllowGroups ----
+# ---- Pre-flight: защита от блокировки ----
 
-- name: Get current user groups
-  ansible.builtin.command: "id -nG {{ ssh_user }}"
-  register: _ssh_user_groups
-  changed_when: false
-  when:
-    - ssh_harden_sshd
-    - ssh_allow_groups | length > 0
-  tags: ['ssh', 'security']
-
-- name: Verify user is in at least one SSH allowed group
-  ansible.builtin.fail:
-    msg: >-
-      LOCKOUT RISK: User '{{ ssh_user }}' is not a member of any group in
-      ssh_allow_groups {{ ssh_allow_groups }}. Current groups: {{ _ssh_user_groups.stdout }}.
-      AllowGroups will NOT be applied to prevent SSH lockout.
-  when:
-    - ssh_harden_sshd
-    - ssh_allow_groups | length > 0
-    - ssh_allow_groups | intersect(_ssh_user_groups.stdout.split()) | length == 0
+- name: Pre-flight lockout protection
+  ansible.builtin.include_tasks: preflight.yml
+  when: ssh_harden_sshd
   tags: ['ssh', 'security']
 
 # ---- Hardening sshd ----
 
 - name: Harden sshd configuration
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-    state: present
-    validate: '/usr/sbin/sshd -t -f %s'
-  loop:
-    - { regexp: '^#?\s*PermitRootLogin', line: "PermitRootLogin {{ ssh_permit_root_login }}" }
-    - { regexp: '^#?\s*PasswordAuthentication', line: "PasswordAuthentication {{ ssh_password_authentication }}" }
-    - { regexp: '^#?\s*PubkeyAuthentication', line: "PubkeyAuthentication {{ ssh_pubkey_authentication }}" }
-    - { regexp: '^#?\s*X11Forwarding', line: "X11Forwarding {{ ssh_x11_forwarding }}" }
-    - { regexp: '^#?\s*MaxAuthTries', line: "MaxAuthTries {{ ssh_max_auth_tries }}" }
-    - { regexp: '^#?\s*ClientAliveInterval', line: "ClientAliveInterval {{ ssh_client_alive_interval }}" }
-    - { regexp: '^#?\s*ClientAliveCountMax', line: "ClientAliveCountMax {{ ssh_client_alive_count_max }}" }
-    - { regexp: '^#?\s*LoginGraceTime', line: "LoginGraceTime {{ ssh_login_grace_time }}" }
-    - { regexp: '^#?\s*MaxStartups', line: "MaxStartups {{ ssh_max_startups }}" }
-    - { regexp: '^#?\s*MaxSessions', line: "MaxSessions {{ ssh_max_sessions }}" }
-    - { regexp: '^#?\s*Ciphers', line: "Ciphers {{ ssh_ciphers | join(',') }}" }
-    - { regexp: '^#?\s*MACs', line: "MACs {{ ssh_macs | join(',') }}" }
-    - { regexp: '^#?\s*KexAlgorithms', line: "KexAlgorithms {{ ssh_kex_algorithms | join(',') }}" }
-    - { regexp: '^#?\s*HostKeyAlgorithms', line: "HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}" }
+  ansible.builtin.include_tasks: harden.yml
   when: ssh_harden_sshd
-  notify: Restart sshd
   tags: ['ssh', 'security']
 
-- name: Restrict SSH access to specific groups
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?\s*AllowGroups'
-    line: "AllowGroups {{ ssh_allow_groups | join(' ') }}"
-    state: present
-    validate: '/usr/sbin/sshd -t -f %s'
-  when:
-    - ssh_harden_sshd
-    - ssh_allow_groups | length > 0
-  notify: Restart sshd
-  tags: ['ssh', 'security']
+# ---- Очистка DH-модулей (опционально) ----
 
-- name: Restrict SSH access to specific users
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?\s*AllowUsers'
-    line: "AllowUsers {{ ssh_allow_users | join(' ') }}"
-    state: present
-    validate: '/usr/sbin/sshd -t -f %s'
-  when:
-    - ssh_harden_sshd
-    - ssh_allow_users | length > 0
-  notify: Restart sshd
-  tags: ['ssh', 'security']
+- name: Clean up weak DH moduli
+  ansible.builtin.include_tasks: moduli.yml
+  when: ssh_moduli_cleanup
+  tags: ['ssh', 'security', 'moduli']
 
-- name: Enable and start sshd
-  ansible.builtin.service:
-    name: sshd
-    enabled: true
-    state: started
+# ---- SSH баннер (опционально) ----
+
+- name: Deploy SSH banner
+  ansible.builtin.include_tasks: banner.yml
+  when: ssh_banner_enabled
+  tags: ['ssh', 'banner']
+
+# ---- Управление сервисом ----
+
+- name: Manage sshd service
+  ansible.builtin.include_tasks: service.yml
   tags: ['ssh', 'service']
+
+# ---- Отчёт ----
+
+- name: Report SSH configuration
+  ansible.builtin.debug:
+    msg:
+      - "SSH hardening: {{ 'включён' if ssh_harden_sshd else 'выключен' }}"
+      - "Порт: {{ ssh_port }}"
+      - "PermitRootLogin: {{ ssh_permit_root_login }}"
+      - "PasswordAuthentication: {{ ssh_password_authentication }}"
+      - "AllowGroups: {{ ssh_allow_groups | join(', ') if ssh_allow_groups | length > 0 else 'все' }}"
+      - "Модули DH: {{ 'очищены (<' ~ ssh_moduli_minimum_bits ~ ' бит)' if ssh_moduli_cleanup else 'не изменены' }}"
+      - "Баннер: {{ 'включён' if ssh_banner_enabled else 'выключен' }}"
+  tags: ['ssh']

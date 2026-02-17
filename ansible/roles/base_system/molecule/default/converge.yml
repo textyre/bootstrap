@@ -1,5 +1,6 @@
 ---
 # Molecule converge playbook for base_system role
+# Тестирует мультилокаль (en_US + ru_RU), LC_* overrides
 
 - name: Converge
   hosts: all
@@ -18,3 +19,9 @@
 
   roles:
     - role: base_system
+      vars:
+        base_system_locales:
+          - "en_US.UTF-8"
+          - "ru_RU.UTF-8"
+        base_system_lc_overrides:
+          LC_TIME: "ru_RU.UTF-8"

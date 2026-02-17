@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+export LANG={{ base_system_locale }}
+{% for key, value in (base_system_lc_overrides | default({})).items() | sort %}
+export {{ key }}={{ value }}
+{% endfor %}

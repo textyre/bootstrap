@@ -1,11 +1,19 @@
 ---
 # Handlers for base_system role
 
-- name: Generate locale
-  ansible.builtin.command: locale-gen
-  changed_when: true
-
 - name: Reconfigure glibc-locales (Void)
   ansible.builtin.command: xbps-reconfigure -f glibc-locales
   changed_when: true
   when: ansible_facts['distribution'] == 'Void'
+
+- name: Restart chronyd
+  ansible.builtin.service:
+    name: "{{ _base_system_ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+    state: restarted
+
+- name: Apply hostctl profiles
+  ansible.builtin.command:
+    cmd: "hostctl replace {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
+  loop: "{{ base_system_hostctl_profiles | dict2items }}"
+  when: base_system_hostctl_enabled
+  changed_when: true

@@ -1,0 +1,14 @@
+---
+# === SSH баннер ===
+# Предупреждение при подключении (юридическое/информационное)
+# Показывается ДО аутентификации — не содержит конфиденциальной информации
+
+- name: Deploy SSH banner
+  ansible.builtin.template:
+    src: issue.net.j2
+    dest: "{{ ssh_banner_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload sshd
+  tags: ['ssh', 'banner']

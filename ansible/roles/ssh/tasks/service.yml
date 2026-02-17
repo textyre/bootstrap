@@ -1,0 +1,9 @@
+---
+# === Управление сервисом sshd ===
+
+- name: Enable and start sshd
+  ansible.builtin.service:
+    name: sshd
+    enabled: true
+    state: started
+  tags: ['ssh', 'service']

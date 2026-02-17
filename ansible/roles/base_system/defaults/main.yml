@@ -2,18 +2,49 @@
 # === Базовая настройка системы ===
 # Идентичность машины: локаль, таймзона, hostname, keymap, NTP
 
-# Локаль системы
+# ---- Локаль ----
+
+# Локали для генерации (все должны быть сгенерированы до использования)
+base_system_locales:
+  - "en_US.UTF-8"
+
+# Основная системная локаль (LANG в /etc/locale.conf)
 base_system_locale: "en_US.UTF-8"
 
-# Таймзона
+# LC_* переопределения (пусто = LANG покрывает всё)
+# Пример для русского времени/валюты:
+#   base_system_lc_overrides:
+#     LC_TIME: "ru_RU.UTF-8"
+#     LC_MONETARY: "ru_RU.UTF-8"
+base_system_lc_overrides: {}
+
+# ---- Таймзона ----
+
 base_system_timezone: "Asia/Almaty"
 
-# Hostname
+# ---- Hostname ----
+
 base_system_hostname: "archbox"
 
-# Console keymap (TTY)
+# ---- Console keymap (TTY) ----
+
 base_system_keymap: "us"
 
-# NTP time sync
+# ---- NTP ----
+
 base_system_ntp_enabled: true
-base_system_ntp_daemon: "chrony"  # chrony | openntpd
+base_system_ntp_daemon: "chrony"
+
+# ---- /etc/hosts ----
+
+# hostctl: profile-based /etc/hosts management (opt-in)
+# Требует AUR: hostctl-bin
+base_system_hostctl_enabled: false
+base_system_hostctl_profiles: {}
+# Пример:
+#   base_system_hostctl_profiles:
+#     dev:
+#       - { ip: "127.0.0.1", host: "app.local" }
+#       - { ip: "127.0.0.1", host: "api.local" }
+#     docker:
+#       - { ip: "172.17.0.1", host: "registry.local" }

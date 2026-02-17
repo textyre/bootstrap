@@ -1,6 +1,7 @@
 ---
 # Molecule verify playbook for base_system role
-# Проверяет: таймзона, локаль, hostname, keymap, NTP (chrony)
+# Проверяет: таймзона, локаль (en_US + ru_RU), LC_* overrides,
+#            hostname, /etc/hosts, keymap, NTP (chrony)
 
 - name: Verify
   hosts: all
@@ -10,29 +11,98 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
+    # ================================================================
+    # Timezone
+    # ================================================================
+
     - name: Check timezone is set
       ansible.builtin.command: timedatectl show --property=Timezone --value
       register: _verify_timezone
       changed_when: false
       failed_when: _verify_timezone.stdout | length == 0
 
-    - name: Check locale.conf exists and valid
+    - name: Assert timezone matches expected value
+      ansible.builtin.assert:
+        that:
+          - _verify_timezone.stdout == 'Asia/Almaty'
+        fail_msg: "Expected timezone 'Asia/Almaty', got '{{ _verify_timezone.stdout }}'"
+
+    # ================================================================
+    # Locale — генерация
+    # ================================================================
+
+    - name: Get available locales
+      ansible.builtin.command: locale -a
+      register: _verify_locales
+      changed_when: false
+
+    - name: Assert en_US.UTF-8 locale is generated
+      ansible.builtin.assert:
+        that:
+          - "'en_us' in (_verify_locales.stdout | lower | replace('-', '') | replace('.', ''))"
+        fail_msg: "en_US.UTF-8 locale not found in locale -a output"
+
+    - name: Assert ru_RU.UTF-8 locale is generated
+      ansible.builtin.assert:
+        that:
+          - "'ru_ru' in (_verify_locales.stdout | lower | replace('-', '') | replace('.', ''))"
+        fail_msg: "ru_RU.UTF-8 locale not found in locale -a output"
+
+    # ================================================================
+    # Locale — locale.conf (LANG + LC_* overrides)
+    # ================================================================
+
+    - name: Read locale.conf
       ansible.builtin.slurp:
         src: /etc/locale.conf
-      register: _verify_locale
-      failed_when: "'LANG=' not in (_verify_locale.content | b64decode)"
+      register: _verify_locale_conf
+
+    - name: Assert locale.conf contains LANG
+      ansible.builtin.assert:
+        that:
+          - "'LANG=en_US.UTF-8' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "LANG=en_US.UTF-8 not found in /etc/locale.conf"
+
+    - name: Assert locale.conf contains LC_TIME override
+      ansible.builtin.assert:
+        that:
+          - "'LC_TIME=ru_RU.UTF-8' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "LC_TIME=ru_RU.UTF-8 not found in /etc/locale.conf"
+
+    # ================================================================
+    # Hostname
+    # ================================================================
 
     - name: Check hostname is set
-      ansible.builtin.slurp:
-        src: /etc/hostname
+      ansible.builtin.command: hostname
       register: _verify_hostname
-      failed_when: (_verify_hostname.content | b64decode | trim) | length == 0
+      changed_when: false
 
-    - name: Check /etc/hosts contains hostname entry
+    - name: Assert hostname is not empty
+      ansible.builtin.assert:
+        that:
+          - _verify_hostname.stdout | length > 0
+        fail_msg: "Hostname is empty"
+
+    # ================================================================
+    # /etc/hosts
+    # ================================================================
+
+    - name: Verify hostname resolves via /etc/hosts
+      ansible.builtin.command: getent hosts {{ _verify_hostname.stdout }}
+      register: _verify_hosts_resolve
+      changed_when: false
+      failed_when: _verify_hosts_resolve.rc != 0
+
+    - name: Check /etc/hosts contains 127.0.1.1 entry
       ansible.builtin.command: grep '127.0.1.1' /etc/hosts
       register: _verify_hosts
       changed_when: false
       failed_when: _verify_hosts.rc != 0
+
+    # ================================================================
+    # Keymap
+    # ================================================================
 
     - name: Check vconsole.conf exists (systemd keymap)
       ansible.builtin.slurp:
@@ -40,6 +110,23 @@
       register: _verify_keymap
       failed_when: "'KEYMAP=' not in (_verify_keymap.content | b64decode)"
       when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify keymap via localectl
+      ansible.builtin.command: localectl status
+      register: _verify_localectl
+      changed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert keymap is set in localectl
+      ansible.builtin.assert:
+        that:
+          - "'us' in _verify_localectl.stdout"
+        fail_msg: "Keymap 'us' not found in localectl status output"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ================================================================
+    # NTP (chrony)
+    # ================================================================
 
     - name: Check chrony is installed
       ansible.builtin.command: which chronyd
@@ -50,7 +137,7 @@
     - name: Check chronyd service is running
       ansible.builtin.service_facts:
 
-    - name: Verify chronyd is active
+    - name: Assert chronyd is active
       ansible.builtin.assert:
         that:
           - "'chronyd.service' in ansible_facts.services"
@@ -58,12 +145,30 @@
         fail_msg: "chronyd is not running"
       when: ansible_facts['service_mgr'] == 'systemd'
 
+    - name: Verify NTP synchronization
+      ansible.builtin.command: chronyc tracking
+      register: _verify_ntp_tracking
+      changed_when: false
+      failed_when: _verify_ntp_tracking.rc != 0
+
+    - name: Assert chrony is tracking
+      ansible.builtin.assert:
+        that:
+          - "'Reference ID' in _verify_ntp_tracking.stdout"
+        fail_msg: "chronyc tracking output missing Reference ID"
+
+    # ================================================================
+    # Summary
+    # ================================================================
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All base_system checks passed!"
           - "Timezone: {{ _verify_timezone.stdout }}"
-          - "Hostname: {{ _verify_hostname.content | b64decode | trim }}"
-          - "Locale: valid"
-          - "Keymap: valid"
-          - "NTP (chrony): installed and running"
+          - "Hostname: {{ _verify_hostname.stdout }}"
+          - "Locale: en_US.UTF-8, ru_RU.UTF-8 (both generated)"
+          - "LC_TIME: ru_RU.UTF-8 (override verified)"
+          - "Keymap: us (vconsole.conf + localectl)"
+          - "NTP: chrony installed, running, tracking"
+          - "Hosts: 127.0.1.1 resolves {{ _verify_hostname.stdout }}"

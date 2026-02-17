@@ -1,0 +1,227 @@
+{{ ansible_managed | comment }}
+# =====================================================================
+#  sshd_config — hardened SSH-сервер
+#  Роль: ssh | Проект: bootstrap
+#  Источники: dev-sec.io, konstruktoid, CIS Benchmark, Mozilla Modern
+# =====================================================================
+
+# ---- Сеть и порт ----
+
+# Порт SSH-сервера (стандарт 22; смена порта — security through obscurity,
+# но снижает шум от автоматических сканеров)
+Port {{ ssh_port }}
+
+# Семейство адресов: inet (только IPv4), inet6 (только IPv6), any (оба)
+# Ограничение IPv4 уменьшает поверхность атаки если IPv6 не используется
+AddressFamily {{ ssh_address_family }}
+
+{% if ssh_listen_addresses | length > 0 %}
+# Адреса для прослушивания (по умолчанию — все интерфейсы)
+{% for addr in ssh_listen_addresses %}
+ListenAddress {{ addr }}
+{% endfor %}
+{% endif %}
+
+# ---- Host-ключи сервера ----
+
+# Явное перечисление файлов host-ключей, которые использует sshd
+# Порядок определяет приоритет при согласовании алгоритма
+{% for key in ssh_host_keys %}
+HostKey {{ key }}
+{% endfor %}
+
+# ---- Криптография ----
+
+# Алгоритмы обмена ключами (KEX) — только современные с эфемерными ключами
+# curve25519 + DH group16/18 — соответствует Mozilla Modern и dev-sec
+KexAlgorithms {{ ssh_kex_algorithms | join(',') }}
+
+# Симметричные шифры — только AEAD (authenticated encryption)
+# chacha20 оптимален на CPU без AES-NI; aes-gcm — с аппаратным AES
+Ciphers {{ ssh_ciphers | join(',') }}
+
+# Коды аутентификации сообщений — только ETM (encrypt-then-MAC)
+# ETM безопаснее чем MAC-then-encrypt (защита от padding oracle атак)
+MACs {{ ssh_macs | join(',') }}
+
+# Алгоритмы host-ключей — определяют, какие типы ключей принимаются
+# ed25519 + rsa-sha2 (sha1 исключён как небезопасный)
+HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}
+
+# Перегенерация ключей сессии — ограничение объёма данных и времени
+# на одном сессионном ключе (защита от long-running session compromise)
+RekeyLimit {{ ssh_rekey_limit }}
+
+# ---- Аутентификация ----
+
+# Время на ввод учётных данных после подключения (секунды)
+# Короткое значение снижает окно для brute-force атак
+LoginGraceTime {{ ssh_login_grace_time }}
+
+# Вход root: no — запретить полностью;
+# prohibit-password — разрешить только по ключу;
+# without-password — синоним prohibit-password
+PermitRootLogin {{ ssh_permit_root_login }}
+
+# Строгая проверка прав на файлы ~/.ssh (защита от чтения чужих ключей)
+StrictModes {{ ssh_strict_modes }}
+
+# Максимум попыток аутентификации на одно соединение
+# Низкое значение замедляет перебор паролей
+MaxAuthTries {{ ssh_max_auth_tries }}
+
+# Максимум одновременных SSH-сессий в одном соединении
+MaxSessions {{ ssh_max_sessions }}
+
+# Аутентификация по открытому ключу — основной метод
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+
+# Методы аутентификации — порядок и комбинации
+# publickey — только ключи; publickey,password — 2FA (ключ + пароль)
+AuthenticationMethods {{ ssh_authentication_methods }}
+
+# Аутентификация по паролю — отключить если все пользователи имеют ключи
+PasswordAuthentication {{ ssh_password_authentication }}
+
+# Разрешить пустые пароли — ВСЕГДА отключено (CIS, DISA STIG)
+PermitEmptyPasswords {{ ssh_permit_empty_passwords }}
+
+# Аутентификация по хосту — устаревший метод, доверие на основе IP/hostname
+# Отключение предотвращает lateral movement через .rhosts/.shosts
+HostbasedAuthentication {{ ssh_hostbased_authentication }}
+
+# Игнорировать ~/.rhosts и ~/.shosts — файлы доверия хостов (устаревшие)
+IgnoreRhosts {{ ssh_ignore_rhosts }}
+
+# Challenge-Response аутентификация (PAM keyboard-interactive)
+# Отключение блокирует PAM-based аутентификацию помимо password
+ChallengeResponseAuthentication {{ ssh_challenge_response_auth }}
+
+# Разрешить пользовательские переменные окружения (~/.ssh/environment)
+# Отключено — предотвращает подмену LD_PRELOAD, PATH и т.д.
+PermitUserEnvironment {{ ssh_permit_user_environment }}
+
+# PAM (Pluggable Authentication Modules) — нужен для account/session management
+# Даже при password auth=no, PAM обеспечивает account lockout, session limits
+UsePAM {{ ssh_use_pam }}
+
+# ---- Контроль доступа ----
+
+{% if ssh_allow_groups | length > 0 %}
+# Группы, которым разрешён SSH-доступ (whitelist)
+# Все остальные группы будут отклонены
+AllowGroups {{ ssh_allow_groups | join(' ') }}
+{% endif %}
+
+{% if ssh_allow_users | length > 0 %}
+# Пользователи, которым разрешён SSH-доступ (whitelist)
+AllowUsers {{ ssh_allow_users | join(' ') }}
+{% endif %}
+
+{% if ssh_deny_groups | length > 0 %}
+# Группы, которым запрещён SSH-доступ (blacklist)
+DenyGroups {{ ssh_deny_groups | join(' ') }}
+{% endif %}
+
+{% if ssh_deny_users | length > 0 %}
+# Пользователи, которым запрещён SSH-доступ (blacklist)
+DenyUsers {{ ssh_deny_users | join(' ') }}
+{% endif %}
+
+# ---- Перенаправление и туннели ----
+
+# X11-перенаправление — графический вывод через SSH
+# Отключение предотвращает X11 sniffing (перехват клавиатуры/экрана)
+X11Forwarding {{ ssh_x11_forwarding }}
+
+# TCP-перенаправление — проброс портов через SSH-туннель
+# Отключение предотвращает обход firewall через SSH
+AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+
+# Перенаправление SSH-агента — проброс ключей на удалённый хост
+# Отключение предотвращает кражу ключей через скомпрометированный хост
+AllowAgentForwarding {{ ssh_allow_agent_forwarding }}
+
+# VPN-туннель через SSH (tun-устройство)
+# Отключение предотвращает создание сетевых туннелей
+PermitTunnel {{ ssh_permit_tunnel }}
+
+# Открытие сокета на всех интерфейсах для перенаправленных портов
+# no = только localhost может подключаться к перенаправленным портам
+GatewayPorts {{ ssh_gateway_ports }}
+
+# ---- Логирование ----
+
+# Уровень логирования: VERBOSE записывает fingerprint ключа при каждом входе
+# Необходимо для аудита — кто и каким ключом подключился (CIS, DISA STIG)
+LogLevel {{ ssh_log_level }}
+
+# Facility syslog — AUTH направляет логи в стандартный журнал безопасности
+SyslogFacility {{ ssh_syslog_facility }}
+
+# ---- Сессия и окружение ----
+
+# Интервал keepalive — сервер проверяет что клиент жив (секунды)
+ClientAliveInterval {{ ssh_client_alive_interval }}
+
+# Количество keepalive без ответа до разрыва соединения
+# Тайм-аут сессии = ClientAliveInterval * ClientAliveCountMax
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# TCP keepalive — обнаружение разорванных соединений на уровне TCP
+# Менее надёжен чем ClientAlive (можно обмануть), но помогает с NAT/firewall
+TCPKeepAlive {{ ssh_tcp_keepalive }}
+
+# Показывать MOTD (Message of the Day) при входе
+PrintMotd {{ ssh_print_motd }}
+
+# Показывать время последнего входа
+PrintLastLog {{ ssh_print_last_log }}
+
+{% if ssh_banner_enabled %}
+# Баннер — текст, показываемый ДО аутентификации
+# Обычно юридическое предупреждение о несанкционированном доступе
+Banner {{ ssh_banner_path }}
+{% endif %}
+
+# Принимаемые переменные окружения от клиента
+# LANG/LC_* — для корректной локализации терминала
+AcceptEnv {{ ssh_accept_env }}
+
+# ---- Сеть и DNS ----
+
+# Обратный DNS-запрос IP клиента — замедляет подключение при проблемах DNS
+# Отключение ускоряет подключение и не даёт информации для взломщика
+UseDNS {{ ssh_use_dns }}
+
+# Сжатие трафика — потенциальный вектор CRIME-подобных атак
+# Отключено в hardened-конфигурациях (dev-sec, konstruktoid)
+Compression {{ ssh_compression }}
+
+# ---- DoS-защита ----
+
+# MaxStartups start:rate:full
+# start — разрешённые неаутентифицированные подключения до начала отказов
+# rate — процент отказов при достижении start
+# full — все отклоняются при достижении full
+# CIS/Mozilla: 10:30:60 (агрессивный, но эффективный против brute-force)
+MaxStartups {{ ssh_max_startups }}
+
+# ---- SFTP ----
+
+{% if ssh_sftp_enabled %}
+# Подсистема SFTP — internal-sftp работает в chroot без дополнительных бинарников
+Subsystem sftp {{ ssh_sftp_server }}
+{% if ssh_sftp_chroot_enabled %}
+
+# Chroot для SFTP-пользователей — ограничение доступа файловой системы
+Match Group {{ ssh_sftp_chroot_group }}
+    ChrootDirectory {{ ssh_sftp_chroot_directory }}
+    ForceCommand internal-sftp
+    AllowTcpForwarding no
+    X11Forwarding no
+{% endif %}
+{% else %}
+# SFTP отключён — подсистема не сконфигурирована
+# Для включения: ssh_sftp_enabled: true
+{% endif %}

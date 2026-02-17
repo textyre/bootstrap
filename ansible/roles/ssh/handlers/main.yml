@@ -1,6 +1,18 @@
 ---
+# ---- Обработчики SSH ----
+
+# Полный перезапуск sshd — применяет ВСЕ изменения конфигурации
+# Используется при изменении sshd_config, host-ключей, модулей
 - name: Restart sshd
   ansible.builtin.service:
     name: sshd
     state: restarted
   listen: "restart sshd"
+
+# Мягкая перезагрузка — повторное чтение конфигурации без разрыва сессий
+# Используется для изменений баннера и других не-критичных параметров
+- name: Reload sshd
+  ansible.builtin.service:
+    name: sshd
+    state: reloaded
+  listen: "reload sshd"

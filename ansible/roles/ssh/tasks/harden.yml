@@ -1,0 +1,57 @@
+---
+# === Hardening sshd ===
+# Развёртывание шаблона sshd_config и управление host-ключами
+
+# ---- Удаление слабых host-ключей (DSA, ECDSA) ----
+
+- name: Find existing host key files
+  ansible.builtin.find:
+    paths: /etc/ssh
+    patterns: "ssh_host_*_key*"
+  register: _ssh_existing_host_keys
+  when: ssh_host_key_cleanup
+  tags: ['ssh', 'security']
+
+- name: Remove weak host keys (DSA, ECDSA)
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ _ssh_existing_host_keys.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - ssh_host_key_cleanup
+    - item.path | basename is match('ssh_host_(dsa|ecdsa)_key')
+  notify: Restart sshd
+  tags: ['ssh', 'security']
+
+# ---- Генерация отсутствующих host-ключей ----
+
+- name: Ensure ed25519 host key exists
+  ansible.builtin.command: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
+  args:
+    creates: /etc/ssh/ssh_host_ed25519_key
+  notify: Restart sshd
+  tags: ['ssh', 'security']
+
+- name: Ensure RSA host key exists
+  ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''
+  args:
+    creates: /etc/ssh/ssh_host_rsa_key
+  when: "'rsa-sha2-512' in ssh_host_key_algorithms or 'rsa-sha2-256' in ssh_host_key_algorithms"
+  notify: Restart sshd
+  tags: ['ssh', 'security']
+
+# ---- Развёртывание конфигурации sshd ----
+
+- name: Deploy hardened sshd_config
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -t -f %s'
+    backup: true
+  notify: Restart sshd
+  tags: ['ssh', 'security']

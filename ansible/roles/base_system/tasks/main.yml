@@ -1,9 +1,12 @@
 ---
 # === Базовая настройка системы ===
-# Идентичность машины: таймзона, локаль, hostname, keymap, NTP
+# Идентичность машины: таймзона, локаль, hostname, hosts, keymap, NTP
 # Дистро-агностик, инит-агностик
+# Каждый блок: Действие → Проверка → Логирование
 
+# ======================================================================
 # ---- Таймзона ----
+# ======================================================================
 
 - name: Install tzdata (Alpine)
   ansible.builtin.package:
@@ -17,13 +20,52 @@
     name: "{{ base_system_timezone }}"
   tags: ['system', 'timezone']
 
+# Проверка
+- name: Verify timezone is set
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: _base_system_tz_check
+  changed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['system', 'timezone']
+
+- name: Assert timezone matches expected value
+  ansible.builtin.assert:
+    that:
+      - _base_system_tz_check.stdout == base_system_timezone
+    fail_msg: "Timezone mismatch: got '{{ _base_system_tz_check.stdout }}', expected '{{ base_system_timezone }}'"
+    quiet: true
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _base_system_tz_check is defined
+  tags: ['system', 'timezone']
+
+# Логирование
+- name: "Report: Timezone"
+  ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _rpt_phase: "Set timezone"
+    _rpt_detail: "{{ base_system_timezone }}"
+  tags: ['system', 'timezone', 'report']
+
+# ======================================================================
 # ---- Локаль ----
+# ======================================================================
 
 - name: Configure locale
   ansible.builtin.include_tasks: "locale/{{ 'musl' if ansible_facts['os_family'] == 'Alpine' else 'glibc' }}.yml"
   tags: ['system', 'locale']
 
+# Логирование (проверки внутри glibc.yml / musl.yml)
+- name: "Report: Locale"
+  ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _rpt_phase: "Configure locale"
+    _rpt_detail: "{{ base_system_locales | join(', ') | truncate(24, True) }}"
+  tags: ['system', 'locale', 'report']
+
+# ======================================================================
 # ---- Hostname ----
+# ======================================================================
 
 - name: Set hostname
   ansible.builtin.hostname:
@@ -31,37 +73,78 @@
     use: "{{ _base_system_hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
   tags: ['system', 'hostname']
 
-- name: Ensure /etc/hosts contains hostname
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^127\.0\.1\.1'
-    line: "127.0.1.1\t{{ base_system_hostname }}"
-    state: present
+# Проверка
+- name: Verify hostname is set
+  ansible.builtin.command: hostname
+  register: _base_system_hostname_check
+  changed_when: false
   tags: ['system', 'hostname']
 
+- name: Assert hostname matches expected value
+  ansible.builtin.assert:
+    that:
+      - _base_system_hostname_check.stdout == base_system_hostname
+    fail_msg: "Hostname mismatch: got '{{ _base_system_hostname_check.stdout }}', expected '{{ base_system_hostname }}'"
+    quiet: true
+  tags: ['system', 'hostname']
+
+# Логирование
+- name: "Report: Hostname"
+  ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _rpt_phase: "Set hostname"
+    _rpt_detail: "{{ base_system_hostname }}"
+  tags: ['system', 'hostname', 'report']
+
+# ======================================================================
+# ---- /etc/hosts ----
+# ======================================================================
+
+- name: Configure /etc/hosts
+  ansible.builtin.include_tasks: hosts.yml
+  tags: ['system', 'hostname', 'hostctl']
+
+# ======================================================================
 # ---- Console keymap ----
+# ======================================================================
 
 - name: Configure console keymap
   ansible.builtin.include_tasks: keymap/main.yml
   tags: ['system', 'keymap']
 
+# ======================================================================
 # ---- NTP ----
+# ======================================================================
 
 - name: Configure NTP
   ansible.builtin.include_tasks: ntp.yml
   when: base_system_ntp_enabled
   tags: ['system', 'ntp']
 
-# ---- Отчёт ----
+- name: "Report: NTP (disabled)"
+  ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _rpt_phase: "Configure NTP"
+    _rpt_status: "skip"
+    _rpt_detail: "disabled by user"
+  when: not base_system_ntp_enabled
+  tags: ['system', 'ntp', 'report']
 
-- name: Report base system configuration
+# ======================================================================
+# ---- Итоговый отчёт ----
+# ======================================================================
+
+- name: "base_system — Execution Report"
   ansible.builtin.debug:
-    msg:
-      - "OS: {{ ansible_facts['os_family'] }} ({{ ansible_facts['distribution'] | default('unknown') }})"
-      - "Init: {{ ansible_facts['service_mgr'] | default('unknown') }}"
-      - "Timezone: {{ base_system_timezone }}"
-      - "Locale: {{ base_system_locale }}"
-      - "Hostname: {{ base_system_hostname }}"
-      - "Keymap: {{ base_system_keymap }}"
-      - "NTP: {{ base_system_ntp_daemon if base_system_ntp_enabled else 'disabled' }}"
-  tags: ['system']
+    msg: "{{ _header + (_base_system_phases | default([])) + _footer }}"
+  vars:
+    _header:
+      - "+----------------------------+------------+--------------------------+"
+      - "| Phase                      | Status     | Details                  |"
+      - "+----------------------------+------------+--------------------------+"
+    _footer:
+      - "+----------------------------+------------+--------------------------+"
+      - "| {{ '%-26s' | format('OS') }} | {{ '%-10s' | format(ansible_facts['os_family']) }} | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |"
+      - "| {{ '%-26s' | format('Init system') }} | {{ '%-10s' | format(ansible_facts['service_mgr'] | default('unknown')) }} | {{ '%-24s' | format('') }} |"
+      - "+----------------------------+------------+--------------------------+"
+  tags: ['system', 'report']

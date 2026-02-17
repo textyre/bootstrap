@@ -6,7 +6,7 @@ _base_system_hostname_strategy:
   Archlinux: systemd
   Debian: debian
   RedHat: redhat
-  Alpine: debian      # workaround: alpine-backend баг с reporting
+  Alpine: alpine
   Void: generic       # runit читает /etc/hostname напрямую
 
 # Имя сервиса NTP по init-системе

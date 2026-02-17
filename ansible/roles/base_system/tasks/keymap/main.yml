@@ -1,7 +1,47 @@
 ---
 # === Console keymap — диспетчер по init-системе ===
+# Действие → Проверка → Логирование
 
 - name: Include keymap configuration for {{ ansible_facts['service_mgr'] }}
   ansible.builtin.include_tasks: "keymap/{{ ansible_facts['service_mgr'] }}.yml"
   when: ansible_facts['service_mgr'] in ['systemd', 'openrc', 'runit']
   tags: ['system', 'keymap']
+
+- name: Warn about unsupported init system for keymap
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Console keymap skipped — init system
+      '{{ ansible_facts['service_mgr'] }}' not supported.
+      Supported: systemd, openrc, runit.
+  when: ansible_facts['service_mgr'] not in ['systemd', 'openrc', 'runit']
+  tags: ['system', 'keymap']
+
+# ---- Проверка (systemd only — localectl доступен) ----
+
+- name: Verify console keymap (systemd)
+  ansible.builtin.command: localectl status
+  register: _base_system_keymap_check
+  changed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['system', 'keymap']
+
+- name: Assert keymap is set (systemd)
+  ansible.builtin.assert:
+    that:
+      - "base_system_keymap in _base_system_keymap_check.stdout"
+    fail_msg: "Keymap '{{ base_system_keymap }}' not found in localectl status"
+    quiet: true
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _base_system_keymap_check is defined
+  tags: ['system', 'keymap']
+
+# ---- Логирование ----
+
+- name: "Report: Keymap"
+  ansible.builtin.include_tasks: _report_phase.yml
+  vars:
+    _rpt_phase: "Console keymap"
+    _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in ['systemd', 'openrc', 'runit'] else 'skip' }}"
+    _rpt_detail: "{{ base_system_keymap }} ({{ ansible_facts['service_mgr'] }})"
+  tags: ['system', 'keymap', 'report']
