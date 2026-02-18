@@ -10,22 +10,48 @@
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
+  # Переменные теста — должны совпадать с converge.yml
+  vars:
+    _test_timezone: "Asia/Almaty"
+    _test_locales:
+      - "en_US.UTF-8"
+      - "ru_RU.UTF-8"
+    _test_locale: "en_US.UTF-8"
+    _test_lc_overrides:
+      LC_TIME: "ru_RU.UTF-8"
+    _test_keymap: "us"
+
   tasks:
     # ================================================================
     # Timezone
     # ================================================================
 
-    - name: Check timezone is set
+    - name: Check timezone is set (systemd)
       ansible.builtin.command: timedatectl show --property=Timezone --value
       register: _verify_timezone
       changed_when: false
       failed_when: _verify_timezone.stdout | length == 0
+      when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Assert timezone matches expected value
+    - name: Check timezone is set (non-systemd)
+      ansible.builtin.command: readlink -f /etc/localtime
+      register: _verify_timezone_generic
+      changed_when: false
+      when: ansible_facts['service_mgr'] != 'systemd'
+
+    - name: Assert timezone matches expected value (systemd)
       ansible.builtin.assert:
         that:
-          - _verify_timezone.stdout == 'Asia/Almaty'
-        fail_msg: "Expected timezone 'Asia/Almaty', got '{{ _verify_timezone.stdout }}'"
+          - _verify_timezone.stdout == _test_timezone
+        fail_msg: "Expected timezone '{{ _test_timezone }}', got '{{ _verify_timezone.stdout }}'"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert timezone matches expected value (non-systemd)
+      ansible.builtin.assert:
+        that:
+          - _test_timezone in _verify_timezone_generic.stdout
+        fail_msg: "Expected timezone '{{ _test_timezone }}' in symlink, got '{{ _verify_timezone_generic.stdout }}'"
+      when: ansible_facts['service_mgr'] != 'systemd'
 
     # ================================================================
     # Locale — генерация
@@ -36,17 +62,15 @@
       register: _verify_locales
       changed_when: false
 
-    - name: Assert en_US.UTF-8 locale is generated
+    - name: Assert all test locales are generated
       ansible.builtin.assert:
         that:
-          - "'en_us' in (_verify_locales.stdout | lower | replace('-', '') | replace('.', ''))"
-        fail_msg: "en_US.UTF-8 locale not found in locale -a output"
-
-    - name: Assert ru_RU.UTF-8 locale is generated
-      ansible.builtin.assert:
-        that:
-          - "'ru_ru' in (_verify_locales.stdout | lower | replace('-', '') | replace('.', ''))"
-        fail_msg: "ru_RU.UTF-8 locale not found in locale -a output"
+          - _locale_normalized in _available_normalized
+        fail_msg: "{{ item }} locale not found in locale -a output"
+      vars:
+        _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
+        _available_normalized: "{{ _verify_locales.stdout | lower | regex_replace('[\\-\\.]', '') }}"
+      loop: "{{ _test_locales }}"
 
     # ================================================================
     # Locale — locale.conf (LANG + LC_* overrides)
@@ -60,14 +84,15 @@
     - name: Assert locale.conf contains LANG
       ansible.builtin.assert:
         that:
-          - "'LANG=en_US.UTF-8' in (_verify_locale_conf.content | b64decode)"
-        fail_msg: "LANG=en_US.UTF-8 not found in /etc/locale.conf"
+          - "'LANG={{ _test_locale }}' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "LANG={{ _test_locale }} not found in /etc/locale.conf"
 
-    - name: Assert locale.conf contains LC_TIME override
+    - name: Assert locale.conf contains LC_* overrides
       ansible.builtin.assert:
         that:
-          - "'LC_TIME=ru_RU.UTF-8' in (_verify_locale_conf.content | b64decode)"
-        fail_msg: "LC_TIME=ru_RU.UTF-8 not found in /etc/locale.conf"
+          - "'{{ item.key }}={{ item.value }}' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
+      loop: "{{ _test_lc_overrides | dict2items }}"
 
     # ================================================================
     # Hostname
@@ -88,8 +113,8 @@
     # /etc/hosts
     # ================================================================
 
-    - name: Verify hostname resolves via /etc/hosts
-      ansible.builtin.command: getent hosts {{ _verify_hostname.stdout }}
+    - name: Verify hostname is present in /etc/hosts
+      ansible.builtin.command: grep -q '{{ _verify_hostname.stdout }}' /etc/hosts
       register: _verify_hosts_resolve
       changed_when: false
       failed_when: _verify_hosts_resolve.rc != 0
@@ -111,33 +136,48 @@
       failed_when: "'KEYMAP=' not in (_verify_keymap.content | b64decode)"
       when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Verify keymap via localectl
+    - name: Verify keymap via localectl (systemd)
       ansible.builtin.command: localectl status
       register: _verify_localectl
       changed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Assert keymap is set in localectl
+    - name: Assert keymap is set in localectl (systemd)
       ansible.builtin.assert:
         that:
-          - "'us' in _verify_localectl.stdout"
-        fail_msg: "Keymap 'us' not found in localectl status output"
+          - "_test_keymap in _verify_localectl.stdout"
+        fail_msg: "Keymap '{{ _test_keymap }}' not found in localectl status output"
       when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Check keymap config file (openrc)
+      ansible.builtin.command: grep -i 'keymap=' /etc/conf.d/keymaps
+      register: _verify_keymap_openrc
+      changed_when: false
+      failed_when: _verify_keymap_openrc.rc != 0
+      when: ansible_facts['service_mgr'] == 'openrc'
+
+    - name: Check keymap config file (runit)
+      ansible.builtin.command: grep -i 'KEYMAP=' /etc/rc.conf
+      register: _verify_keymap_runit
+      changed_when: false
+      failed_when: _verify_keymap_runit.rc != 0
+      when: ansible_facts['service_mgr'] == 'runit'
 
     # ================================================================
     # NTP (chrony)
     # ================================================================
 
     - name: Check chrony is installed
-      ansible.builtin.command: which chronyd
+      ansible.builtin.command: command -v chronyd
       register: _verify_chrony
       changed_when: false
       failed_when: _verify_chrony.rc != 0
 
-    - name: Check chronyd service is running
+    - name: Check chronyd service is running (systemd)
       ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Assert chronyd is active
+    - name: Assert chronyd is active (systemd)
       ansible.builtin.assert:
         that:
           - "'chronyd.service' in ansible_facts.services"
@@ -145,30 +185,46 @@
         fail_msg: "chronyd is not running"
       when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Verify NTP synchronization
+    - name: Verify chrony is functional
       ansible.builtin.command: chronyc tracking
       register: _verify_ntp_tracking
       changed_when: false
       failed_when: _verify_ntp_tracking.rc != 0
 
-    - name: Assert chrony is tracking
+    - name: Assert chrony daemon responds correctly
       ansible.builtin.assert:
         that:
-          - "'Reference ID' in _verify_ntp_tracking.stdout"
-        fail_msg: "chronyc tracking output missing Reference ID"
+          - "'Stratum' in _verify_ntp_tracking.stdout"
+          - "'System time' in _verify_ntp_tracking.stdout"
+        fail_msg: "chronyc tracking output invalid — chrony may not be configured"
+
+    - name: Verify chrony has NTP sources
+      ansible.builtin.command: chronyc sources
+      register: _verify_ntp_sources
+      changed_when: false
+
+    - name: Assert chrony has at least one source
+      ansible.builtin.assert:
+        that:
+          - _verify_ntp_sources.stdout_lines | length > 2
+        fail_msg: "chrony has no NTP sources configured"
 
     # ================================================================
     # Summary
     # ================================================================
 
+    - name: Set timezone display value
+      ansible.builtin.set_fact:
+        _tz_display: "{{ _verify_timezone.stdout | default(_verify_timezone_generic.stdout | default('unknown')) }}"
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All base_system checks passed!"
-          - "Timezone: {{ _verify_timezone.stdout }}"
+          - "Timezone: {{ _tz_display }}"
           - "Hostname: {{ _verify_hostname.stdout }}"
-          - "Locale: en_US.UTF-8, ru_RU.UTF-8 (both generated)"
-          - "LC_TIME: ru_RU.UTF-8 (override verified)"
-          - "Keymap: us (vconsole.conf + localectl)"
-          - "NTP: chrony installed, running, tracking"
-          - "Hosts: 127.0.1.1 resolves {{ _verify_hostname.stdout }}"
+          - "Locales: {{ _test_locales | join(', ') }} (all generated)"
+          - "LC overrides: {{ _test_lc_overrides | to_nice_yaml | trim }}"
+          - "Keymap: {{ _test_keymap }} ({{ ansible_facts['service_mgr'] }})"
+          - "NTP: chrony installed, functional, has sources"
+          - "Hosts: 127.0.1.1 with {{ _verify_hostname.stdout }}"

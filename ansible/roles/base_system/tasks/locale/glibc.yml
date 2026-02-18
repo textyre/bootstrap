@@ -1,6 +1,6 @@
 ---
 # === Locale для glibc-систем ===
-# Arch Linux, Debian, Ubuntu, Fedora, Void (glibc)
+# Arch Linux, Debian, Ubuntu, RedHat/EL, Void (glibc)
 # Действие → Проверка → Логирование
 
 # ---- Генерация локалей ----
@@ -12,6 +12,15 @@
     state: present
   loop: "{{ base_system_locales }}"
   when: ansible_facts['os_family'] in ['Archlinux', 'Debian']
+  tags: ['system', 'locale']
+
+# RedHat / CentOS / Fedora: glibc-langpack-* пакеты
+- name: Install locale packages (RedHat)
+  ansible.builtin.package:
+    name: "glibc-langpack-{{ item.split('_')[0] | lower }}"
+    state: present
+  loop: "{{ base_system_locales }}"
+  when: ansible_facts['os_family'] == 'RedHat'
   tags: ['system', 'locale']
 
 # Void Linux: /etc/default/libc-locales + xbps-reconfigure

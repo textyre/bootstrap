@@ -3,9 +3,9 @@
 # /etc/vconsole.conf
 
 - name: Set console keymap (systemd)
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: vconsole.conf.j2
     dest: /etc/vconsole.conf
-    content: "KEYMAP={{ base_system_keymap }}\n"
     owner: root
     group: root
     mode: '0644'

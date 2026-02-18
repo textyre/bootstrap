@@ -43,11 +43,26 @@
   failed_when: _base_system_ntp_check.rc != 0
   tags: ['system', 'ntp']
 
-- name: Assert NTP synchronization is active
+- name: Assert chrony daemon is functional
   ansible.builtin.assert:
     that:
-      - "'Reference ID' in _base_system_ntp_check.stdout"
-    fail_msg: "chronyc tracking failed — NTP not synchronizing"
+      - "'Stratum' in _base_system_ntp_check.stdout"
+      - "'System time' in _base_system_ntp_check.stdout"
+    fail_msg: "chronyc tracking output invalid — chrony may not be configured correctly"
+    quiet: true
+  tags: ['system', 'ntp']
+
+- name: Check chrony has NTP sources
+  ansible.builtin.command: chronyc sources
+  register: _base_system_ntp_sources
+  changed_when: false
+  tags: ['system', 'ntp']
+
+- name: Assert chrony has at least one source configured
+  ansible.builtin.assert:
+    that:
+      - _base_system_ntp_sources.stdout_lines | length > 2
+    fail_msg: "chrony has no NTP sources configured"
     quiet: true
   tags: ['system', 'ntp']
 

@@ -25,10 +25,14 @@ base_system_timezone: "Asia/Almaty"
 # ---- Hostname ----
 
 base_system_hostname: "archbox"
+base_system_domain: ""              # FQDN: "example.com" → 127.0.1.1 archbox.example.com archbox
 
 # ---- Console keymap (TTY) ----
 
 base_system_keymap: "us"
+# base_system_console_font: "ter-v16n"
+# base_system_console_font_map: ""
+# base_system_console_font_unimap: ""
 
 # ---- NTP ----
 
@@ -41,6 +45,7 @@ base_system_ntp_daemon: "chrony"
 # Установка: package manager (Arch: pacman/AUR, Debian: apt, и т.д.)
 # или бинарник с GitHub releases
 base_system_hostctl_enabled: true
+base_system_hostctl_version: "latest"   # "latest" = GitHub API, или конкретная "1.1.4"
 base_system_hostctl_profiles: {}
 # Пример:
 #   base_system_hostctl_profiles:

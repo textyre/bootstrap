@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+KEYMAP={{ base_system_keymap }}
+{% if base_system_console_font | default('') %}
+FONT={{ base_system_console_font }}
+{% endif %}
+{% if base_system_console_font_map | default('') %}
+FONT_MAP={{ base_system_console_font_map }}
+{% endif %}
+{% if base_system_console_font_unimap | default('') %}
+FONT_UNIMAP={{ base_system_console_font_unimap }}
+{% endif %}

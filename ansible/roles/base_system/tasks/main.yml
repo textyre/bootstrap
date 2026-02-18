@@ -20,15 +20,15 @@
     name: "{{ base_system_timezone }}"
   tags: ['system', 'timezone']
 
-# Проверка
-- name: Verify timezone is set
+# Проверка (systemd)
+- name: Verify timezone is set (systemd)
   ansible.builtin.command: timedatectl show --property=Timezone --value
   register: _base_system_tz_check
   changed_when: false
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['system', 'timezone']
 
-- name: Assert timezone matches expected value
+- name: Assert timezone matches expected value (systemd)
   ansible.builtin.assert:
     that:
       - _base_system_tz_check.stdout == base_system_timezone
@@ -37,6 +37,25 @@
   when:
     - ansible_facts['service_mgr'] == 'systemd'
     - _base_system_tz_check is defined
+  tags: ['system', 'timezone']
+
+# Проверка (non-systemd — через /etc/localtime symlink)
+- name: Verify timezone is set (non-systemd)
+  ansible.builtin.command: readlink -f /etc/localtime
+  register: _base_system_tz_check_generic
+  changed_when: false
+  when: ansible_facts['service_mgr'] != 'systemd'
+  tags: ['system', 'timezone']
+
+- name: Assert timezone matches expected value (non-systemd)
+  ansible.builtin.assert:
+    that:
+      - base_system_timezone in _base_system_tz_check_generic.stdout
+    fail_msg: "Timezone mismatch: /etc/localtime -> '{{ _base_system_tz_check_generic.stdout }}', expected '{{ base_system_timezone }}'"
+    quiet: true
+  when:
+    - ansible_facts['service_mgr'] != 'systemd'
+    - _base_system_tz_check_generic is defined
   tags: ['system', 'timezone']
 
 # Логирование
