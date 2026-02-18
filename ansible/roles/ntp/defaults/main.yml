@@ -3,3 +3,37 @@
 # chrony как универсальный NTP-демон (все дистро, все init-системы)
 
 ntp_enabled: true
+
+# NTP-серверы — список объектов {host, nts, iburst}
+# Три независимых провайдера с поддержкой NTS (RFC 8915)
+ntp_servers:
+  - { host: "time.cloudflare.com",  nts: true, iburst: true }
+  - { host: "time.nist.gov",        nts: true, iburst: true }
+  - { host: "ptbtime1.ptb.de",      nts: true, iburst: true }
+  - { host: "ptbtime2.ptb.de",      nts: true, iburst: true }
+
+# Коррекция часов при запуске chrony
+# Прыжок если расхождение > threshold сек, только в первые limit обновлений
+ntp_makestep_threshold: 1.0
+ntp_makestep_limit: 3
+
+# Минимум согласующихся источников для обновления системных часов
+# Защищает от одиночного испорченного сервера
+ntp_minsources: 2
+
+# Пути к файлам chrony
+ntp_driftfile: "/var/lib/chrony/drift"
+ntp_dumpdir: "/var/lib/chrony"     # история измерений — ускоряет старт после перезагрузки
+
+# Каталог для лог-файлов chrony (читается Promtail/Loki)
+ntp_logdir: "/var/log/chrony"
+
+# Синхронизация аппаратных часов (RTC) с системными
+ntp_rtcsync: true
+
+# Логировать изменения часов > N секунд в syslog
+ntp_logchange: 0.5
+
+# Детальное логирование замеров для Loki
+# Пишет measurements.log, statistics.log, tracking.log в ntp_logdir
+ntp_log_tracking: true
