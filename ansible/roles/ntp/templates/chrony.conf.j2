@@ -1,0 +1,29 @@
+# Managed by Ansible — do not edit manually
+# Role: ntp | Template: chrony.conf.j2
+
+{% for server in ntp_servers %}
+server {{ server.host }}{% if server.iburst | default(true) %} iburst{% endif %}{% if server.nts | default(false) %} nts{% endif %}
+
+{% endfor %}
+# Clock stability
+driftfile {{ ntp_driftfile }}
+{% if ntp_dumpdir %}
+dumpdir {{ ntp_dumpdir }}
+{% endif %}
+makestep {{ ntp_makestep_threshold }} {{ ntp_makestep_limit }}
+minsources {{ ntp_minsources }}
+
+{% if ntp_rtcsync %}
+# Sync hardware RTC to system clock
+rtcsync
+{% endif %}
+
+# Leap seconds from system timezone database
+leapsectz right/UTC
+
+# Logging
+logdir {{ ntp_logdir }}
+logchange {{ ntp_logchange }}
+{% if ntp_log_tracking %}
+log measurements statistics tracking
+{% endif %}
