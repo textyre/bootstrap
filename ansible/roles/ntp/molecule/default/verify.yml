@@ -49,6 +49,57 @@
           - _verify_ntp_sources.stdout_lines | length > 2
         fail_msg: "chrony has no NTP sources configured"
 
+    - name: Verify chrony.conf is deployed by Ansible
+      ansible.builtin.stat:
+        path: /etc/chrony.conf
+      register: _verify_chrony_conf
+
+    - name: Assert chrony.conf exists and is a regular file
+      ansible.builtin.assert:
+        that:
+          - _verify_chrony_conf.stat.exists
+          - _verify_chrony_conf.stat.isreg
+        fail_msg: "/etc/chrony.conf is missing"
+
+    - name: Read chrony.conf content
+      ansible.builtin.slurp:
+        src: /etc/chrony.conf
+      register: _verify_chrony_conf_content
+
+    - name: Decode chrony.conf content
+      ansible.builtin.set_fact:
+        _verify_chrony_conf_text: "{{ _verify_chrony_conf_content.content | b64decode }}"
+
+    - name: Assert NTS flag present in at least one server line
+      ansible.builtin.assert:
+        that:
+          - "'nts' in _verify_chrony_conf_text"
+        fail_msg: "No NTS servers found in /etc/chrony.conf"
+
+    - name: Assert minsources directive present
+      ansible.builtin.assert:
+        that:
+          - "'minsources' in _verify_chrony_conf_text"
+        fail_msg: "minsources directive missing from /etc/chrony.conf"
+
+    - name: Assert driftfile directive present
+      ansible.builtin.assert:
+        that:
+          - "'driftfile' in _verify_chrony_conf_text"
+        fail_msg: "driftfile directive missing from /etc/chrony.conf"
+
+    - name: Assert dumpdir directive present
+      ansible.builtin.assert:
+        that:
+          - "'dumpdir' in _verify_chrony_conf_text"
+        fail_msg: "dumpdir directive missing from /etc/chrony.conf"
+
+    - name: Assert log tracking directive present
+      ansible.builtin.assert:
+        that:
+          - "'log measurements statistics tracking' in _verify_chrony_conf_text"
+        fail_msg: "log tracking directive missing from /etc/chrony.conf"
+
     - name: Show result
       ansible.builtin.debug:
         msg: "NTP check passed: chrony installed, running, has sources"
