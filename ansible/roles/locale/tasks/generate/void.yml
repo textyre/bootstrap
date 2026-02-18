@@ -11,3 +11,7 @@
   loop: "{{ locale_list }}"
   notify: Reconfigure glibc-locales (Void)
   tags: ['locale']
+
+- name: Flush handlers (ensure xbps-reconfigure runs before verify)
+  ansible.builtin.meta: flush_handlers
+  tags: ['locale']
