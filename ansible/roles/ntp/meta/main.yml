@@ -3,8 +3,9 @@ galaxy_info:
   role_name: ntp
   author: textyre
   description: >-
-    NTP time synchronization via chrony. Installs chrony, disables
-    systemd-timesyncd, enables and verifies chronyd.
+    NTP time synchronization via chrony. Installs chrony, deploys
+    chrony.conf with NTS-enabled servers (Cloudflare, NIST, PTB),
+    disables systemd-timesyncd, enables and verifies chronyd.
     Supports Arch Linux, Debian, Ubuntu, RedHat/EL, Alpine, Void Linux.
   license: MIT
   min_ansible_version: "2.15"
