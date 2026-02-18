@@ -1,0 +1,20 @@
+---
+# Проверка локали (glibc)
+
+- name: Get available locales
+  ansible.builtin.command: locale -a
+  register: _locale_check
+  changed_when: false
+  tags: ['locale']
+
+- name: Assert all requested locales are available
+  ansible.builtin.assert:
+    that:
+      - _locale_normalized in _available_list
+    fail_msg: "Locale {{ item }} was not generated (available: {{ _locale_check.stdout_lines | length }} locales)"
+    quiet: true
+  vars:
+    _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
+    _available_list: "{{ _locale_check.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
+  loop: "{{ locale_list }}"
+  tags: ['locale']

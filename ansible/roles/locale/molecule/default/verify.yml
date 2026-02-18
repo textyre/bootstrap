@@ -1,0 +1,56 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  vars:
+    _test_locales:
+      - "en_US.UTF-8"
+      - "ru_RU.UTF-8"
+    _test_locale: "en_US.UTF-8"
+    _test_lc_overrides:
+      LC_TIME: "ru_RU.UTF-8"
+
+  tasks:
+    - name: Get available locales
+      ansible.builtin.command: locale -a
+      register: _verify_locales
+      changed_when: false
+
+    - name: Assert all test locales are generated
+      ansible.builtin.assert:
+        that:
+          - _locale_normalized in _available_list
+        fail_msg: "{{ item }} locale not found in locale -a output"
+      vars:
+        _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
+        _available_list: "{{ _verify_locales.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
+      loop: "{{ _test_locales }}"
+
+    - name: Read locale.conf
+      ansible.builtin.slurp:
+        src: /etc/locale.conf
+      register: _verify_locale_conf
+
+    - name: Assert locale.conf contains LANG
+      ansible.builtin.assert:
+        that:
+          - "'LANG={{ _test_locale }}' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "LANG={{ _test_locale }} not found in /etc/locale.conf"
+
+    - name: Assert locale.conf contains LC_* overrides
+      ansible.builtin.assert:
+        that:
+          - "'{{ item.key }}={{ item.value }}' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
+      loop: "{{ _test_lc_overrides | dict2items }}"
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg:
+          - "Locale check passed!"
+          - "Locales generated: {{ _test_locales | join(', ') }}"
+          - "LC overrides: {{ _test_lc_overrides | to_nice_yaml | trim }}"

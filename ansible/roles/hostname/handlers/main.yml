@@ -1,0 +1,8 @@
+---
+# Handlers for hostname role
+
+- name: Apply hostctl profiles
+  ansible.builtin.command:
+    cmd: "hostctl replace {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
+  loop: "{{ hostname_hostctl_profiles | dict2items }}"
+  changed_when: true

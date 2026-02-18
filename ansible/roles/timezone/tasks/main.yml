@@ -1,0 +1,60 @@
+---
+# === Таймзона ===
+# Установка системной таймзоны
+# Дистро-агностик, инит-агностик
+# Действие → Проверка → Логирование
+
+# ======================================================================
+# ---- Установка пакетов ----
+# ======================================================================
+
+- name: Install timezone prerequisites
+  ansible.builtin.include_tasks:
+    file: "{{ lookup('ansible.builtin.first_found', _install_candidates, skip=true) }}"
+  vars:
+    _install_candidates:
+      files:
+        - "install/{{ ansible_facts['os_family'] | lower }}.yml"
+        - "install/default.yml"
+  tags: ['timezone']
+
+# ======================================================================
+# ---- Установка таймзоны ----
+# ======================================================================
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone_name }}"
+  tags: ['timezone']
+
+# ======================================================================
+# ---- Проверка ----
+# ======================================================================
+
+- name: Verify timezone
+  ansible.builtin.include_tasks:
+    file: "verify/{{ 'systemd' if ansible_facts['service_mgr'] == 'systemd' else 'generic' }}.yml"
+  tags: ['timezone']
+
+# ======================================================================
+# ---- Отчёт ----
+# ======================================================================
+
+- name: "Report: Set timezone"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_timezone_phases"
+    _rpt_phase: "Set timezone"
+    _rpt_detail: "{{ timezone_name }}"
+  tags: ['timezone', 'report']
+
+- name: "timezone — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_timezone_phases"
+    _rpt_title: "timezone"
+  tags: ['timezone', 'report']

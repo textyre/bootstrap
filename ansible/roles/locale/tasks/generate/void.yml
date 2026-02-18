@@ -1,0 +1,13 @@
+---
+# Генерация локалей (Void Linux)
+# /etc/default/libc-locales + xbps-reconfigure
+
+- name: Enable locales in libc-locales
+  ansible.builtin.lineinfile:
+    path: /etc/default/libc-locales
+    regexp: '^#?\s*{{ item }}'
+    line: "{{ item }} UTF-8"
+    state: present
+  loop: "{{ locale_list }}"
+  notify: Reconfigure glibc-locales (Void)
+  tags: ['locale']

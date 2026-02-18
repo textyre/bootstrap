@@ -1,0 +1,55 @@
+---
+# === Console keymap — диспетчер по init-системе ===
+# Действие → Проверка → Логирование
+# Диспатч через with_first_found (без when для выбора init)
+
+# ---- Настройка keymap ----
+
+- name: Configure console keymap ({{ ansible_facts['service_mgr'] }})
+  ansible.builtin.include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        - "init/{{ ansible_facts['service_mgr'] }}.yml"
+      skip: true
+  tags: ['keymap']
+
+- name: Warn about unsupported init system for keymap
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Console keymap skipped — init system
+      '{{ ansible_facts['service_mgr'] }}' not supported.
+      Supported: {{ _keymap_supported_inits | join(', ') }}.
+  when: ansible_facts['service_mgr'] not in _keymap_supported_inits
+  tags: ['keymap']
+
+# ---- Проверка ----
+
+- name: Verify console keymap
+  ansible.builtin.include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        - "verify/{{ ansible_facts['service_mgr'] }}.yml"
+      skip: true
+  tags: ['keymap']
+
+# ---- Логирование ----
+
+- name: "Report: Console keymap"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_keymap_phases"
+    _rpt_phase: "Console keymap"
+    _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in _keymap_supported_inits else 'skip' }}"
+    _rpt_detail: "{{ keymap_console }} ({{ ansible_facts['service_mgr'] }})"
+  tags: ['keymap', 'report']
+
+- name: "keymap — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_keymap_phases"
+    _rpt_title: "keymap"
+  tags: ['keymap', 'report']

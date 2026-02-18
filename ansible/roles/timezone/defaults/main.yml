@@ -1,0 +1,4 @@
+---
+# === Таймзона ===
+# Имя таймзоны в формате tz database (timedatectl list-timezones)
+timezone_name: "Asia/Almaty"

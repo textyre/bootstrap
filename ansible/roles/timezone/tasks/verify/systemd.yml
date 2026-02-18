@@ -1,0 +1,15 @@
+---
+# Проверка таймзоны через timedatectl (systemd)
+- name: Verify timezone is set (systemd)
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: _timezone_check
+  changed_when: false
+  tags: ['timezone']
+
+- name: Assert timezone matches expected value (systemd)
+  ansible.builtin.assert:
+    that:
+      - _timezone_check.stdout == timezone_name
+    fail_msg: "Timezone mismatch: got '{{ _timezone_check.stdout }}', expected '{{ timezone_name }}'"
+    quiet: true
+  tags: ['timezone']

@@ -1,0 +1,17 @@
+---
+# === Локаль ===
+
+# Локали для генерации (все должны быть сгенерированы до использования)
+locale_list:
+  - "en_US.UTF-8"
+  - "ru_RU.UTF-8"
+
+# Основная системная локаль (LANG в /etc/locale.conf)
+locale_default: "en_US.UTF-8"
+
+# LC_* переопределения (пусто = LANG покрывает всё)
+# Пример для русского времени/валюты:
+#   locale_lc_overrides:
+#     LC_TIME: "ru_RU.UTF-8"
+#     LC_MONETARY: "ru_RU.UTF-8"
+locale_lc_overrides: {}

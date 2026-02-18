@@ -1,0 +1,49 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  vars:
+    _test_keymap: "us"
+
+  tasks:
+    - name: Check vconsole.conf exists (systemd)
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: _verify_keymap
+      failed_when: "'KEYMAP=' not in (_verify_keymap.content | b64decode)"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify keymap via localectl (systemd)
+      ansible.builtin.command: localectl status
+      register: _verify_localectl
+      changed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert keymap is set (systemd)
+      ansible.builtin.assert:
+        that:
+          - "_test_keymap in _verify_localectl.stdout"
+        fail_msg: "Keymap '{{ _test_keymap }}' not found in localectl status"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Check keymap config (openrc)
+      ansible.builtin.command: grep -i 'keymap=' /etc/conf.d/keymaps
+      register: _verify_keymap_openrc
+      changed_when: false
+      failed_when: _verify_keymap_openrc.rc != 0
+      when: ansible_facts['service_mgr'] == 'openrc'
+
+    - name: Check keymap config (runit)
+      ansible.builtin.command: grep -i 'KEYMAP=' /etc/rc.conf
+      register: _verify_keymap_runit
+      changed_when: false
+      failed_when: _verify_keymap_runit.rc != 0
+      when: ansible_facts['service_mgr'] == 'runit'
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "Keymap check passed: {{ _test_keymap }} ({{ ansible_facts['service_mgr'] }})"

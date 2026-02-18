@@ -1,0 +1,54 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Check chrony is installed
+      ansible.builtin.command: command -v chronyd
+      register: _verify_chrony
+      changed_when: false
+      failed_when: _verify_chrony.rc != 0
+
+    - name: Check chronyd service is running (systemd)
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert chronyd is active (systemd)
+      ansible.builtin.assert:
+        that:
+          - "'chronyd.service' in ansible_facts.services"
+          - "ansible_facts.services['chronyd.service'].state == 'running'"
+        fail_msg: "chronyd is not running"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify chrony is functional
+      ansible.builtin.command: chronyc tracking
+      register: _verify_ntp_tracking
+      changed_when: false
+      failed_when: _verify_ntp_tracking.rc != 0
+
+    - name: Assert chrony daemon responds correctly
+      ansible.builtin.assert:
+        that:
+          - "'Stratum' in _verify_ntp_tracking.stdout"
+          - "'System time' in _verify_ntp_tracking.stdout"
+        fail_msg: "chronyc tracking output invalid"
+
+    - name: Verify chrony has NTP sources
+      ansible.builtin.command: chronyc sources
+      register: _verify_ntp_sources
+      changed_when: false
+
+    - name: Assert chrony has at least one source
+      ansible.builtin.assert:
+        that:
+          - _verify_ntp_sources.stdout_lines | length > 2
+        fail_msg: "chrony has no NTP sources configured"
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "NTP check passed: chrony installed, running, has sources"

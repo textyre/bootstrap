@@ -1,0 +1,63 @@
+---
+# === Hostname + /etc/hosts ===
+# Имя машины, /etc/hosts, hostctl профили
+# Каждый блок: Действие → Проверка → Логирование
+
+# ======================================================================
+# ---- Hostname ----
+# ======================================================================
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname_name }}"
+    use: "{{ _hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
+  tags: ['hostname']
+
+# Проверка
+- name: Verify hostname is set
+  ansible.builtin.command: hostname
+  register: _hostname_check
+  changed_when: false
+  tags: ['hostname']
+
+- name: Assert hostname matches expected value
+  ansible.builtin.assert:
+    that:
+      - _hostname_check.stdout == hostname_name
+    fail_msg: "Hostname mismatch: got '{{ _hostname_check.stdout }}', expected '{{ hostname_name }}'"
+    quiet: true
+  tags: ['hostname']
+
+# Логирование
+- name: "Report: Hostname"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_hostname_phases"
+    _rpt_phase: "Set hostname"
+    _rpt_detail: "{{ hostname_name }}"
+  tags: ['hostname', 'report']
+
+# ======================================================================
+# ---- /etc/hosts ----
+# ======================================================================
+
+- name: Configure /etc/hosts
+  ansible.builtin.include_tasks: hosts.yml
+  tags: ['hostname', 'hostctl']
+
+# ======================================================================
+# ---- Итоговый отчёт ----
+# ======================================================================
+
+- name: "hostname — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_hostname_phases"
+    _rpt_title: "hostname"
+    _rpt_footer_rows:
+      - "| {{ '%-26s' | format('OS') }} | {{ '%-10s' | format(ansible_facts['os_family']) }} | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |"
+  tags: ['hostname', 'report']

@@ -1,0 +1,10 @@
+---
+# Генерация локалей (RedHat / CentOS / Fedora)
+# glibc-langpack-* пакеты
+
+- name: Install locale packages
+  ansible.builtin.package:
+    name: "glibc-langpack-{{ item.split('_')[0] | lower }}"
+    state: present
+  loop: "{{ locale_list }}"
+  tags: ['locale']

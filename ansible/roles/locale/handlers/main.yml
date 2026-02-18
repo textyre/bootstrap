@@ -1,0 +1,7 @@
+---
+# Handlers for locale role
+# БЕЗ when: внутри — handler вызывается только из void.yml
+
+- name: Reconfigure glibc-locales (Void)
+  ansible.builtin.command: xbps-reconfigure -f glibc-locales
+  changed_when: true

@@ -25,8 +25,21 @@
 
   roles:
     # --- Phase 1: System foundation ---
-    - role: base_system
-      tags: [base, system]
+    - role: timezone
+      tags: [system, timezone]
+
+    - role: locale
+      tags: [system, locale]
+
+    - role: hostname
+      tags: [system, hostname]
+
+    - role: keymap
+      tags: [system, keymap]
+
+    - role: ntp
+      tags: [system, ntp]
+      when: ntp_enabled | default(true)
 
     - role: package_manager
       tags: [packages, pacman]

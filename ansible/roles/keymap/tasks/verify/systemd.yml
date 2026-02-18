@@ -1,0 +1,17 @@
+---
+# Проверка keymap (systemd — localectl доступен)
+
+- name: Verify console keymap (systemd)
+  ansible.builtin.command: localectl status
+  register: _keymap_check
+  changed_when: false
+  tags: ['keymap']
+
+- name: Assert keymap is set (systemd)
+  ansible.builtin.assert:
+    that:
+      - "keymap_console in _keymap_check.stdout"
+    fail_msg: "Keymap '{{ keymap_console }}' not found in localectl status"
+    quiet: true
+  when: _keymap_check is defined
+  tags: ['keymap']

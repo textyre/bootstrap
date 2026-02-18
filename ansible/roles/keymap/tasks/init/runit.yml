@@ -1,0 +1,14 @@
+---
+# === Console keymap: runit ===
+# /etc/rc.conf KEYMAP= (Void Linux)
+
+- name: Set console keymap (runit)
+  ansible.builtin.lineinfile:
+    path: /etc/rc.conf
+    regexp: '^#?\s*KEYMAP='
+    line: "KEYMAP={{ keymap_console }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['keymap']

@@ -1,0 +1,9 @@
+---
+# Генерация локалей (Alpine Linux)
+# musl libc — нет locale.gen, используется musl-locales
+
+- name: Install musl-locales
+  ansible.builtin.package:
+    name: musl-locales
+    state: present
+  tags: ['locale']

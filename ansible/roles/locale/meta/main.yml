@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: locale
+  author: textyre
+  description: >-
+    System locale configuration: generate locales (multi-locale support),
+    set LANG and LC_* overrides. Supports Arch Linux, Debian, Ubuntu,
+    RedHat/EL, Alpine (musl), Void Linux (glibc).
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: EL
+      versions: [all]
+    - name: Alpine
+      versions: [all]
+  galaxy_tags: [system, locale, i18n, l10n]
+dependencies: []

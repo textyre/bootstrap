@@ -1,0 +1,16 @@
+---
+# === Внутренние маппинги (не для пользователя) ===
+
+# Имя сервиса NTP по init-системе
+_ntp_service:
+  systemd: chronyd
+  openrc: chronyd
+  runit: chronyd
+
+# Имя пакета NTP по OS family
+_ntp_package:
+  Archlinux: chrony
+  Debian: chrony
+  RedHat: chrony
+  Alpine: chrony
+  Void: chrony

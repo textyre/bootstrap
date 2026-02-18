@@ -1,0 +1,89 @@
+---
+# === hostctl — установка и профили ===
+
+# ---- Установка через package manager (non-Arch) ----
+
+- name: Install hostctl via package manager
+  ansible.builtin.package:
+    name: hostctl
+    state: present
+  when: ansible_facts['os_family'] not in ['Archlinux']
+  register: _hostname_hostctl_pkg
+  failed_when: false
+  tags: ['hostname', 'hostctl']
+
+- name: "Report: hostctl package install result"
+  ansible.builtin.debug:
+    msg: >-
+      hostctl package install {{ 'succeeded' if (_hostname_hostctl_pkg is not failed) else 'failed: ' ~ (_hostname_hostctl_pkg.msg | default('unknown')) ~ '. Will try GitHub fallback.' }}
+  when:
+    - _hostname_hostctl_pkg is defined
+    - _hostname_hostctl_pkg is not skipped
+  tags: ['hostname', 'hostctl']
+
+# ---- Установка через AUR (Arch Linux) ----
+
+- name: Install hostctl via AUR (Arch Linux)
+  kewlfft.aur.aur:
+    name: hostctl-bin
+    use: yay
+    state: present
+  become: true
+  become_user: "{{ yay_build_user | default('aur_builder') }}"
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags: ['hostname', 'hostctl']
+
+# ---- Fallback: бинарник с GitHub releases ----
+
+- name: Check if hostctl is available after package install
+  ansible.builtin.command: command -v hostctl
+  register: _hostname_hostctl_which
+  changed_when: false
+  failed_when: false
+  tags: ['hostname', 'hostctl']
+
+- name: Install hostctl from GitHub releases (fallback)
+  ansible.builtin.include_tasks: hostctl_download.yml
+  when:
+    - _hostname_hostctl_which.rc | default(1) != 0
+    - not ansible_check_mode
+  tags: ['hostname', 'hostctl']
+
+- name: "Note: hostctl download skipped in check mode"
+  ansible.builtin.debug:
+    msg: "hostctl GitHub download skipped — running in check mode"
+  when:
+    - _hostname_hostctl_which.rc | default(1) != 0
+    - ansible_check_mode
+  tags: ['hostname', 'hostctl']
+
+# ---- hostctl — профили ----
+
+- name: Create hostctl profile directory
+  ansible.builtin.file:
+    path: /etc/hostctl
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['hostname', 'hostctl']
+
+- name: Deploy hostctl profile files
+  ansible.builtin.template:
+    src: hostctl_profile.j2
+    dest: "/etc/hostctl/{{ item.key }}.hosts"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ hostname_hostctl_profiles | dict2items }}"
+  notify: Apply hostctl profiles
+  tags: ['hostname', 'hostctl']
+
+# ---- Проверка hostctl ----
+
+- name: Verify hostctl is installed
+  ansible.builtin.command: hostctl --version
+  register: _hostname_hostctl_check
+  changed_when: false
+  failed_when: _hostname_hostctl_check.rc != 0
+  tags: ['hostname', 'hostctl']

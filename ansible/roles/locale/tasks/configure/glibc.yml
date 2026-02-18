@@ -1,0 +1,12 @@
+---
+# Настройка системной локали (glibc)
+# /etc/locale.conf с LANG и LC_* overrides
+
+- name: Set default locale (locale.conf)
+  ansible.builtin.template:
+    src: locale.conf.j2
+    dest: /etc/locale.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['locale']

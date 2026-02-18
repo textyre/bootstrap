@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: hostname
+  author: textyre
+  description: >-
+    Set system hostname, configure /etc/hosts, and manage host profiles
+    via hostctl. Supports Arch Linux, Debian, Ubuntu, RedHat/EL, Alpine,
+    Void Linux.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: EL
+      versions: [all]
+    - name: Alpine
+      versions: [all]
+  galaxy_tags: [system, hostname, hosts, hostctl]
+dependencies: []

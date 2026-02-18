@@ -1,0 +1,10 @@
+---
+# Генерация локалей (Arch Linux)
+# community.general.locale_gen
+
+- name: Generate locales
+  community.general.locale_gen:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ locale_list }}"
+  tags: ['locale']

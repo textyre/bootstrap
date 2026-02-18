@@ -1,6 +1,6 @@
 ---
 # === СИСТЕМНАЯ КОНФИГУРАЦИЯ ===
-# Переменные для ролей: base_system, user, ssh, git, shell, docker, firewall, caddy, vaultwarden, chezmoi
+# Переменные для ролей: timezone, locale, hostname, keymap, ntp, user, ssh, git, shell, docker, firewall, caddy, vaultwarden, chezmoi
 #
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
 
@@ -16,12 +16,22 @@ target_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user
 dotfiles_base_dir: "{{ lookup('env', 'REPO_ROOT') }}/dotfiles"
 
 # ============================================================
-#  base_system — роль roles/base_system
+#  timezone — роль roles/timezone
 # ============================================================
 
-base_system_locale: "en_US.UTF-8"
-base_system_timezone: "Asia/Almaty"
-base_system_hostname: "archbox"
+timezone_name: "Asia/Almaty"
+
+# ============================================================
+#  locale — роль roles/locale
+# ============================================================
+
+locale_default: "en_US.UTF-8"
+
+# ============================================================
+#  hostname — роль roles/hostname
+# ============================================================
+
+hostname_name: "archbox"
 
 # ============================================================
 #  package_manager — роль roles/package_manager

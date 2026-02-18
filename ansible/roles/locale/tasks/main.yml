@@ -1,0 +1,43 @@
+---
+# === Локализация ===
+# Генерация + настройка системной локали
+# Каждый блок: Действие -> Проверка -> Логирование
+
+# ---- Генерация локалей (дистро-специфик) ----
+
+- name: Generate locales ({{ ansible_facts['os_family'] }})
+  ansible.builtin.include_tasks: "generate/{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['locale']
+
+# ---- Настройка системной локали ----
+
+- name: Configure system locale
+  ansible.builtin.include_tasks: "configure/{{ 'musl' if ansible_facts['os_family'] == 'Alpine' else 'glibc' }}.yml"
+  tags: ['locale']
+
+# ---- Проверка ----
+
+- name: Verify locale configuration
+  ansible.builtin.include_tasks: "verify/{{ 'musl' if ansible_facts['os_family'] == 'Alpine' else 'glibc' }}.yml"
+  tags: ['locale']
+
+# ---- Логирование ----
+
+- name: "Report: Locale"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_locale_phases"
+    _rpt_phase: "Configure locale"
+    _rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
+  tags: ['locale', 'report']
+
+- name: "locale — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_locale_phases"
+    _rpt_title: "locale"
+  tags: ['locale', 'report']

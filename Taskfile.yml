@@ -54,7 +54,11 @@ tasks:
     cmds:
       - task: check
       - task: lint
-      - task: test-base-system
+      - task: test-timezone
+      - task: test-locale
+      - task: test-hostname
+      - task: test-keymap
+      - task: test-ntp
       - task: test-vm
       - task: test-reflector
       - task: test-yay
@@ -74,14 +78,54 @@ tasks:
 
   # --- Individual role tests ---
 
-  test-base-system:
-    desc: "Run molecule tests for base_system"
+  test-timezone:
+    desc: "Run molecule tests for timezone"
     deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/base_system'
+    dir: '{{.ANSIBLE_DIR}}/roles/timezone'
     env:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
-      - 'echo "==> Testing base_system role..."'
+      - 'echo "==> Testing timezone role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-locale:
+    desc: "Run molecule tests for locale"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/locale'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing locale role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-hostname:
+    desc: "Run molecule tests for hostname"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/hostname'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing hostname role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-keymap:
+    desc: "Run molecule tests for keymap"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/keymap'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing keymap role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-ntp:
+    desc: "Run molecule tests for ntp"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/ntp'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing ntp role..."'
       - '{{.PREFIX}} molecule test'
 
   test-vm:
