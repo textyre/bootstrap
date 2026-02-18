@@ -3,20 +3,20 @@ galaxy_info:
   role_name: timezone
   author: textyre
   description: >-
-    Set system timezone. Supports Arch Linux, Debian, Ubuntu, RedHat/EL,
-    Alpine, Void Linux. Installs tzdata on Alpine.
+    Set system timezone. Supports Arch Linux, Fedora, Ubuntu, Void Linux, Gentoo.
+    Installs tzdata via packages_tzdata when defined.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-    - name: Debian
+    - name: Fedora
       versions: [all]
     - name: Ubuntu
       versions: [all]
-    - name: EL
+    - name: Void Linux
       versions: [all]
-    - name: Alpine
+    - name: Gentoo
       versions: [all]
   galaxy_tags: [system, timezone]
 dependencies: []

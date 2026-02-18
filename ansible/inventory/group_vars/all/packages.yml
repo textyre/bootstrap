@@ -190,3 +190,13 @@ packages_aur:
   - dracula-gtk-theme             # Dracula GTK тема
   - eww-git                       # виджет-фреймворк для статус-бара (ewwii)
   - nody-greeter                   # LightDM web-гритер (Electron) для ctOS темы
+
+# ============================================================
+#  timezone — роль roles/timezone
+# ============================================================
+
+# Пакет базы данных часовых поясов
+# Ключ: ansible_facts['os_family'] | default('default')
+packages_tzdata:
+  Gentoo: "sys-libs/timezone-data"
+  default: "tzdata"

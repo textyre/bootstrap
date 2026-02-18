@@ -1,0 +1,17 @@
+---
+# === Таймзона — handlers ===
+
+# Перезапуск cron после смены таймзоны
+# Два шага через listen: service_facts → restart (только если cron установлен)
+# Логи: skipped если не установлен, changed если перезапущен
+
+- name: Gather service facts for cron restart
+  ansible.builtin.service_facts:
+  listen: restart cron
+
+- name: Restart cron if present
+  ansible.builtin.service:
+    name: "{{ _tz_cron_service[ansible_facts['os_family']] | default('crond') }}"
+    state: restarted
+  when: (_tz_cron_service[ansible_facts['os_family']] | default('crond')) in ansible_facts.services
+  listen: restart cron

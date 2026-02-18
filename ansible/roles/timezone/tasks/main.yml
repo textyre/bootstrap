@@ -5,17 +5,14 @@
 # Действие → Проверка → Логирование
 
 # ======================================================================
-# ---- Установка пакетов ----
+# ---- Установка tzdata ----
 # ======================================================================
 
-- name: Install timezone prerequisites
-  ansible.builtin.include_tasks:
-    file: "{{ lookup('ansible.builtin.first_found', _install_candidates, skip=true) }}"
-  vars:
-    _install_candidates:
-      files:
-        - "install/{{ ansible_facts['os_family'] | lower }}.yml"
-        - "install/default.yml"
+- name: Install tzdata
+  ansible.builtin.package:
+    name: "{{ packages_tzdata[ansible_facts['os_family']] | default(packages_tzdata['default']) }}"
+    state: present
+  when: packages_tzdata is defined
   tags: ['timezone']
 
 # ======================================================================
@@ -25,6 +22,7 @@
 - name: Set timezone
   community.general.timezone:
     name: "{{ timezone_name }}"
+  notify: restart cron
   tags: ['timezone']
 
 # ======================================================================

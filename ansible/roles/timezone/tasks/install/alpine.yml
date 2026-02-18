@@ -1,7 +1,0 @@
----
-# Установка tzdata (Alpine — нет по умолчанию)
-- name: Install tzdata
-  ansible.builtin.package:
-    name: tzdata
-    state: present
-  tags: ['timezone']

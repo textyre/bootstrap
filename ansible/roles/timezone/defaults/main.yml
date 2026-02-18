@@ -1,4 +1,5 @@
 ---
 # === Таймзона ===
 # Имя таймзоны в формате tz database (timedatectl list-timezones)
-timezone_name: "Asia/Almaty"
+# Реальное значение задаётся в group_vars/all/system.yml
+timezone_name: "UTC"
