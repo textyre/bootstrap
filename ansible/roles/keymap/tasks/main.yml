@@ -1,7 +1,13 @@
 ---
 # === Console keymap — диспетчер по init-системе ===
-# Действие → Проверка → Логирование
+# validate → Настройка → Проверка → Логирование
 # Диспатч через with_first_found (без when для выбора init)
+
+# ---- Валидация ----
+
+- name: Validate keymap configuration
+  ansible.builtin.include_tasks: validate/main.yml
+  tags: ['keymap']
 
 # ---- Настройка keymap ----
 

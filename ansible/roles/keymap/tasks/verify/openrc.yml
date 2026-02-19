@@ -1,0 +1,18 @@
+---
+# Проверка keymap (openrc — /etc/conf.d/keymaps)
+
+- name: Slurp keymap config (openrc)
+  ansible.builtin.slurp:
+    src: /etc/conf.d/keymaps
+  register: _keymap_slurp_openrc
+  tags: ['keymap']
+
+- name: Assert keymap is set (openrc)
+  ansible.builtin.assert:
+    that:
+      - "'keymap=\"' + keymap_console + '\"' in (_keymap_slurp_openrc.content | b64decode)"
+    fail_msg: >-
+      Keymap '{{ keymap_console }}' not found in /etc/conf.d/keymaps.
+      Content: {{ _keymap_slurp_openrc.content | b64decode }}
+    quiet: true
+  tags: ['keymap']

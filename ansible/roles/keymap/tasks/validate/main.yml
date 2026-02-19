@@ -1,0 +1,12 @@
+---
+# === Validate keymap configuration ===
+
+- name: Assert keymap_console is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - keymap_console is defined
+      - keymap_console | length > 0
+    fail_msg: >-
+      keymap_console must be set to a valid keymap name (e.g. 'us', 'ru').
+      Current value: '{{ keymap_console | default("") }}'
+  tags: ['keymap']
