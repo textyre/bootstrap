@@ -1,0 +1,16 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  roles:
+    - role: hostctl
+      vars:
+        hostctl_version: "latest"
+        hostctl_verify_checksum: false
+        hostctl_profiles:
+          test:
+            - { ip: "127.0.0.1", host: "molecule.local" }

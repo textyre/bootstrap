@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: hostctl
+  author: textyre
+  description: >-
+    Install hostctl binary and manage /etc/hosts profiles.
+    Supports Arch Linux (AUR), Debian/Ubuntu (apt), and GitHub releases fallback.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+  galaxy_tags: [system, hosts, hostctl]
+dependencies: []

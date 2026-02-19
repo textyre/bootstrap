@@ -1,0 +1,18 @@
+---
+# === hostctl — profile-based /etc/hosts management ===
+
+hostctl_enabled: true
+hostctl_version: "latest"       # "latest" = GitHub API, or pinned "1.1.4"
+hostctl_install_dir: /usr/local/bin
+hostctl_github_repo: "guumaster/hostctl"
+hostctl_github_api: "https://api.github.com"
+hostctl_verify_checksum: true   # fail if no checksum file available in release
+
+hostctl_profiles: {}
+# Example:
+#   hostctl_profiles:
+#     dev:
+#       - { ip: "127.0.0.1", host: "app.local" }
+#       - { ip: "127.0.0.1", host: "api.local" }
+#     docker:
+#       - { ip: "172.17.0.1", host: "registry.local" }

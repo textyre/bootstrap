@@ -1,0 +1,12 @@
+---
+# Handlers for hostctl role
+# IMPORTANT: uses hostctl replace (NOT restore) to avoid overwriting base /etc/hosts entries.
+# hostctl replace only modifies the named profile section between hostctl markers.
+
+- name: Apply hostctl profiles
+  ansible.builtin.command:
+    cmd: "hostctl replace {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
+  loop: "{{ hostctl_profiles | dict2items }}"
+  listen: "apply hostctl profiles"
+  changed_when: true
+  when: hostctl_profiles | length > 0
