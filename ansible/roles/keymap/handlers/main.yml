@@ -1,0 +1,16 @@
+---
+# === Console keymap handlers ===
+
+- name: Apply console keymap (systemd)
+  ansible.builtin.systemd:
+    name: systemd-vconsole-setup.service
+    state: restarted
+  listen: "apply keymap"
+  when: ansible_facts['service_mgr'] == 'systemd'
+
+- name: Apply console keymap (openrc/runit)
+  ansible.builtin.command: "loadkeys {{ keymap_console }}"
+  listen: "apply keymap"
+  when: ansible_facts['service_mgr'] in ['openrc', 'runit']
+  failed_when: false
+  changed_when: false

@@ -29,9 +29,17 @@
 # ---- Проверка ----
 # ======================================================================
 
-- name: Verify timezone
-  ansible.builtin.include_tasks:
-    file: "verify/{{ 'systemd' if ansible_facts['service_mgr'] == 'systemd' else 'generic' }}.yml"
+- name: Verify timezone symlink
+  ansible.builtin.command: readlink -f /etc/localtime
+  register: _timezone_check
+  changed_when: false
+  tags: ['timezone']
+
+- name: Assert timezone matches expected value
+  ansible.builtin.assert:
+    that: timezone_name in _timezone_check.stdout
+    fail_msg: "Timezone mismatch: got '{{ _timezone_check.stdout }}', expected '{{ timezone_name }}'"
+    quiet: true
   tags: ['timezone']
 
 # ======================================================================

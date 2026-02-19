@@ -1,0 +1,33 @@
+---
+# === hostctl — profile deployment ===
+# Deploys /etc/hostctl/<name>.hosts files and applies them via handler.
+
+- name: Create /etc/hostctl directory
+  ansible.builtin.file:
+    path: /etc/hostctl
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy hostctl profile files
+  ansible.builtin.template:
+    src: profile.j2
+    dest: "/etc/hostctl/{{ item.key }}.hosts"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ hostctl_profiles | dict2items }}"
+  notify: apply hostctl profiles
+
+- name: Verify profile files deployed
+  ansible.builtin.stat:
+    path: "/etc/hostctl/{{ item.key }}.hosts"
+  register: _hostctl_profile_stat
+  loop: "{{ hostctl_profiles | dict2items }}"
+
+- name: Assert all profile files exist
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "hostctl profile file missing: /etc/hostctl/{{ item.item.key }}.hosts"
+  loop: "{{ _hostctl_profile_stat.results }}"

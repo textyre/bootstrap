@@ -7,6 +7,10 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   roles:
-    - role: keymap
+    - role: hostctl
       vars:
-        keymap_console: "us"
+        hostctl_version: "latest"
+        hostctl_verify_checksum: false
+        hostctl_profiles:
+          test:
+            - { ip: "127.0.0.1", host: "molecule.local" }

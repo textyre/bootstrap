@@ -57,6 +57,7 @@ tasks:
       - task: test-timezone
       - task: test-locale
       - task: test-hostname
+      - task: test-hostctl
       - task: test-keymap
       - task: test-ntp
       - task: test-vm
@@ -106,6 +107,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing hostname role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-hostctl:
+    desc: "Run molecule tests for hostctl"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/hostctl'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing hostctl role..."'
       - '{{.PREFIX}} molecule test'
 
   test-keymap:

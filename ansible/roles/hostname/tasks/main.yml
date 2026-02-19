@@ -1,7 +1,21 @@
 ---
 # === Hostname + /etc/hosts ===
-# Имя машины, /etc/hosts, hostctl профили
+# Имя машины, /etc/hosts
 # Каждый блок: Действие → Проверка → Логирование
+
+# ---- Input validation ----
+
+- name: Assert hostname_name is provided and valid
+  ansible.builtin.assert:
+    that:
+      - hostname_name is defined
+      - hostname_name | length > 0
+      - hostname_name is match('^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$')
+    fail_msg: >-
+      hostname_name is required and must be a valid hostname
+      (letters, digits, hyphens only; max 63 chars; no leading/trailing hyphen).
+      Set it in group_vars, host_vars, or playbook vars.
+  tags: ['hostname']
 
 # ======================================================================
 # ---- Hostname ----
@@ -45,7 +59,7 @@
 
 - name: Configure /etc/hosts
   ansible.builtin.include_tasks: hosts.yml
-  tags: ['hostname', 'hostctl']
+  tags: ['hostname']
 
 # ======================================================================
 # ---- Итоговый отчёт ----
