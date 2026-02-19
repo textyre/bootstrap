@@ -34,6 +34,9 @@
     - role: hostname
       tags: [system, hostname]
 
+    - role: hostctl
+      tags: [system, hostctl]
+
     - role: keymap
       tags: [system, keymap]
 
