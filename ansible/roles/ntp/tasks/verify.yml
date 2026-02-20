@@ -1,0 +1,62 @@
+---
+# === NTP — верификация после конфигурации ===
+# Извлечено из main.yml; вызывается через include_tasks
+
+# ---- Pre-condition: internet ----
+
+- name: Check internet connectivity (NTP requires external access)
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: check_internet.yml
+  vars:
+    _check_internet_host: "time.cloudflare.com"
+    _check_internet_port: 123
+  tags: ['ntp']
+
+# ---- Functional checks ----
+
+- name: Verify chronyd is running
+  ansible.builtin.command: chronyc tracking
+  register: _ntp_check
+  changed_when: false
+  failed_when: _ntp_check.rc != 0
+  tags: ['ntp']
+
+- name: Assert chrony daemon is functional
+  ansible.builtin.assert:
+    that:
+      - "'Stratum' in _ntp_check.stdout"
+      - "'System time' in _ntp_check.stdout"
+    fail_msg: "chronyc tracking output invalid — chrony may not be configured correctly"
+    quiet: true
+  tags: ['ntp']
+
+- name: Check chrony has NTP sources
+  ansible.builtin.command: chronyc sources
+  register: _ntp_sources
+  changed_when: false
+  tags: ['ntp']
+
+- name: Assert chrony has at least one source configured
+  ansible.builtin.assert:
+    that:
+      - _ntp_sources.stdout_lines | length > 2
+    fail_msg: "chrony has no NTP sources configured"
+    quiet: true
+  tags: ['ntp']
+
+- name: Check chrony has a synced source
+  ansible.builtin.command: chronyc -n sources
+  register: _ntp_synced
+  changed_when: false
+  tags: ['ntp']
+
+- name: Assert at least one source is synced (^* marker)
+  ansible.builtin.assert:
+    that:
+      - _ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
+    fail_msg: >-
+      No synchronized NTP source (no '^*' marker in chronyc -n sources).
+      Chrony is running but not synced — check internet connectivity and NTP server reachability.
+    quiet: true
+  tags: ['ntp']
