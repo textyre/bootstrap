@@ -5,10 +5,17 @@
 server {{ server.host }}{% if server.iburst | default(true) %} iburst{% endif %}{% if server.nts | default(false) %} nts{% endif %}
 
 {% endfor %}
+{% for pool in ntp_pools %}
+pool {{ pool.host }}{% if pool.iburst | default(true) %} iburst{% endif %}{% if pool.maxsources is defined %} maxsources {{ pool.maxsources }}{% endif %}
+
+{% endfor %}
 # Clock stability
 driftfile {{ ntp_driftfile }}
 {% if ntp_dumpdir %}
 dumpdir {{ ntp_dumpdir }}
+{% endif %}
+{% if ntp_ntsdumpdir %}
+ntsdumpdir {{ ntp_ntsdumpdir }}
 {% endif %}
 makestep {{ ntp_makestep_threshold }} {{ ntp_makestep_limit }}
 minsources {{ ntp_minsources }}
@@ -26,4 +33,10 @@ logdir {{ ntp_logdir }}
 logchange {{ ntp_logchange }}
 {% if ntp_log_tracking %}
 log measurements statistics tracking
+{% endif %}
+{% if ntp_allow | length > 0 %}
+# NTP server mode — allow these networks to query this host
+{% for cidr in ntp_allow %}
+allow {{ cidr }}
+{% endfor %}
 {% endif %}
