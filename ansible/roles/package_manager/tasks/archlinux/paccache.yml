@@ -1,0 +1,42 @@
+---
+# === Arch Linux: paccache timer ===
+
+- name: Install pacman-contrib (provides paccache)
+  community.general.pacman:
+    name: pacman-contrib
+    state: present
+  when: pkgmgr_paccache_enabled
+  tags: ['packages', 'paccache']
+
+- name: Create paccache drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/paccache.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: pkgmgr_paccache_enabled
+  tags: ['packages', 'paccache']
+
+- name: Configure paccache keep count via systemd drop-in
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/paccache.service.d/keep.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/paccache -r -k {{ pkgmgr_paccache_keep }}
+  when: pkgmgr_paccache_enabled
+  notify: daemon-reload
+  tags: ['packages', 'paccache']
+
+- name: Enable and start paccache.timer
+  ansible.builtin.systemd:
+    name: paccache.timer
+    enabled: true
+    state: started
+    daemon_reload: false
+  when: pkgmgr_paccache_enabled
+  tags: ['packages', 'paccache']

@@ -1,0 +1,22 @@
+---
+# === Arch Linux: makepkg configuration ===
+
+- name: Ensure /etc/makepkg.conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/makepkg.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: pkgmgr_makepkg_enabled
+  tags: ['packages', 'makepkg']
+
+- name: Deploy makepkg drop-in config
+  ansible.builtin.template:
+    src: archlinux/makepkg.conf.j2
+    dest: /etc/makepkg.conf.d/ansible.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: pkgmgr_makepkg_enabled
+  tags: ['packages', 'makepkg']
