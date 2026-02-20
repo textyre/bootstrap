@@ -1,0 +1,12 @@
+---
+# === Fedora: dnf configuration ===
+
+- name: Deploy dnf.conf from template
+  ansible.builtin.template:
+    src: fedora/dnf.conf.j2
+    dest: /etc/dnf/dnf.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  tags: ['packages', 'dnf']

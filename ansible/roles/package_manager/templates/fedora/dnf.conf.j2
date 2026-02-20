@@ -1,0 +1,14 @@
+# Managed by Ansible — do not edit manually
+# Role: package_manager
+
+[main]
+gpgcheck=1
+installonly_limit={{ pkgmgr_dnf_installonly_limit }}
+clean_requirements_on_remove=True
+best=True
+skip_if_unavailable=False
+max_parallel_downloads={{ pkgmgr_dnf_parallel_downloads }}
+fastestmirror={{ pkgmgr_dnf_fastestmirror | lower }}
+color={{ pkgmgr_dnf_color }}
+defaultyes={{ pkgmgr_dnf_defaultyes | lower }}
+keepcache={{ pkgmgr_dnf_keepcache | ternary('1', '0') }}
