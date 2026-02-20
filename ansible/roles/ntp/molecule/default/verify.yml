@@ -7,11 +7,27 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
+
+    # ---- Pre-condition: internet access ----
+
+    - name: Check internet connectivity (NTP requires external access)
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: check_internet.yml
+      vars:
+        _check_internet_host: "time.cloudflare.com"
+        _check_internet_port: 123
+
+    # ---- chrony installed ----
+
     - name: Check chrony is installed
-      ansible.builtin.command: command -v chronyd
+      ansible.builtin.command:
+        cmd: command -v chronyd
       register: _verify_chrony
       changed_when: false
       failed_when: _verify_chrony.rc != 0
+
+    # ---- service running ----
 
     - name: Check chronyd service is running (systemd)
       ansible.builtin.service_facts:
@@ -25,8 +41,11 @@
         fail_msg: "chronyd is not running"
       when: ansible_facts['service_mgr'] == 'systemd'
 
+    # ---- functional ----
+
     - name: Verify chrony is functional
-      ansible.builtin.command: chronyc tracking
+      ansible.builtin.command:
+        cmd: chronyc tracking
       register: _verify_ntp_tracking
       changed_when: false
       failed_when: _verify_ntp_tracking.rc != 0
@@ -39,15 +58,53 @@
         fail_msg: "chronyc tracking output invalid"
 
     - name: Verify chrony has NTP sources
-      ansible.builtin.command: chronyc sources
+      ansible.builtin.command:
+        cmd: chronyc sources
       register: _verify_ntp_sources
       changed_when: false
+      failed_when: false
 
     - name: Assert chrony has at least one source
       ansible.builtin.assert:
         that:
           - _verify_ntp_sources.stdout_lines | length > 2
         fail_msg: "chrony has no NTP sources configured"
+
+    # ---- actual sync (requires internet) ----
+
+    - name: Verify chrony has a synced source
+      ansible.builtin.command:
+        cmd: chronyc -n sources
+      register: _verify_ntp_synced
+      changed_when: false
+      failed_when: false
+
+    - name: Assert at least one source is synced (^* marker)
+      ansible.builtin.assert:
+        that:
+          - _verify_ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
+        fail_msg: >-
+          No synchronized NTP source (no '^*' marker in chronyc -n sources).
+          Chrony is running but not synced — internet connectivity may be missing.
+
+    # ---- NTS authentication ----
+
+    - name: Verify NTS sources are active
+      ansible.builtin.command:
+        cmd: chronyc ntssources
+      register: _verify_nts_sources
+      changed_when: false
+      failed_when: false
+
+    - name: Assert at least one NTS source is present
+      ansible.builtin.assert:
+        that:
+          - _verify_nts_sources.stdout_lines | length > 1
+        fail_msg: >-
+          No NTS sources found (chronyc ntssources returned no entries).
+          Check NTS server reachability and NTS handshake logs.
+
+    # ---- config content ----
 
     - name: Verify chrony.conf is deployed by Ansible
       ansible.builtin.stat:
@@ -94,12 +151,46 @@
           - "'dumpdir' in _verify_chrony_conf_text"
         fail_msg: "dumpdir directive missing from /etc/chrony.conf"
 
+    - name: Assert ntsdumpdir directive present
+      ansible.builtin.assert:
+        that:
+          - "'ntsdumpdir' in _verify_chrony_conf_text"
+        fail_msg: "ntsdumpdir directive missing from /etc/chrony.conf"
+
     - name: Assert log tracking directive present
       ansible.builtin.assert:
         that:
           - "'log measurements statistics tracking' in _verify_chrony_conf_text"
         fail_msg: "log tracking directive missing from /etc/chrony.conf"
 
+    # ---- directories ----
+
+    - name: Check ntp_logdir exists
+      ansible.builtin.stat:
+        path: /var/log/chrony
+      register: _verify_logdir
+
+    - name: Assert ntp_logdir exists with correct ownership
+      ansible.builtin.assert:
+        that:
+          - _verify_logdir.stat.exists
+          - _verify_logdir.stat.isdir
+          - _verify_logdir.stat.pw_name == 'chrony'
+        fail_msg: "/var/log/chrony does not exist or is not owned by chrony"
+
+    - name: Check ntp_ntsdumpdir exists
+      ansible.builtin.stat:
+        path: /var/lib/chrony/nts-data
+      register: _verify_ntsdumpdir
+
+    - name: Assert ntp_ntsdumpdir exists with correct ownership
+      ansible.builtin.assert:
+        that:
+          - _verify_ntsdumpdir.stat.exists
+          - _verify_ntsdumpdir.stat.isdir
+          - _verify_ntsdumpdir.stat.pw_name == 'chrony'
+        fail_msg: "/var/lib/chrony/nts-data does not exist or is not owned by chrony"
+
     - name: Show result
       ansible.builtin.debug:
-        msg: "NTP check passed: chrony installed, running, has sources"
+        msg: "NTP check passed: chrony installed, running, synced, NTS active, directories correct"

@@ -37,3 +37,17 @@ ntp_logchange: 0.5
 # Детальное логирование замеров для Loki
 # Пишет measurements.log, statistics.log, tracking.log в ntp_logdir
 ntp_log_tracking: true
+
+# Pool-type NTP sources (pool directive — DNS round-robin with auto-rotation)
+# Distinct from server: pool = multiple servers behind one hostname
+# Example: [{host: "pool.ntp.org", iburst: true, maxsources: 4}]
+ntp_pools: []
+
+# ACL для NTP server mode (allow directive)
+# Пустой список = только клиент, не раздаёт время
+# Example: ["192.168.1.0/24", "10.0.0.0/8"]
+ntp_allow: []
+
+# NTS cookie cache directory (ускоряет повторное NTS-рукопожатие после перезапуска)
+# chrony сохраняет NTS session cookies, при рестарте пропускает полный TLS handshake
+ntp_ntsdumpdir: "/var/lib/chrony/nts-data"

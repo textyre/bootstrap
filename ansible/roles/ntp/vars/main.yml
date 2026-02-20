@@ -14,3 +14,12 @@ _ntp_package:
   RedHat: chrony
   Alpine: chrony
   Void: chrony
+
+# Имя системного пользователя chrony по OS family
+# На Debian/Ubuntu пакет создаёт _chrony, на остальных — chrony
+_ntp_user:
+  Archlinux: chrony
+  Debian: _chrony
+  RedHat: chrony
+  Alpine: chrony
+  Void: chrony
