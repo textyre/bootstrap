@@ -1,0 +1,14 @@
+---
+# === Void Linux: cache cleanup via cron ===
+# Void Linux uses runit, not systemd — cache cleanup via cron
+
+- name: Schedule xbps cache cleanup via cron
+  ansible.builtin.cron:
+    name: "xbps cache cleanup"
+    minute: "{{ pkgmgr_xbps_cache_cron_minute }}"
+    hour: "{{ pkgmgr_xbps_cache_cron_hour }}"
+    weekday: "{{ pkgmgr_xbps_cache_cron_weekday }}"
+    job: "/usr/bin/xbps-remove -O"
+    user: root
+    state: "{{ pkgmgr_xbps_cache_cleanup_enabled | ternary('present', 'absent') }}"
+  tags: ['packages', 'xbps-cache']

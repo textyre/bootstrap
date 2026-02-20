@@ -1,0 +1,20 @@
+---
+# === Void Linux: xbps configuration ===
+
+- name: Ensure /etc/xbps.d directory exists
+  ansible.builtin.file:
+    path: /etc/xbps.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['packages', 'xbps']
+
+- name: Deploy xbps ansible settings
+  ansible.builtin.template:
+    src: void/xbps.conf.j2
+    dest: /etc/xbps.d/ansible.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['packages', 'xbps']
