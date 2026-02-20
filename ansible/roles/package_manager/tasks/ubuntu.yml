@@ -1,0 +1,8 @@
+---
+# === Ubuntu: dispatcher ===
+
+- name: Configure apt
+  ansible.builtin.include_tasks: ubuntu/apt.yml
+
+- name: Configure dpkg
+  ansible.builtin.include_tasks: ubuntu/dpkg.yml

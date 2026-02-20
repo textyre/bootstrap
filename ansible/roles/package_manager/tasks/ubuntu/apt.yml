@@ -1,0 +1,20 @@
+---
+# === Ubuntu: apt configuration ===
+
+- name: Ensure /etc/apt/apt.conf.d exists
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['packages', 'apt']
+
+- name: Deploy apt parallel downloads config
+  ansible.builtin.template:
+    src: ubuntu/10-parallel.conf.j2
+    dest: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['packages', 'apt']
