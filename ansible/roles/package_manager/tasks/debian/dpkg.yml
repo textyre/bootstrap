@@ -1,0 +1,11 @@
+---
+# === Debian: dpkg options ===
+
+- name: Deploy apt dpkg options config
+  ansible.builtin.template:
+    src: debian/20-dpkg.conf.j2
+    dest: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['packages', 'apt']

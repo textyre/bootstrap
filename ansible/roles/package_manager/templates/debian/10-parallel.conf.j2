@@ -1,0 +1,5 @@
+// Managed by Ansible — do not edit manually
+// Role: package_manager
+
+Acquire::Queue-Mode "{{ pkgmgr_apt_parallel_queue_mode }}";
+Acquire::Retries "{{ pkgmgr_apt_retries }}";
