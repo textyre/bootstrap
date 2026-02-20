@@ -37,6 +37,7 @@
     cmd: chronyc sources
   register: _ntp_sources
   changed_when: false
+  failed_when: false
   tags: ['ntp']
 
 - name: Assert chrony has at least one source configured
@@ -52,6 +53,7 @@
     cmd: chronyc -n sources
   register: _ntp_synced
   changed_when: false
+  failed_when: false
   tags: ['ntp']
 
 - name: Assert at least one source is synced (^* marker)

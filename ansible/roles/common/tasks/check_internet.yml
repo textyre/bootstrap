@@ -21,7 +21,7 @@
     port: "{{ _check_internet_port }}"
     timeout: "{{ _check_internet_timeout | default(5) }}"
   register: _common_internet_check
-  failed_when: false
+  ignore_errors: true
 
 - name: Fail if internet is unavailable
   ansible.builtin.fail:

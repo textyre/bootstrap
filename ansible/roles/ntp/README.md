@@ -9,6 +9,7 @@ NTP time synchronization via chrony with NTS-enabled servers and full parametriz
 - [x] Deploys `/etc/chrony.conf` from Jinja2 template with NTS servers
 - [x] Enables and starts `chronyd`
 - [x] Verifies chrony responds (`chronyc tracking`) and has at least one source
+- [x] Verifies internet connectivity before sync checks (requires outbound TCP 123 to `time.cloudflare.com`)
 - [x] Validates input variables (`ntp_servers`/`ntp_pools` non-empty, `ntp_minsources` in range)
 - [x] Creates required directories (`ntp_logdir`, `ntp_dumpdir`, `ntp_ntsdumpdir`) with correct ownership
 

@@ -46,8 +46,8 @@
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: chrony
-        group: chrony
+        owner: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
+        group: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
         mode: "{{ item.mode }}"
       loop:
         - { path: "{{ ntp_logdir }}",     mode: "0755" }
