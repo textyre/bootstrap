@@ -1,5 +1,5 @@
 ---
-# === Debian: apt configuration ===
+# === apt configuration (Debian/Ubuntu) ===
 
 - name: Ensure /etc/apt/apt.conf.d exists
   ansible.builtin.file:
@@ -12,7 +12,7 @@
 
 - name: Deploy apt parallel downloads config
   ansible.builtin.template:
-    src: debian/10-parallel.conf.j2
+    src: apt/10-parallel.conf.j2
     dest: /etc/apt/apt.conf.d/10-ansible-parallel.conf
     owner: root
     group: root

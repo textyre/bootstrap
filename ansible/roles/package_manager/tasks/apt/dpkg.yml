@@ -1,9 +1,9 @@
 ---
-# === Ubuntu: dpkg options ===
+# === dpkg options (Debian/Ubuntu) ===
 
 - name: Deploy apt dpkg options config
   ansible.builtin.template:
-    src: ubuntu/20-dpkg.conf.j2
+    src: apt/20-dpkg.conf.j2
     dest: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
     owner: root
     group: root
