@@ -1,36 +1,49 @@
 ---
-# Molecule verify playbook for package_manager role
-
 - name: Verify
   hosts: all
   become: true
-  gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+  gather_facts: false
 
   tasks:
+    - name: Check pacman.conf is managed by Ansible
+      ansible.builtin.command: grep -q 'Managed by Ansible' /etc/pacman.conf
+      register: _verify_pacman_marker
+      changed_when: false
+      failed_when: _verify_pacman_marker.rc != 0
+
     - name: Check pacman.conf has ParallelDownloads
-      ansible.builtin.command: grep '^ParallelDownloads' /etc/pacman.conf
+      ansible.builtin.command: grep -q '^ParallelDownloads' /etc/pacman.conf
       register: _verify_pacman_parallel
       changed_when: false
       failed_when: _verify_pacman_parallel.rc != 0
 
     - name: Check pacman.conf has Color
-      ansible.builtin.command: grep '^Color' /etc/pacman.conf
+      ansible.builtin.command: grep -q '^Color' /etc/pacman.conf
       register: _verify_pacman_color
       changed_when: false
       failed_when: _verify_pacman_color.rc != 0
 
     - name: Check pacman.conf has VerbosePkgLists
-      ansible.builtin.command: grep '^VerbosePkgLists' /etc/pacman.conf
+      ansible.builtin.command: grep -q '^VerbosePkgLists' /etc/pacman.conf
       register: _verify_pacman_verbose
       changed_when: false
       failed_when: _verify_pacman_verbose.rc != 0
 
-    - name: Show test results
+    - name: Check paccache.timer is enabled
+      ansible.builtin.command: systemctl is-enabled paccache.timer
+      register: _verify_paccache_timer
+      changed_when: false
+      failed_when: _verify_paccache_timer.rc != 0
+
+    - name: Check makepkg.conf.d/ansible.conf exists
+      ansible.builtin.stat:
+        path: /etc/makepkg.conf.d/ansible.conf
+      register: _verify_makepkg
+      failed_when: not _verify_makepkg.stat.exists
+
+    - name: Show verify results
       ansible.builtin.debug:
         msg:
-          - "All package_manager checks passed!"
-          - "ParallelDownloads: {{ _verify_pacman_parallel.stdout }}"
-          - "Color: enabled"
-          - "VerbosePkgLists: enabled"
+          - "pacman.conf: managed by Ansible, ParallelDownloads + Color + VerbosePkgLists present"
+          - "paccache.timer: enabled"
+          - "makepkg.conf.d/ansible.conf: exists"
