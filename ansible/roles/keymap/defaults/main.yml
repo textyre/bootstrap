@@ -2,6 +2,10 @@
 # === Console keymap (TTY) ===
 
 keymap_console: "us"
+keymap_console_map_src: ""   # optional: local path to .map file in your repo
+
+# Optional: package that provides console fonts (installed when keymap_console_font is set)
+keymap_console_font_package: "terminus-font"
 
 # Optional: console font (e.g. "ter-v16n", "lat2-16")
 keymap_console_font: ""
@@ -11,3 +15,6 @@ keymap_console_font_map: ""
 
 # Optional: unicode map file
 keymap_console_font_unimap: ""
+
+# GPM — General Purpose Mouse daemon (mouse in TTY)
+keymap_gpm_enabled: true

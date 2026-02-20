@@ -1,0 +1,9 @@
+---
+# === Console font package ===
+
+- name: Install console font package
+  ansible.builtin.package:
+    name: "{{ keymap_console_font_package }}"
+    state: present
+  when: keymap_console_font | default('') | length > 0
+  tags: ['keymap']

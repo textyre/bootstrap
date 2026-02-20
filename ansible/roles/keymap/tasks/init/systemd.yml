@@ -1,13 +1,42 @@
 ---
 # === Console keymap: systemd ===
-# /etc/vconsole.conf
+# /etc/vconsole.conf — managed line-by-line to avoid overwriting other entries
 
-- name: Set console keymap (systemd)
-  ansible.builtin.template:
-    src: vconsole.conf.j2
-    dest: /etc/vconsole.conf
+- name: Set KEYMAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^KEYMAP='
+    line: "KEYMAP={{ _keymap_value }}"
+    create: true
     owner: root
     group: root
     mode: '0644'
+  notify: apply keymap
+  tags: ['keymap']
+
+- name: Set FONT in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT='
+    line: "FONT={{ keymap_console_font }}"
+  when: keymap_console_font | default('') | length > 0
+  notify: apply keymap
+  tags: ['keymap']
+
+- name: Set FONT_MAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT_MAP='
+    line: "FONT_MAP={{ keymap_console_font_map }}"
+  when: keymap_console_font_map | default('') | length > 0
+  notify: apply keymap
+  tags: ['keymap']
+
+- name: Set FONT_UNIMAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT_UNIMAP='
+    line: "FONT_UNIMAP={{ keymap_console_font_unimap }}"
+  when: keymap_console_font_unimap | default('') | length > 0
   notify: apply keymap
   tags: ['keymap']

@@ -10,9 +10,27 @@
 - name: Assert keymap is set (systemd)
   ansible.builtin.assert:
     that:
-      - "_keymap_check.stdout | regex_search('VC Keymap:\\s+' + keymap_console + '(\\s|$)')"
+      - "_keymap_check.stdout | regex_search('VC Keymap:\\s+' + _keymap_value + '(\\s|$)')"
     fail_msg: >-
-      Keymap '{{ keymap_console }}' not found as VC Keymap in localectl status.
+      Keymap '{{ _keymap_value }}' not found as VC Keymap in localectl status.
       Output: {{ _keymap_check.stdout }}
     quiet: true
+  tags: ['keymap']
+
+- name: Slurp vconsole.conf (systemd)
+  ansible.builtin.slurp:
+    src: /etc/vconsole.conf
+  register: _keymap_vconsole_content
+  when: keymap_console_font | default('') | length > 0
+  tags: ['keymap']
+
+- name: Assert FONT is set in vconsole.conf (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'FONT=' + keymap_console_font in (_keymap_vconsole_content.content | b64decode)"
+    fail_msg: >-
+      FONT={{ keymap_console_font }} not found in /etc/vconsole.conf.
+      Content: {{ _keymap_vconsole_content.content | b64decode }}
+    quiet: true
+  when: keymap_console_font | default('') | length > 0
   tags: ['keymap']

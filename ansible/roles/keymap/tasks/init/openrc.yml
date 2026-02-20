@@ -6,10 +6,23 @@
   ansible.builtin.lineinfile:
     path: /etc/conf.d/keymaps
     regexp: '^#?\s*keymap='
-    line: 'keymap="{{ keymap_console }}"'
+    line: 'keymap="{{ _keymap_value }}"'
     create: true
     owner: root
     group: root
     mode: '0644'
+  notify: apply keymap
+  tags: ['keymap']
+
+- name: Set console font (OpenRC)
+  ansible.builtin.lineinfile:
+    path: /etc/conf.d/consolefont
+    regexp: '^CONSOLEFONT='
+    line: 'CONSOLEFONT="{{ keymap_console_font }}"'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  when: keymap_console_font | default('') | length > 0
   notify: apply keymap
   tags: ['keymap']

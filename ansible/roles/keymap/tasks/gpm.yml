@@ -1,0 +1,17 @@
+---
+# === GPM — General Purpose Mouse daemon (mouse in TTY) ===
+
+- name: Install GPM
+  ansible.builtin.package:
+    name: gpm
+    state: present
+  when: keymap_gpm_enabled
+  tags: ['keymap']
+
+- name: Enable and start GPM service
+  ansible.builtin.service:
+    name: gpm
+    enabled: true
+    state: started
+  when: keymap_gpm_enabled
+  tags: ['keymap']

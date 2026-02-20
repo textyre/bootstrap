@@ -9,6 +9,18 @@
   ansible.builtin.include_tasks: validate/main.yml
   tags: ['keymap']
 
+# ---- Custom keymap file ----
+
+- name: Prepare custom keymap file
+  ansible.builtin.include_tasks: map.yml
+  tags: ['keymap']
+
+# ---- Font package ----
+
+- name: Install console font
+  ansible.builtin.include_tasks: font.yml
+  tags: ['keymap']
+
 # ---- Настройка keymap ----
 
 - name: Configure console keymap ({{ ansible_facts['service_mgr'] }})
@@ -26,6 +38,13 @@
       '{{ ansible_facts['service_mgr'] }}' not supported.
       Supported: {{ _keymap_supported_inits | join(', ') }}.
   when: ansible_facts['service_mgr'] not in _keymap_supported_inits
+  tags: ['keymap']
+
+# ---- GPM ----
+
+- name: Configure GPM (mouse in TTY)
+  ansible.builtin.include_tasks: gpm.yml
+  when: keymap_gpm_enabled
   tags: ['keymap']
 
 # ---- Проверка ----

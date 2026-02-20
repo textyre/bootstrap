@@ -10,9 +10,20 @@
 - name: Assert keymap is set (runit)
   ansible.builtin.assert:
     that:
-      - "'KEYMAP=' + keymap_console in (_keymap_slurp_runit.content | b64decode)"
+      - "'KEYMAP=' + _keymap_value in (_keymap_slurp_runit.content | b64decode)"
     fail_msg: >-
-      Keymap '{{ keymap_console }}' not found in /etc/rc.conf.
+      Keymap '{{ _keymap_value }}' not found in /etc/rc.conf.
       Content: {{ _keymap_slurp_runit.content | b64decode }}
     quiet: true
+  tags: ['keymap']
+
+- name: Assert font is set (runit)
+  ansible.builtin.assert:
+    that:
+      - "'FONT=' + keymap_console_font in (_keymap_slurp_runit.content | b64decode)"
+    fail_msg: >-
+      Font '{{ keymap_console_font }}' not found in /etc/rc.conf.
+      Content: {{ _keymap_slurp_runit.content | b64decode }}
+    quiet: true
+  when: keymap_console_font | default('') | length > 0
   tags: ['keymap']
