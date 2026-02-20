@@ -1,108 +1,112 @@
 ---
 # === NTP — синхронизация времени ===
 # chrony как универсальный NTP-демон (все дистро, все init-системы)
-# Каждый блок: Действие -> Проверка -> Логирование
+# validate → Установка → Конфигурация → Директории → Запуск → Проверка → Логирование
 
-# ======================================================================
-# ---- Установка ----
-# ======================================================================
-
-- name: Install NTP daemon (chrony)
-  ansible.builtin.package:
-    name: "{{ _ntp_package[ansible_facts['os_family']] | default('chrony') }}"
-    state: present
+- name: NTP role
+  when: ntp_enabled | bool
   tags: ['ntp']
+  block:
 
-# ======================================================================
-# ---- Отключение конфликтующих демонов ----
-# ======================================================================
+    # ======================================================================
+    # ---- Валидация ----
+    # ======================================================================
 
-- name: Disable conflicting time sync daemons
-  ansible.builtin.include_tasks: "{{ item }}"
-  with_first_found:
-    - files:
-        - "disable_{{ ansible_facts['service_mgr'] }}.yml"
-      skip: true
-  tags: ['ntp']
+    - name: Validate NTP configuration
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['ntp']
 
-# ======================================================================
-# ---- Конфигурация ----
-# ======================================================================
+    # ======================================================================
+    # ---- Установка ----
+    # ======================================================================
 
-- name: Deploy chrony configuration
-  ansible.builtin.template:
-    src: chrony.conf.j2
-    dest: /etc/chrony.conf
-    owner: root
-    group: root
-    mode: "0644"
-  notify: restart ntp
-  tags: ['ntp']
+    - name: Install NTP daemon (chrony)
+      ansible.builtin.package:
+        name: "{{ _ntp_package[ansible_facts['os_family']] | default('chrony') }}"
+        state: present
+      tags: ['ntp']
 
-# ======================================================================
-# ---- Запуск chrony ----
-# ======================================================================
+    # ======================================================================
+    # ---- Отключение конфликтующих демонов ----
+    # ======================================================================
 
-- name: Enable and start chronyd
-  ansible.builtin.service:
-    name: "{{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
-    enabled: true
-    state: started
-  tags: ['ntp']
+    - name: Disable conflicting time sync daemons
+      ansible.builtin.include_tasks: "{{ item }}"
+      with_first_found:
+        - files:
+            - "disable_{{ ansible_facts['service_mgr'] }}.yml"
+          skip: true
+      tags: ['ntp']
 
-# ======================================================================
-# ---- Проверка ----
-# ======================================================================
+    # ======================================================================
+    # ---- Директории ----
+    # ======================================================================
 
-- name: Verify chronyd is running
-  ansible.builtin.command: chronyc tracking
-  register: _ntp_check
-  changed_when: false
-  failed_when: _ntp_check.rc != 0
-  tags: ['ntp']
+    - name: Ensure chrony directories exist
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: chrony
+        group: chrony
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ ntp_logdir }}",     mode: "0755" }
+        - { path: "{{ ntp_dumpdir }}",    mode: "0750" }
+        - { path: "{{ ntp_ntsdumpdir }}", mode: "0700" }
+      tags: ['ntp']
 
-- name: Assert chrony daemon is functional
-  ansible.builtin.assert:
-    that:
-      - "'Stratum' in _ntp_check.stdout"
-      - "'System time' in _ntp_check.stdout"
-    fail_msg: "chronyc tracking output invalid — chrony may not be configured correctly"
-    quiet: true
-  tags: ['ntp']
+    # ======================================================================
+    # ---- Конфигурация ----
+    # ======================================================================
 
-- name: Check chrony has NTP sources
-  ansible.builtin.command: chronyc sources
-  register: _ntp_sources
-  changed_when: false
-  tags: ['ntp']
+    - name: Deploy chrony configuration
+      ansible.builtin.template:
+        src: chrony.conf.j2
+        dest: /etc/chrony.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart ntp
+      tags: ['ntp']
 
-- name: Assert chrony has at least one source configured
-  ansible.builtin.assert:
-    that:
-      - _ntp_sources.stdout_lines | length > 2
-    fail_msg: "chrony has no NTP sources configured"
-    quiet: true
-  tags: ['ntp']
+    # ======================================================================
+    # ---- Запуск chrony ----
+    # ======================================================================
 
-# ======================================================================
-# ---- Логирование ----
-# ======================================================================
+    - name: Enable and start chronyd
+      ansible.builtin.service:
+        name: "{{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+        enabled: true
+        state: started
+      tags: ['ntp', 'ntp:state']
 
-- name: "Report: NTP"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    _rpt_fact: "_ntp_phases"
-    _rpt_phase: "Configure NTP"
-    _rpt_detail: "chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})"
-  tags: ['ntp', 'report']
+    # ======================================================================
+    # ---- Проверка ----
+    # ======================================================================
 
-- name: "ntp — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    _rpt_fact: "_ntp_phases"
-    _rpt_title: "ntp"
-  tags: ['ntp', 'report']
+    - name: Verify NTP
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['ntp']
+
+    # ======================================================================
+    # ---- Логирование ----
+    # ======================================================================
+
+    - name: "Report: NTP"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        _rpt_fact: "_ntp_phases"
+        _rpt_phase: "Configure NTP"
+        _rpt_detail: "chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})"
+      tags: ['ntp', 'report']
+
+    - name: "ntp — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        _rpt_fact: "_ntp_phases"
+        _rpt_title: "ntp"
+      tags: ['ntp', 'report']
