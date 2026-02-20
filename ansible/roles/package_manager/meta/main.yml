@@ -2,7 +2,7 @@
 galaxy_info:
   role_name: package_manager
   author: textyre
-  description: Конфигурация пакетного менеджера (pacman, apt, dnf)
+  description: Конфигурация пакетного менеджера (pacman, apt, dnf, xbps)
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -12,5 +12,9 @@ galaxy_info:
       versions: [all]
     - name: Ubuntu
       versions: [all]
-  galaxy_tags: [packages, pacman, apt, system]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+  galaxy_tags: [packages, pacman, apt, dnf, xbps, system]
 dependencies: []
