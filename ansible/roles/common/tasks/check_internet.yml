@@ -1,0 +1,32 @@
+---
+# === Проверка интернет-соединения ===
+# Общая утилита для ролей, требующих внешний сетевой доступ
+# Параметры:
+#   _check_internet_host     — хост для проверки (обязательный)
+#   _check_internet_port     — порт для проверки (обязательный)
+#   _check_internet_timeout  — таймаут в секундах (по умолчанию: 5)
+
+- name: Assert required variables are provided
+  ansible.builtin.assert:
+    that:
+      - _check_internet_host is defined
+      - _check_internet_port is defined
+    fail_msg: >-
+      check_internet.yml requires _check_internet_host and _check_internet_port.
+      Pass them via vars: when calling include_role.
+
+- name: "Check internet connectivity ({{ _check_internet_host }}:{{ _check_internet_port }})"
+  ansible.builtin.wait_for:
+    host: "{{ _check_internet_host }}"
+    port: "{{ _check_internet_port }}"
+    timeout: "{{ _check_internet_timeout | default(5) }}"
+  register: _common_internet_check
+  failed_when: false
+
+- name: Fail if internet is unavailable
+  ansible.builtin.fail:
+    msg: >-
+      Internet connectivity required but unavailable.
+      Cannot reach {{ _check_internet_host }}:{{ _check_internet_port }}.
+      Fix network access before running this role.
+  when: _common_internet_check is failed
