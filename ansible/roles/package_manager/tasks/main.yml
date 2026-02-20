@@ -1,8 +1,8 @@
 ---
 # === Конфигурация пакетного менеджера ===
-# Подключает OS-специфичную конфигурацию
+# Подключает distribution-специфичную конфигурацию
 
-- name: Include OS-specific package manager configuration
-  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
-  when: ansible_facts['os_family'] in _pkgmgr_supported_os
+- name: Include distribution-specific package manager configuration
+  ansible.builtin.include_tasks: "{{ ansible_distribution | lower }}.yml"
+  when: ansible_distribution in _pkgmgr_supported_distributions
   tags: ['packages', 'package-manager']
