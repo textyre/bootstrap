@@ -7,10 +7,10 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   vars:
-    keymap_console: "us"
-    keymap_console_font: "ter-v16n"
-    keymap_console_font_package: "terminus-font"
-    keymap_gpm_enabled: true
+    vconsole_console: "us"
+    vconsole_console_font: "ter-v16n"
+    vconsole_console_font_package: "terminus-font"
+    vconsole_gpm_enabled: true
 
   tasks:
     - name: Check vconsole.conf exists and has KEYMAP (systemd)
@@ -29,18 +29,18 @@
     - name: Assert keymap is set (systemd)
       ansible.builtin.assert:
         that:
-          - "keymap_console in _verify_localectl.stdout"
-        fail_msg: "Keymap '{{ keymap_console }}' not found in localectl status"
+          - "vconsole_console in _verify_localectl.stdout"
+        fail_msg: "Keymap '{{ vconsole_console }}' not found in localectl status"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert font is set in vconsole.conf (systemd)
       ansible.builtin.assert:
         that:
-          - "'FONT=' + keymap_console_font in (_verify_vconsole.content | b64decode)"
-        fail_msg: "FONT={{ keymap_console_font }} not found in /etc/vconsole.conf"
+          - "'FONT=' + vconsole_console_font in (_verify_vconsole.content | b64decode)"
+        fail_msg: "FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
-        - keymap_console_font | default('') | length > 0
+        - vconsole_console_font | default('') | length > 0
 
     - name: Check terminus-font is installed (systemd)
       ansible.builtin.package_facts:
@@ -50,11 +50,11 @@
     - name: Assert font package installed (systemd)
       ansible.builtin.assert:
         that:
-          - "keymap_console_font_package in ansible_facts.packages"
-        fail_msg: "{{ keymap_console_font_package }} package not found"
+          - "vconsole_console_font_package in ansible_facts.packages"
+        fail_msg: "{{ vconsole_console_font_package }} package not found"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
-        - keymap_console_font | default('') | length > 0
+        - vconsole_console_font | default('') | length > 0
 
     - name: Check keymap config (openrc)
       ansible.builtin.command: grep -i 'keymap=' /etc/conf.d/keymaps
@@ -72,7 +72,7 @@
 
     - name: Gather service facts
       ansible.builtin.service_facts:
-      when: keymap_gpm_enabled
+      when: vconsole_gpm_enabled
 
     - name: Assert GPM service is running (systemd)
       ansible.builtin.assert:
@@ -81,9 +81,9 @@
           - "ansible_facts.services['gpm.service'].state == 'running'"
         fail_msg: "GPM service is not running"
       when:
-        - keymap_gpm_enabled
+        - vconsole_gpm_enabled
         - ansible_facts['service_mgr'] == 'systemd'
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "Keymap check passed: {{ keymap_console }} ({{ ansible_facts['service_mgr'] }})"
+        msg: "Keymap check passed: {{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"

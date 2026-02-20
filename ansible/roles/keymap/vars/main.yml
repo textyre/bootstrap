@@ -1,6 +1,0 @@
----
-# Поддерживаемые init-системы для keymap
-_keymap_supported_inits:
-  - systemd
-  - openrc
-  - runit

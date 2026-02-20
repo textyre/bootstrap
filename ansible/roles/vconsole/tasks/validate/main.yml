@@ -1,0 +1,26 @@
+---
+# === Validate vconsole configuration ===
+
+- name: Assert vconsole_console is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - vconsole_console is defined
+      - vconsole_console | length > 0
+    fail_msg: >-
+      vconsole_console must be set to a valid keymap name (e.g. 'us', 'ru').
+      Current value: '{{ vconsole_console | default("") }}'
+  tags: ['vconsole']
+
+- name: Assert font is set when font_map or font_unimap are used
+  ansible.builtin.assert:
+    that:
+      - vconsole_console_font | default('') | length > 0
+    fail_msg: >-
+      vconsole_console_font_map/font_unimap require vconsole_console_font to be set.
+      font_map: '{{ vconsole_console_font_map | default("") }}'
+      font_unimap: '{{ vconsole_console_font_unimap | default("") }}'
+      Current vconsole_console_font: '{{ vconsole_console_font | default("") }}'
+  when: >-
+    (vconsole_console_font_map | default('') | length > 0) or
+    (vconsole_console_font_unimap | default('') | length > 0)
+  tags: ['vconsole']

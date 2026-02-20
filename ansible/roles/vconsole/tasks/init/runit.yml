@@ -6,22 +6,22 @@
   ansible.builtin.lineinfile:
     path: /etc/rc.conf
     regexp: '^#?\s*KEYMAP='
-    line: "KEYMAP={{ _keymap_value }}"
+    line: "KEYMAP={{ _vconsole_value }}"
     create: true
     owner: root
     group: root
     mode: '0644'
-  notify: apply keymap
-  tags: ['keymap']
+  notify: apply vconsole
+  tags: ['vconsole']
 
 - name: Set console font (runit)
   ansible.builtin.lineinfile:
     path: /etc/rc.conf
     regexp: '^#?\s*FONT='
-    line: "FONT={{ keymap_console_font }}"
+    line: "FONT={{ vconsole_console_font }}"
     owner: root
     group: root
     mode: '0644'
-  when: keymap_console_font | default('') | length > 0
-  notify: apply keymap
-  tags: ['keymap']
+  when: vconsole_console_font | default('') | length > 0
+  notify: apply vconsole
+  tags: ['vconsole']

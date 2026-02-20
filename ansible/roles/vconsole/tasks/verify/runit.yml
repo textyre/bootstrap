@@ -1,0 +1,29 @@
+---
+# Проверка keymap (runit — /etc/rc.conf)
+
+- name: Slurp keymap config (runit)
+  ansible.builtin.slurp:
+    src: /etc/rc.conf
+  register: _vconsole_slurp_runit
+  tags: ['vconsole']
+
+- name: Assert keymap is set (runit)
+  ansible.builtin.assert:
+    that:
+      - "'KEYMAP=' + _vconsole_value in (_vconsole_slurp_runit.content | b64decode)"
+    fail_msg: >-
+      Keymap '{{ _vconsole_value }}' not found in /etc/rc.conf.
+      Content: {{ _vconsole_slurp_runit.content | b64decode }}
+    quiet: true
+  tags: ['vconsole']
+
+- name: Assert font is set (runit)
+  ansible.builtin.assert:
+    that:
+      - "'FONT=' + vconsole_console_font in (_vconsole_slurp_runit.content | b64decode)"
+    fail_msg: >-
+      Font '{{ vconsole_console_font }}' not found in /etc/rc.conf.
+      Content: {{ _vconsole_slurp_runit.content | b64decode }}
+    quiet: true
+  when: vconsole_console_font | default('') | length > 0
+  tags: ['vconsole']

@@ -37,8 +37,8 @@
     - role: hostctl
       tags: [system, hostctl]
 
-    - role: keymap
-      tags: [system, keymap]
+    - role: vconsole
+      tags: [system, vconsole]
 
     - role: ntp
       tags: [system, ntp]

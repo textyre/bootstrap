@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: keymap
+  role_name: vconsole
   author: textyre
   description: >-
     Configure console (TTY) keymap. Supports systemd (vconsole.conf),
@@ -19,5 +19,5 @@ galaxy_info:
     - name: Gentoo
       versions: [all]
     # Void Linux (runit) is supported but not an official Ansible Galaxy platform name
-  galaxy_tags: [system, keymap, console]
+  galaxy_tags: [system, vconsole, console]
 dependencies: []

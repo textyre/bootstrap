@@ -5,21 +5,21 @@
 
 # ---- Валидация ----
 
-- name: Validate keymap configuration
+- name: Validate vconsole configuration
   ansible.builtin.include_tasks: validate/main.yml
-  tags: ['keymap']
+  tags: ['vconsole']
 
 # ---- Custom keymap file ----
 
 - name: Prepare custom keymap file
   ansible.builtin.include_tasks: map.yml
-  tags: ['keymap']
+  tags: ['vconsole']
 
 # ---- Font package ----
 
 - name: Install console font
   ansible.builtin.include_tasks: font.yml
-  tags: ['keymap']
+  tags: ['vconsole']
 
 # ---- Настройка keymap ----
 
@@ -29,23 +29,23 @@
     - files:
         - "init/{{ ansible_facts['service_mgr'] }}.yml"
       skip: true
-  tags: ['keymap']
+  tags: ['vconsole']
 
 - name: Warn about unsupported init system for keymap
   ansible.builtin.debug:
     msg: >-
       WARNING: Console keymap skipped — init system
       '{{ ansible_facts['service_mgr'] }}' not supported.
-      Supported: {{ _keymap_supported_inits | join(', ') }}.
-  when: ansible_facts['service_mgr'] not in _keymap_supported_inits
-  tags: ['keymap']
+      Supported: {{ _vconsole_supported_inits | join(', ') }}.
+  when: ansible_facts['service_mgr'] not in _vconsole_supported_inits
+  tags: ['vconsole']
 
 # ---- GPM ----
 
 - name: Configure GPM (mouse in TTY)
   ansible.builtin.include_tasks: gpm.yml
-  when: keymap_gpm_enabled
-  tags: ['keymap']
+  when: vconsole_gpm_enabled
+  tags: ['vconsole']
 
 # ---- Проверка ----
 
@@ -55,7 +55,7 @@
     - files:
         - "verify/{{ ansible_facts['service_mgr'] }}.yml"
       skip: true
-  tags: ['keymap']
+  tags: ['vconsole']
 
 # ---- Логирование ----
 
@@ -64,17 +64,17 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_keymap_phases"
+    _rpt_fact: "_vconsole_phases"
     _rpt_phase: "Console keymap"
-    _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in _keymap_supported_inits else 'skip' }}"
-    _rpt_detail: "{{ keymap_console }} ({{ ansible_facts['service_mgr'] }})"
-  tags: ['keymap', 'report']
+    _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in _vconsole_supported_inits else 'skip' }}"
+    _rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
+  tags: ['vconsole', 'report']
 
-- name: "keymap — Execution Report"
+- name: "vconsole — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_keymap_phases"
-    _rpt_title: "keymap"
-  tags: ['keymap', 'report']
+    _rpt_fact: "_vconsole_phases"
+    _rpt_title: "vconsole"
+  tags: ['vconsole', 'report']

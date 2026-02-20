@@ -1,0 +1,20 @@
+---
+# === Console keymap (TTY) ===
+
+vconsole_console: "us"
+vconsole_console_map_src: ""   # optional: local path to .map file in your repo
+
+# Optional: package that provides console fonts (installed when vconsole_console_font is set)
+vconsole_console_font_package: "terminus-font"
+
+# Optional: console font (e.g. "ter-v16n", "lat2-16")
+vconsole_console_font: ""
+
+# Optional: font map (e.g. "8859-2")
+vconsole_console_font_map: ""
+
+# Optional: unicode map file
+vconsole_console_font_unimap: ""
+
+# GPM — General Purpose Mouse daemon (mouse in TTY)
+vconsole_gpm_enabled: true

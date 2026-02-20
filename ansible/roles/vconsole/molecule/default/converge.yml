@@ -7,9 +7,9 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   roles:
-    - role: keymap
+    - role: vconsole
       vars:
-        keymap_console: "us"
-        keymap_console_font_package: "terminus-font"
-        keymap_console_font: "ter-v16n"
-        keymap_gpm_enabled: true
+        vconsole_console: "us"
+        vconsole_console_font_package: "terminus-font"
+        vconsole_console_font: "ter-v16n"
+        vconsole_gpm_enabled: true

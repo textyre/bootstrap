@@ -1,6 +1,6 @@
 ---
 # === СИСТЕМНАЯ КОНФИГУРАЦИЯ ===
-# Переменные для ролей: timezone, locale, hostname, keymap, ntp, user, ssh, git, shell, docker, firewall, caddy, vaultwarden, chezmoi
+# Переменные для ролей: timezone, locale, hostname, vconsole, ntp, user, ssh, git, shell, docker, firewall, caddy, vaultwarden, chezmoi
 #
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
 

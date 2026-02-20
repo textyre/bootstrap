@@ -5,19 +5,19 @@
   ansible.builtin.systemd:
     name: systemd-vconsole-setup.service
     state: restarted
-  listen: "apply keymap"
+  listen: "apply vconsole"
   when: ansible_facts['service_mgr'] == 'systemd'
 
 - name: Apply keymap (openrc/runit)
-  ansible.builtin.command: "loadkeys {{ _keymap_value }}"
-  listen: "apply keymap"
+  ansible.builtin.command: "loadkeys {{ _vconsole_value }}"
+  listen: "apply vconsole"
   when: ansible_facts['service_mgr'] in ['openrc', 'runit']
   changed_when: false
 
 - name: Apply font (openrc/runit)
-  ansible.builtin.command: "setfont {{ keymap_console_font }}"
-  listen: "apply keymap"
+  ansible.builtin.command: "setfont {{ vconsole_console_font }}"
+  listen: "apply vconsole"
   when:
     - ansible_facts['service_mgr'] in ['openrc', 'runit']
-    - keymap_console_font | default('') | length > 0
+    - vconsole_console_font | default('') | length > 0
   changed_when: false

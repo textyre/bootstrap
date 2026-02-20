@@ -58,7 +58,7 @@ tasks:
       - task: test-locale
       - task: test-hostname
       - task: test-hostctl
-      - task: test-keymap
+      - task: test-vconsole
       - task: test-ntp
       - task: test-vm
       - task: test-reflector
@@ -119,14 +119,14 @@ tasks:
       - 'echo "==> Testing hostctl role..."'
       - '{{.PREFIX}} molecule test'
 
-  test-keymap:
-    desc: "Run molecule tests for keymap"
+  test-vconsole:
+    desc: "Run molecule tests for vconsole"
     deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/keymap'
+    dir: '{{.ANSIBLE_DIR}}/roles/vconsole'
     env:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
-      - 'echo "==> Testing keymap role..."'
+      - 'echo "==> Testing vconsole role..."'
       - '{{.PREFIX}} molecule test'
 
   test-ntp:
