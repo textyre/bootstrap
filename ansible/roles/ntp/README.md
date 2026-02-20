@@ -9,6 +9,8 @@ NTP time synchronization via chrony with NTS-enabled servers and full parametriz
 - [x] Deploys `/etc/chrony.conf` from Jinja2 template with NTS servers
 - [x] Enables and starts `chronyd`
 - [x] Verifies chrony responds (`chronyc tracking`) and has at least one source
+- [x] Validates input variables (`ntp_servers`/`ntp_pools` non-empty, `ntp_minsources` in range)
+- [x] Creates required directories (`ntp_logdir`, `ntp_dumpdir`, `ntp_ntsdumpdir`) with correct ownership
 
 ## Variables
 
@@ -25,6 +27,9 @@ NTP time synchronization via chrony with NTS-enabled servers and full parametriz
 | `ntp_rtcsync` | `true` | Sync hardware RTC to system clock |
 | `ntp_logchange` | `0.5` | Log clock changes > N seconds to syslog |
 | `ntp_log_tracking` | `true` | Write `measurements.log`, `statistics.log`, `tracking.log` |
+| `ntp_pools` | `[]` | Pool-type sources (`pool` directive). Objects: `{host, iburst, maxsources}` |
+| `ntp_allow` | `[]` | ACL for NTP server mode. Empty = client-only. Example: `["192.168.1.0/24"]` |
+| `ntp_ntsdumpdir` | `/var/lib/chrony/nts-data` | NTS cookie cache — speeds up NTS re-handshake after restart |
 
 ## Default servers
 
@@ -45,4 +50,6 @@ Arch Linux, Debian, Ubuntu, RedHat/EL, Alpine, Void Linux
 
 ## Tags
 
-`ntp`, `ntp,report`
+`ntp`, `ntp:state` (service enable/start only), `ntp,report`
+
+Use `--tags ntp:state` to restart chronyd without re-applying full configuration.
