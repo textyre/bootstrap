@@ -1,0 +1,42 @@
+---
+# === NTP — валидация входных переменных ===
+# Вызывается в начале main.yml до любых действий
+
+- name: Assert at least one NTP source is configured
+  ansible.builtin.assert:
+    that:
+      - (ntp_servers | default([]) | length) + (ntp_pools | default([]) | length) > 0
+    fail_msg: >-
+      At least one NTP source is required.
+      Set ntp_servers (server directives) or ntp_pools (pool directives).
+      Both are currently empty.
+  tags: ['ntp']
+
+- name: Assert ntp_minsources is a positive integer not exceeding source count
+  ansible.builtin.assert:
+    that:
+      - ntp_minsources | int >= 1
+      - ntp_minsources | int <= (ntp_servers | default([]) | length) + (ntp_pools | default([]) | length)
+    fail_msg: >-
+      ntp_minsources must be >= 1 and <= total number of sources.
+      Current value: {{ ntp_minsources }}.
+      Total sources configured: {{ (ntp_servers | default([]) | length) + (ntp_pools | default([]) | length) }}.
+  tags: ['ntp']
+
+- name: Assert ntp_makestep_threshold is positive
+  ansible.builtin.assert:
+    that:
+      - ntp_makestep_threshold | float > 0
+    fail_msg: >-
+      ntp_makestep_threshold must be > 0 (seconds before chrony steps the clock).
+      Current value: {{ ntp_makestep_threshold }}.
+  tags: ['ntp']
+
+- name: Assert ntp_makestep_limit is an integer >= -1
+  ansible.builtin.assert:
+    that:
+      - ntp_makestep_limit | int >= -1
+    fail_msg: >-
+      ntp_makestep_limit must be >= -1 (-1 means unlimited clock steps on startup).
+      Current value: {{ ntp_makestep_limit }}.
+  tags: ['ntp']
