@@ -1,17 +1,54 @@
 ---
 # === Конфигурация пакетного менеджера ===
-# Настройки pacman (Arch), apt (Debian), dnf (Fedora)
 
-# Поддерживаемые OS families
-_pkgmgr_supported_os:
+# Поддерживаемые дистрибутивы (ansible_distribution)
+_pkgmgr_supported_distributions:
   - Archlinux
   - Debian
+  - Ubuntu
+  - Fedora
+  - Void
 
-# --- Pacman (Arch Linux) ---
+# --- Arch Linux / pacman ---
 pkgmgr_pacman_parallel_downloads: 5
 pkgmgr_pacman_color: true
 pkgmgr_pacman_verbose_pkg_lists: true
+pkgmgr_pacman_check_space: true
+pkgmgr_pacman_siglevel: "Required DatabaseOptional"
+pkgmgr_pacman_multilib: false
 
 # Внешний кэш pacman (опционально)
 pkgmgr_pacman_external_cache: false
 pkgmgr_pacman_cache_root: ""
+
+# paccache (очистка устаревших версий из кэша)
+pkgmgr_paccache_enabled: true
+pkgmgr_paccache_keep: 3
+
+# makepkg (оптимизация сборки пакетов из AUR)
+pkgmgr_makepkg_enabled: true
+pkgmgr_makepkg_makeflags: "-j{{ ansible_processor_nproc | default(2) }}"
+pkgmgr_makepkg_pkgext: ".pkg.tar.zst"
+
+# --- Debian / apt ---
+pkgmgr_apt_parallel_queue_mode: "host"
+pkgmgr_apt_retries: 3
+pkgmgr_apt_dpkg_force_confdef: true
+pkgmgr_apt_dpkg_force_confold: true
+
+# --- Ubuntu / apt (те же настройки что и Debian) ---
+# Ubuntu использует pkgmgr_apt_* переменные
+
+# --- Fedora / dnf ---
+pkgmgr_dnf_parallel_downloads: 5
+pkgmgr_dnf_fastestmirror: true
+pkgmgr_dnf_color: "always"
+pkgmgr_dnf_defaultyes: true
+pkgmgr_dnf_keepcache: false
+pkgmgr_dnf_installonly_limit: 3
+
+# --- Void / xbps ---
+pkgmgr_xbps_cache_cleanup_enabled: true
+pkgmgr_xbps_cache_cron_minute: "0"
+pkgmgr_xbps_cache_cron_hour: "3"
+pkgmgr_xbps_cache_cron_weekday: "0"
