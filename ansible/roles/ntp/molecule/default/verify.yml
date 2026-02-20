@@ -21,7 +21,8 @@
     # ---- chrony installed ----
 
     - name: Check chrony is installed
-      ansible.builtin.command: command -v chronyd
+      ansible.builtin.command:
+        cmd: command -v chronyd
       register: _verify_chrony
       changed_when: false
       failed_when: _verify_chrony.rc != 0
@@ -43,7 +44,8 @@
     # ---- functional ----
 
     - name: Verify chrony is functional
-      ansible.builtin.command: chronyc tracking
+      ansible.builtin.command:
+        cmd: chronyc tracking
       register: _verify_ntp_tracking
       changed_when: false
       failed_when: _verify_ntp_tracking.rc != 0
@@ -56,7 +58,8 @@
         fail_msg: "chronyc tracking output invalid"
 
     - name: Verify chrony has NTP sources
-      ansible.builtin.command: chronyc sources
+      ansible.builtin.command:
+        cmd: chronyc sources
       register: _verify_ntp_sources
       changed_when: false
 
@@ -69,7 +72,8 @@
     # ---- actual sync (requires internet) ----
 
     - name: Verify chrony has a synced source
-      ansible.builtin.command: chronyc -n sources
+      ansible.builtin.command:
+        cmd: chronyc -n sources
       register: _verify_ntp_synced
       changed_when: false
 
@@ -84,7 +88,8 @@
     # ---- NTS authentication ----
 
     - name: Verify NTS sources are active
-      ansible.builtin.command: chronyc ntssources
+      ansible.builtin.command:
+        cmd: chronyc ntssources
       register: _verify_nts_sources
       changed_when: false
 
