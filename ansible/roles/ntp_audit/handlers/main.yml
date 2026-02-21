@@ -2,5 +2,12 @@
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
-  when: ansible_facts['service_mgr'] == 'systemd'
   listen: "Reload systemd"
+
+- name: Build ntp-audit zipapp
+  ansible.builtin.command:
+    cmd: >-
+      python3 -m zipapp /usr/local/src/ntp-audit
+      -o /usr/local/bin/ntp-audit
+      -p "/usr/bin/env python3"
+  listen: "Build ntp-audit zipapp"
