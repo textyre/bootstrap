@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: ntp_audit
+  description: "Runtime NTP health audit — init-system agnostic, Alloy/Loki ready"
+  min_ansible_version: "2.14"
+
+dependencies: []

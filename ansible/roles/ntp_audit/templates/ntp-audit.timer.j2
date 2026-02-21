@@ -1,0 +1,12 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+[Unit]
+Description=Run NTP audit every {{ ntp_audit_interval_systemd }}
+Documentation=https://github.com/your-org/bootstrap
+
+[Timer]
+OnCalendar={{ ntp_audit_interval_systemd }}
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

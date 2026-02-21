@@ -1,0 +1,99 @@
+# ntp-audit — Loki ruler alert rules
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+# Deploy path: {{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml
+
+groups:
+  - name: ntp-audit
+    interval: 5m
+    rules:
+
+      - alert: NtpCompetingDaemon
+        expr: |
+          count_over_time(
+            {job="ntp-audit", ntp_conflict!="none"} [10m]
+          ) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Competing time sync daemon active alongside chrony"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: a competing NTP daemon is running
+            (ntp_conflict={{ "{{ $labels.ntp_conflict }}" }}).
+            This causes clock discipline conflicts. Stop the competing daemon.
+
+      - alert: NtpPHCMissing
+        expr: |
+          count_over_time(
+            {job="ntp-audit", ntp_phc_status="missing"} [10m]
+          ) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "PTP hardware clock device missing on VM"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: PHC device expected but not present.
+            Check hypervisor guest tools and kernel module (ptp_kvm / hv_utils).
+
+      - alert: NtpUnsynchronised
+        expr: |
+          count_over_time(
+            {job="ntp-audit", ntp_sync_status="unsynchronised"} [15m]
+          ) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "chrony is not synchronised"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: chrony has been unsynchronised for > 15 minutes.
+            Check internet connectivity and NTP server reachability.
+
+      - alert: NtpHighOffset
+        expr: |
+          {job="ntp-audit"}
+            | json
+            | ntp_offset_s | float > {{ ntp_audit_alert_offset_threshold }}
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "NTP clock offset exceeds {{ ntp_audit_alert_offset_threshold }}s"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: clock offset is too large.
+            May indicate VM clock disruption or NTP source problems.
+
+      - alert: NtpClockStep
+        expr: |
+          count_over_time(
+            {job="chrony"} |= "System clock was stepped" [5m]
+          ) > 0
+        for: 0m
+        labels:
+          severity: info
+          team: ops
+        annotations:
+          summary: "chrony performed a clock step"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: a large time correction was applied (makestep).
+            Normal after VM resume or first sync. Investigate if recurring.
+
+      - alert: NtpHighStratum
+        expr: |
+          {job="ntp-audit"}
+            | json
+            | ntp_stratum | int > {{ ntp_audit_alert_stratum_max }}
+        for: 15m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "NTP stratum too high (> {{ ntp_audit_alert_stratum_max }})"
+          description: >-
+            Host {{ "{{ $labels.host }}" }}: stratum {{ "{{ $labels.ntp_stratum }}" }}.
+            NTP source quality is degraded.

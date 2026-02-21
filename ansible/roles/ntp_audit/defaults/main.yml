@@ -1,0 +1,46 @@
+---
+# === ntp_audit — runtime NTP health audit ===
+
+# Enable/disable the audit role entirely
+ntp_audit_enabled: true
+
+# Audit schedule interval.
+# systemd systems: OnCalendar value (e.g. "*:0/5" = every 5 min)
+# non-systemd:     cron schedule (e.g. "*/5 * * * *")
+ntp_audit_interval_systemd: "*:0/5"
+ntp_audit_interval_cron: "*/5 * * * *"
+
+# Where audit script writes structured JSON output
+ntp_audit_log_dir: "/var/log/ntp-audit"
+ntp_audit_log_file: "/var/log/ntp-audit/audit.log"
+
+# Competing services to check (add/remove as needed)
+ntp_audit_competitor_services:
+  - systemd-timesyncd
+  - ntpd
+  - openntpd
+  - vmtoolsd
+
+# PHC devices to check for presence
+ntp_audit_phc_devices:
+  - /dev/ptp_hyperv
+  - /dev/ptp0
+
+# Kernel modules to check (empty = skip)
+ntp_audit_kernel_modules:
+  - ptp_kvm
+
+# Grafana Alloy config fragment destination.
+# Set to "" to skip Alloy config deployment.
+ntp_audit_alloy_config_dir: "/etc/alloy/conf.d"
+
+# Loki ruler rules destination.
+# Set to "" to skip Loki rules deployment.
+ntp_audit_loki_rules_dir: "/etc/loki/rules/fake"
+
+# Chrony log directory (for Alloy config fragment — matches ntp role's ntp_logdir)
+ntp_audit_chrony_log_dir: "/var/log/chrony"
+
+# Alert thresholds
+ntp_audit_alert_offset_threshold: "0.1"   # seconds — alert if |offset| > this
+ntp_audit_alert_stratum_max: "4"          # alert if stratum > this

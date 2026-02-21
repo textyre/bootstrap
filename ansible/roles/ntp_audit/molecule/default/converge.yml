@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  pre_tasks:
+    - name: Ensure chrony is installed (ntp_audit depends on chronyc)
+      ansible.builtin.package:
+        name: chrony
+        state: present
+
+    - name: Ensure chronyd is running
+      ansible.builtin.service:
+        name: chronyd
+        state: started
+        enabled: true
+
+  roles:
+    - role: ntp_audit

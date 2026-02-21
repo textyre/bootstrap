@@ -1,0 +1,101 @@
+---
+- name: Verify ntp_audit
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
+
+  tasks:
+
+    - name: Assert ntp-audit script exists and is executable
+      ansible.builtin.stat:
+        path: /usr/local/bin/ntp-audit
+      register: _v_script
+
+    - name: Verify ntp-audit script
+      ansible.builtin.assert:
+        that:
+          - _v_script.stat.exists
+          - _v_script.stat.executable
+        fail_msg: "/usr/local/bin/ntp-audit missing or not executable"
+
+    - name: Assert audit log directory exists
+      ansible.builtin.stat:
+        path: /var/log/ntp-audit
+      register: _v_logdir
+
+    - name: Verify log directory
+      ansible.builtin.assert:
+        that:
+          - _v_logdir.stat.exists
+          - _v_logdir.stat.isdir
+        fail_msg: "/var/log/ntp-audit directory missing"
+
+    - name: Assert audit log file exists (written on first run)
+      ansible.builtin.stat:
+        path: /var/log/ntp-audit/audit.log
+      register: _v_logfile
+
+    - name: Verify audit log written
+      ansible.builtin.assert:
+        that:
+          - _v_logfile.stat.exists
+          - _v_logfile.stat.size > 0
+        fail_msg: "audit.log missing or empty — ntp-audit first run failed"
+
+    - name: Read last line of audit log
+      ansible.builtin.command:
+        cmd: tail -1 /var/log/ntp-audit/audit.log
+      register: _v_last_line
+      changed_when: false
+
+    - name: Assert audit log contains valid JSON with required keys
+      ansible.builtin.assert:
+        that:
+          - (_v_last_line.stdout | from_json).ntp_sync_status is defined
+          - (_v_last_line.stdout | from_json).ntp_conflict is defined
+          - (_v_last_line.stdout | from_json).ntp_phc_status is defined
+          - (_v_last_line.stdout | from_json).timestamp is defined
+        fail_msg: "audit.log last line is not valid JSON or missing required keys"
+
+    - name: Collect service facts (systemd only)
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify ntp-audit.timer is enabled and active
+      ansible.builtin.assert:
+        that:
+          - "'ntp-audit.timer' in ansible_facts.services"
+          - ansible_facts.services['ntp-audit.timer'].status == 'enabled'
+          - ansible_facts.services['ntp-audit.timer'].state == 'active'
+        fail_msg: "ntp-audit.timer not enabled or not active"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert Alloy config fragment deployed
+      ansible.builtin.stat:
+        path: /etc/alloy/conf.d/ntp-audit.alloy
+      register: _v_alloy
+
+    - name: Verify Alloy fragment
+      ansible.builtin.assert:
+        that:
+          - _v_alloy.stat.exists
+          - _v_alloy.stat.size > 0
+        fail_msg: "Alloy config fragment /etc/alloy/conf.d/ntp-audit.alloy missing"
+
+    - name: Assert Loki rules deployed
+      ansible.builtin.stat:
+        path: /etc/loki/rules/fake/ntp-audit-rules.yaml
+      register: _v_loki
+
+    - name: Verify Loki rules
+      ansible.builtin.assert:
+        that:
+          - _v_loki.stat.exists
+          - _v_loki.stat.size > 0
+        fail_msg: "Loki alert rules /etc/loki/rules/fake/ntp-audit-rules.yaml missing"
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "ntp_audit check passed: script, timer, log written, alloy/loki configs deployed"

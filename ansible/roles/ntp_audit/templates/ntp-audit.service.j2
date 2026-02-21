@@ -1,0 +1,13 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+[Unit]
+Description=NTP health and conflict audit
+Documentation=https://github.com/your-org/bootstrap
+After=chronyd.service
+Wants=chronyd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ntp-audit
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ntp-audit

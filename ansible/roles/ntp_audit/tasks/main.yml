@@ -1,0 +1,167 @@
+---
+# === ntp_audit — runtime NTP health and conflict audit ===
+# Init-system agnostic: systemd timer on systemd, cron on others.
+# Output: JSON → /var/log/ntp-audit/audit.log + syslog via logger(1)
+
+- name: ntp_audit role
+  when: ntp_audit_enabled | bool
+  tags: ['ntp_audit']
+  block:
+
+    # ======================================================================
+    # ---- Log directory ----
+    # ======================================================================
+
+    - name: Create audit log directory
+      ansible.builtin.file:
+        path: "{{ ntp_audit_log_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Audit script ----
+    # ======================================================================
+
+    - name: Deploy ntp-audit script
+      ansible.builtin.template:
+        src: ntp-audit.sh.j2
+        dest: /usr/local/bin/ntp-audit
+        owner: root
+        group: root
+        mode: "0755"
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Scheduler: systemd timer (systemd) ----
+    # ======================================================================
+
+    - name: Deploy ntp-audit systemd service unit
+      ansible.builtin.template:
+        src: ntp-audit.service.j2
+        dest: /etc/systemd/system/ntp-audit.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd
+      when: ansible_facts['service_mgr'] == 'systemd'
+      tags: ['ntp_audit']
+
+    - name: Deploy ntp-audit systemd timer unit
+      ansible.builtin.template:
+        src: ntp-audit.timer.j2
+        dest: /etc/systemd/system/ntp-audit.timer
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd
+      when: ansible_facts['service_mgr'] == 'systemd'
+      tags: ['ntp_audit']
+
+    - name: Flush handlers to reload systemd before enabling timer
+      ansible.builtin.meta: flush_handlers
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Enable and start ntp-audit timer (systemd)
+      ansible.builtin.systemd:
+        name: ntp-audit.timer
+        enabled: true
+        state: started
+      when: ansible_facts['service_mgr'] == 'systemd'
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Scheduler: cron (non-systemd) ----
+    # ======================================================================
+
+    - name: Deploy ntp-audit cron job (non-systemd)
+      ansible.builtin.cron:
+        name: "ntp-audit"
+        job: "/usr/local/bin/ntp-audit"
+        minute: "{{ ntp_audit_interval_cron.split()[0] }}"
+        hour: "{{ ntp_audit_interval_cron.split()[1] }}"
+        day: "{{ ntp_audit_interval_cron.split()[2] }}"
+        month: "{{ ntp_audit_interval_cron.split()[3] }}"
+        weekday: "{{ ntp_audit_interval_cron.split()[4] }}"
+        user: root
+      when: ansible_facts['service_mgr'] != 'systemd'
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Alloy config fragment (pre-deployed, no Alloy dependency) ----
+    # ======================================================================
+
+    - name: Create Alloy conf.d directory if missing
+      ansible.builtin.file:
+        path: "{{ ntp_audit_alloy_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: ntp_audit_alloy_config_dir | length > 0
+      tags: ['ntp_audit']
+
+    - name: Deploy Alloy config fragment for ntp-audit
+      ansible.builtin.template:
+        src: alloy-ntp-audit.alloy.j2
+        dest: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
+        owner: root
+        group: root
+        mode: "0644"
+      when: ntp_audit_alloy_config_dir | length > 0
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Loki ruler rules (pre-deployed, no Loki dependency) ----
+    # ======================================================================
+
+    - name: Create Loki rules directory if missing
+      ansible.builtin.file:
+        path: "{{ ntp_audit_loki_rules_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: ntp_audit_loki_rules_dir | length > 0
+      tags: ['ntp_audit']
+
+    - name: Deploy Loki alert rules for ntp-audit
+      ansible.builtin.template:
+        src: loki-ntp-audit-rules.yaml.j2
+        dest: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
+        owner: root
+        group: root
+        mode: "0644"
+      when: ntp_audit_loki_rules_dir | length > 0
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Run once immediately after deploy ----
+    # ======================================================================
+
+    - name: Run ntp-audit immediately (first run)
+      ansible.builtin.command:
+        cmd: /usr/local/bin/ntp-audit
+      changed_when: false
+      failed_when: false
+      tags: ['ntp_audit']
+
+    # ======================================================================
+    # ---- Verify ----
+    # ======================================================================
+
+    - name: Assert audit log file exists after first run
+      ansible.builtin.stat:
+        path: "{{ ntp_audit_log_file }}"
+      register: _ntp_audit_log_stat
+      tags: ['ntp_audit']
+
+    - name: Assert ntp-audit log was written
+      ansible.builtin.assert:
+        that:
+          - _ntp_audit_log_stat.stat.exists
+          - _ntp_audit_log_stat.stat.size > 0
+        fail_msg: "ntp-audit did not write to {{ ntp_audit_log_file }}"
+      tags: ['ntp_audit']

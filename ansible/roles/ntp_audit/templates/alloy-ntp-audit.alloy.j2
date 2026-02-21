@@ -1,0 +1,57 @@
+// ntp-audit — Grafana Alloy configuration fragment
+// Managed by Ansible (role: ntp_audit). Do not edit manually.
+// Activated when Grafana Alloy is installed and loads conf.d/*.alloy
+
+// NTP audit JSON log → Loki
+loki.source.file "ntp_audit" {
+  targets = [{
+    __path__ = "{{ ntp_audit_log_file }}",
+    job      = "ntp-audit",
+    host     = constants.hostname,
+  }]
+  forward_to = [loki.write.default.receiver]
+}
+
+// Parse JSON fields from ntp-audit log as Loki structured metadata
+loki.process "ntp_audit_json" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.json {
+    expressions = {
+      ntp_stratum      = "ntp_stratum",
+      ntp_sync_status  = "ntp_sync_status",
+      ntp_conflict     = "ntp_conflict",
+      ntp_phc_status   = "ntp_phc_status",
+      ntp_offset_s     = "ntp_offset_s",
+    }
+  }
+
+  stage.labels {
+    values = {
+      ntp_sync_status = "",
+      ntp_conflict    = "",
+      ntp_phc_status  = "",
+    }
+  }
+}
+
+// chrony structured logs → Loki (tracking, measurements, statistics)
+loki.source.file "chrony_logs" {
+  targets = [{
+    __path__ = "{{ ntp_audit_chrony_log_dir }}/*.log",
+    job      = "chrony",
+    host     = constants.hostname,
+  }]
+  forward_to = [loki.write.default.receiver]
+}
+
+// Kernel NTP metrics via node_exporter timex collector → Prometheus
+prometheus.exporter.unix "ntp_timex" {
+  enable_collectors = ["timex"]
+}
+
+prometheus.scrape "ntp_timex" {
+  targets    = prometheus.exporter.unix.ntp_timex.targets
+  forward_to = [prometheus.remote_write.default.receiver]
+  job_name   = "ntp-timex"
+}
