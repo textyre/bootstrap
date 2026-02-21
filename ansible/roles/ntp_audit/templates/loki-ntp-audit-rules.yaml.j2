@@ -57,13 +57,12 @@ groups:
       - alert: NtpHighOffset
         # FIX: check both positive and negative offset (current_correction is signed)
         expr: |
-          (
-            {job="ntp-audit"} | json
-              | ntp_offset | float > {{ ntp_audit_alert_offset_threshold }}
-          ) or (
-            {job="ntp-audit"} | json
-              | ntp_offset | float < -{{ ntp_audit_alert_offset_threshold }}
-          )
+          count_over_time(
+            {job="ntp-audit"} | json | ntp_offset > {{ ntp_audit_alert_offset_threshold }} [10m]
+          ) > 0
+          or count_over_time(
+            {job="ntp-audit"} | json | ntp_offset < -{{ ntp_audit_alert_offset_threshold }} [10m]
+          ) > 0
         for: 10m
         labels:
           severity: warning
