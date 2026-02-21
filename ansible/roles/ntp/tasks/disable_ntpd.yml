@@ -1,0 +1,15 @@
+---
+# Disable ntpd (classic NTP daemon) — conflicts with chrony
+
+- name: Disable ntpd (conflicts with chrony)
+  ansible.builtin.service:
+    name: ntpd
+    enabled: false
+    state: stopped
+  register: _ntp_ntpd_disable
+  failed_when:
+    - _ntp_ntpd_disable is failed
+    - >-
+      'could not be found' not in (_ntp_ntpd_disable.msg | default(''))
+      and 'No such file' not in (_ntp_ntpd_disable.msg | default(''))
+  tags: ['ntp']

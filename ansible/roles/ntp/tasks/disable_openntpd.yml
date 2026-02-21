@@ -1,0 +1,15 @@
+---
+# Disable openntpd — conflicts with chrony
+
+- name: Disable openntpd (conflicts with chrony)
+  ansible.builtin.service:
+    name: openntpd
+    enabled: false
+    state: stopped
+  register: _ntp_openntpd_disable
+  failed_when:
+    - _ntp_openntpd_disable is failed
+    - >-
+      'could not be found' not in (_ntp_openntpd_disable.msg | default(''))
+      and 'No such file' not in (_ntp_openntpd_disable.msg | default(''))
+  tags: ['ntp']

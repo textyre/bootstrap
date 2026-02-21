@@ -1,0 +1,63 @@
+---
+# === NTP environment mappings ===
+# Keyed by ansible_facts['virtualization_type'].
+# Values are merged into chrony.conf template variables.
+#
+# refclock: list of raw chrony refclock directives (empty = no PHC source)
+# rtcsync:  bool — sync hardware RTC to system clock
+# makestep_threshold: float — step if offset exceeds this (seconds)
+# makestep_limit:     int   — only step in first N updates; -1 = unlimited
+#
+# References:
+#   Hyper-V:  https://learn.microsoft.com/azure/virtual-machines/linux/time-sync
+#   KVM:      https://lkml.iu.edu/hypermail/linux/kernel/1701.3/00549.html
+#   VMware:   https://knowledge.broadcom.com/external/article/310053
+#   VirtualBox: https://www.virtualbox.org/manual/ch09.html
+
+_ntp_env_defaults:
+  refclocks: []
+  rtcsync: true
+  makestep_threshold: 1.0
+  makestep_limit: 3
+
+_ntp_env_map:
+  # Hyper-V: hv_utils exposes /dev/ptp_hyperv. chrony uses it as stratum 2.
+  hyperv:
+    refclocks:
+      - "refclock PHC /dev/ptp_hyperv poll 3 dpoll -2 offset 0 stratum 2"
+    rtcsync: false
+    makestep_threshold: 1.0
+    makestep_limit: -1
+
+  # KVM: ptp_kvm module exposes /dev/ptp0 (or /dev/ptp_kvm symlink).
+  # Module must be loaded — handled by load_ptp_kvm.yml task.
+  kvm:
+    refclocks:
+      - "refclock PHC /dev/ptp0 poll 3 dpoll -2 offset 0 stratum 2"
+    rtcsync: false
+    makestep_threshold: 1.0
+    makestep_limit: -1
+
+  # VMware: ptp_vmw (Linux 5.7+) exposes /dev/ptp0 when Precision Clock device
+  # is added in vSphere 7.0 U2+ with VM hardware version 17+.
+  # Presence of /dev/ptp0 is checked at task runtime; refclock only added if found.
+  vmware:
+    refclocks: []
+    rtcsync: false
+    makestep_threshold: 1.0
+    makestep_limit: -1
+
+  # VirtualBox: no PTP device. Cannot integrate with VBoxService from guest.
+  # makestep -1 tolerates jumps from VBoxService on resume/snapshot.
+  virtualbox:
+    refclocks: []
+    rtcsync: false
+    makestep_threshold: 1.0
+    makestep_limit: -1
+
+  # Bare metal and unknown: use role defaults unchanged.
+  none:
+    refclocks: []
+    rtcsync: "{{ ntp_rtcsync }}"
+    makestep_threshold: "{{ ntp_makestep_threshold }}"
+    makestep_limit: "{{ ntp_makestep_limit }}"

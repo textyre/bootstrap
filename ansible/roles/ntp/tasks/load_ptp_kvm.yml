@@ -1,0 +1,38 @@
+---
+# Load ptp_kvm kernel module for KVM guests (Linux 4.11+, x86).
+# Exposes /dev/ptp0 (or /dev/ptp_kvm) for chrony refclock PHC.
+# Reference: https://lkml.iu.edu/hypermail/linux/kernel/1701.3/00549.html
+
+- name: "KVM: Load ptp_kvm module immediately"
+  community.general.modprobe:
+    name: ptp_kvm
+    state: present
+  register: _ntp_ptp_kvm_load
+  failed_when:
+    - _ntp_ptp_kvm_load is failed
+    - "'not found' not in (_ntp_ptp_kvm_load.msg | default(''))"
+  tags: ['ntp']
+
+- name: "KVM: Persist ptp_kvm module across reboots"
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/ptp_kvm.conf
+    content: "ptp_kvm\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ['ntp']
+
+- name: "KVM: Verify /dev/ptp0 is present after module load"
+  ansible.builtin.stat:
+    path: /dev/ptp0
+  register: _ntp_ptp0_stat
+  tags: ['ntp']
+
+- name: "KVM: Warn if /dev/ptp0 not found after loading ptp_kvm"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: ptp_kvm module loaded but /dev/ptp0 not found.
+      Kernel may be < 4.11 or module not supported on this CPU.
+      chrony will use NTS servers only (no local PHC reference).
+  when: not (_ntp_ptp0_stat.stat.exists | default(false))
+  tags: ['ntp']
