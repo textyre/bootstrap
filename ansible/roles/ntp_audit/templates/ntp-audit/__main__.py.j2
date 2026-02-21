@@ -1,0 +1,62 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+# Entry point for /usr/local/bin/ntp-audit (Python zipapp).
+"""ntp-audit — NTP health and conflict audit.
+
+Collects chrony tracking data, detects competing NTP services,
+checks PHC device presence and kernel modules. Writes one JSON
+record per run to the audit log and a summary line to syslog.
+"""
+import sys
+from datetime import datetime, timezone
+
+# Ansible-rendered configuration — injected at deploy time
+COMPETITOR_SERVICES = {{ ntp_audit_competitor_services | to_json }}
+PHC_DEVICES = {{ ntp_audit_phc_devices | to_json }}
+KERNEL_MODULES = {{ ntp_audit_kernel_modules | to_json }}
+
+from chrony import collect as collect_chrony
+from checkers import check_conflicts, check_phc, check_modules
+from output import write_log, write_syslog, write_syslog_error
+
+
+def run() -> int:
+    try:
+        chrony = collect_chrony()
+        conflict = check_conflicts(COMPETITOR_SERVICES)
+        phc_status, phc_device = check_phc(PHC_DEVICES)
+        modules_status = check_modules(KERNEL_MODULES)
+
+        record = {
+            'timestamp':          datetime.now(timezone.utc).isoformat(),
+            'reference_id':       chrony.reference_id,
+            'reference_name':     chrony.reference_name,
+            'stratum':            chrony.stratum,
+            'current_correction': chrony.current_correction,
+            'last_offset':        chrony.last_offset,
+            'rms_offset':         chrony.rms_offset,
+            'frequency_ppm':      chrony.frequency_ppm,
+            'residual_freq':      chrony.residual_freq,
+            'skew':               chrony.skew,
+            'root_delay':         chrony.root_delay,
+            'root_dispersion':    chrony.root_dispersion,
+            'update_interval':    chrony.update_interval,
+            'leap_status':        chrony.leap_status,
+            'sync_status':        chrony.sync_status,
+            'ntp_conflict':       conflict,
+            'ntp_phc_status':     phc_status,
+            'ntp_phc_device':     phc_device,
+            'ntp_modules_status': modules_status,
+        }
+
+        write_log(record)
+        write_syslog(record)
+        return 0
+
+    except Exception as exc:
+        write_syslog_error(str(exc))
+        # Do NOT raise — audit script must exit 0 to avoid breaking systemd timer
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(run())
