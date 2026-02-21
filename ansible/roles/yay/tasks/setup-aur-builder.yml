@@ -1,0 +1,26 @@
+---
+# === setup-aur-builder: создание изолированного пользователя для сборки AUR ===
+# makepkg нельзя запускать от root.
+# Этот user НЕ совпадает с личным аккаунтом — привилегия NOPASSWD: pacman
+# ограничена только им.
+# Ref: https://github.com/kewlfft/ansible-aur#create-the-aur_builder-user
+
+- name: Create aur_builder system user
+  ansible.builtin.user:
+    name: "{{ yay_builder_user }}"
+    system: true
+    create_home: true
+    shell: /usr/bin/nologin
+    comment: "AUR build user (managed by Ansible)"
+  tags: ['aur', 'setup']
+
+- name: Allow aur_builder to run pacman without password
+  ansible.builtin.lineinfile:
+    path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
+    line: "{{ yay_builder_user }} ALL=(root) NOPASSWD: /usr/bin/pacman"
+    create: true
+    mode: '0440'
+    owner: root
+    group: root
+    validate: '/usr/sbin/visudo -cf %s'
+  tags: ['aur', 'setup']
