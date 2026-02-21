@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "supergrep": {
+      "command": "supergrep",
+      "args": ["mcp-serve"]
+    }
+  }
+}
