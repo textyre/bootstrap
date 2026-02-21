@@ -1,0 +1,92 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+"""chrony data collector — parses chronyc -c tracking CSV output.
+
+Field indices for chronyc -c tracking (stable since chrony 3.3):
+  0  reference_id       hex reference clock ID
+  1  reference_name     hostname or IP of NTP source
+  2  stratum            int — distance from stratum-1 source
+  3  ref_time           float — Unix timestamp of last reference update
+  4  current_correction float — system clock offset, SIGNED seconds
+  5  last_offset        float — last measured offset, seconds
+  6  rms_offset         float — RMS offset, seconds
+  7  frequency_ppm      float — clock frequency error, ppm
+  8  residual_freq      float — residual frequency error, ppm
+  9  skew               float — estimated frequency error, ppm
+  10 root_delay         float — total round-trip delay to reference, seconds
+  11 root_dispersion    float — absolute accuracy bound, seconds
+  12 update_interval    float — seconds between reference updates
+  13 leap_status        int   — 0=normal, 1=+1s, 2=-1s, 3=unsynchronised
+
+Source: prometheus-community/node-exporter-textfile-collector-scripts,
+        paulgear/ntpmon, librenms/librenms-agent.
+"""
+import subprocess
+from dataclasses import dataclass
+
+
+@dataclass
+class ChronyData:
+    reference_id: str
+    reference_name: str
+    stratum: int
+    ref_time: float
+    current_correction: float
+    last_offset: float
+    rms_offset: float
+    frequency_ppm: float
+    residual_freq: float
+    skew: float
+    root_delay: float
+    root_dispersion: float
+    update_interval: float
+    leap_status: int
+    sync_status: str  # derived: "ok" | "unsynchronised"
+
+
+def collect() -> ChronyData:
+    """Run chronyc -c tracking and return parsed data."""
+    try:
+        result = subprocess.run(
+            ['chronyc', '-c', 'tracking'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("chronyc not found — is chrony installed?")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("chronyc timed out after 5 seconds")
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"chronyc exited {result.returncode}: {result.stderr.strip()}"
+        )
+
+    fields = result.stdout.strip().split(',')
+    if len(fields) < 14:
+        raise ValueError(
+            f"chronyc -c tracking: expected >=14 fields, got {len(fields)}: "
+            f"{result.stdout!r}"
+        )
+
+    try:
+        leap = int(fields[13])
+        return ChronyData(
+            reference_id=fields[0],
+            reference_name=fields[1],
+            stratum=int(fields[2]),
+            ref_time=float(fields[3]),
+            current_correction=float(fields[4]),  # signed — negative = slow
+            last_offset=float(fields[5]),
+            rms_offset=float(fields[6]),
+            frequency_ppm=float(fields[7]),
+            residual_freq=float(fields[8]),
+            skew=float(fields[9]),
+            root_delay=float(fields[10]),
+            root_dispersion=float(fields[11]),
+            update_interval=float(fields[12]),
+            leap_status=leap,
+            sync_status="unsynchronised" if leap == 3 else "ok",
+        )
+    except (ValueError, IndexError) as e:
+        raise ValueError(f"Failed to parse chronyc CSV output: {e}") from e
