@@ -1,0 +1,105 @@
+---
+# === setup-yay-binary: сборка и установка yay из исходников ===
+
+- name: Assert yay_builder_user is not root
+  ansible.builtin.assert:
+    that: yay_builder_user != 'root'
+    fail_msg: >-
+      yay_builder_user resolved to 'root' — makepkg cannot run as root.
+      Set yay_builder_user explicitly in defaults or group_vars.
+  tags: ['aur', 'setup']
+
+- name: Check if yay is already installed
+  ansible.builtin.command: yay --version
+  register: _yay_exists
+  changed_when: false
+  failed_when: false
+  tags: ['aur', 'setup']
+
+- name: Check for broken yay binary (missing shared libs after Go upgrade)
+  ansible.builtin.command: ldd /usr/bin/yay
+  register: _yay_ldd
+  failed_when: false
+  changed_when: false
+  when: _yay_exists.rc == 0
+  tags: ['aur', 'setup']
+
+- name: Set fact — yay needs rebuild due to broken shared libs
+  ansible.builtin.set_fact:
+    _yay_needs_rebuild: "{{ 'not found' in (_yay_ldd.stdout | default('')) }}"
+  tags: ['aur', 'setup']
+
+- name: Remove broken yay binary to trigger rebuild
+  ansible.builtin.file:
+    path: /usr/bin/yay
+    state: absent
+  when: _yay_needs_rebuild | default(false)
+  tags: ['aur', 'setup']
+
+- name: Install build dependencies
+  community.general.pacman:
+    name: "{{ yay_build_deps }}"
+    state: present
+  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
+  tags: ['aur', 'setup']
+
+- name: Create temp build directory
+  become: true
+  become_user: "{{ yay_builder_user }}"
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: yay_build_
+  register: _yay_build_dir
+  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
+  tags: ['aur', 'setup']
+
+- name: Build and install yay
+  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
+  tags: ['aur', 'setup']
+  block:
+    - name: Clone yay from AUR
+      become: true
+      become_user: "{{ yay_builder_user }}"
+      ansible.builtin.git:
+        repo: "{{ yay_source_url }}"
+        dest: "{{ _yay_build_dir.path }}/yay"
+        depth: 1
+        version: master
+
+    - name: Build yay package
+      become: true
+      become_user: "{{ yay_builder_user }}"
+      ansible.builtin.command:
+        cmd: makepkg --noconfirm
+        chdir: "{{ _yay_build_dir.path }}/yay"
+      changed_when: true
+
+    - name: Find built yay package
+      ansible.builtin.find:
+        paths: "{{ _yay_build_dir.path }}/yay"
+        patterns: "yay-*.pkg.tar.*"
+        excludes: "*-debug-*"
+      register: _yay_pkg
+
+    - name: Install yay package
+      community.general.pacman:
+        name: "{{ _yay_pkg.files[0].path }}"
+        state: present
+
+  always:
+    - name: Clean up build directory
+      ansible.builtin.file:
+        path: "{{ _yay_build_dir.path }}"
+        state: absent
+      when: _yay_build_dir is defined
+
+- name: Verify yay installed
+  ansible.builtin.command: yay --version
+  register: _yay_version
+  changed_when: false
+  tags: ['aur', 'setup']
+
+- name: Report yay version
+  ansible.builtin.debug:
+    msg: "yay установлен: {{ _yay_version.stdout }}"
+  tags: ['aur']
