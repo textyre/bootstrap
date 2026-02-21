@@ -32,6 +32,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 | 11 | `xorg` | Конфигурация X11 мониторов |
 | 12 | `lightdm` | Display manager |
 | 13 | `chezmoi` | Деплой дотфайлов через chezmoi |
+| 14 | `pam_hardening` | PAM faillock — защита от brute-force (Arch, Ubuntu, Fedora) |
 
 ## Использование
 
