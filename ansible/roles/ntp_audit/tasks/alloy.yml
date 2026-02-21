@@ -1,0 +1,28 @@
+---
+# === ntp_audit — Grafana Alloy config fragment ===
+# Deploys when ntp_audit_alloy_enabled is true and alloy_config_dir is set.
+# Does not require Alloy to be installed — pre-deployed for when it arrives.
+
+- name: Create Alloy conf.d directory
+  ansible.builtin.file:
+    path: "{{ ntp_audit_alloy_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - ntp_audit_alloy_enabled | bool
+    - ntp_audit_alloy_config_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_alloy']
+
+- name: Deploy Alloy config fragment for ntp-audit
+  ansible.builtin.template:
+    src: alloy-ntp-audit.alloy.j2
+    dest: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ntp_audit_alloy_enabled | bool
+    - ntp_audit_alloy_config_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_alloy']
