@@ -1,0 +1,52 @@
+---
+- name: Deploy reflector config
+  ansible.builtin.template:
+    src: reflector.conf.j2
+    dest: "{{ reflector_conf_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: ['configure']
+
+- name: Ensure timer dropin dir exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/reflector.timer.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['configure']
+
+- name: Set reflector timer schedule drop-in
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/reflector.timer.d/override.conf
+    content: |
+      [Timer]
+      OnCalendar={{ reflector_timer_schedule }}
+      RandomizedDelaySec={{ reflector_timer_randomized_delay }}
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: ['configure']
+
+- name: Ensure /etc/pacman.d/hooks directory exists
+  ansible.builtin.file:
+    path: /etc/pacman.d/hooks
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: reflector_pacman_hook | bool
+  tags: ['configure']
+
+- name: Deploy pacman hook for mirrorlist auto-update
+  ansible.builtin.copy:
+    src: reflector-mirrorlist.hook
+    dest: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+    owner: root
+    group: root
+    mode: '0644'
+  when: reflector_pacman_hook | bool
+  tags: ['configure']
