@@ -1,167 +1,36 @@
 ---
-# === ntp_audit — runtime NTP health and conflict audit ===
-# Init-system agnostic: systemd timer on systemd, cron on others.
-# Output: JSON → /var/log/ntp-audit/audit.log + syslog via logger(1)
+# === ntp_audit — entry point ===
+# Each import_tasks is one business requirement.
+# To run a single module: ansible-playbook ... --tags ntp_audit_script
 
 - name: ntp_audit role
   when: ntp_audit_enabled | bool
   tags: ['ntp_audit']
   block:
 
-    # ======================================================================
-    # ---- Log directory ----
-    # ======================================================================
+    - name: Deploy audit script (Python zipapp)
+      ansible.builtin.import_tasks: script.yml
 
-    - name: Create audit log directory
-      ansible.builtin.file:
-        path: "{{ ntp_audit_log_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-      tags: ['ntp_audit']
+    - name: Configure log rotation
+      ansible.builtin.import_tasks: logrotate.yml
 
-    # ======================================================================
-    # ---- Audit script ----
-    # ======================================================================
+    - name: Configure systemd timer scheduler
+      ansible.builtin.import_tasks: scheduler_systemd.yml
 
-    # REFACTOR IN PROGRESS — this task replaced by tasks/script.yml (Task 5/11)
-    # tasks/main.yml will be fully rewritten in Task 11 as import_tasks table of contents
-    - name: Deploy ntp-audit script (PLACEHOLDER — replaced in Task 11)
-      ansible.builtin.fail:
-        msg: >-
-          ntp_audit refactor in progress. Do not run this role until Task 11 is complete.
-          See docs/plans/2026-02-21-ntp-audit-refactor.md
-      tags: ['ntp_audit']
+    - name: Configure cron scheduler (non-systemd fallback)
+      ansible.builtin.import_tasks: scheduler_cron.yml
 
-    # ======================================================================
-    # ---- Scheduler: systemd timer (systemd) ----
-    # ======================================================================
+    - name: Assert scheduler is active
+      ansible.builtin.import_tasks: scheduler_assert.yml
 
-    - name: Deploy ntp-audit systemd service unit
-      ansible.builtin.template:
-        src: ntp-audit.service.j2
-        dest: /etc/systemd/system/ntp-audit.service
-        owner: root
-        group: root
-        mode: "0644"
-      notify: Reload systemd
-      when: ansible_facts['service_mgr'] == 'systemd'
-      tags: ['ntp_audit']
+    - name: Deploy Grafana Alloy config fragment
+      ansible.builtin.import_tasks: alloy.yml
 
-    - name: Deploy ntp-audit systemd timer unit
-      ansible.builtin.template:
-        src: ntp-audit.timer.j2
-        dest: /etc/systemd/system/ntp-audit.timer
-        owner: root
-        group: root
-        mode: "0644"
-      notify: Reload systemd
-      when: ansible_facts['service_mgr'] == 'systemd'
-      tags: ['ntp_audit']
+    - name: Deploy Loki ruler alert rules
+      ansible.builtin.import_tasks: loki.yml
 
-    - name: Flush handlers to reload systemd before enabling timer
-      ansible.builtin.meta: flush_handlers
-      when: ansible_facts['service_mgr'] == 'systemd'
+    - name: Execute first run
+      ansible.builtin.import_tasks: first_run.yml
 
-    - name: Enable and start ntp-audit timer (systemd)
-      ansible.builtin.systemd:
-        name: ntp-audit.timer
-        enabled: true
-        state: started
-      when: ansible_facts['service_mgr'] == 'systemd'
-      tags: ['ntp_audit']
-
-    # ======================================================================
-    # ---- Scheduler: cron (non-systemd) ----
-    # ======================================================================
-
-    - name: Deploy ntp-audit cron job (non-systemd)
-      ansible.builtin.cron:
-        name: "ntp-audit"
-        job: "/usr/local/bin/ntp-audit"
-        minute: "{{ ntp_audit_interval_cron.split()[0] }}"
-        hour: "{{ ntp_audit_interval_cron.split()[1] }}"
-        day: "{{ ntp_audit_interval_cron.split()[2] }}"
-        month: "{{ ntp_audit_interval_cron.split()[3] }}"
-        weekday: "{{ ntp_audit_interval_cron.split()[4] }}"
-        user: root
-      when: ansible_facts['service_mgr'] != 'systemd'
-      tags: ['ntp_audit']
-
-    # ======================================================================
-    # ---- Alloy config fragment (pre-deployed, no Alloy dependency) ----
-    # ======================================================================
-
-    - name: Create Alloy conf.d directory if missing
-      ansible.builtin.file:
-        path: "{{ ntp_audit_alloy_config_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-      when: ntp_audit_alloy_config_dir | length > 0
-      tags: ['ntp_audit']
-
-    - name: Deploy Alloy config fragment for ntp-audit
-      ansible.builtin.template:
-        src: alloy-ntp-audit.alloy.j2
-        dest: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
-        owner: root
-        group: root
-        mode: "0644"
-      when: ntp_audit_alloy_config_dir | length > 0
-      tags: ['ntp_audit']
-
-    # ======================================================================
-    # ---- Loki ruler rules (pre-deployed, no Loki dependency) ----
-    # ======================================================================
-
-    - name: Create Loki rules directory if missing
-      ansible.builtin.file:
-        path: "{{ ntp_audit_loki_rules_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-      when: ntp_audit_loki_rules_dir | length > 0
-      tags: ['ntp_audit']
-
-    - name: Deploy Loki alert rules for ntp-audit
-      ansible.builtin.template:
-        src: loki-ntp-audit-rules.yaml.j2
-        dest: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
-        owner: root
-        group: root
-        mode: "0644"
-      when: ntp_audit_loki_rules_dir | length > 0
-      tags: ['ntp_audit']
-
-    # ======================================================================
-    # ---- Run once immediately after deploy ----
-    # ======================================================================
-
-    - name: Run ntp-audit immediately (first run)
-      ansible.builtin.command:
-        cmd: /usr/local/bin/ntp-audit
-      changed_when: false
-      failed_when: false
-      tags: ['ntp_audit']
-
-    # ======================================================================
-    # ---- Verify ----
-    # ======================================================================
-
-    - name: Assert audit log file exists after first run
-      ansible.builtin.stat:
-        path: "{{ ntp_audit_log_file }}"
-      register: _ntp_audit_log_stat
-      tags: ['ntp_audit']
-
-    - name: Assert ntp-audit log was written
-      ansible.builtin.assert:
-        that:
-          - _ntp_audit_log_stat.stat.exists
-          - _ntp_audit_log_stat.stat.size > 0
-        fail_msg: "ntp-audit did not write to {{ ntp_audit_log_file }}"
-      tags: ['ntp_audit']
+    - name: Verify deployment
+      ansible.builtin.import_tasks: verify.yml
