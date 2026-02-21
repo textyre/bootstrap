@@ -1,0 +1,8 @@
+---
+- name: Ensure reflector.timer is enabled and started
+  ansible.builtin.systemd:
+    name: reflector.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: ['service']
