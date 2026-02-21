@@ -6,17 +6,17 @@
     that:
       - ansible_facts['os_family'] == 'Archlinux'
     fail_msg: "yay role requires Arch Linux"
-  tags: ['aur', 'install']
+  tags: ['aur', 'setup', 'install']
 
-- name: Install yay binary
-  ansible.builtin.include_tasks: install-yay-binary.yml
-  tags: ['aur', 'install']
+- name: Set up AUR builder user
+  ansible.builtin.include_tasks: setup-aur-builder.yml
+  tags: ['aur', 'setup']
 
-- name: Configure passwordless sudo for pacman
-  ansible.builtin.include_tasks: configure-sudoers.yml
-  tags: ['aur', 'sudoers']
+- name: Set up yay binary
+  ansible.builtin.include_tasks: setup-yay-binary.yml
+  tags: ['aur', 'setup']
 
-- name: Install AUR packages
-  ansible.builtin.include_tasks: install-aur-packages.yml
+- name: Manage AUR packages
+  ansible.builtin.include_tasks: manage-aur-packages.yml
   when: packages_aur | default([]) | length > 0
   tags: ['aur', 'install']
