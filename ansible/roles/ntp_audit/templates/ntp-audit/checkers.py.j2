@@ -51,7 +51,8 @@ def check_modules(modules: list) -> str:
 
     Returns 'n/a' if no modules configured,
             'ok' if all modules loaded,
-            '<module>_missing' for first missing module.
+            '<module>_missing' for first missing module,
+            'unknown' if /proc/modules is not accessible (non-Linux host).
     Uses /proc/modules directly (no lsmod subprocess needed).
     """
     if not modules:
