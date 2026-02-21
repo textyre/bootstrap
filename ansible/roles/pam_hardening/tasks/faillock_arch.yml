@@ -1,0 +1,32 @@
+---
+# === PAM faillock — Arch Linux / Void Linux ===
+# Нет pam-auth-update и authselect — прямое управление /etc/pam.d/system-auth
+# Параметры не указываются inline — они читаются из /etc/security/faillock.conf
+# Паттерн: ataraxialinux, getsolus/packages (подтверждено supergrep)
+
+# preauth: вставить перед строкой pam_unix.so в секции auth
+- name: Insert pam_faillock preauth into system-auth (Arch/Void)
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth       required                    pam_faillock.so      preauth'
+    insertbefore: '^auth.*pam_unix\.so'
+    state: present
+  tags: ['pam', 'security', 'faillock']
+
+# authfail: вставить после строки pam_unix.so в секции auth
+- name: Insert pam_faillock authfail into system-auth (Arch/Void)
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth       required                    pam_faillock.so      authfail'
+    insertafter: '^auth.*pam_unix\.so'
+    state: present
+  tags: ['pam', 'security', 'faillock']
+
+# account: добавить в секцию account
+- name: Insert pam_faillock account into system-auth (Arch/Void)
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'account    required                    pam_faillock.so'
+    insertafter: '^account'
+    state: present
+  tags: ['pam', 'security', 'faillock']
