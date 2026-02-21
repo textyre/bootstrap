@@ -1,0 +1,67 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+"""NTP health checkers — competing services, PHC devices, kernel modules."""
+import shutil
+import subprocess
+from pathlib import Path
+
+
+def check_conflicts(services: list) -> str:
+    """Detect active competing NTP services.
+
+    Returns '<service>_active' for the first active conflict found,
+    or 'none' if no conflicts detected.
+    Skips check silently if systemctl is not available.
+    """
+    if not shutil.which('systemctl'):
+        return "none"
+    for svc in services:
+        try:
+            r = subprocess.run(
+                ['systemctl', 'is-active', '--quiet', svc],
+                capture_output=True,
+                timeout=3,
+            )
+            if r.returncode == 0:
+                return f"{svc}_active"
+        except (subprocess.TimeoutExpired, OSError):
+            continue
+    return "none"
+
+
+def check_phc(devices: list) -> tuple:
+    """Check PTP Hardware Clock device presence.
+
+    Returns (status, device_path) where status is:
+      'n/a'     — no devices configured (empty list)
+      'ok'      — at least one device exists
+      'missing' — devices configured but none present (CRITICAL FIX)
+    """
+    if not devices:
+        return "n/a", "none"
+    for dev in devices:
+        if Path(dev).is_char_device():
+            return "ok", dev
+    # Devices were expected but none found — this is the missing state
+    # that was never reachable in the previous bash implementation
+    return "missing", "none"
+
+
+def check_modules(modules: list) -> str:
+    """Check kernel module presence via /proc/modules.
+
+    Returns 'n/a' if no modules configured,
+            'ok' if all modules loaded,
+            '<module>_missing' for first missing module.
+    Uses /proc/modules directly (no lsmod subprocess needed).
+    """
+    if not modules:
+        return "n/a"
+    try:
+        loaded_text = Path('/proc/modules').read_text()
+        loaded_names = {line.split()[0] for line in loaded_text.splitlines() if line}
+    except OSError:
+        return "unknown"
+    for mod in modules:
+        if mod not in loaded_names:
+            return f"{mod}_missing"
+    return "ok"
