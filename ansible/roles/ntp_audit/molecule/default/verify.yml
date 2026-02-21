@@ -8,17 +8,29 @@
 
   tasks:
 
-    - name: Assert ntp-audit script exists and is executable
+    - name: Assert ntp-audit zipapp exists and is executable
       ansible.builtin.stat:
         path: /usr/local/bin/ntp-audit
       register: _v_script
 
-    - name: Verify ntp-audit script
+    - name: Verify ntp-audit zipapp
       ansible.builtin.assert:
         that:
           - _v_script.stat.exists
           - _v_script.stat.executable
         fail_msg: "/usr/local/bin/ntp-audit missing or not executable"
+
+    - name: Assert Python source staging directory exists
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit
+      register: _v_src
+
+    - name: Verify staging directory
+      ansible.builtin.assert:
+        that:
+          - _v_src.stat.exists
+          - _v_src.stat.isdir
+        fail_msg: "/usr/local/src/ntp-audit staging directory missing"
 
     - name: Assert audit log directory exists
       ansible.builtin.stat:
@@ -32,17 +44,17 @@
           - _v_logdir.stat.isdir
         fail_msg: "/var/log/ntp-audit directory missing"
 
-    - name: Assert audit log file exists (written on first run)
+    - name: Assert audit log file written after first run
       ansible.builtin.stat:
         path: /var/log/ntp-audit/audit.log
       register: _v_logfile
 
-    - name: Verify audit log written
+    - name: Verify audit log not empty
       ansible.builtin.assert:
         that:
           - _v_logfile.stat.exists
           - _v_logfile.stat.size > 0
-        fail_msg: "audit.log missing or empty — ntp-audit first run failed"
+        fail_msg: "audit.log missing or empty — first run failed"
 
     - name: Read last line of audit log
       ansible.builtin.command:
@@ -53,13 +65,27 @@
     - name: Assert audit log contains valid JSON with required keys
       ansible.builtin.assert:
         that:
-          - (_v_last_line.stdout | from_json).ntp_sync_status is defined
+          - (_v_last_line.stdout | from_json).timestamp is defined
+          - (_v_last_line.stdout | from_json).sync_status is defined
+          - (_v_last_line.stdout | from_json).stratum is defined
+          - (_v_last_line.stdout | from_json).current_correction is defined
           - (_v_last_line.stdout | from_json).ntp_conflict is defined
           - (_v_last_line.stdout | from_json).ntp_phc_status is defined
-          - (_v_last_line.stdout | from_json).timestamp is defined
-        fail_msg: "audit.log last line is not valid JSON or missing required keys"
+        fail_msg: "audit.log missing required JSON keys"
 
-    - name: Collect service facts (systemd only)
+    - name: Assert logrotate config deployed
+      ansible.builtin.stat:
+        path: /etc/logrotate.d/ntp-audit
+      register: _v_logrotate
+
+    - name: Verify logrotate config
+      ansible.builtin.assert:
+        that:
+          - _v_logrotate.stat.exists
+          - _v_logrotate.stat.size > 0
+        fail_msg: "/etc/logrotate.d/ntp-audit missing"
+
+    - name: Collect service facts (systemd)
       ansible.builtin.service_facts:
       when: ansible_facts['service_mgr'] == 'systemd'
 
@@ -82,7 +108,7 @@
         that:
           - _v_alloy.stat.exists
           - _v_alloy.stat.size > 0
-        fail_msg: "Alloy config fragment /etc/alloy/conf.d/ntp-audit.alloy missing"
+        fail_msg: "Alloy config fragment missing"
 
     - name: Assert Loki rules deployed
       ansible.builtin.stat:
@@ -94,8 +120,10 @@
         that:
           - _v_loki.stat.exists
           - _v_loki.stat.size > 0
-        fail_msg: "Loki alert rules /etc/loki/rules/fake/ntp-audit-rules.yaml missing"
+        fail_msg: "Loki alert rules missing"
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "ntp_audit check passed: script, timer, log written, alloy/loki configs deployed"
+        msg: >-
+          ntp_audit verify passed: zipapp, timer, log written with correct JSON keys,
+          logrotate, alloy config, loki rules all present.
