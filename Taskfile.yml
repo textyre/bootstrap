@@ -60,6 +60,7 @@ tasks:
       - task: test-hostctl
       - task: test-vconsole
       - task: test-ntp
+      - task: test-ntp-audit
       - task: test-vm
       - task: test-reflector
       - task: test-yay
@@ -137,6 +138,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing ntp role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-ntp-audit:
+    desc: "Run molecule tests for ntp_audit"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/ntp_audit'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing ntp_audit role..."'
       - '{{.PREFIX}} molecule test'
 
   test-vm:

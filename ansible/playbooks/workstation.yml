@@ -44,6 +44,10 @@
       tags: [system, ntp]
       when: ntp_enabled | default(true)
 
+    - role: ntp_audit
+      tags: [system, ntp, ntp_audit]
+      when: ntp_audit_enabled | default(true)
+
     - role: package_manager
       tags: [packages, pacman]
 
