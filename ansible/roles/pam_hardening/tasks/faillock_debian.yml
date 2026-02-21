@@ -1,0 +1,39 @@
+---
+# === PAM faillock — Debian/Ubuntu ===
+# Управление через pam-auth-update (правильный флаг: --package, не --enable)
+# Два отдельных профиля: patten dev-sec (5223★), canonical/core-base
+
+- name: Deploy pam-auth-update faillock preauth profile (Debian)
+  ansible.builtin.copy:
+    dest: /usr/share/pam-configs/faillock
+    content: |
+      Name: Enforce failed login attempt counter (preauth)
+      Default: yes
+      Priority: 0
+      Auth-Type: Primary
+      Auth:
+        requisite  pam_faillock.so preauth
+      Account-Type: Primary
+      Account:
+        required   pam_faillock.so
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Update PAM (Debian)
+  tags: ['pam', 'security', 'faillock']
+
+- name: Deploy pam-auth-update faillock authfail profile (Debian)
+  ansible.builtin.copy:
+    dest: /usr/share/pam-configs/faillock-authfail
+    content: |
+      Name: Enforce failed login attempt counter (authfail)
+      Default: yes
+      Priority: 0
+      Auth-Type: Primary
+      Auth-Final:
+        authfail   pam_faillock.so authfail
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Update PAM (Debian)
+  tags: ['pam', 'security', 'faillock']
