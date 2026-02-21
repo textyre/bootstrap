@@ -1,0 +1,38 @@
+---
+# === ntp_audit — assert a scheduler is active ===
+# Fails explicitly if neither systemd timer nor cron job is available.
+
+- name: Collect service facts (systemd)
+  ansible.builtin.service_facts:
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
+
+- name: Assert systemd timer is enabled
+  ansible.builtin.assert:
+    that:
+      - "'ntp-audit.timer' in ansible_facts.services"
+      - ansible_facts.services['ntp-audit.timer'].status == 'enabled'
+    fail_msg: >-
+      ntp-audit.timer is not enabled after deploy.
+      Run: systemctl status ntp-audit.timer
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
+
+- name: Check cron entry exists (non-systemd)
+  ansible.builtin.command:
+    cmd: crontab -l -u root
+  register: _cron_list
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['service_mgr'] != 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
+
+- name: Assert cron entry present (non-systemd)
+  ansible.builtin.assert:
+    that:
+      - "'ntp-audit' in _cron_list.stdout"
+    fail_msg: >-
+      ntp-audit cron job not found in root's crontab.
+      Non-systemd host detected but cron deploy failed.
+  when: ansible_facts['service_mgr'] != 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']

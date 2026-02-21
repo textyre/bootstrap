@@ -11,3 +11,6 @@ ExecStart=/usr/local/bin/ntp-audit
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=ntp-audit
+
+[Install]
+WantedBy=multi-user.target

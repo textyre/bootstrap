@@ -1,0 +1,36 @@
+---
+# === ntp_audit — systemd timer scheduler ===
+
+- name: Deploy ntp-audit systemd service unit
+  ansible.builtin.template:
+    src: ntp-audit.service.j2
+    dest: /etc/systemd/system/ntp-audit.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
+
+- name: Deploy ntp-audit systemd timer unit
+  ansible.builtin.template:
+    src: ntp-audit.timer.j2
+    dest: /etc/systemd/system/ntp-audit.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
+
+- name: Flush handlers to reload systemd before enabling timer
+  ansible.builtin.meta: flush_handlers
+  when: ansible_facts['service_mgr'] == 'systemd'
+
+- name: Enable and start ntp-audit timer
+  ansible.builtin.systemd:
+    name: ntp-audit.timer
+    enabled: true
+    state: started
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']

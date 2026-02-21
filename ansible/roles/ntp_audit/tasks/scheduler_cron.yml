@@ -1,0 +1,15 @@
+---
+# === ntp_audit — cron scheduler (non-systemd fallback) ===
+
+- name: Deploy ntp-audit cron job
+  ansible.builtin.cron:
+    name: "ntp-audit"
+    job: "/usr/local/bin/ntp-audit"
+    minute: "*/5"
+    hour: "*"
+    day: "*"
+    month: "*"
+    weekday: "*"
+    user: root
+  when: ansible_facts['service_mgr'] != 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_scheduler']
