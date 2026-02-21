@@ -1,8 +1,8 @@
 ---
-# === PAM faillock — защита от brute-force ===
-# Кросс-дистрибутивная конфигурация
+# === PAM faillock — диспетчер ===
+# 1. Записать faillock.conf (универсально, все платформы)
+# 2. Активировать faillock в PAM стеке (зависит от платформы)
 
-# Общий template для всех дистрибутивов
 - name: Configure pam_faillock defaults
   ansible.builtin.template:
     src: faillock.conf.j2
@@ -12,25 +12,20 @@
     mode: '0644'
   tags: ['pam', 'security', 'faillock']
 
-# Debian-специфичный pam-auth-update профиль
-- name: Deploy pam-auth-update faillock profile (Debian)
-  ansible.builtin.copy:
-    dest: /usr/share/pam-configs/faillock
-    content: |
-      Name: Enforce failed login attempt counter
-      Default: yes
-      Priority: 0
-      Auth-Type: Primary
-      Auth:
-        requisite  pam_faillock.so preauth
-      Auth-Final:
-        authfail   pam_faillock.so authfail
-      Account-Type: Primary
-      Account:
-        required   pam_faillock.so
-    owner: root
-    group: root
-    mode: '0644'
+# Debian / Ubuntu — pam-auth-update
+- name: Configure PAM stack (Debian)
+  ansible.builtin.include_tasks: faillock_debian.yml
   when: ansible_facts['os_family'] == 'Debian'
-  notify: Update PAM configuration
+  tags: ['pam', 'security', 'faillock']
+
+# Fedora — authselect
+- name: Configure PAM stack (RedHat/Fedora)
+  ansible.builtin.include_tasks: faillock_redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags: ['pam', 'security', 'faillock']
+
+# Arch Linux / Void Linux — прямой lineinfile
+- name: Configure PAM stack (Arch/Void)
+  ansible.builtin.include_tasks: faillock_arch.yml
+  when: ansible_facts['os_family'] in ['Archlinux', 'Void']
   tags: ['pam', 'security', 'faillock']
