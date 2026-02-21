@@ -1,0 +1,11 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+{{ ntp_audit_log_file }} {
+    daily
+    rotate {{ ntp_audit_logrotate_rotate }}
+    size {{ ntp_audit_logrotate_size }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 root root
+}

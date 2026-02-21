@@ -1,0 +1,11 @@
+---
+# === ntp_audit — log rotation ===
+
+- name: Deploy ntp-audit logrotate config
+  ansible.builtin.template:
+    src: ntp-audit.logrotate.j2
+    dest: /etc/logrotate.d/ntp-audit
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ['ntp_audit', 'ntp_audit_logrotate']
