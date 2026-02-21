@@ -25,13 +25,13 @@
     # ---- Audit script ----
     # ======================================================================
 
-    - name: Deploy ntp-audit script
-      ansible.builtin.template:
-        src: ntp-audit.sh.j2
-        dest: /usr/local/bin/ntp-audit
-        owner: root
-        group: root
-        mode: "0755"
+    # REFACTOR IN PROGRESS — this task replaced by tasks/script.yml (Task 5/11)
+    # tasks/main.yml will be fully rewritten in Task 11 as import_tasks table of contents
+    - name: Deploy ntp-audit script (PLACEHOLDER — replaced in Task 11)
+      ansible.builtin.fail:
+        msg: >-
+          ntp_audit refactor in progress. Do not run this role until Task 11 is complete.
+          See docs/plans/2026-02-21-ntp-audit-refactor.md
       tags: ['ntp_audit']
 
     # ======================================================================
