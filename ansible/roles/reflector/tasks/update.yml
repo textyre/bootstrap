@@ -1,0 +1,122 @@
+---
+- name: Update pacman cache
+  community.general.pacman:
+    update_cache: true
+  tags: ['update']
+
+- name: Stat current mirrorlist
+  ansible.builtin.stat:
+    path: "{{ reflector_mirrorlist_path }}"
+  register: _reflector_stat
+  tags: ['update']
+
+- name: Read current mirrorlist (for change comparison)
+  ansible.builtin.slurp:
+    src: "{{ reflector_mirrorlist_path }}"
+  register: _reflector_old_mirror
+  when: _reflector_stat.stat.exists
+  tags: ['update']
+
+- name: Backup current mirrorlist BEFORE update
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ reflector_mirrorlist_path }}"
+    dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] }}"
+    mode: '0644'
+  register: _reflector_backup_result
+  when:
+    - reflector_backup_mirrorlist | bool
+    - _reflector_stat.stat.exists
+  tags: ['update']
+
+- name: Record backup path as fact
+  ansible.builtin.set_fact:
+    _reflector_latest_backup: "{{ _reflector_backup_result.dest }}"
+  when: _reflector_backup_result is not skipped
+  tags: ['update']
+
+- name: Run reflector and validate mirrorlist
+  tags: ['update']
+  block:
+    - name: Run reflector to update mirrorlist (with retries)
+      ansible.builtin.command: >-
+        reflector
+        --country {{ reflector_countries }}
+        --protocol {{ reflector_protocol }}
+        --latest {{ reflector_latest }}
+        --sort {{ reflector_sort }}
+        --age {{ reflector_age }}
+        --connection-timeout {{ reflector_connection_timeout }}
+        --download-timeout {{ reflector_download_timeout }}
+        --threads {{ reflector_threads }}
+        --save {{ reflector_mirrorlist_path }}
+      register: _reflector_run
+      retries: "{{ reflector_retries }}"
+      delay: "{{ reflector_retry_delay }}"
+      until: _reflector_run.rc == 0
+      changed_when: false
+      failed_when: _reflector_run.rc != 0
+      check_mode: false
+      environment: "{{ {'http_proxy': reflector_proxy, 'https_proxy': reflector_proxy} if reflector_proxy | length > 0 else {} }}"
+
+    - name: Read new mirrorlist
+      ansible.builtin.slurp:
+        src: "{{ reflector_mirrorlist_path }}"
+      register: _reflector_new_mirror
+
+    - name: Validate mirrorlist contains Server entries
+      ansible.builtin.command:
+        cmd: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
+      register: _reflector_server_count
+      changed_when: false
+      failed_when: _reflector_server_count.stdout | int < 1
+
+    - name: Find old mirrorlist backups for rotation
+      ansible.builtin.find:
+        paths: "{{ reflector_mirrorlist_path | dirname }}"
+        patterns: "mirrorlist.bak.*"
+      register: _reflector_backups
+      when:
+        - reflector_backup_mirrorlist | bool
+        - reflector_backup_keep | int > 0
+
+    - name: Remove oldest backups, keep N newest
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ (_reflector_backups.files | sort(attribute='mtime'))[: -reflector_backup_keep | int] }}"
+      when:
+        - reflector_backup_mirrorlist | bool
+        - reflector_backup_keep | int > 0
+        - _reflector_backups.matched > reflector_backup_keep | int
+
+    - name: Determine if mirrorlist changed
+      ansible.builtin.set_fact:
+        _reflector_mirrorlist_changed: >-
+          {{ (_reflector_old_mirror.content | default('')) != (_reflector_new_mirror.content | default('')) }}
+
+    - name: Report reflector result
+      ansible.builtin.debug:
+        msg: >-
+          Reflector completed. Mirrorlist changed: {{ _reflector_mirrorlist_changed }}.
+          Servers in mirrorlist: {{ _reflector_server_count.stdout }}.
+      changed_when: _reflector_mirrorlist_changed | bool
+
+  rescue:
+    - name: Restore mirrorlist from backup
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ _reflector_latest_backup }}"
+        dest: "{{ reflector_mirrorlist_path }}"
+        mode: '0644'
+      when: _reflector_latest_backup is defined
+
+    - name: Fail with descriptive message
+      ansible.builtin.fail:
+        msg: >-
+          reflector failed or produced an invalid mirrorlist.
+          {% if _reflector_latest_backup is defined %}
+          Restored from {{ _reflector_latest_backup }}.
+          {% else %}
+          No backup was available — mirrorlist may be empty or missing.
+          {% endif %}
