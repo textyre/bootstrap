@@ -1,0 +1,26 @@
+---
+# === ntp_audit — Loki ruler alert rules ===
+
+- name: Create Loki rules directory
+  ansible.builtin.file:
+    path: "{{ ntp_audit_loki_rules_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - ntp_audit_loki_enabled | bool
+    - ntp_audit_loki_rules_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_loki']
+
+- name: Deploy Loki alert rules for ntp-audit
+  ansible.builtin.template:
+    src: loki-ntp-audit-rules.yaml.j2
+    dest: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ntp_audit_loki_enabled | bool
+    - ntp_audit_loki_rules_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_loki']

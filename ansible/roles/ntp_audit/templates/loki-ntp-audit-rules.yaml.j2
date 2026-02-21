@@ -19,11 +19,12 @@ groups:
         annotations:
           summary: "Competing time sync daemon active alongside chrony"
           description: >-
-            Host {{ "{{ $labels.host }}" }}: a competing NTP daemon is running
+            Host {{ "{{ $labels.host }}" }}: competing NTP daemon running
             (ntp_conflict={{ "{{ $labels.ntp_conflict }}" }}).
-            This causes clock discipline conflicts. Stop the competing daemon.
+            Stop the competing daemon to prevent clock discipline conflicts.
 
       - alert: NtpPHCMissing
+        # FIX: 'missing' status is now reachable (Python checkers.py fix)
         expr: |
           count_over_time(
             {job="ntp-audit", ntp_phc_status="missing"} [10m]
@@ -41,32 +42,37 @@ groups:
       - alert: NtpUnsynchronised
         expr: |
           count_over_time(
-            {job="ntp-audit", ntp_sync_status="unsynchronised"} [15m]
+            {job="ntp-audit", ntp_sync_status="unsynchronised"} [10m]
           ) > 0
-        for: 5m
+        for: 2m
         labels:
           severity: critical
           team: ops
         annotations:
           summary: "chrony is not synchronised"
           description: >-
-            Host {{ "{{ $labels.host }}" }}: chrony has been unsynchronised for > 15 minutes.
+            Host {{ "{{ $labels.host }}" }}: chrony unsynchronised for > 10 minutes.
             Check internet connectivity and NTP server reachability.
 
       - alert: NtpHighOffset
+        # FIX: check both positive and negative offset (current_correction is signed)
         expr: |
-          {job="ntp-audit"}
-            | json
-            | ntp_offset_s | float > {{ ntp_audit_alert_offset_threshold }}
+          (
+            {job="ntp-audit"} | json
+              | ntp_offset | float > {{ ntp_audit_alert_offset_threshold }}
+          ) or (
+            {job="ntp-audit"} | json
+              | ntp_offset | float < -{{ ntp_audit_alert_offset_threshold }}
+          )
         for: 10m
         labels:
           severity: warning
           team: ops
         annotations:
-          summary: "NTP clock offset exceeds {{ ntp_audit_alert_offset_threshold }}s"
+          summary: "NTP clock offset exceeds ±{{ ntp_audit_alert_offset_threshold }}s"
           description: >-
-            Host {{ "{{ $labels.host }}" }}: clock offset is too large.
-            May indicate VM clock disruption or NTP source problems.
+            Host {{ "{{ $labels.host }}" }}: |offset| > {{ ntp_audit_alert_offset_threshold }}s.
+            May indicate VM clock disruption or degraded NTP source.
 
       - alert: NtpClockStep
         expr: |
@@ -80,14 +86,12 @@ groups:
         annotations:
           summary: "chrony performed a clock step"
           description: >-
-            Host {{ "{{ $labels.host }}" }}: a large time correction was applied (makestep).
+            Host {{ "{{ $labels.host }}" }}: large time correction applied (makestep).
             Normal after VM resume or first sync. Investigate if recurring.
 
       - alert: NtpHighStratum
         expr: |
-          {job="ntp-audit"}
-            | json
-            | ntp_stratum | int > {{ ntp_audit_alert_stratum_max }}
+          {job="ntp-audit"} | json | ntp_stratum | int > {{ ntp_audit_alert_stratum_max }}
         for: 15m
         labels:
           severity: warning
