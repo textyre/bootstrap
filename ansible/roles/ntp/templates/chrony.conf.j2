@@ -1,5 +1,6 @@
 # Managed by Ansible — do not edit manually
 # Role: ntp | Template: chrony.conf.j2
+# Environment: {{ _ntp_virt_type | default('unknown') }}
 
 {% for server in ntp_servers %}
 server {{ server.host }}{% if server.iburst | default(true) %} iburst{% endif %}{% if server.nts | default(false) %} nts{% endif %}
@@ -9,6 +10,13 @@ server {{ server.host }}{% if server.iburst | default(true) %} iburst{% endif %}
 pool {{ pool.host }}{% if pool.iburst | default(true) %} iburst{% endif %}{% if pool.maxsources is defined %} maxsources {{ pool.maxsources }}{% endif %}
 
 {% endfor %}
+{% if _ntp_active_refclocks | default([]) | length > 0 %}
+# PTP hardware clock reference ({{ _ntp_virt_type | default('auto') }})
+{% for refclock in _ntp_active_refclocks %}
+{{ refclock }}
+{% endfor %}
+
+{% endif %}
 # Clock stability
 driftfile {{ ntp_driftfile }}
 {% if ntp_dumpdir %}
@@ -17,10 +25,10 @@ dumpdir {{ ntp_dumpdir }}
 {% if ntp_ntsdumpdir %}
 ntsdumpdir {{ ntp_ntsdumpdir }}
 {% endif %}
-makestep {{ ntp_makestep_threshold }} {{ ntp_makestep_limit }}
+makestep {{ (_ntp_env | default({})).makestep_threshold | default(ntp_makestep_threshold) }} {{ (_ntp_env | default({})).makestep_limit | default(ntp_makestep_limit) }}
 minsources {{ ntp_minsources }}
 
-{% if ntp_rtcsync %}
+{% if (_ntp_env | default({})).rtcsync | default(ntp_rtcsync) %}
 # Sync hardware RTC to system clock
 rtcsync
 {% endif %}

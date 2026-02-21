@@ -1,7 +1,7 @@
 ---
 # === NTP — синхронизация времени ===
 # chrony как универсальный NTP-демон (все дистро, все init-системы)
-# validate → Установка → Конфигурация → Директории → Запуск → Проверка → Логирование
+# validate → Env detect → Конкуренты → Установка → Конфигурация → Директории → Запуск → Проверка → Логирование
 
 - name: NTP role
   when: ntp_enabled | bool
@@ -17,6 +17,66 @@
       tags: ['ntp']
 
     # ======================================================================
+    # ---- Определение среды ----
+    # ======================================================================
+
+    - name: Include environment variable mappings
+      ansible.builtin.include_vars: environments.yml
+      tags: ['ntp']
+
+    - name: Detect virtualization environment
+      ansible.builtin.include_tasks: detect_environment.yml
+      when: ntp_auto_detect | bool
+      tags: ['ntp']
+
+    # Set defaults when auto-detect is disabled
+    - name: Set default environment facts (auto-detect disabled)
+      ansible.builtin.set_fact:
+        _ntp_virt_type: "none"
+        _ntp_env: "{{ _ntp_env_defaults }}"
+        _ntp_active_refclocks: "{{ ntp_refclocks }}"
+      when: not (ntp_auto_detect | bool)
+      tags: ['ntp']
+
+    # ======================================================================
+    # ---- KVM: загрузка модуля ptp_kvm ----
+    # ======================================================================
+
+    - name: Load ptp_kvm module (KVM only)
+      ansible.builtin.include_tasks: load_ptp_kvm.yml
+      when: _ntp_virt_type == 'kvm'
+      tags: ['ntp']
+
+    # ======================================================================
+    # ---- Отключение конфликтующих демонов ----
+    # ======================================================================
+
+    - name: Disable competing time sync daemons (init-specific)
+      ansible.builtin.include_tasks: "{{ item }}"
+      with_first_found:
+        - files:
+            - "disable_{{ ansible_facts['service_mgr'] }}.yml"
+          skip: true
+      tags: ['ntp']
+
+    - name: Disable ntpd (all systems)
+      ansible.builtin.include_tasks: disable_ntpd.yml
+      when: ntp_disable_competitors | bool
+      tags: ['ntp']
+
+    - name: Disable openntpd (all systems)
+      ansible.builtin.include_tasks: disable_openntpd.yml
+      when: ntp_disable_competitors | bool
+      tags: ['ntp']
+
+    - name: Disable VMware periodic time sync
+      ansible.builtin.include_tasks: vmware_disable_timesync.yml
+      when:
+        - _ntp_virt_type == 'vmware'
+        - ntp_vmware_disable_periodic_sync | bool
+      tags: ['ntp']
+
+    # ======================================================================
     # ---- Установка ----
     # ======================================================================
 
@@ -24,18 +84,6 @@
       ansible.builtin.package:
         name: "{{ _ntp_package[ansible_facts['os_family']] | default('chrony') }}"
         state: present
-      tags: ['ntp']
-
-    # ======================================================================
-    # ---- Отключение конфликтующих демонов ----
-    # ======================================================================
-
-    - name: Disable conflicting time sync daemons
-      ansible.builtin.include_tasks: "{{ item }}"
-      with_first_found:
-        - files:
-            - "disable_{{ ansible_facts['service_mgr'] }}.yml"
-          skip: true
       tags: ['ntp']
 
     # ======================================================================
@@ -99,7 +147,10 @@
       vars:
         _rpt_fact: "_ntp_phases"
         _rpt_phase: "Configure NTP"
-        _rpt_detail: "chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})"
+        _rpt_detail: >-
+          chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
+          env={{ _ntp_virt_type | default('unknown') }}
+          refclocks={{ _ntp_active_refclocks | default([]) | length }}
       tags: ['ntp', 'report']
 
     - name: "ntp — Execution Report"

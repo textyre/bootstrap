@@ -191,6 +191,55 @@
           - _verify_ntsdumpdir.stat.pw_name == 'chrony'
         fail_msg: "/var/lib/chrony/nts-data does not exist or is not owned by chrony"
 
+    # ---- environment detection ----
+
+    - name: Assert environment comment present in chrony.conf
+      ansible.builtin.assert:
+        that:
+          - "'# Environment:' in _verify_chrony_conf_text"
+        fail_msg: "chrony.conf missing environment detection comment — template not updated"
+
+    # ---- competitor services ----
+
+    - name: Assert systemd-timesyncd is stopped/disabled
+      ansible.builtin.assert:
+        that: >-
+          ansible_facts.services['systemd-timesyncd.service'].state | default('') != 'running'
+        fail_msg: "systemd-timesyncd is still running — should be disabled by ntp role"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - "'systemd-timesyncd.service' in ansible_facts.services"
+
+    # ---- KVM refclock (only on KVM guests) ----
+
+    - name: Check ptp_kvm module loaded (KVM only)
+      ansible.builtin.command:
+        cmd: lsmod
+      register: _verify_lsmod
+      changed_when: false
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Assert ptp_kvm loaded on KVM
+      ansible.builtin.assert:
+        that:
+          - "'ptp_kvm' in _verify_lsmod.stdout"
+        fail_msg: "ptp_kvm module not loaded on KVM guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Assert refclock present in chrony.conf on KVM
+      ansible.builtin.assert:
+        that:
+          - "'refclock PHC' in _verify_chrony_conf_text"
+        fail_msg: "refclock PHC missing from chrony.conf on KVM guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Assert refclock present in chrony.conf on Hyper-V
+      ansible.builtin.assert:
+        that:
+          - "'refclock PHC /dev/ptp_hyperv' in _verify_chrony_conf_text"
+        fail_msg: "refclock PHC /dev/ptp_hyperv missing from chrony.conf on Hyper-V guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'hyperv'
+
     - name: Show result
       ansible.builtin.debug:
-        msg: "NTP check passed: chrony installed, running, synced, NTS active, directories correct"
+        msg: "NTP check passed: chrony installed, running, synced, NTS active, env detection, directories correct"
