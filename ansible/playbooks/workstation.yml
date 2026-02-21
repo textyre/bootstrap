@@ -57,10 +57,6 @@
     - role: vm
       tags: [vm, vbox, vmware, hyperv]
 
-    - role: reflector
-      tags: [mirrors, reflector]
-      when: ansible_facts['os_family'] == 'Archlinux'
-
     # --- Phase 1.5: Hardware & Kernel ---
     - role: gpu_drivers
       tags: [gpu, drivers, hardware]
@@ -72,10 +68,6 @@
       tags: [power, tlp, battery]
 
     # --- Phase 2: Package infrastructure ---
-    - role: yay
-      tags: [aur, yay]
-      when: ansible_facts['os_family'] == 'Archlinux'
-
     - role: packages
       tags: [packages, install]
 

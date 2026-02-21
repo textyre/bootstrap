@@ -41,9 +41,41 @@
       register: _verify_makepkg
       failed_when: not _verify_makepkg.stat.exists
 
+    # --- reflector ---
+
+    - name: Check reflector config exists
+      ansible.builtin.stat:
+        path: /etc/xdg/reflector/reflector.conf
+      register: _verify_reflector_conf
+      failed_when: not _verify_reflector_conf.stat.exists
+
+    - name: Check reflector.timer is enabled
+      ansible.builtin.command: systemctl is-enabled reflector.timer
+      register: _verify_reflector_timer
+      changed_when: false
+      failed_when: _verify_reflector_timer.rc != 0
+
+    # --- yay ---
+
+    - name: Check yay binary exists
+      ansible.builtin.command: which yay
+      register: _verify_yay_binary
+      changed_when: false
+      failed_when: _verify_yay_binary.rc != 0
+
+    - name: Check yay sudoers file exists
+      ansible.builtin.stat:
+        path: /etc/sudoers.d/yay-pacman
+      register: _verify_yay_sudoers
+      failed_when: not _verify_yay_sudoers.stat.exists
+
     - name: Show verify results
       ansible.builtin.debug:
         msg:
           - "pacman.conf: managed by Ansible, ParallelDownloads + Color + VerbosePkgLists present"
           - "paccache.timer: enabled"
           - "makepkg.conf.d/ansible.conf: exists"
+          - "reflector.conf: exists"
+          - "reflector.timer: enabled"
+          - "yay: binary found"
+          - "yay: sudoers file exists"
