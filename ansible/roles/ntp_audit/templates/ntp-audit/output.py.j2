@@ -1,0 +1,59 @@
+# Managed by Ansible (role: ntp_audit). Do not edit manually.
+"""NTP audit output — structured JSON log file + syslog summary."""
+import json
+import logging
+import logging.handlers
+import os
+from pathlib import Path
+
+# Ansible-rendered constant
+LOG_FILE = "{{ ntp_audit_log_file }}"
+
+
+def write_log(data: dict) -> None:
+    """Append one JSON record to the audit log (append-only, one line per run).
+
+    Uses json.dumps() for proper escaping — handles all Unicode and
+    special characters including '/' that broke bash placeholder substitution.
+    """
+    line = json.dumps(data, default=str)
+    Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_FILE, 'a') as f:
+        f.write(line + '\n')
+
+
+def write_syslog(data: dict) -> None:
+    """Write human-readable summary to syslog (daemon.info).
+
+    Brief format for operator diagnosis via journalctl or /var/log/syslog.
+    Full data is in the JSON log for machine consumption.
+    """
+    msg = (
+        f"ntp_sync={data.get('sync_status', 'unknown')} "
+        f"stratum={data.get('stratum', '?')} "
+        f"offset={data.get('current_correction', '?')} "
+        f"conflict={data.get('ntp_conflict', 'none')} "
+        f"phc={data.get('ntp_phc_status', 'n/a')}"
+    )
+    _syslog(logging.INFO, msg)
+
+
+def write_syslog_error(message: str) -> None:
+    """Write error to syslog (daemon.warning). Called on script failure."""
+    _syslog(logging.WARNING, f"ERROR: {message}")
+
+
+def _syslog(level: int, message: str) -> None:
+    logger = logging.getLogger('ntp-audit')
+    logger.setLevel(logging.DEBUG)
+    # /dev/log on Linux; fallback to UDP for non-standard environments
+    addr = '/dev/log' if os.path.exists('/dev/log') else ('localhost', 514)
+    handler = logging.handlers.SysLogHandler(
+        address=addr,
+        facility=logging.handlers.SysLogHandler.LOG_DAEMON,
+    )
+    handler.ident = 'ntp-audit: '
+    logger.addHandler(handler)
+    logger.log(level, message)
+    logger.removeHandler(handler)
+    handler.close()
