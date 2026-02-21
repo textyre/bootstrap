@@ -1,0 +1,10 @@
+---
+# === ntp_audit — execute script immediately after deploy ===
+# Separate from verify: intent is "run now", not "check artifacts".
+
+- name: Run ntp-audit immediately (post-deploy first run)
+  ansible.builtin.command:
+    cmd: /usr/local/bin/ntp-audit
+  changed_when: false
+  failed_when: false
+  tags: ['ntp_audit', 'ntp_audit_first_run']

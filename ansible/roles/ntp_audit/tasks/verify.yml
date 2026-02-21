@@ -1,0 +1,78 @@
+---
+# === ntp_audit — post-deploy verification ===
+
+- name: Assert ntp-audit zipapp exists and is executable
+  ansible.builtin.stat:
+    path: /usr/local/bin/ntp-audit
+  register: _v_script
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify ntp-audit zipapp
+  ansible.builtin.assert:
+    that:
+      - _v_script.stat.exists
+      - _v_script.stat.executable
+    fail_msg: "/usr/local/bin/ntp-audit missing or not executable"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert audit log directory exists
+  ansible.builtin.stat:
+    path: "{{ ntp_audit_log_dir }}"
+  register: _v_logdir
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify log directory
+  ansible.builtin.assert:
+    that:
+      - _v_logdir.stat.exists
+      - _v_logdir.stat.isdir
+    fail_msg: "{{ ntp_audit_log_dir }} missing"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert audit log file was written
+  ansible.builtin.stat:
+    path: "{{ ntp_audit_log_file }}"
+  register: _v_logfile
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify audit log not empty
+  ansible.builtin.assert:
+    that:
+      - _v_logfile.stat.exists
+      - _v_logfile.stat.size > 0
+    fail_msg: "{{ ntp_audit_log_file }} missing or empty — first run failed"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Read last line of audit log
+  ansible.builtin.command:
+    cmd: tail -1 {{ ntp_audit_log_file }}
+  register: _v_last_line
+  changed_when: false
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert audit log contains valid JSON with required keys
+  ansible.builtin.assert:
+    that:
+      - (_v_last_line.stdout | from_json).timestamp is defined
+      - (_v_last_line.stdout | from_json).sync_status is defined
+      - (_v_last_line.stdout | from_json).stratum is defined
+      - (_v_last_line.stdout | from_json).current_correction is defined
+      - (_v_last_line.stdout | from_json).ntp_conflict is defined
+      - (_v_last_line.stdout | from_json).ntp_phc_status is defined
+    fail_msg: "audit.log last line missing required JSON keys"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Collect service facts (systemd)
+  ansible.builtin.service_facts:
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify ntp-audit.timer is enabled and active
+  ansible.builtin.assert:
+    that:
+      - "'ntp-audit.timer' in ansible_facts.services"
+      - ansible_facts.services['ntp-audit.timer'].status == 'enabled'
+      - ansible_facts.services['ntp-audit.timer'].state == 'active'
+    fail_msg: "ntp-audit.timer not enabled or not active"
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_verify']
