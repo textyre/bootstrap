@@ -1,0 +1,94 @@
+---
+# === ntp_audit — deploy Python audit script (zipapp) ===
+# Installs python3, deploys source templates, builds zipapp via handler.
+
+- name: Ensure python3 is installed
+  ansible.builtin.package:
+    name: python3
+    state: present
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Create audit log directory
+  ansible.builtin.file:
+    path: "{{ ntp_audit_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Create ntp-audit source staging directory
+  ansible.builtin.file:
+    path: /usr/local/src/ntp-audit
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Deploy chrony.py source
+  ansible.builtin.template:
+    src: ntp-audit/chrony.py.j2
+    dest: /usr/local/src/ntp-audit/chrony.py
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Build ntp-audit zipapp
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Deploy checkers.py source
+  ansible.builtin.template:
+    src: ntp-audit/checkers.py.j2
+    dest: /usr/local/src/ntp-audit/checkers.py
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Build ntp-audit zipapp
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Deploy output.py source
+  ansible.builtin.template:
+    src: ntp-audit/output.py.j2
+    dest: /usr/local/src/ntp-audit/output.py
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Build ntp-audit zipapp
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Deploy __main__.py source
+  ansible.builtin.template:
+    src: ntp-audit/__main__.py.j2
+    dest: /usr/local/src/ntp-audit/__main__.py
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Build ntp-audit zipapp
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Flush handlers (build zipapp if any source changed)
+  ansible.builtin.meta: flush_handlers
+
+- name: Check if ntp-audit zipapp already exists
+  ansible.builtin.stat:
+    path: /usr/local/bin/ntp-audit
+  register: _ntp_audit_zipapp_stat
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Build ntp-audit zipapp on first deploy
+  ansible.builtin.command:
+    cmd: >-
+      python3 -m zipapp /usr/local/src/ntp-audit
+      -o /usr/local/bin/ntp-audit
+      -p "/usr/bin/env python3"
+  when: not _ntp_audit_zipapp_stat.stat.exists
+  changed_when: true
+  tags: ['ntp_audit', 'ntp_audit_script']
+
+- name: Ensure ntp-audit zipapp is executable
+  ansible.builtin.file:
+    path: /usr/local/bin/ntp-audit
+    mode: "0755"
+    owner: root
+    group: root
+  tags: ['ntp_audit', 'ntp_audit_script']
