@@ -66,12 +66,61 @@
       changed_when: false
       failed_when: _reflector_server_count.stdout | int < 1
 
+    - name: Check that pacman hooks directory exists
+      ansible.builtin.stat:
+        path: /etc/pacman.d/hooks
+      register: _reflector_hooks_dir
+      failed_when: not _reflector_hooks_dir.stat.exists
+
+    - name: Check that pacman hook file exists
+      ansible.builtin.stat:
+        path: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+      register: _reflector_hook
+      failed_when: not _reflector_hook.stat.exists
+
+    - name: Validate hook file content references pacman-mirrorlist and --config
+      ansible.builtin.slurp:
+        src: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+      register: _reflector_hook_content
+      failed_when: >
+        'pacman-mirrorlist' not in (_reflector_hook_content.content | b64decode) or
+        '--config' not in (_reflector_hook_content.content | b64decode)
+
+    - name: Validate timer drop-in contains RandomizedDelaySec
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/reflector.timer.d/override.conf
+      register: _reflector_dropin_content
+      failed_when: >
+        'RandomizedDelaySec' not in (_reflector_dropin_content.content | b64decode)
+
+    - name: Count mirrorlist backup files
+      ansible.builtin.find:
+        paths: /etc/pacman.d
+        patterns: "mirrorlist.bak.*"
+      register: _reflector_verify_backups
+
+    - name: Validate backup count does not exceed reflector_backup_keep
+      ansible.builtin.assert:
+        that:
+          - _reflector_verify_backups.matched <= reflector_backup_keep | int
+        fail_msg: >
+          Found {{ _reflector_verify_backups.matched }} backup files,
+          expected <= {{ reflector_backup_keep }}
+
+    - name: Validate mirrorlist contains at least 3 Server entries
+      ansible.builtin.command: grep -c '^Server = ' /etc/pacman.d/mirrorlist
+      register: _reflector_verify_server_count
+      changed_when: false
+      failed_when: _reflector_verify_server_count.stdout | int < 3
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "✅ All checks passed!"
           - "✓ reflector package installed"
           - "✓ reflector.conf exists and valid"
-          - "✓ timer override configured"
+          - "✓ timer override configured with RandomizedDelaySec"
           - "✓ reflector.timer enabled and active"
-          - "✓ mirrorlist updated with {{ _reflector_server_count.stdout }} servers"
+          - "✓ mirrorlist updated with {{ _reflector_verify_server_count.stdout }} servers (>= 3)"
+          - "✓ pacman hook deployed at /etc/pacman.d/hooks/reflector-mirrorlist.hook"
+          - "✓ backup count within limit: {{ _reflector_verify_backups.matched }} <= {{ reflector_backup_keep }}"
