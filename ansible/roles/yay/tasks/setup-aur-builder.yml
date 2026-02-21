@@ -18,6 +18,7 @@
   ansible.builtin.lineinfile:
     path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
     line: "{{ yay_builder_user }} ALL=(root) NOPASSWD: /usr/bin/pacman"
+    regexp: "^{{ yay_builder_user }}\\s+ALL="
     create: true
     mode: '0440'
     owner: root

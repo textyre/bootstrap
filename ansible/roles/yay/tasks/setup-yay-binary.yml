@@ -27,6 +27,7 @@
 - name: Set fact — yay needs rebuild due to broken shared libs
   ansible.builtin.set_fact:
     _yay_needs_rebuild: "{{ 'not found' in (_yay_ldd.stdout | default('')) }}"
+  when: _yay_exists.rc == 0
   tags: ['aur', 'setup']
 
 - name: Remove broken yay binary to trigger rebuild
@@ -43,20 +44,18 @@
   when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
   tags: ['aur', 'setup']
 
-- name: Create temp build directory
-  become: true
-  become_user: "{{ yay_builder_user }}"
-  ansible.builtin.tempfile:
-    state: directory
-    prefix: yay_build_
-  register: _yay_build_dir
-  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
-  tags: ['aur', 'setup']
-
 - name: Build and install yay
   when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
   tags: ['aur', 'setup']
   block:
+    - name: Create temp build directory
+      become: true
+      become_user: "{{ yay_builder_user }}"
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: yay_build_
+      register: _yay_build_dir
+
     - name: Clone yay from AUR
       become: true
       become_user: "{{ yay_builder_user }}"

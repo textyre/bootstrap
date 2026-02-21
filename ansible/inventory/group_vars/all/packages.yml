@@ -173,6 +173,7 @@ packages_kvm_guest:
 
 # --- Агрегированный список официальных пакетов (для conflict validation в роли yay) ---
 # Роль yay не знает о внутренней структуре packages_*; она получает один список.
+# ВАЖНО: использует ansible_facts['os_family'] → плей должен иметь gather_facts: true.
 packages_official: >-
   {{ packages_base
      + packages_editors
