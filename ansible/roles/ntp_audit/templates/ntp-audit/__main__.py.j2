@@ -28,6 +28,8 @@ def run() -> int:
 
         record = {
             'timestamp':          datetime.now(timezone.utc).isoformat(),
+            # chrony.ref_time (raw Unix float) intentionally excluded —
+            # redundant with 'timestamp' and not useful for Loki consumers.
             'reference_id':       chrony.reference_id,
             'reference_name':     chrony.reference_name,
             'stratum':            chrony.stratum,
@@ -55,7 +57,7 @@ def run() -> int:
     except Exception as exc:
         write_syslog_error(str(exc))
         # Do NOT raise — audit script must exit 0 to avoid breaking systemd timer
-        return 1
+        return 0
 
 
 if __name__ == '__main__':
