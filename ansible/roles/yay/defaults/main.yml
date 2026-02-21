@@ -1,12 +1,17 @@
 ---
-# === Установка yay AUR helper ===
-# Значения по умолчанию. Переопределяются в group_vars/all/packages.yml
+# === yay: AUR helper — defaults ===
+# Переопределяются в group_vars/all/packages.yml
 
 # URL репозитория yay в AUR
-yay_aur_url: "https://aur.archlinux.org/yay.git"
+yay_source_url: "https://aur.archlinux.org/yay.git"
 
-# Пользователь для сборки (makepkg не работает от root)
-yay_build_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+# Системный пользователь для сборки AUR-пакетов.
+# makepkg нельзя запускать от root; этот user НЕ совпадает с личным аккаунтом.
+# Ref: https://github.com/kewlfft/ansible-aur#create-the-aur_builder-user
+yay_builder_user: "aur_builder"
+
+# Имя файла в /etc/sudoers.d/ для NOPASSWD pacman
+yay_builder_sudoers_file: "yay-aur-builder"
 
 # Зависимости для сборки yay из исходников
 yay_build_deps:
@@ -14,6 +19,7 @@ yay_build_deps:
   - git
   - go
 
-# AUR package management — shared variables from group_vars/all/packages.yml
-packages_aur: []  # noqa: var-naming[no-role-prefix]
+# AUR package management — заполняются в group_vars/all/packages.yml
+packages_aur: []                   # noqa: var-naming[no-role-prefix]
 packages_aur_remove_conflicts: []  # noqa: var-naming[no-role-prefix]
+packages_official: []              # noqa: var-naming[no-role-prefix]
