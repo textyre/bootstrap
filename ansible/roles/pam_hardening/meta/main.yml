@@ -2,7 +2,7 @@
 galaxy_info:
   role_name: pam_hardening
   author: textyre
-  description: PAM security hardening (faillock, password quality)
+  description: PAM security hardening — faillock brute-force protection
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -12,7 +12,7 @@ galaxy_info:
       versions: [all]
     - name: Ubuntu
       versions: [all]
-    - name: EL
+    - name: Fedora
       versions: [all]
   galaxy_tags: [security, pam, hardening, faillock]
 dependencies: []
