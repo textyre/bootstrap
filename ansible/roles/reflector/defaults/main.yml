@@ -30,3 +30,12 @@ reflector_retry_delay: 5
 reflector_connection_timeout: 10
 reflector_download_timeout: 30
 reflector_proxy: ""
+
+# Backup rotation: how many timestamped backups to keep (0 = keep all)
+reflector_backup_keep: 3
+
+# Timer randomization: prevents thundering-herd on multi-machine deploys
+reflector_timer_randomized_delay: "1h"
+
+# Pacman hook: auto-update mirrorlist when pacman-mirrorlist package is upgraded
+reflector_pacman_hook: true
