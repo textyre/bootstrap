@@ -80,10 +80,12 @@ vm.mmap_min_addr = {{ sysctl_vm_mmap_min_addr }}
 ## 2=применяется ко всем пользователям. Kernel 4.7+.
 net.core.bpf_jit_harden = {{ sysctl_net_core_bpf_jit_harden }}
 
-## Reverse path filtering на ВСЕХ интерфейсах (включая Docker/VPN, создаваемые после boot).
-## * = wildcard в sysctl.d применяется к существующим и будущим интерфейсам.
-## Предотвращает IP spoofing. CVE-2019-14899.
-net.ipv4.conf.*.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
+## Reverse path filtering (source validation). Предотвращает IP spoofing. CVE-2019-14899.
+## conf.all + conf.default (без wildcard *): Docker bridge интерфейсам нужен rp_filter=2 (loose)
+## или 0, а wildcard * перезаписывает docker0/br-* и ломает container networking.
+## Docker/K8s окружения: добавить в sysctl_custom_params:
+##   {name: "net.ipv4.conf.docker0.rp_filter", value: "2"}
+net.ipv4.conf.all.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
 net.ipv4.conf.default.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
 
 ## SYN flood protection. KSPP=yes (CONFIG_SYN_COOKIES=y).
@@ -104,7 +106,9 @@ net.ipv4.conf.default.accept_source_route = {{ sysctl_net_ipv4_accept_source_rou
 
 ## Логировать пакеты с невозможными source/dest адресами.
 ## Martian packets могут использоваться для reconnaissance.
+## conf.default: новые интерфейсы (Docker, VPN) созданные после boot тоже логируют.
 net.ipv4.conf.all.log_martians = {{ sysctl_net_ipv4_log_martians }}
+net.ipv4.conf.default.log_martians = {{ sysctl_net_ipv4_log_martians }}
 
 ## Игнорировать broadcast ICMP echo. Предотвращает Smurf DDoS атаки.
 net.ipv4.icmp_echo_ignore_broadcasts = {{ sysctl_net_ipv4_icmp_echo_ignore_broadcasts }}
@@ -133,8 +137,10 @@ net.ipv6.conf.default.accept_redirects = {{ sysctl_net_ipv6_accept_redirects }}
 ## Блокировать IPv6 source routing.
 net.ipv6.conf.all.accept_source_route = {{ sysctl_net_ipv6_accept_source_route }}
 net.ipv6.conf.default.accept_source_route = {{ sysctl_net_ipv6_accept_source_route }}
-## Отклонять IPv6 Router Advertisements (RA). RFC 6104/6105.
-## Rogue RA позволяет любому в сети стать default gateway (MITM).
+## IPv6 Router Advertisements. RFC 6104/6105.
+## accept_ra=1 (default): SLAAC работает. accept_ra=0: ломает IPv6 на SLAAC-сетях.
+## Rogue RA MITM — реальная угроза только в adversarial LAN. На workstation/gaming: 1.
+## Для hardened server с DHCPv6 stateful или static IPv6: sysctl_net_ipv6_accept_ra: 0.
 net.ipv6.conf.all.accept_ra = {{ sysctl_net_ipv6_accept_ra }}
 net.ipv6.conf.default.accept_ra = {{ sysctl_net_ipv6_accept_ra }}
 {% endif %}
@@ -167,6 +173,9 @@ fs.suid_dumpable = {{ sysctl_fs_suid_dumpable }}
 {% if sysctl_custom_params | length > 0 %}
 # ---- Custom parameters ----
 {% for param in sysctl_custom_params %}
+{%   if param.name is not defined or param.value is not defined %}
+{%     raise "sysctl_custom_params entry missing 'name' or 'value': " ~ (param | string) %}
+{%   endif %}
 {{ param.name }} = {{ param.value }}
 {% endfor %}
 {% endif %}

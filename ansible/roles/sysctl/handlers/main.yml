@@ -5,6 +5,8 @@
   listen: "reload sysctl"
   # -e = игнорировать ошибки неизвестных параметров (например kernel.unprivileged_userns_clone
   #      отсутствует на стандартном upstream ядре — distro-agnostic поведение)
-  # --system = читает все /etc/sysctl.d/*.conf (init-agnostic, не зависит от systemd)
+  # --system = читает все /etc/sysctl.d/*.conf (не зависит от init, но применяется
+  #            systemd-sysctl.service при boot на Arch/Debian)
+  # changed_when: false — изменение репортит template-таск (notify), не handler
   ansible.builtin.command: sysctl -e --system
-  changed_when: true
+  changed_when: false

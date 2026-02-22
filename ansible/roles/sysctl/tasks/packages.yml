@@ -6,6 +6,7 @@
 
 - name: Ensure procps is installed
   ansible.builtin.package:
-    name: procps
+    # Arch Linux: procps-ng (пакет называется иначе, чем на Debian/Ubuntu)
+    name: "{{ 'procps-ng' if ansible_facts['os_family'] == 'Archlinux' else 'procps' }}"
     state: present
   tags: ['sysctl', 'packages']

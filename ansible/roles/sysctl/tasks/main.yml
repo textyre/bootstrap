@@ -3,19 +3,18 @@
 # Каждый import_tasks = одна бизнес-функция роли.
 # SRP: main.yml — только оркестратор.
 
-- name: sysctl role
+- name: Install required packages
+  ansible.builtin.import_tasks: packages.yml
   when: ansible_facts['os_family'] in _sysctl_supported_os
-  tags: ['sysctl']
-  block:
 
-    - name: Install required packages
-      ansible.builtin.import_tasks: packages.yml
+- name: Deploy kernel parameter configuration
+  ansible.builtin.import_tasks: deploy.yml
+  when: ansible_facts['os_family'] in _sysctl_supported_os
 
-    - name: Deploy kernel parameter configuration
-      ansible.builtin.import_tasks: deploy.yml
+- name: Verify applied parameters
+  ansible.builtin.import_tasks: verify.yml
+  when: ansible_facts['os_family'] in _sysctl_supported_os
 
-    - name: Verify applied parameters
-      ansible.builtin.import_tasks: verify.yml
-
-    - name: Report configuration summary
-      ansible.builtin.import_tasks: report.yml
+- name: Report configuration summary
+  ansible.builtin.import_tasks: report.yml
+  when: ansible_facts['os_family'] in _sysctl_supported_os

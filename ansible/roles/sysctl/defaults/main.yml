@@ -115,20 +115,24 @@ sysctl_net_ipv4_tcp_timestamps: 0
 # ARP hardening — защита от ARP spoofing и cache poisoning
 # arp_filter: не отвечать на ARP через "чужой" интерфейс.
 sysctl_net_ipv4_arp_filter: 1
-# arp_ignore=2: отвечать только если target IP принадлежит этому интерфейсу.
-# ОСТОРОЖНО: может дать breakages в некоторых VM конфигурациях. При проблемах: 1.
-sysctl_net_ipv4_arp_ignore: 2
+# arp_ignore=1: отвечать только если target IP принадлежит принимающему интерфейсу.
+# Значение 2 (строже) ломает Docker bridge networking, Kubernetes VIP, multi-IP VM.
+# Kicksecure сам откатил arp_ignore=2→1 (PR #290). Для bare-metal без Docker: 2.
+sysctl_net_ipv4_arp_ignore: 1
 # Отбрасывать gratuitous ARP — основной вектор ARP cache poisoning.
-sysctl_net_ipv4_drop_gratuitous_arp: 1
+# ВНИМАНИЕ: значение 1 ломает keepalived/VRRP HA failover и WireGuard IP-change announcements.
+# На HA-серверах с keepalived оставить 0.
+sysctl_net_ipv4_drop_gratuitous_arp: 0
 
 # IPv6 anti-spoofing
 # Блокировать ICMPv6 redirect.
 sysctl_net_ipv6_accept_redirects: 0
 # Блокировать IPv6 source routing.
 sysctl_net_ipv6_accept_source_route: 0
-# Отклонять IPv6 Router Advertisements. Rogue RA = MITM через перехват default gateway.
-# Ref: RFC 6104/6105
-sysctl_net_ipv6_accept_ra: 0
+# Router Advertisements: 1=принимать (ядерный default, SLAAC работает).
+# Установить в 0 только если используется DHCPv6 stateful или статический IPv6.
+# accept_ra=0 на SLAAC-сети: потеря IPv6 connectivity + DNS fallback latency на каждом HTTPS.
+sysctl_net_ipv6_accept_ra: 1
 
 # ---- Security: Filesystem protection ----
 sysctl_fs_protected_hardlinks: 1

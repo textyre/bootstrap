@@ -57,11 +57,11 @@ Parameters are applied distribution-agnostically: `sysctl -e --system` loads all
 |---|---|
 | `vm.swappiness = 10` | Minimize swap usage. Security: `1`, Performance: `10–60` |
 | `vm.vfs_cache_pressure = 50` | Reduce inode/dentry cache eviction aggressiveness |
-| `vm.dirty_ratio = 10` | Force flush when dirty pages reach 10% of RAM |
-| `vm.dirty_background_ratio = 5` | Start background flush at 5% dirty pages |
+| `vm.dirty_ratio = 10` | Force flush when dirty pages reach 10% of RAM. For media servers (Plex/Jellyfin) with large libraries, raise to `20–40` to reduce write-stall pauses during transcoding |
+| `vm.dirty_background_ratio = 5` | Start background flush at 5% dirty pages. Raise to `10–15` alongside `dirty_ratio` for media workloads |
 | `fs.inotify.max_user_watches = 524288` | For IDEs (VSCode, JetBrains) and file watchers |
 | `fs.inotify.max_user_instances = 1024` | Max inotify instances per user |
-| `fs.file-max = 2097152` | System-wide open file descriptor limit |
+| `fs.file-max = 2097152` | System-wide open file descriptor limit. Note: applications (Plex, Jellyfin) also need per-process `LimitNOFILE` raised in their systemd unit — `fs.file-max` alone is not enough |
 | `net.core.somaxconn = 4096` | TCP connection backlog (for dev servers and Docker) |
 | `net.ipv4.tcp_fastopen = 3` | TCP Fast Open on client and server. Reduces latency on repeated connections |
 
@@ -130,11 +130,11 @@ Parameters are applied distribution-agnostically: `sysctl -e --system` loads all
 | `sysctl_net_ipv4_icmp_ignore_bogus_error_responses` | `1` | Ignore bogus ICMP errors |
 | `sysctl_net_ipv4_tcp_timestamps` | `0` | Disable TCP timestamps |
 | `sysctl_net_ipv4_arp_filter` | `1` | ARP interface filter |
-| `sysctl_net_ipv4_arp_ignore` | `2` | ARP reply scope |
-| `sysctl_net_ipv4_drop_gratuitous_arp` | `1` | Drop gratuitous ARP |
+| `sysctl_net_ipv4_arp_ignore` | `1` | ARP reply scope (1=safe for Docker/VM; 2=strict, bare-metal only) |
+| `sysctl_net_ipv4_drop_gratuitous_arp` | `0` | Drop gratuitous ARP (1 breaks keepalived/VRRP HA) |
 | `sysctl_net_ipv6_accept_redirects` | `0` | Block ICMPv6 redirects |
 | `sysctl_net_ipv6_accept_source_route` | `0` | Block IPv6 source routing |
-| `sysctl_net_ipv6_accept_ra` | `0` | Reject Router Advertisements |
+| `sysctl_net_ipv6_accept_ra` | `1` | Router Advertisements (0 breaks SLAAC IPv6; use 0 only with DHCPv6 stateful/static IPv6) |
 
 ### Security: Filesystem
 
@@ -221,11 +221,21 @@ ansible-playbook playbook.yml --tags sysctl,verify
 
 **`kernel.unprivileged_userns_clone`** exists only in the Arch `linux-hardened` kernel. On standard upstream kernels (Arch and Debian), it is absent. The `-e` flag in the handler ensures it is silently skipped.
 
-**`arp_ignore = 2` in VM environments** can cause network issues with some hypervisor configurations. If connectivity problems occur, lower to `sysctl_net_ipv4_arp_ignore: 1`. See [Kicksecure #290](https://github.com/Kicksecure/security-misc/pull/290).
+**`arp_ignore` default is `1`** (reply only if target IP belongs to receiving interface). Value `2` is stricter but breaks Docker bridge networking, Kubernetes VIPs, and multi-IP VMs. Kicksecure rolled back from `2` to `1` ([PR #290](https://github.com/Kicksecure/security-misc/pull/290)). Use `2` only on bare-metal single-NIC servers without Docker.
 
-**`rp_filter` uses wildcard** (`net.ipv4.conf.*.rp_filter`) instead of `conf.all` + `conf.default`. The wildcard in `/etc/sysctl.d/` applies to interfaces created after boot — including Docker bridges and VPN tunnels.
+**`drop_gratuitous_arp` default is `0`**. Value `1` blocks ARP cache poisoning but breaks `keepalived`/VRRP HA failover — backup servers cannot announce virtual IP takeover. Enable only on non-HA workstations: `sysctl_net_ipv4_drop_gratuitous_arp: 1`.
 
-**Post-apply verification** reads live values via `sysctl -n` and reports `OK`, `MISMATCH`, or `NOT SUPPORTED` for each checked parameter. Parameters unsupported by the current kernel are skipped without error.
+**`rp_filter` uses `conf.all` + `conf.default`** (not wildcard `*`). The wildcard would override Docker bridge interfaces (`docker0`, `br-*`) which require `rp_filter=2` (loose) or `0` to route container traffic correctly. For Docker hosts, add to `sysctl_custom_params`:
+```yaml
+sysctl_custom_params:
+  - { name: "net.ipv4.conf.docker0.rp_filter", value: "2" }
+```
+
+**`accept_ra` default is `1`** (accept Router Advertisements, kernel default). Setting `0` disables SLAAC — IPv6 connectivity is lost on networks without DHCPv6 stateful, which is the majority of home/office/cloud networks. Disable only on servers with static IPv6 or DHCPv6 stateful: `sysctl_net_ipv6_accept_ra: 0`.
+
+**Gaming: `tcp_timestamps = 0` and port exhaustion.** Disabling timestamps has negligible effect on game latency. However, the paired `tcp_tw_reuse = 0` means TIME_WAIT sockets are not recycled. Under heavy connection workloads (game launchers, CDN patch downloads making 1000+ short TCP connections/min), ephemeral port exhaustion can occur. Override to `sysctl_net_ipv4_tcp_tw_reuse: 1` only if `tcp_timestamps` is also re-enabled.
+
+**Post-apply verification** reads live values via `sysctl -n` and reports `OK`, `MISMATCH`, `NOT SUPPORTED` (kernel version too old), or `ERROR` for each checked parameter. Parameters unsupported by the current kernel are skipped without error.
 
 ## License
 
