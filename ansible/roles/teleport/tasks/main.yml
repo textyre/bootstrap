@@ -28,6 +28,11 @@
         fail_msg: "teleport_auth_server must be set (e.g., 'auth.example.com:443')"
       tags: [teleport]
 
+    # Validate join configuration
+    - name: "Validate join configuration"
+      ansible.builtin.include_tasks: join.yml
+      tags: [teleport, security]
+
     # Install
     - name: "Install Teleport"
       ansible.builtin.include_tasks: install.yml

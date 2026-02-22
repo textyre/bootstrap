@@ -18,6 +18,7 @@
     label: "{{ item.name }}"
   tags: [ssh_keys, security]
 
+# ROLE-011 exception: ansible.posix.authorized_key — no ansible.builtin equivalent
 - name: "Add SSH authorized keys"
   ansible.posix.authorized_key:
     user: "{{ item.0.name }}"
@@ -40,7 +41,7 @@
 
 - name: "Remove authorized_keys for absent users"
   ansible.builtin.file:
-    path: "/home/{{ item.name }}/.ssh/authorized_keys"
+    path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh/authorized_keys"
     state: absent
   loop: >-
     {{ _ssh_keys_users

@@ -11,7 +11,7 @@ _teleport_supported_os:
 
 # Core configuration
 teleport_enabled: true
-teleport_version: "17"
+teleport_version: "17.0.0"
 teleport_auth_server: ""
 teleport_join_token: ""
 teleport_node_name: "{{ ansible_hostname }}"

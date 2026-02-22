@@ -23,3 +23,6 @@ galaxy_info:
     - keys
 
 dependencies: []
+# Collection dependencies (declared in ansible/requirements.yml):
+#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair in keygen.yml)
+#   - ansible.posix >=1.0.0     (ansible.posix.authorized_key in authorized_keys.yml)

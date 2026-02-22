@@ -11,6 +11,10 @@
 - name: "Install Teleport via official repository (Debian/RedHat)"
   when: _teleport_install_method == 'repo'
   block:
+    - name: "Set Teleport major version for repository URL"
+      ansible.builtin.set_fact:
+        _teleport_major_version: "{{ teleport_version.split('.')[0] }}"
+
     - name: "Add Teleport GPG key"
       ansible.builtin.get_url:
         url: "https://apt.releases.teleport.dev/gpg"
@@ -23,7 +27,7 @@
         repo: >-
           deb [signed-by=/usr/share/keyrings/teleport-archive-keyring.asc]
           https://apt.releases.teleport.dev/{{ ansible_distribution | lower }}
-          {{ ansible_distribution_release }} stable/v{{ teleport_version }}
+          {{ ansible_distribution_release }} stable/v{{ _teleport_major_version }}
         state: present
       when: ansible_facts['os_family'] == 'Debian'
 
@@ -31,7 +35,7 @@
       ansible.builtin.yum_repository:
         name: teleport
         description: Teleport
-        baseurl: "https://yum.releases.teleport.dev/$basearch/stable/v{{ teleport_version }}"
+        baseurl: "https://yum.releases.teleport.dev/$basearch/stable/v{{ _teleport_major_version }}"
         gpgcheck: true
         gpgkey: "https://yum.releases.teleport.dev/gpg"
       when: ansible_facts['os_family'] == 'RedHat'
@@ -45,9 +49,15 @@
 - name: "Install Teleport via binary download (Void/Gentoo)"
   when: _teleport_install_method == 'binary'
   block:
+    - name: "Set architecture mapping for Teleport download"
+      ansible.builtin.set_fact:
+        _teleport_arch: >-
+          {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture]
+             | default(ansible_architecture) }}
+
     - name: "Download Teleport binary"
       ansible.builtin.get_url:
-        url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}.0-linux-{{ ansible_architecture }}-bin.tar.gz"
+        url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ _teleport_arch }}-bin.tar.gz"
         dest: "/tmp/teleport.tar.gz"
         mode: "0644"
 

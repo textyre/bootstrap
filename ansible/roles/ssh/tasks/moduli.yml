@@ -43,5 +43,5 @@
     - _ssh_moduli_file.stat.exists
     - _ssh_weak_moduli.stdout_lines | default([]) | length > 0
     - _ssh_strong_moduli.stdout | default('') | length > 0
-  notify: "restart sshd"
+  notify: "Restart sshd"
   tags: [ssh, security, moduli]

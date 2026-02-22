@@ -11,7 +11,7 @@
 
 - name: "Verify sshd service is running"
   ansible.builtin.command:
-    cmd: "pgrep -x sshd"
+    cmd: "pgrep sshd"
   register: _ssh_verify_running
   changed_when: false
   failed_when: _ssh_verify_running.rc != 0

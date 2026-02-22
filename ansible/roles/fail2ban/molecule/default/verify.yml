@@ -6,7 +6,7 @@
 
   tasks:
 
-    # ---- fail2ban установлен ----
+    # ---- fail2ban is installed ----
 
     - name: "Verify fail2ban package is installed"
       ansible.builtin.command:
@@ -15,7 +15,7 @@
       changed_when: false
       failed_when: _verify_version.rc != 0
 
-    # ---- конфигурация jail ----
+    # ---- jail configuration ----
 
     - name: "Verify jail.d/sshd.conf exists"
       ansible.builtin.stat:
@@ -43,7 +43,7 @@
       changed_when: false
       failed_when: _verify_bantime.rc != 0
 
-    # ---- сервис работает ----
+    # ---- service is running ----
 
     - name: "Verify fail2ban service is running (systemd)"
       ansible.builtin.service_facts:

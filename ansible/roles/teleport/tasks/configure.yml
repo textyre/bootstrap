@@ -18,4 +18,5 @@
     group: root
     mode: "0600"
   notify: "Restart teleport"
+  no_log: true
   tags: [teleport]

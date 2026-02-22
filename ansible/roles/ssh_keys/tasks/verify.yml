@@ -2,9 +2,23 @@
 ---
 # ROLE-005: In-role verification
 
+- name: "Look up home directories for present users"
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item.name }}"
+  loop: >-
+    {{ _ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'present')
+       | selectattr('ssh_keys', 'defined')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [ssh_keys]
+
 - name: "Verify .ssh directory permissions for present users"
   ansible.builtin.stat:
-    path: "/home/{{ item.name }}/.ssh"
+    path: "{{ getent_passwd[item.name][4] }}/.ssh"
   register: _ssh_keys_verify_dir
   loop: >-
     {{ _ssh_keys_users
@@ -31,7 +45,7 @@
 
 - name: "Verify authorized_keys exists for present users with keys"
   ansible.builtin.stat:
-    path: "/home/{{ item.name }}/.ssh/authorized_keys"
+    path: "{{ getent_passwd[item.name][4] }}/.ssh/authorized_keys"
   register: _ssh_keys_verify_authkeys
   loop: >-
     {{ _ssh_keys_users

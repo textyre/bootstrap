@@ -3,10 +3,10 @@
 
 version: v3
 teleport:
-  nodename: {{ teleport_node_name }}
+  nodename: "{{ teleport_node_name }}"
   data_dir: /var/lib/teleport
-  auth_token: {{ teleport_join_token }}
-  auth_server: {{ teleport_auth_server }}
+  auth_token: "{{ teleport_join_token }}"
+  auth_server: "{{ teleport_auth_server }}"
   log:
     output: stderr
     severity: INFO
@@ -28,7 +28,7 @@ auth_service:
 
 {% if teleport_session_recording != 'off' %}
 session_recording:
-  mode: {{ teleport_session_recording }}
+  mode: "{{ teleport_session_recording }}"
 {% if teleport_enhanced_recording %}
   enhanced_recording:
     enabled: true
