@@ -14,8 +14,8 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_shell_phases"
-    commoncommon_rpt_phase: "Set login shell"
-    commoncommon_rpt_status: "{{ 'done' if (shell_set_login | bool) else 'skip' }}"
-    commoncommon_rpt_detail: "{{ _shell_bin[shell_type] }}"
+    common_rpt_fact: "_shell_phases"
+    common_rpt_phase: "Set login shell"
+    common_rpt_status: "{{ 'done' if (shell_set_login | bool) else 'skip' }}"
+    common_rpt_detail: "{{ _shell_bin[shell_type] }}"
   tags: ['shell', 'report']

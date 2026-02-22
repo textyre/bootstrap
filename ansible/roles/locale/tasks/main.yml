@@ -16,10 +16,10 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_locale_phases"
-    commoncommon_rpt_phase: "Validate config"
-    commoncommon_rpt_status: "{{ 'fail' if (_locale_skip | default(false)) else 'done' }}"
-    commoncommon_rpt_detail: "{{ (_locale_skip_reason | default('')) | truncate(24, True) }}"
+    common_rpt_fact: "_locale_phases"
+    common_rpt_phase: "Validate config"
+    common_rpt_status: "{{ 'fail' if (_locale_skip | default(false)) else 'done' }}"
+    common_rpt_detail: "{{ (_locale_skip_reason | default('')) | truncate(24, True) }}"
   tags: ['locale', 'report']
 
 # ======================================================================
@@ -54,10 +54,10 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        commoncommon_rpt_fact: "_locale_phases"
-        commoncommon_rpt_phase: "Generate locales"
-        commoncommon_rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in _locale_supported_os_families else 'done' }}"
-        commoncommon_rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Generate locales"
+        common_rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in _locale_supported_os_families else 'done' }}"
+        common_rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
       tags: ['locale', 'report']
 
     # ---- Проверка (до configure, чтобы не писать сломанный locale.conf) ----
@@ -71,10 +71,10 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        commoncommon_rpt_fact: "_locale_phases"
-        commoncommon_rpt_phase: "Verify locales"
-        commoncommon_rpt_status: "{{ 'fail' if not (_locale_verify_ok | default(true)) else 'done' }}"
-        commoncommon_rpt_detail: >-
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Verify locales"
+        common_rpt_status: "{{ 'fail' if not (_locale_verify_ok | default(true)) else 'done' }}"
+        common_rpt_detail: >-
           {{
             (locale_list | length | string) + ' locales OK'
             if (_locale_verify_ok | default(true))
@@ -94,10 +94,10 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        commoncommon_rpt_fact: "_locale_phases"
-        commoncommon_rpt_phase: "Configure locale.conf"
-        commoncommon_rpt_status: "{{ 'skip' if not (_locale_verify_ok | default(true)) else 'done' }}"
-        commoncommon_rpt_detail: "{{ locale_default if (_locale_verify_ok | default(true)) else '' }}"
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Configure locale.conf"
+        common_rpt_status: "{{ 'skip' if not (_locale_verify_ok | default(true)) else 'done' }}"
+        common_rpt_detail: "{{ locale_default if (_locale_verify_ok | default(true)) else '' }}"
       tags: ['locale', 'report']
 
 # ======================================================================
@@ -109,6 +109,6 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    commoncommon_rpt_fact: "_locale_phases"
-    commoncommon_rpt_title: "locale"
+    common_rpt_fact: "_locale_phases"
+    common_rpt_title: "locale"
   tags: ['locale', 'report']

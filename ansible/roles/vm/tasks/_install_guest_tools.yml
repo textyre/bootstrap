@@ -25,9 +25,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Install guest tools"
-    commoncommon_rpt_detail: "{{ _vm_hypervisor }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Install guest tools"
+    common_rpt_detail: "{{ _vm_hypervisor }}"
   when: _vm_is_guest | bool
   tags: ['vm']
 
@@ -36,10 +36,10 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Install guest tools"
-    commoncommon_rpt_status: "skip"
-    commoncommon_rpt_detail: "not a guest"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Install guest tools"
+    common_rpt_status: "skip"
+    common_rpt_detail: "not a guest"
   when: not (_vm_is_guest | bool)
   tags: ['vm']
 
@@ -58,10 +58,10 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Environment check"
-    commoncommon_rpt_status: "skip"
-    commoncommon_rpt_detail: "container/WSL2 ({{ _vm_virt_type }})"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Environment check"
+    common_rpt_status: "skip"
+    common_rpt_detail: "container/WSL2 ({{ _vm_virt_type }})"
   when: _vm_is_container | bool
   tags: ['vm']
 
@@ -80,10 +80,10 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Environment check"
-    commoncommon_rpt_status: "skip"
-    commoncommon_rpt_detail: "not a guest ({{ _vm_virt_type }}/{{ _vm_virt_role }})"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Environment check"
+    common_rpt_status: "skip"
+    common_rpt_detail: "not a guest ({{ _vm_virt_type }}/{{ _vm_virt_role }})"
   when:
     - not (_vm_is_guest | bool)
     - not (_vm_is_container | bool)
@@ -101,7 +101,7 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Persist custom facts"
-    commoncommon_rpt_detail: "vm_guest.fact"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Persist custom facts"
+    common_rpt_detail: "vm_guest.fact"
   tags: ['vm']

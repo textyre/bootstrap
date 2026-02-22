@@ -32,9 +32,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_git_phases"
-    commoncommon_rpt_phase: "Preflight"
-    commoncommon_rpt_detail: "os={{ ansible_facts['os_family'] }}"
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Preflight"
+    common_rpt_detail: "os={{ ansible_facts['os_family'] }}"
   tags: [git, report]
 
 # ======================================================================
@@ -51,9 +51,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_git_phases"
-    commoncommon_rpt_phase: "Install"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Install"
+    common_rpt_detail: >-
       packages={{ _git_packages | join(', ') }}
       lfs={{ git_lfs_enabled }}
   tags: [git, report]
@@ -76,9 +76,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_git_phases"
-    commoncommon_rpt_phase: "Configure users"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Configure users"
+    common_rpt_detail: >-
       owner={{ git_owner.name }}
       additional={{ git_additional_users | length }}
   tags: [git, report]
@@ -97,9 +97,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_git_phases"
-    commoncommon_rpt_phase: "Verify"
-    commoncommon_rpt_detail: "all checks passed"
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Verify"
+    common_rpt_detail: "all checks passed"
   tags: [git, report]
 
 # ======================================================================
@@ -111,6 +111,6 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    commoncommon_rpt_fact: "_git_phases"
-    commoncommon_rpt_title: "git"
+    common_rpt_fact: "_git_phases"
+    common_rpt_title: "git"
   tags: [git, report]

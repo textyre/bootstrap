@@ -21,8 +21,8 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Validate prerequisites"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Validate prerequisites"
   tags: ['vm']
 
 # ---- Load OS-specific variables ----
@@ -39,9 +39,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Load OS variables"
-    commoncommon_rpt_detail: "{{ ansible_facts['os_family'] }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Load OS variables"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"
   tags: ['vm']
 
 # ---- Detection ----
@@ -68,9 +68,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Detect virtualization"
-    commoncommon_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Detect virtualization"
+    common_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
   tags: ['vm']
 
 - name: "Report: Container/WSL2 check"
@@ -78,9 +78,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Container/WSL2 check"
-    commoncommon_rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Container/WSL2 check"
+    common_rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
   tags: ['vm']
 
 - name: "Report: Guest determination"
@@ -88,9 +88,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Guest determination"
-    commoncommon_rpt_detail: "hypervisor={{ _vm_hypervisor }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Guest determination"
+    common_rpt_detail: "hypervisor={{ _vm_hypervisor }}"
   tags: ['vm']
 
 # ---- Initialize reboot flag ----
@@ -123,8 +123,8 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_title: "vm"
-    commoncommon_rpt_footer_rows:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_title: "vm"
+    common_rpt_footer_rows:
       - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((_vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
   tags: ['vm', 'vm:report']

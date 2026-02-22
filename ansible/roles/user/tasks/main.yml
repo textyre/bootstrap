@@ -28,9 +28,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_phase: "Install"
-    commoncommon_rpt_detail: "sudo installed via {{ ansible_facts['os_family'] | lower }}"
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Install"
+    common_rpt_detail: "sudo installed via {{ ansible_facts['os_family'] | lower }}"
   tags: [user, report]
 
 # Remove absent users (zero-trust: revoked users cleaned up)
@@ -53,14 +53,14 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_phase: "Remove absent"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Remove absent"
+    common_rpt_detail: >-
       count={{ (accounts | default([]))
                | selectattr('state', 'defined')
                | selectattr('state', 'equalto', 'absent')
                | list | length }}
-    commoncommon_rpt_status: "{{ 'done' if ((accounts | default([]))
+    common_rpt_status: "{{ 'done' if ((accounts | default([]))
                      | selectattr('state', 'defined')
                      | selectattr('state', 'equalto', 'absent')
                      | list | length > 0) else 'skip' }}"
@@ -77,9 +77,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_phase: "Owner"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Owner"
+    common_rpt_detail: >-
       user={{ user_owner.name }}
       shell={{ user_owner.shell | default('/bin/bash') }}
   tags: [user, report]
@@ -96,9 +96,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_phase: "Additional users"
-    commoncommon_rpt_detail: "count={{ user_additional_users | length }}"
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Additional users"
+    common_rpt_detail: "count={{ user_additional_users | length }}"
   tags: [user, report]
 
 # Deploy sudo policy
@@ -112,9 +112,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_phase: "Sudo policy"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Sudo policy"
+    common_rpt_detail: >-
       group={{ user_sudo_group }}
       timeout={{ user_sudo_timestamp_timeout }}
   tags: [user, report]
@@ -136,6 +136,6 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    commoncommon_rpt_fact: "_user_phases"
-    commoncommon_rpt_title: "user"
+    common_rpt_fact: "_user_phases"
+    common_rpt_title: "user"
   tags: [user, report]

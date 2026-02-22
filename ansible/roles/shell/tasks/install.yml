@@ -14,8 +14,8 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_shell_phases"
-    commoncommon_rpt_phase: "Install shell"
-    commoncommon_rpt_status: "{{ 'done' if (_shell_packages[shell_type] | length > 0) else 'skip' }}"
-    commoncommon_rpt_detail: "{{ shell_type }} ({{ ansible_facts['os_family'] }})"
+    common_rpt_fact: "_shell_phases"
+    common_rpt_phase: "Install shell"
+    common_rpt_status: "{{ 'done' if (_shell_packages[shell_type] | length > 0) else 'skip' }}"
+    common_rpt_detail: "{{ shell_type }} ({{ ansible_facts['os_family'] }})"
   tags: ['shell', 'report']

@@ -47,9 +47,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Remove guest tools"
-    commoncommon_rpt_detail: "state=absent"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Remove guest tools"
+    common_rpt_detail: "state=absent"
   tags: ['vm']
 
 # ---- Remove persisted facts ----
@@ -65,9 +65,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_vm_phases"
-    commoncommon_rpt_phase: "Remove custom facts"
-    commoncommon_rpt_detail: "vm_guest.fact"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Remove custom facts"
+    common_rpt_detail: "vm_guest.fact"
   tags: ['vm']
 
 # ---- Removal report ----

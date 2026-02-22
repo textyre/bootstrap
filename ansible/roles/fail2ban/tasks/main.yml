@@ -68,9 +68,9 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        commoncommon_rpt_fact: "_fail2ban_phases"
-        commoncommon_rpt_phase: "Fail2ban SSH jail"
-        commoncommon_rpt_detail: >-
+        common_rpt_fact: "_fail2ban_phases"
+        common_rpt_phase: "Fail2ban SSH jail"
+        common_rpt_detail: >-
           maxretry={{ fail2ban_sshd_maxretry }}
           bantime={{ fail2ban_sshd_bantime }}
       tags: [fail2ban, report]
@@ -80,6 +80,6 @@
         name: common
         tasks_from: report_render.yml
       vars:
-        commoncommon_rpt_fact: "_fail2ban_phases"
-        commoncommon_rpt_title: "fail2ban"
+        common_rpt_fact: "_fail2ban_phases"
+        common_rpt_title: "fail2ban"
       tags: [fail2ban, report]

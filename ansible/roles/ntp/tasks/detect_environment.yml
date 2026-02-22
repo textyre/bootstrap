@@ -52,9 +52,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    commoncommon_rpt_fact: "_ntp_phases"
-    commoncommon_rpt_phase: "Detect environment"
-    commoncommon_rpt_detail: >-
+    common_rpt_fact: "_ntp_phases"
+    common_rpt_phase: "Detect environment"
+    common_rpt_detail: >-
       virt={{ _ntp_virt_type }}
       refclocks={{ _ntp_active_refclocks | length }}
       rtcsync={{ _ntp_env.rtcsync }}

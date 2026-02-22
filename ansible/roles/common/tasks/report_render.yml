@@ -7,9 +7,9 @@
 #       name: common
 #       tasks_from: report_render.yml
 #     vars:
-#       commoncommon_rpt_fact: "_base_system_phases"
-#       commoncommon_rpt_title: "base_system"
-#       commoncommon_rpt_footer_rows: []   # optional extra footer rows
+#       common_rpt_fact: "_base_system_phases"
+#       common_rpt_title: "base_system"
+#       common_rpt_footer_rows: []   # optional extra footer rows
 #
 # Parameters:
 #   _rpt_fact        (string) - Fact name with accumulated rows (REQUIRED)

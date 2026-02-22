@@ -41,9 +41,9 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        commoncommon_rpt_fact: "_ssh_keys_phases"
-        commoncommon_rpt_phase: "Authorized keys"
-        commoncommon_rpt_detail: >-
+        common_rpt_fact: "_ssh_keys_phases"
+        common_rpt_phase: "Authorized keys"
+        common_rpt_detail: >-
           users={{ _ssh_keys_users | selectattr('state', 'defined') |
                    selectattr('state', 'equalto', 'present') | list | length }}
           keygen={{ ssh_keys_generate_user_keys }}
@@ -54,6 +54,6 @@
         name: common
         tasks_from: report_render.yml
       vars:
-        commoncommon_rpt_fact: "_ssh_keys_phases"
-        commoncommon_rpt_title: "ssh_keys"
+        common_rpt_fact: "_ssh_keys_phases"
+        common_rpt_title: "ssh_keys"
       tags: [ssh_keys, report]
