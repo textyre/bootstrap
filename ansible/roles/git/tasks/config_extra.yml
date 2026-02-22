@@ -1,0 +1,15 @@
+---
+# === git — extra configuration (per-user layer) ===
+# Applies arbitrary git config from git_config_extra + git_config_overwrite dicts.
+# Runs as become_user via _git_current_user from configure_user.yml loop.
+
+- name: Set extra git config entries
+  community.general.git_config:
+    name: "{{ item.key }}"
+    value: "{{ item.value | string }}"
+    scope: global
+  loop: "{{ git_config_extra | combine(git_config_overwrite) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (git_config_extra | combine(git_config_overwrite)) | length > 0
+  tags: [git, configure]
