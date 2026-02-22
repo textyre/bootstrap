@@ -17,7 +17,7 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_shell_phases"
-    _rpt_phase: "Create XDG directories"
-    _rpt_detail: "{{ shell_xdg_dirs | length }} dirs"
+    commoncommon_rpt_fact: "_shell_phases"
+    commoncommon_rpt_phase: "Create XDG directories"
+    commoncommon_rpt_detail: "{{ shell_xdg_dirs | length }} dirs"
   tags: ['shell', 'report']

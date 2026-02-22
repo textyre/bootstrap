@@ -27,9 +27,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_ssh_phases"
-    _rpt_phase: "Install"
-    _rpt_detail: "packages={{ _ssh_packages | join(',') }}"
+    commoncommon_rpt_fact: "_ssh_phases"
+    commoncommon_rpt_phase: "Install"
+    commoncommon_rpt_detail: "packages={{ _ssh_packages | join(',') }}"
   tags: [ssh, report]
 
 # Pre-flight: lockout protection
@@ -50,13 +50,13 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_ssh_phases"
-    _rpt_phase: "Harden"
-    _rpt_detail: >-
+    commoncommon_rpt_fact: "_ssh_phases"
+    commoncommon_rpt_phase: "Harden"
+    commoncommon_rpt_detail: >-
       port={{ ssh_port }}
       root_login={{ ssh_permit_root_login }}
       password_auth={{ ssh_password_authentication }}
-    _rpt_status: "{{ 'done' if ssh_harden_sshd else 'skip' }}"
+    commoncommon_rpt_status: "{{ 'done' if ssh_harden_sshd else 'skip' }}"
   tags: [ssh, report]
 
 # DH moduli cleanup (optional)
@@ -82,9 +82,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_ssh_phases"
-    _rpt_phase: "Service"
-    _rpt_detail: "svc={{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    commoncommon_rpt_fact: "_ssh_phases"
+    commoncommon_rpt_phase: "Service"
+    commoncommon_rpt_detail: "svc={{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
   tags: [ssh, report]
 
 # ROLE-005: In-role verification
@@ -98,6 +98,6 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_ssh_phases"
-    _rpt_title: "ssh"
+    commoncommon_rpt_fact: "_ssh_phases"
+    commoncommon_rpt_title: "ssh"
   tags: [ssh, report]

@@ -22,7 +22,7 @@
     _vm_rpt_svc_rows: "{{ _vm_rpt_svc_rows + [_row] }}"
   vars:
     _failed: "{{ item.failed | default(false) | bool }}"
-    _st: "{{ '- skipped' if _failed else '+ stopped' }}"
+    _common_rpt_status_mark: "{{ '- skipped' if _failed else '+ stopped' }}"
     _detail: "{{ (item.msg | default('not found')) | truncate(28, true, '..') if _failed else 'disabled' }}"
     _row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(_detail) }} |"
   loop: "{{ _vm_svc_stop_result.results | default([]) }}"

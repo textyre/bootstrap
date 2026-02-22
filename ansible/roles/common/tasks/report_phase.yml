@@ -9,9 +9,9 @@
 #       name: common
 #       tasks_from: report_phase.yml
 #     vars:
-#       _rpt_fact: "_base_system_phases"
-#       _rpt_phase: "Configure locale"
-#       _rpt_detail: "en_US.UTF-8"
+#       commoncommon_rpt_fact: "_base_system_phases"
+#       commoncommon_rpt_phase: "Configure locale"
+#       commoncommon_rpt_detail: "en_US.UTF-8"
 #
 # Parameters:
 #   _rpt_fact   (string) - Fact name to accumulate rows into (REQUIRED)
@@ -27,14 +27,14 @@
 #       name: common
 #       tasks_from: report_render.yml
 #     vars:
-#       _rpt_fact: "_base_system_phases"
-#       _rpt_title: "base_system"
+#       commoncommon_rpt_fact: "_base_system_phases"
+#       commoncommon_rpt_title: "base_system"
 # =========================================================================
 
-- name: "Report: {{ _rpt_phase }}"
+- name: "Report: {{ common_rpt_phase }}"
   ansible.builtin.set_fact:
-    "{{ _rpt_fact }}": "{{ (lookup('vars', _rpt_fact, default=[]) | list) + [_row] }}"
+    "{{ common_rpt_fact }}": "{{ (lookup('vars', _rpt_fact, default=[]) | list) + [_row] }}"
   vars:
-    _st: "{{ _rpt_status | default('done') }}"
-    _mk: "{{ '+' if _st == 'done' else ('-' if _st == 'skip' else '!') }}"
+    _common_rpt_status_mark: "{{ _rpt_status | default('done') }}"
+    _common_rpt_mark: "{{ '+' if _st == 'done' else ('-' if _st == 'skip' else '!') }}"
     _row: "| {{ '%-26s' | format(_rpt_phase) }} | {{ '%-10s' | format(_mk ~ ' ' ~ _st) }} | {{ '%-24s' | format(_rpt_detail | default('') | truncate(24, True)) }} |"

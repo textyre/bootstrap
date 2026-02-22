@@ -23,8 +23,8 @@
       'journalctl -u tlp' to diagnose. Check package installation
       and /etc/tlp.conf syntax with 'tlp-stat -c'.
     success_msg: "TLP service is active"
-  ignore_errors: "{{ not power_management_assert_strict }}"
   when:
+    - power_management_assert_strict
     - _power_management_is_laptop
     - _power_management_init == 'systemd'
   tags: ['power', 'assert']
@@ -50,8 +50,8 @@
       power-profiles-daemon is NOT masked (status: {{ _pm_assert_ppd.stdout | default('unknown') }}).
       It conflicts with TLP. Run 'systemctl mask power-profiles-daemon'.
     success_msg: "power-profiles-daemon is masked or absent"
-  ignore_errors: "{{ not power_management_assert_strict }}"
   when:
+    - power_management_assert_strict
     - _power_management_is_laptop
     - _power_management_init == 'systemd'
   tags: ['power', 'assert']
@@ -67,8 +67,9 @@
       values (AC: {{ power_management_tlp_cpu_governor_ac }}, BAT: {{ power_management_tlp_cpu_governor_bat }}).
       Check 'tlp-stat -g' to see what TLP applied.
     success_msg: "CPU governor '{{ power_management_status.governor }}' (TLP-managed)"
-  ignore_errors: "{{ not power_management_assert_strict }}"
-  when: _power_management_is_laptop
+  when:
+    - power_management_assert_strict
+    - _power_management_is_laptop
   tags: ['power', 'assert']
 
 # ---- CPU governor matches expected (desktop) ----
@@ -83,8 +84,9 @@
       '{{ power_management_cpu_governor }}'. Check 'cpupower frequency-info'
       and verify no conflicting services (power-profiles-daemon) override the governor.
     success_msg: "CPU governor is '{{ power_management_cpu_governor }}'"
-  ignore_errors: "{{ not power_management_assert_strict }}"
-  when: not _power_management_is_laptop
+  when:
+    - power_management_assert_strict
+    - not _power_management_is_laptop
   tags: ['power', 'assert']
 
 # ---- sleep.conf HibernateMode ----
@@ -105,8 +107,9 @@
       sleep.conf HibernateMode does not match. Expected 'HibernateMode={{ power_management_hibernate_mode }}'
       but found '{{ _pm_assert_hibernate.stdout | default('not found') }}'.
     success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
-  ignore_errors: "{{ not power_management_assert_strict }}"
-  when: _power_management_init == 'systemd'
+  when:
+    - power_management_assert_strict
+    - _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- Validate sleep.conf via systemd-analyze ----
@@ -144,8 +147,9 @@
       but found '{{ _pm_assert_lid.stdout | default('not found') }}'.
       Check /etc/systemd/logind.conf for manual edits.
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
-  ignore_errors: "{{ not power_management_assert_strict }}"
-  when: _power_management_init == 'systemd'
+  when:
+    - power_management_assert_strict
+    - _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- Charge thresholds applied ----
@@ -159,6 +163,7 @@
       but not detected in /sys/class/power_supply/BAT0/charge_control_start_threshold.
       This may indicate unsupported hardware. Check 'tlp-stat -b'.
     success_msg: "Charge threshold start={{ power_management_status.battery.charge_start_threshold }}"
-  ignore_errors: "{{ not power_management_assert_strict }}"
-  when: power_management_tlp_bat0_charge_start | string | length > 0
+  when:
+    - power_management_assert_strict
+    - power_management_tlp_bat0_charge_start | string | length > 0
   tags: ['power', 'assert']

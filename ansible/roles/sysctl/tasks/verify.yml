@@ -26,7 +26,7 @@
     - { param: "net.core.bpf_jit_harden", expected: "2", label: "BPF JIT hardening" }
   tags: ['sysctl', 'verify']
 
-- name: Report live sysctl parameter status
+- name: Report live sysctl parameter status  # noqa: jinja[spacing]
   ansible.builtin.debug:
     msg: >-
       [sysctl verify] {{ item.item.label }}:

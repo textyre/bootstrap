@@ -51,9 +51,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_timezone_phases"
-    _rpt_phase: "Set timezone"
-    _rpt_detail: "{{ timezone_name }}"
+    commoncommon_rpt_fact: "_timezone_phases"
+    commoncommon_rpt_phase: "Set timezone"
+    commoncommon_rpt_detail: "{{ timezone_name }}"
   tags: ['timezone', 'report']
 
 - name: "timezone — Execution Report"
@@ -61,6 +61,6 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_timezone_phases"
-    _rpt_title: "timezone"
+    commoncommon_rpt_fact: "_timezone_phases"
+    commoncommon_rpt_title: "timezone"
   tags: ['timezone', 'report']

@@ -15,18 +15,18 @@
       check_internet.yml requires _check_internet_host and _check_internet_port.
       Pass them via vars: when calling include_role.
 
-- name: "Check internet connectivity ({{ _check_internet_host }}:{{ _check_internet_port }})"
+- name: "Check internet connectivity ({{ common_check_internet_host }}:{{ common_check_internet_port }})"
   ansible.builtin.wait_for:
-    host: "{{ _check_internet_host }}"
-    port: "{{ _check_internet_port }}"
+    host: "{{ common_check_internet_host }}"
+    port: "{{ common_check_internet_port }}"
     timeout: "{{ _check_internet_timeout | default(5) }}"
   register: _common_internet_check
-  ignore_errors: true
+  failed_when: false
 
 - name: Fail if internet is unavailable
   ansible.builtin.fail:
     msg: >-
       Internet connectivity required but unavailable.
-      Cannot reach {{ _check_internet_host }}:{{ _check_internet_port }}.
+      Cannot reach {{ common_check_internet_host }}:{{ common_check_internet_port }}.
       Fix network access before running this role.
   when: _common_internet_check is failed

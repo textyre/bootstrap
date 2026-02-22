@@ -145,9 +145,9 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_ntp_phases"
-        _rpt_phase: "Configure NTP"
-        _rpt_detail: >-
+        commoncommon_rpt_fact: "_ntp_phases"
+        commoncommon_rpt_phase: "Configure NTP"
+        commoncommon_rpt_detail: >-
           chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
           env={{ _ntp_virt_type | default('unknown') }}
           refclocks={{ _ntp_active_refclocks | default([]) | length }}
@@ -158,6 +158,6 @@
         name: common
         tasks_from: report_render.yml
       vars:
-        _rpt_fact: "_ntp_phases"
-        _rpt_title: "ntp"
+        commoncommon_rpt_fact: "_ntp_phases"
+        commoncommon_rpt_title: "ntp"
       tags: ['ntp', 'report']

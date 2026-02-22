@@ -68,9 +68,9 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_teleport_phases"
-        _rpt_phase: "Teleport agent"
-        _rpt_detail: >-
+        commoncommon_rpt_fact: "_teleport_phases"
+        commoncommon_rpt_phase: "Teleport agent"
+        commoncommon_rpt_detail: >-
           auth={{ teleport_auth_server }}
           node={{ teleport_node_name }}
           recording={{ teleport_session_recording }}
@@ -81,6 +81,6 @@
         name: common
         tasks_from: report_render.yml
       vars:
-        _rpt_fact: "_teleport_phases"
-        _rpt_title: "teleport"
+        commoncommon_rpt_fact: "_teleport_phases"
+        commoncommon_rpt_title: "teleport"
       tags: [teleport, report]

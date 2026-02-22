@@ -7,9 +7,9 @@
 #       name: common
 #       tasks_from: report_render.yml
 #     vars:
-#       _rpt_fact: "_base_system_phases"
-#       _rpt_title: "base_system"
-#       _rpt_footer_rows: []   # optional extra footer rows
+#       commoncommon_rpt_fact: "_base_system_phases"
+#       commoncommon_rpt_title: "base_system"
+#       commoncommon_rpt_footer_rows: []   # optional extra footer rows
 #
 # Parameters:
 #   _rpt_fact        (string) - Fact name with accumulated rows (REQUIRED)
@@ -17,7 +17,7 @@
 #   _rpt_footer_rows (list)   - Extra pre-formatted rows before closing line
 # =========================================================================
 
-- name: "{{ _rpt_title }} — Execution Report"
+- name: "{{ common_rpt_title }} — Execution Report"
   ansible.builtin.debug:
     msg: "{{ _header + (lookup('vars', _rpt_fact, default=[]) | list) + _extra + _footer }}"
   vars:

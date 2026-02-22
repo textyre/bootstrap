@@ -86,6 +86,6 @@
         name: common
         tasks_from: report_render.yml
       vars:
-        _rpt_fact: "_shell_phases"
-        _rpt_title: "shell"
+        commoncommon_rpt_fact: "_shell_phases"
+        commoncommon_rpt_title: "shell"
       tags: ['shell', 'report']

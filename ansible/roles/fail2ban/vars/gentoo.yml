@@ -1,8 +1,8 @@
 ---
-_fail2ban_packages:
+fail2ban_packages:
   - net-analyzer/fail2ban
 
-_fail2ban_service_name:
+fail2ban_service_name:
   systemd: fail2ban
   openrc: fail2ban
   runit: fail2ban

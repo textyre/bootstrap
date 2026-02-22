@@ -103,7 +103,7 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_shell_phases"
-    _rpt_phase: "Verify shell"
-    _rpt_detail: "all checks passed"
+    commoncommon_rpt_fact: "_shell_phases"
+    commoncommon_rpt_phase: "Verify shell"
+    commoncommon_rpt_detail: "all checks passed"
   tags: ['shell', 'report']

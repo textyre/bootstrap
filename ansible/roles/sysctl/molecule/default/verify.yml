@@ -8,36 +8,36 @@
     - name: Check sysctl drop-in file exists
       ansible.builtin.stat:
         path: /etc/sysctl.d/99-ansible.conf
-      register: _sysctl_verify_conf
-      failed_when: not _sysctl_verify_conf.stat.exists
+      register: sysctl_verify_conf
+      failed_when: not sysctl_verify_conf.stat.exists
 
     - name: Check sysctl config contains swappiness setting
       ansible.builtin.command: grep 'vm.swappiness' /etc/sysctl.d/99-ansible.conf
-      register: _sysctl_verify_swappiness
+      register: sysctl_verify_swappiness
       changed_when: false
-      failed_when: _sysctl_verify_swappiness.rc != 0
+      failed_when: sysctl_verify_swappiness.rc != 0
 
     - name: Check live sysctl value for vm.swappiness matches role variable
       ansible.builtin.command: sysctl -n vm.swappiness
-      register: _sysctl_verify_live_swappiness
+      register: sysctl_verify_live_swappiness
       changed_when: false
-      failed_when: _sysctl_verify_live_swappiness.stdout | int != sysctl_vm_swappiness | default(10) | int
+      failed_when: sysctl_verify_live_swappiness.stdout | int != sysctl_vm_swappiness | default(10) | int
 
     - name: Check live sysctl value for fs.inotify.max_user_watches matches role variable
       ansible.builtin.command: sysctl -n fs.inotify.max_user_watches
-      register: _sysctl_verify_live_inotify
+      register: sysctl_verify_live_inotify
       changed_when: false
-      failed_when: _sysctl_verify_live_inotify.stdout | int != sysctl_fs_inotify_max_user_watches | default(524288) | int
+      failed_when: sysctl_verify_live_inotify.stdout | int != sysctl_fs_inotify_max_user_watches | default(524288) | int
 
     - name: Check live sysctl value for net.core.somaxconn matches role variable
       ansible.builtin.command: sysctl -n net.core.somaxconn
-      register: _sysctl_verify_live_somaxconn
+      register: sysctl_verify_live_somaxconn
       changed_when: false
-      failed_when: _sysctl_verify_live_somaxconn.stdout | int != sysctl_net_core_somaxconn | default(4096) | int
+      failed_when: sysctl_verify_live_somaxconn.stdout | int != sysctl_net_core_somaxconn | default(4096) | int
 
     - name: Verify security sysctl parameters are live
       ansible.builtin.command: "sysctl -n {{ item.param }}"
-      register: _sysctl_verify_security
+      register: sysctl_verify_security
       changed_when: false
       # rc=255: параметр не поддерживается данным ядром (kernel version guard)
       # Реальные ошибки (permission denied, sysctl not found) имеют другие rc
@@ -60,7 +60,7 @@
           SECURITY PARAM MISMATCH: {{ item.item.param }}
           expected={{ item.item.expected }} got={{ item.stdout }}
         success_msg: "OK: {{ item.item.param }}={{ item.stdout }}"
-      loop: "{{ _sysctl_verify_security.results }}"
+      loop: "{{ sysctl_verify_security.results }}"
       when: item.rc == 0
 
     - name: Show test results
