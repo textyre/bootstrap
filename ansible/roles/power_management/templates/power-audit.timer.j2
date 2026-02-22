@@ -1,0 +1,11 @@
+# Managed by Ansible — role: power_management
+[Unit]
+Description=Power Management Audit Timer
+
+[Timer]
+OnCalendar={{ power_management_audit_schedule }}
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

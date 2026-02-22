@@ -1,0 +1,8 @@
+---
+# === power_management / install ===
+# OS-specific package installation dispatch
+
+- name: Include OS-specific installation
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+  when: ansible_facts['os_family'] in _power_management_supported_os
+  tags: ['power', 'install']

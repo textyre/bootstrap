@@ -1,0 +1,28 @@
+---
+# === power_management / conflicts ===
+# Disable services that conflict with TLP and manual governor control
+
+# ---- power-profiles-daemon ----
+
+- name: Stop and mask power-profiles-daemon
+  ansible.builtin.systemd:
+    name: power-profiles-daemon
+    state: stopped
+    masked: true
+  failed_when: false
+  when:
+    - _power_management_is_laptop
+    - _power_management_init == 'systemd'
+  tags: ['power', 'conflicts']
+
+# ---- auto-cpufreq ----
+
+- name: Stop and mask auto-cpufreq
+  ansible.builtin.systemd:
+    name: auto-cpufreq
+    state: stopped
+    masked: true
+  failed_when: false
+  when:
+    - _power_management_init == 'systemd'
+  tags: ['power', 'conflicts']

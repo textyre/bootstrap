@@ -1,17 +1,65 @@
-# Managed by Ansible — do not edit manually
-# Role: power_management
+# Managed by Ansible — role: power_management
+# Do not edit manually
 
 # ---- CPU ----
 CPU_SCALING_GOVERNOR_ON_AC={{ power_management_tlp_cpu_governor_ac }}
 CPU_SCALING_GOVERNOR_ON_BAT={{ power_management_tlp_cpu_governor_bat }}
+CPU_BOOST_ON_AC={{ '1' if power_management_tlp_cpu_boost_ac else '0' }}
+CPU_BOOST_ON_BAT={{ '1' if power_management_tlp_cpu_boost_bat else '0' }}
+CPU_ENERGY_PERF_POLICY_ON_AC={{ power_management_tlp_cpu_epp_ac }}
+CPU_ENERGY_PERF_POLICY_ON_BAT={{ power_management_tlp_cpu_epp_bat }}
+{% if power_management_tlp_cpu_min_freq_ac %}
+CPU_SCALING_MIN_FREQ_ON_AC={{ power_management_tlp_cpu_min_freq_ac }}
+{% endif %}
+{% if power_management_tlp_cpu_max_freq_bat %}
+CPU_SCALING_MAX_FREQ_ON_BAT={{ power_management_tlp_cpu_max_freq_bat }}
+{% endif %}
 
 # ---- Disk ----
-DISK_IOSCHED={{ power_management_tlp_disk_iosched }}
+{% if power_management_tlp_disk_devices %}
+DISK_DEVICES="{{ power_management_tlp_disk_devices }}"
+{% endif %}
+DISK_IOSCHED="{{ power_management_tlp_disk_iosched }}"
+DISK_APM_LEVEL_ON_AC="{{ power_management_tlp_disk_apm_ac }}"
+DISK_APM_LEVEL_ON_BAT="{{ power_management_tlp_disk_apm_bat }}"
+SATA_LINKPWR_ON_AC={{ power_management_tlp_sata_linkpwr_ac }}
+SATA_LINKPWR_ON_BAT={{ power_management_tlp_sata_linkpwr_bat }}
 
-# ---- Wi-Fi ----
-WIFI_PWR_ON_AC={{ power_management_tlp_wifi_pwr_on_ac }}
-WIFI_PWR_ON_BAT={{ power_management_tlp_wifi_pwr_on_bat }}
+# ---- USB ----
+USB_AUTOSUSPEND={{ '1' if power_management_tlp_usb_autosuspend else '0' }}
+{% if power_management_tlp_usb_allowlist %}
+USB_ALLOWLIST="{{ power_management_tlp_usb_allowlist | join(' ') }}"
+{% endif %}
+{% if power_management_tlp_usb_denylist %}
+USB_DENYLIST="{{ power_management_tlp_usb_denylist | join(' ') }}"
+{% endif %}
 
 # ---- PCIe ASPM ----
-PCIE_ASPM_ON_AC={{ power_management_tlp_pcie_aspm_on_ac }}
-PCIE_ASPM_ON_BAT={{ power_management_tlp_pcie_aspm_on_bat }}
+PCIE_ASPM_ON_AC={{ power_management_tlp_pcie_aspm_ac }}
+PCIE_ASPM_ON_BAT={{ power_management_tlp_pcie_aspm_bat }}
+
+# ---- Wi-Fi ----
+WIFI_PWR_ON_AC={{ power_management_tlp_wifi_pwr_ac }}
+WIFI_PWR_ON_BAT={{ power_management_tlp_wifi_pwr_bat }}
+
+# ---- Sound ----
+SOUND_POWER_SAVE_ON_BAT={{ '1' if power_management_tlp_sound_powersave_bat else '0' }}
+SOUND_POWER_SAVE_CONTROLLER={{ 'Y' if power_management_tlp_sound_powersave_controller else 'N' }}
+
+# ---- Runtime Power Management ----
+RUNTIME_PM_ON_AC={{ power_management_tlp_runtime_pm_ac }}
+RUNTIME_PM_ON_BAT={{ power_management_tlp_runtime_pm_bat }}
+
+# ---- Battery Charge Thresholds (ThinkPad / supported hardware) ----
+{% if power_management_tlp_bat0_charge_start %}
+START_CHARGE_THRESH_BAT0={{ power_management_tlp_bat0_charge_start }}
+{% endif %}
+{% if power_management_tlp_bat0_charge_stop %}
+STOP_CHARGE_THRESH_BAT0={{ power_management_tlp_bat0_charge_stop }}
+{% endif %}
+{% if power_management_tlp_bat1_charge_start %}
+START_CHARGE_THRESH_BAT1={{ power_management_tlp_bat1_charge_start }}
+{% endif %}
+{% if power_management_tlp_bat1_charge_stop %}
+STOP_CHARGE_THRESH_BAT1={{ power_management_tlp_bat1_charge_stop }}
+{% endif %}

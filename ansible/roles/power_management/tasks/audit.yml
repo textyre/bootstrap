@@ -1,0 +1,56 @@
+---
+# === power_management / audit ===
+# Deploy audit script with systemd timer or cron fallback
+
+# ---- Deploy audit script (always) ----
+
+- name: Deploy power-audit script
+  ansible.builtin.template:
+    src: power-audit.sh.j2
+    dest: /usr/local/bin/power-audit.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['power', 'audit']
+
+# ---- Systemd timer path ----
+
+- name: Deploy power-audit systemd service unit
+  ansible.builtin.template:
+    src: power-audit.service.j2
+    dest: /etc/systemd/system/power-audit.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'audit']
+
+- name: Deploy power-audit systemd timer unit
+  ansible.builtin.template:
+    src: power-audit.timer.j2
+    dest: /etc/systemd/system/power-audit.timer
+    owner: root
+    group: root
+    mode: '0644'
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'audit']
+
+- name: Enable and start power-audit timer
+  ansible.builtin.systemd:
+    name: power-audit.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'audit']
+
+# ---- Cron fallback path ----
+
+- name: Deploy power-audit cron job
+  ansible.builtin.cron:
+    name: "power-audit"
+    minute: "0"
+    hour: "0"
+    job: "/usr/local/bin/power-audit.sh"
+  when: _power_management_init != 'systemd'
+  tags: ['power', 'audit']

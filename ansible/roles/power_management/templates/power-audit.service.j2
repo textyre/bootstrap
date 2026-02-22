@@ -1,0 +1,11 @@
+# Managed by Ansible — role: power_management
+[Unit]
+Description=Power Management Audit
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/power-audit.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=power-audit

@@ -1,0 +1,40 @@
+---
+# === power_management / preflight ===
+# Pre-deploy safety assertions
+
+# ---- Hibernate requires swap ----
+
+- name: Check swap availability for hibernate
+  ansible.builtin.command: swapon --show --noheadings
+  register: _pm_swap_check
+  changed_when: false
+  failed_when: false
+  when: power_management_suspend_mode == 'hibernate'
+  tags: ['power', 'preflight']
+
+- name: Assert swap is available for hibernate
+  ansible.builtin.assert:
+    that:
+      - _pm_swap_check.stdout | length > 0
+    fail_msg: >-
+      Hibernate requires active swap (swap partition or swapfile).
+      No swap detected via 'swapon --show'. Either enable swap
+      or change power_management_suspend_mode to 'suspend'.
+    success_msg: "Swap detected, hibernate is viable"
+  when: power_management_suspend_mode == 'hibernate'
+  tags: ['power', 'preflight']
+
+# ---- SSH lockout warning for idle suspend/hibernate ----
+
+- name: Warn about SSH lockout with idle suspend/hibernate
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: power_management_idle_action={{ power_management_idle_action }}
+      is configured over a non-local connection ({{ ansible_connection }}).
+      The system may suspend/hibernate during SSH sessions, causing
+      connection loss. Consider setting power_management_idle_action=ignore
+      for remotely managed systems.
+  when:
+    - power_management_idle_action in ['suspend', 'hibernate']
+    - ansible_connection | default('ssh') != 'local'
+  tags: ['power', 'preflight']

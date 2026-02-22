@@ -1,5 +1,8 @@
 ---
-# Arch Linux package installation for power_management
+# === power_management / install-archlinux ===
+# Arch Linux package installation
+
+# ---- TLP ----
 
 - name: Install TLP (laptop)
   community.general.pacman:
@@ -8,7 +11,10 @@
       - tlp-rdw
     state: present
   when: _power_management_is_laptop
-  tags: ['power', 'tlp']
+  tags: ['power', 'install']
+
+# NOTE: If cpupower from [community] has issues, consider cpupower-git from AUR
+# Install via yay role or manually: yay -S cpupower-git
 
 - name: Mask systemd-rfkill on Arch (conflicts with TLP)
   ansible.builtin.systemd:
@@ -18,11 +24,13 @@
     - systemd-rfkill.service
     - systemd-rfkill.socket
   when: _power_management_is_laptop
-  tags: ['power', 'tlp']
+  tags: ['power', 'install']
+
+# ---- cpupower ----
 
 - name: Install cpupower
   community.general.pacman:
     name:
       - cpupower
     state: present
-  tags: ['power', 'cpu']
+  tags: ['power', 'install']

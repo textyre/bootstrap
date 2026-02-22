@@ -1,8 +1,21 @@
 ---
-# Handlers for power_management role
+# === power_management — handlers ===
 
 - name: Restart tlp
-  ansible.builtin.systemd:
+  listen: "restart tlp"
+  ansible.builtin.service:
     name: tlp
     state: restarted
   when: _power_management_is_laptop | default(false)
+
+- name: Reload systemd-logind
+  listen: "reload systemd-logind"
+  ansible.builtin.systemd:
+    name: systemd-logind
+    state: reloaded
+  when: _power_management_init | default('') == 'systemd'
+
+- name: Reload udev rules
+  listen: "reload udev rules"
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: false

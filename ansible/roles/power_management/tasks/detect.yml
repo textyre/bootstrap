@@ -1,0 +1,56 @@
+---
+# === power_management / detect ===
+# DMI chassis type, CPU vendor, init system detection
+
+# ---- DMI chassis type ----
+
+- name: Read DMI chassis type
+  ansible.builtin.slurp:
+    src: /sys/class/dmi/id/chassis_type
+  register: _power_management_chassis_raw
+  failed_when: false
+  tags: ['power', 'detect']
+
+- name: Set device type fact
+  ansible.builtin.set_fact:
+    _power_management_is_laptop: >-
+      {{
+        (power_management_device_type == 'laptop') or
+        (power_management_device_type == 'auto' and
+         _power_management_chassis_raw is succeeded and
+         (_power_management_chassis_raw.content | b64decode | trim) in _power_management_laptop_chassis_types)
+      }}
+  tags: ['power', 'detect']
+
+# ---- Init system detection ----
+
+- name: Detect init system
+  ansible.builtin.set_fact:
+    _power_management_init: "{{ ansible_service_mgr | default('unknown') }}"
+  tags: ['power', 'detect']
+
+# ---- CPU vendor detection ----
+
+- name: Read CPU vendor from /proc/cpuinfo
+  ansible.builtin.command: grep -m1 'vendor_id' /proc/cpuinfo
+  register: _power_management_cpuinfo_raw
+  changed_when: false
+  failed_when: false
+  tags: ['power', 'detect']
+
+- name: Set CPU vendor facts
+  ansible.builtin.set_fact:
+    _power_management_cpu_is_intel: "{{ 'GenuineIntel' in (_power_management_cpuinfo_raw.stdout | default('')) }}"
+    _power_management_cpu_is_amd: "{{ 'AuthenticAMD' in (_power_management_cpuinfo_raw.stdout | default('')) }}"
+  tags: ['power', 'detect']
+
+# ---- Report ----
+
+- name: Report detected hardware
+  ansible.builtin.debug:
+    msg: >-
+      Device: {{ 'laptop' if _power_management_is_laptop else 'desktop' }}
+      (config: {{ power_management_device_type }}),
+      Init: {{ _power_management_init }},
+      CPU: {{ 'Intel' if _power_management_cpu_is_intel else ('AMD' if _power_management_cpu_is_amd else 'other') }}
+  tags: ['power', 'detect']

@@ -1,0 +1,75 @@
+---
+# === power_management / collect_facts ===
+# Read real system state from /sys/ and services
+
+# ---- CPU governors ----
+
+- name: Read CPU governor for cpu0
+  ansible.builtin.slurp:
+    src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+  register: _pm_fact_governor_raw
+  failed_when: false
+  tags: ['power', 'facts']
+
+- name: Set governor fact
+  ansible.builtin.set_fact:
+    _pm_fact_governor: "{{ (_pm_fact_governor_raw.content | b64decode | trim) if _pm_fact_governor_raw is succeeded else 'unknown' }}"
+  tags: ['power', 'facts']
+
+# ---- Battery status ----
+
+- name: Check BAT0 capacity
+  ansible.builtin.slurp:
+    src: /sys/class/power_supply/BAT0/capacity
+  register: _pm_fact_bat0_capacity_raw
+  failed_when: false
+  tags: ['power', 'facts']
+
+- name: Check BAT0 status
+  ansible.builtin.slurp:
+    src: /sys/class/power_supply/BAT0/status
+  register: _pm_fact_bat0_status_raw
+  failed_when: false
+  tags: ['power', 'facts']
+
+# ---- TLP status ----
+
+- name: Check TLP running status
+  ansible.builtin.command: tlp-stat -s
+  register: _pm_fact_tlp_status_raw
+  changed_when: false
+  failed_when: false
+  when: _power_management_is_laptop
+  tags: ['power', 'facts']
+
+# ---- Charge thresholds ----
+
+- name: Read BAT0 charge start threshold
+  ansible.builtin.slurp:
+    src: /sys/class/power_supply/BAT0/charge_control_start_threshold
+  register: _pm_fact_bat0_thresh_start_raw
+  failed_when: false
+  tags: ['power', 'facts']
+
+- name: Read BAT0 charge stop threshold
+  ansible.builtin.slurp:
+    src: /sys/class/power_supply/BAT0/charge_control_end_threshold
+  register: _pm_fact_bat0_thresh_stop_raw
+  failed_when: false
+  tags: ['power', 'facts']
+
+# ---- Assemble fact dict ----
+
+- name: Set power_management_status fact
+  ansible.builtin.set_fact:
+    power_management_status:
+      governor: "{{ _pm_fact_governor }}"
+      is_laptop: "{{ _power_management_is_laptop }}"
+      init_system: "{{ _power_management_init }}"
+      battery:
+        capacity: "{{ (_pm_fact_bat0_capacity_raw.content | b64decode | trim) if _pm_fact_bat0_capacity_raw is succeeded else 'N/A' }}"
+        status: "{{ (_pm_fact_bat0_status_raw.content | b64decode | trim) if _pm_fact_bat0_status_raw is succeeded else 'N/A' }}"
+        charge_start_threshold: "{{ (_pm_fact_bat0_thresh_start_raw.content | b64decode | trim) if _pm_fact_bat0_thresh_start_raw is succeeded else 'N/A' }}"
+        charge_stop_threshold: "{{ (_pm_fact_bat0_thresh_stop_raw.content | b64decode | trim) if _pm_fact_bat0_thresh_stop_raw is succeeded else 'N/A' }}"
+      tlp_active: "{{ 'enabled' in (_pm_fact_tlp_status_raw.stdout | default('')) if _power_management_is_laptop else 'N/A' }}"
+  tags: ['power', 'facts']

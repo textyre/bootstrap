@@ -1,0 +1,134 @@
+---
+# === power_management / assert ===
+# Post-deploy effectiveness checks
+
+# ---- TLP active (laptop + systemd) ----
+
+- name: Assert TLP service is active
+  ansible.builtin.command: systemctl is-active tlp
+  register: _pm_assert_tlp
+  changed_when: false
+  failed_when: false
+  when:
+    - _power_management_is_laptop
+    - _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Verify TLP is running
+  ansible.builtin.assert:
+    that:
+      - _pm_assert_tlp.rc == 0
+    fail_msg: >-
+      TLP service is NOT active. Run 'systemctl status tlp' and
+      'journalctl -u tlp' to diagnose. Check package installation
+      and /etc/tlp.conf syntax with 'tlp-stat -c'.
+    success_msg: "TLP service is active"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when:
+    - _power_management_is_laptop
+    - _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+# ---- power-profiles-daemon masked (laptop + systemd) ----
+
+- name: Check power-profiles-daemon is masked
+  ansible.builtin.command: systemctl is-enabled power-profiles-daemon
+  register: _pm_assert_ppd
+  changed_when: false
+  failed_when: false
+  when:
+    - _power_management_is_laptop
+    - _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Verify power-profiles-daemon is masked or absent
+  ansible.builtin.assert:
+    that:
+      - _pm_assert_ppd.stdout | default('') in ['masked', '']
+        or _pm_assert_ppd.rc != 0
+    fail_msg: >-
+      power-profiles-daemon is NOT masked (status: {{ _pm_assert_ppd.stdout | default('unknown') }}).
+      It conflicts with TLP. Run 'systemctl mask power-profiles-daemon'.
+    success_msg: "power-profiles-daemon is masked or absent"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when:
+    - _power_management_is_laptop
+    - _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+# ---- CPU governor matches expected ----
+
+- name: Verify CPU governor matches expected value
+  ansible.builtin.assert:
+    that:
+      - power_management_status.governor == (power_management_tlp_cpu_governor_ac if _power_management_is_laptop else power_management_cpu_governor)
+        or power_management_status.governor == 'unknown'
+    fail_msg: >-
+      CPU governor is '{{ power_management_status.governor }}', expected
+      '{{ power_management_tlp_cpu_governor_ac if _power_management_is_laptop else power_management_cpu_governor }}'.
+      Check with 'cpupower frequency-info' and verify no conflicting
+      services override the governor.
+    success_msg: "CPU governor is '{{ power_management_status.governor }}'"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  tags: ['power', 'assert']
+
+# ---- sleep.conf SuspendMode ----
+
+- name: Check sleep.conf SuspendMode
+  ansible.builtin.command: grep -E '^SuspendMode=' /etc/systemd/sleep.conf
+  register: _pm_assert_suspend
+  changed_when: false
+  failed_when: false
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Verify SuspendMode in sleep.conf
+  ansible.builtin.assert:
+    that:
+      - power_management_suspend_mode in (_pm_assert_suspend.stdout | default(''))
+    fail_msg: >-
+      sleep.conf SuspendMode does not match. Expected '{{ power_management_suspend_mode }}'
+      but found '{{ _pm_assert_suspend.stdout | default('not found') }}'.
+      Check /etc/systemd/sleep.conf for manual edits.
+    success_msg: "sleep.conf SuspendMode={{ power_management_suspend_mode }}"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+# ---- logind.conf HandleLidSwitch ----
+
+- name: Check logind.conf HandleLidSwitch
+  ansible.builtin.command: grep -E '^HandleLidSwitch=' /etc/systemd/logind.conf
+  register: _pm_assert_lid
+  changed_when: false
+  failed_when: false
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Verify HandleLidSwitch in logind.conf
+  ansible.builtin.assert:
+    that:
+      - power_management_lid_switch_action in (_pm_assert_lid.stdout | default(''))
+    fail_msg: >-
+      logind.conf HandleLidSwitch does not match. Expected '{{ power_management_lid_switch_action }}'
+      but found '{{ _pm_assert_lid.stdout | default('not found') }}'.
+      Check /etc/systemd/logind.conf for manual edits.
+    success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+# ---- Charge thresholds applied ----
+
+- name: Verify charge thresholds applied
+  ansible.builtin.assert:
+    that:
+      - power_management_status.battery.charge_start_threshold != 'N/A'
+    fail_msg: >-
+      Battery charge thresholds were configured (bat0_charge_start={{ power_management_tlp_bat0_charge_start }})
+      but not detected in /sys/class/power_supply/BAT0/charge_control_start_threshold.
+      This may indicate unsupported hardware. Check 'tlp-stat -b'.
+    success_msg: "Charge threshold start={{ power_management_status.battery.charge_start_threshold }}"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when: power_management_tlp_bat0_charge_start | string | length > 0
+  tags: ['power', 'assert']

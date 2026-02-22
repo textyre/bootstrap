@@ -1,0 +1,12 @@
+---
+# === power_management / sleep ===
+# systemd sleep.conf configuration
+
+- name: Deploy systemd sleep.conf
+  ansible.builtin.template:
+    src: sleep.conf.j2
+    dest: /etc/systemd/sleep.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['power', 'sleep']

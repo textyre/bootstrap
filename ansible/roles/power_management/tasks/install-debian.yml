@@ -1,5 +1,8 @@
 ---
-# Debian package installation for power_management
+# === power_management / install-debian ===
+# Debian/Ubuntu package installation
+
+# ---- TLP ----
 
 - name: Install TLP (laptop)
   ansible.builtin.apt:
@@ -7,11 +10,20 @@
       - tlp
     state: present
   when: _power_management_is_laptop
-  tags: ['power', 'tlp']
+  tags: ['power', 'install']
 
-- name: Install linux-tools-common (cpupower)
+# ---- cpupower (kernel-versioned) ----
+
+- name: Get running kernel version
+  ansible.builtin.command: uname -r
+  register: _pm_kernel_version
+  changed_when: false
+  tags: ['power', 'install']
+
+- name: Install linux-tools for cpupower
   ansible.builtin.apt:
     name:
       - linux-tools-common
+      - "linux-tools-{{ _pm_kernel_version.stdout }}"
     state: present
-  tags: ['power', 'cpu']
+  tags: ['power', 'install']

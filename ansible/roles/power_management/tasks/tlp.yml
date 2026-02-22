@@ -1,0 +1,65 @@
+---
+# === power_management / tlp ===
+# TLP configuration with block/rescue for safe rollback
+
+# ---- Deploy TLP config with rollback ----
+
+- name: Deploy TLP configuration
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']
+  block:
+    - name: Backup existing TLP config
+      ansible.builtin.copy:
+        src: /etc/tlp.conf
+        dest: /etc/tlp.conf.ansible-backup
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      failed_when: false
+      tags: ['power', 'tlp']
+
+    - name: Deploy TLP config from template
+      ansible.builtin.template:
+        src: tlp.conf.j2
+        dest: /etc/tlp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: "restart tlp"
+      tags: ['power', 'tlp']
+
+    - name: Verify TLP config syntax
+      ansible.builtin.command: tlp-stat -c
+      changed_when: false
+      tags: ['power', 'tlp']
+
+  rescue:
+    - name: Restore TLP config from backup
+      ansible.builtin.copy:
+        src: /etc/tlp.conf.ansible-backup
+        dest: /etc/tlp.conf
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      failed_when: false
+      tags: ['power', 'tlp']
+
+    - name: Fail with TLP deploy context
+      ansible.builtin.fail:
+        msg: >-
+          TLP configuration deployment failed. Previous config restored
+          from /etc/tlp.conf.ansible-backup. Check tlp-stat -c output
+          for syntax errors.
+      tags: ['power', 'tlp']
+
+# ---- Enable TLP service ----
+
+- name: Enable and start TLP service
+  ansible.builtin.service:
+    name: tlp
+    enabled: true
+    state: started
+  when: _power_management_is_laptop
+  tags: ['power', 'tlp']

@@ -1,0 +1,20 @@
+---
+# === power_management / report ===
+# Final configuration summary
+
+- name: Power management configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "====== Power Management Report ======"
+      - "Device type    : {{ 'laptop' if _power_management_is_laptop else 'desktop' }}"
+      - "Init system    : {{ _power_management_init }}"
+      - "CPU vendor     : {{ 'Intel' if _power_management_cpu_is_intel else ('AMD' if _power_management_cpu_is_amd else 'other') }}"
+      - "CPU governor   : {{ power_management_status.governor }}"
+      - "TLP status     : {{ power_management_status.tlp_active if _power_management_is_laptop else 'N/A (desktop)' }}"
+      - "Battery        : {{ power_management_status.battery.status }} ({{ power_management_status.battery.capacity }}%)"
+      - "Suspend mode   : {{ power_management_suspend_mode }}"
+      - "Lid switch     : {{ power_management_lid_switch_action }}"
+      - "Audit          : {{ 'enabled (' + power_management_audit_schedule + ')' if power_management_audit_enabled else 'disabled' }}"
+      - "Drift detection: {{ 'enabled' if power_management_drift_detection else 'disabled' }}"
+      - "======================================="
+  tags: ['power', 'report']

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Managed by Ansible — role: power_management
+# Power Management Audit Script
+set -euo pipefail
+
+LOG_TAG="power-audit"
+WEAR_THRESHOLD="{{ power_management_audit_battery_wear_threshold }}"
+
+log() {
+    logger -t "$LOG_TAG" -- "$*"
+}
+
+log "=== power-audit start ==="
+
+# 1. CPU governor check
+for cpu_path in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor; do
+    [ -f "$cpu_path" ] || continue
+    gov=$(cat "$cpu_path" 2>/dev/null || echo "unknown")
+    cpu_id=$(echo "$cpu_path" | grep -oP 'cpu\d+')
+    log "governor $cpu_id=$gov"
+done
+
+# 2. TLP status check
+if command -v tlp-stat >/dev/null 2>&1; then
+    if systemctl is-active --quiet tlp 2>/dev/null; then
+        log "tlp=active"
+    else
+        log "tlp=INACTIVE WARNING: TLP not running"
+    fi
+fi
+
+# 3. Battery health check
+{% if power_management_audit_battery %}
+for bat_dir in /sys/class/power_supply/BAT*; do
+    [ -d "$bat_dir" ] || continue
+    bat_name=$(basename "$bat_dir")
+    capacity=$(cat "$bat_dir/capacity" 2>/dev/null || echo "N/A")
+    status=$(cat "$bat_dir/status" 2>/dev/null || echo "N/A")
+    energy_now=$(cat "$bat_dir/energy_now" 2>/dev/null || echo "0")
+    energy_full=$(cat "$bat_dir/energy_full" 2>/dev/null || echo "0")
+    energy_full_design=$(cat "$bat_dir/energy_full_design" 2>/dev/null || echo "0")
+
+    log "battery $bat_name status=$status capacity=${capacity}%"
+
+    if [ "$energy_full_design" -gt 0 ] && [ "$energy_full" -gt 0 ]; then
+        wear=$(( (energy_full_design - energy_full) * 100 / energy_full_design ))
+        log "battery $bat_name wear=${wear}%"
+        if [ "$wear" -gt "$WEAR_THRESHOLD" ]; then
+            log "WARNING: battery $bat_name degraded ${wear}% -- consider replacement"
+        fi
+    fi
+done
+{% endif %}
+
+# 4. Conflicting services check
+for svc in power-profiles-daemon auto-cpufreq; do
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+        log "WARNING: $svc is ACTIVE -- may conflict with TLP"
+    fi
+done
+
+# 5. Charge threshold status
+for bat_dir in /sys/class/power_supply/BAT*; do
+    [ -d "$bat_dir" ] || continue
+    bat_name=$(basename "$bat_dir")
+    for thresh in charge_control_start_threshold charge_control_end_threshold; do
+        val=$(cat "$bat_dir/$thresh" 2>/dev/null || echo "N/A")
+        log "threshold $bat_name/$thresh=$val"
+    done
+done
+
+log "=== power-audit complete ==="

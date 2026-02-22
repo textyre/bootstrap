@@ -1,0 +1,28 @@
+---
+# === power_management / logind ===
+# systemd-logind power button and lid switch behaviour
+
+# ---- SSH lockout warning ----
+
+- name: Warn about idle action over remote connection
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: idle_action={{ power_management_idle_action }} configured
+      over non-local connection. System may become unreachable during
+      SSH sessions.
+  when:
+    - power_management_idle_action != 'ignore'
+    - ansible_connection | default('ssh') != 'local'
+  tags: ['power', 'logind']
+
+# ---- Deploy logind.conf ----
+
+- name: Deploy logind.conf
+  ansible.builtin.template:
+    src: logind.conf.j2
+    dest: /etc/systemd/logind.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: "reload systemd-logind"
+  tags: ['power', 'logind']

@@ -1,0 +1,85 @@
+---
+# === power_management / governor ===
+# CPU governor configuration (desktop only) with udev persistence
+
+# ---- Read current governor ----
+
+- name: Read current CPU governor
+  ansible.builtin.slurp:
+    src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+  register: _pm_governor_raw
+  failed_when: false
+  tags: ['power', 'cpu']
+
+- name: Set current governor fact
+  ansible.builtin.set_fact:
+    _pm_current_governor: "{{ (_pm_governor_raw.content | b64decode | trim) if _pm_governor_raw is succeeded else 'unknown' }}"
+  tags: ['power', 'cpu']
+
+# ---- Set governor via cpupower ----
+
+- name: Set CPU governor via cpupower
+  ansible.builtin.command: cpupower frequency-set -g {{ power_management_cpu_governor }}
+  changed_when: _pm_current_governor != power_management_cpu_governor
+  when:
+    - not _power_management_is_laptop
+    - _pm_current_governor != power_management_cpu_governor
+  failed_when: false
+  tags: ['power', 'cpu']
+
+# ---- Persist via udev rule ----
+
+- name: Deploy udev rule for governor persistence
+  ansible.builtin.template:
+    src: 50-cpu-governor.rules.j2
+    dest: /etc/udev/rules.d/50-cpu-governor.rules
+    owner: root
+    group: root
+    mode: '0644'
+  notify: "reload udev rules"
+  when:
+    - not _power_management_is_laptop
+    - power_management_governor_persist == 'udev'
+  tags: ['power', 'cpu']
+
+# ---- Persist via systemd cpupower service ----
+
+- name: Ensure cpupower service dropin directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/cpupower.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - not _power_management_is_laptop
+    - power_management_governor_persist == 'service'
+    - _power_management_init == 'systemd'
+  tags: ['power', 'cpu']
+
+- name: Deploy cpupower service dropin override
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible — role: power_management
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/cpupower frequency-set -g {{ power_management_cpu_governor }}
+    dest: /etc/systemd/system/cpupower.service.d/override.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - not _power_management_is_laptop
+    - power_management_governor_persist == 'service'
+    - _power_management_init == 'systemd'
+  tags: ['power', 'cpu']
+
+- name: Enable cpupower service
+  ansible.builtin.service:
+    name: cpupower
+    enabled: true
+  when:
+    - not _power_management_is_laptop
+    - power_management_governor_persist == 'service'
+    - _power_management_init == 'systemd'
+  tags: ['power', 'cpu']
