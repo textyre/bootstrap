@@ -2,11 +2,22 @@
 galaxy_info:
   role_name: git
   author: textyre
-  description: Глобальная конфигурация Git
+  description: >-
+    Git configuration and developer toolchain: install, global config,
+    commit signing (SSH/GPG), aliases, credential helper, LFS, global hooks.
+    Multi-user support with per-subsystem toggles. CIS-aligned safe.directory.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [git, configuration]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [git, configuration, signing, lfs, developer]
 dependencies: []
