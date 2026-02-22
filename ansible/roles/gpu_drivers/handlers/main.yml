@@ -1,3 +1,18 @@
 ---
 # Handlers for gpu_drivers role
-# No service handlers needed — GPU drivers don't have persistent services
+
+# ---- Initramfs regeneration (init-agnostic via listen:) ----
+
+- name: Regenerate initramfs (mkinitcpio)
+  ansible.builtin.command: mkinitcpio -P
+  listen: "regenerate initramfs"
+  when:
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+
+- name: Regenerate initramfs (dracut)
+  ansible.builtin.command: dracut --force
+  listen: "regenerate initramfs"
+  when:
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'dracut'

@@ -1,0 +1,112 @@
+---
+# === gpu_drivers / initramfs — Init-agnostic initramfs management ===
+# SRP: only manages initramfs drop-in files and triggers regeneration.
+# Supports: mkinitcpio (Arch Linux), dracut (Debian/Ubuntu).
+# Handler: "regenerate initramfs" dispatches to the correct tool.
+
+# Skip entirely when NVIDIA proprietary/open-kernel not in use
+- name: Skip initramfs management (not applicable)
+  ansible.builtin.meta: noop
+  when:
+    - not _gpu_drivers_has_nvidia or
+      gpu_drivers_nvidia_variant == 'nouveau' or
+      not gpu_drivers_manage_initramfs
+  tags: ['gpu', 'nvidia']
+
+# ---- Detect initramfs tool ----
+
+- name: Detect initramfs tool
+  ansible.builtin.set_fact:
+    _gpu_drivers_initramfs_tool: >-
+      {{ 'dracut' if ansible_facts['os_family'] == 'Debian' else 'mkinitcpio' }}
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs
+  tags: ['gpu', 'nvidia']
+
+# ---- mkinitcpio (Arch Linux) ----
+
+- name: Ensure /etc/mkinitcpio.conf.d directory exists (Arch)
+  ansible.builtin.file:
+    path: /etc/mkinitcpio.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+  tags: ['gpu', 'nvidia']
+
+- name: Deploy mkinitcpio NVIDIA drop-in (Arch)
+  ansible.builtin.template:
+    src: mkinitcpio-nvidia.conf.j2
+    dest: /etc/mkinitcpio.conf.d/nvidia.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: regenerate initramfs
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+  tags: ['gpu', 'nvidia']
+
+# ---- dracut (Debian/Ubuntu) ----
+
+- name: Ensure /etc/dracut.conf.d directory exists (Debian)
+  ansible.builtin.file:
+    path: /etc/dracut.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'dracut'
+  tags: ['gpu', 'nvidia']
+
+- name: Deploy dracut NVIDIA drop-in (Debian)
+  ansible.builtin.template:
+    src: dracut-nvidia.conf.j2
+    dest: /etc/dracut.conf.d/nvidia.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: regenerate initramfs
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'dracut'
+  tags: ['gpu', 'nvidia']
+
+# ---- Cleanup: remove drop-ins when switching to nouveau ----
+
+- name: Remove mkinitcpio NVIDIA drop-in (switching to nouveau)
+  ansible.builtin.file:
+    path: /etc/mkinitcpio.conf.d/nvidia.conf
+    state: absent
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'nouveau'
+  tags: ['gpu', 'nvidia']
+
+- name: Remove dracut NVIDIA drop-in (switching to nouveau)
+  ansible.builtin.file:
+    path: /etc/dracut.conf.d/nvidia.conf
+    state: absent
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'nouveau'
+  tags: ['gpu', 'nvidia']

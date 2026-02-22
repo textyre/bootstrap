@@ -1,0 +1,10 @@
+# Managed by Ansible — do not edit manually
+# Role: gpu_drivers
+# Blacklist nouveau open-source driver to prevent conflict with NVIDIA proprietary driver
+
+blacklist nouveau
+blacklist nvidiafb
+blacklist rivafb
+
+# Disable nouveau KMS to ensure clean handoff to proprietary driver
+options nouveau modeset=0

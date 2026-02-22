@@ -1,78 +1,26 @@
 ---
 # === gpu_drivers — GPU detection and driver installation ===
+# SRP: main.yml — ТОЛЬКО оркестратор.
+# Каждый import_tasks = одна бизнес-функция роли.
 
-# ---- Detect GPU via lspci ----
-
-- name: Run lspci to detect GPU
-  ansible.builtin.command: lspci -nn
-  register: _gpu_drivers_lspci
-  changed_when: false
-  failed_when: false
+- name: gpu_drivers role
   tags: ['gpu', 'drivers']
+  block:
 
-# ---- Set vendor facts ----
+    - name: Preflight checks
+      ansible.builtin.import_tasks: preflight.yml
 
-- name: Detect NVIDIA GPU
-  ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: "{{ _gpu_drivers_lspci.stdout is defined and _gpu_drivers_lspci.stdout is search('NVIDIA.*(?:VGA|Display)') }}"
-  tags: ['gpu', 'drivers']
+    - name: Detect GPU vendor
+      ansible.builtin.import_tasks: detect.yml
 
-- name: Detect AMD GPU
-  ansible.builtin.set_fact:
-    _gpu_drivers_has_amd: "{{ _gpu_drivers_lspci.stdout is defined and _gpu_drivers_lspci.stdout is search('(?:AMD|ATI).*(?:VGA|Display)') }}"
-  tags: ['gpu', 'drivers']
+    - name: Install GPU drivers
+      ansible.builtin.import_tasks: install.yml
 
-- name: Detect Intel GPU
-  ansible.builtin.set_fact:
-    _gpu_drivers_has_intel: "{{ _gpu_drivers_lspci.stdout is defined and _gpu_drivers_lspci.stdout is search('Intel Corporation.*(?:VGA|Display)') }}"
-  tags: ['gpu', 'drivers']
+    - name: Configure kernel modules and environment
+      ansible.builtin.import_tasks: configure.yml
 
-- name: Report detected GPUs
-  ansible.builtin.debug:
-    msg:
-      - "NVIDIA: {{ _gpu_drivers_has_nvidia }}"
-      - "AMD: {{ _gpu_drivers_has_amd }}"
-      - "Intel: {{ _gpu_drivers_has_intel }}"
-  tags: ['gpu', 'drivers']
+    - name: Manage initramfs
+      ansible.builtin.import_tasks: initramfs.yml
 
-# ---- OS-specific driver installation ----
-
-- name: Include OS-specific installation
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  when: ansible_facts['os_family'] in _gpu_drivers_supported_os
-  tags: ['gpu', 'drivers']
-
-# ---- Environment configuration ----
-
-- name: Ensure /etc/environment.d directory exists
-  ansible.builtin.file:
-    path: /etc/environment.d
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  tags: ['gpu', 'drivers']
-
-- name: Deploy GPU environment configuration
-  ansible.builtin.template:
-    src: gpu-environment.conf.j2
-    dest: /etc/environment.d/gpu.conf
-    owner: root
-    group: root
-    mode: '0644'
-  when: gpu_drivers_vaapi and (_gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel)
-  tags: ['gpu', 'drivers']
-
-# ---- Report ----
-
-- name: Report GPU driver configuration
-  ansible.builtin.debug:
-    msg:
-      - "GPU drivers configured"
-      - "NVIDIA: {{ _gpu_drivers_has_nvidia }} (proprietary: {{ gpu_drivers_nvidia_proprietary }})"
-      - "AMD: {{ _gpu_drivers_has_amd }}"
-      - "Intel: {{ _gpu_drivers_has_intel }}"
-      - "Multilib: {{ gpu_drivers_multilib }}"
-      - "Vulkan tools: {{ gpu_drivers_vulkan_tools }}"
-      - "VA-API: {{ gpu_drivers_vaapi }}"
-  tags: ['gpu', 'drivers']
+    - name: Report GPU configuration
+      ansible.builtin.import_tasks: report.yml

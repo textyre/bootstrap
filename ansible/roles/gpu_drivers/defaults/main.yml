@@ -7,13 +7,34 @@ _gpu_drivers_supported_os:
   - Archlinux
   - Debian
 
-# ---- Driver preferences ----
-gpu_drivers_nvidia_proprietary: true
-gpu_drivers_multilib: false
-gpu_drivers_vulkan_tools: true
-gpu_drivers_vaapi: true
+# ---- Detection ----
+# auto    — detect via lspci (requires pciutils)
+# nvidia  — force NVIDIA (skip lspci)
+# amd     — force AMD (skip lspci)
+# intel   — force Intel (skip lspci)
+# none    — no GPU (skip all driver tasks)
+gpu_drivers_vendor: auto
+
+# ---- NVIDIA driver variant ----
+# proprietary  — nvidia (closed-source, best performance, DX12 via Wine)
+# open-kernel  — nvidia-open (open kernel modules, requires Turing+ / RTX 2000+)
+# nouveau      — xf86-video-nouveau (open-source, limited perf, no Wayland KMS)
+gpu_drivers_nvidia_variant: proprietary
+
+# ---- Kernel integration (NVIDIA only) ----
+gpu_drivers_nvidia_kms: true              # nvidia-drm.modeset=1 (required for Wayland)
+gpu_drivers_nvidia_blacklist_nouveau: true # blacklist nouveau (proprietary/open-kernel)
+gpu_drivers_manage_initramfs: true        # regenerate initramfs after driver install
+
+# ---- Feature flags ----
+gpu_drivers_multilib: false       # 32-bit library support (Wine, Steam)
+gpu_drivers_vulkan_tools: true    # vulkan-tools (vulkaninfo, vkcube)
+gpu_drivers_vaapi: true           # VA-API hardware video decode/encode
+gpu_drivers_cuda: false           # reserved: CUDA compute packages (not yet implemented)
+gpu_drivers_headless: false       # reserved: skip display components (not yet implemented)
 
 # ---- Package lists (Arch Linux) ----
+
 _gpu_drivers_nvidia_proprietary_packages:
   - nvidia
   - nvidia-utils
@@ -21,6 +42,14 @@ _gpu_drivers_nvidia_proprietary_packages:
 
 _gpu_drivers_nvidia_proprietary_multilib:
   - lib32-nvidia-utils
+
+_gpu_drivers_nvidia_open_packages:
+  - nvidia-open
+  - nvidia-utils
+  - nvidia-settings
+
+_gpu_drivers_nvidia_vaapi_packages:
+  - nvidia-vaapi-driver
 
 _gpu_drivers_nvidia_nouveau_packages:
   - mesa

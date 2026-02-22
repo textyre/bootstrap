@@ -1,0 +1,36 @@
+---
+# === gpu_drivers / preflight — Assertions before any driver actions ===
+# SRP: only validates preconditions; never installs or configures.
+
+- name: Assert OS family is supported
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in _gpu_drivers_supported_os
+    fail_msg: >-
+      Unsupported OS family: {{ ansible_facts['os_family'] }}.
+      Supported: {{ _gpu_drivers_supported_os | join(', ') }}
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu_drivers_vendor has a valid value
+  ansible.builtin.assert:
+    that: gpu_drivers_vendor in ['auto', 'nvidia', 'amd', 'intel', 'none']
+    fail_msg: >-
+      Invalid gpu_drivers_vendor: '{{ gpu_drivers_vendor }}'.
+      Valid values: auto, nvidia, amd, intel, none
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu_drivers_nvidia_variant has a valid value
+  ansible.builtin.assert:
+    that: gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel', 'nouveau']
+    fail_msg: >-
+      Invalid gpu_drivers_nvidia_variant: '{{ gpu_drivers_nvidia_variant }}'.
+      Valid values: proprietary, open-kernel, nouveau
+  tags: ['gpu', 'drivers']
+
+- name: Assert pciutils is available for auto-detection
+  ansible.builtin.assert:
+    that: ansible_facts.packages is defined and 'pciutils' in ansible_facts.packages
+    fail_msg: >-
+      pciutils must be installed for GPU auto-detection.
+      Either install pciutils or set gpu_drivers_vendor: nvidia|amd|intel|none
+  when: gpu_drivers_vendor == 'auto'
+  tags: ['gpu', 'drivers']

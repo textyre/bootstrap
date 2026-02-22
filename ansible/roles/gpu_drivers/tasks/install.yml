@@ -1,0 +1,8 @@
+---
+# === gpu_drivers / install — OS-specific driver installation dispatcher ===
+# SRP: only dispatches to the correct OS task file.
+
+- name: Install GPU drivers ({{ ansible_facts['os_family'] }})
+  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+  when: ansible_facts['os_family'] in _gpu_drivers_supported_os
+  tags: ['gpu', 'drivers']

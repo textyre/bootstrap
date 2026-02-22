@@ -1,0 +1,87 @@
+---
+# === gpu_drivers / configure — Kernel module config and VA-API environment ===
+# SRP: only deploys config files (modprobe.d, environment.d); never installs packages.
+
+# ---- NVIDIA: DRM KMS modprobe options ----
+
+- name: Deploy NVIDIA DRM KMS modprobe options
+  ansible.builtin.template:
+    src: nvidia-modprobe.conf.j2
+    dest: /etc/modprobe.d/nvidia.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: regenerate initramfs
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_kms
+  tags: ['gpu', 'nvidia']
+
+- name: Remove NVIDIA modprobe options when using nouveau
+  ansible.builtin.file:
+    path: /etc/modprobe.d/nvidia.conf
+    state: absent
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'nouveau'
+  tags: ['gpu', 'nvidia']
+
+# ---- NVIDIA: blacklist nouveau ----
+
+- name: Deploy nouveau blacklist (proprietary/open-kernel)
+  ansible.builtin.template:
+    src: nvidia-blacklist.conf.j2
+    dest: /etc/modprobe.d/nvidia-blacklist.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_blacklist_nouveau
+  tags: ['gpu', 'nvidia']
+
+- name: Remove nouveau blacklist when switching to nouveau driver
+  ansible.builtin.file:
+    path: /etc/modprobe.d/nvidia-blacklist.conf
+    state: absent
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'nouveau'
+  tags: ['gpu', 'nvidia']
+
+# ---- VA-API environment variables ----
+
+- name: Ensure /etc/environment.d directory exists
+  ansible.builtin.file:
+    path: /etc/environment.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - gpu_drivers_vaapi
+    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+  tags: ['gpu', 'drivers']
+
+- name: Deploy GPU VA-API environment configuration
+  ansible.builtin.template:
+    src: gpu-environment.conf.j2
+    dest: /etc/environment.d/gpu.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - gpu_drivers_vaapi
+    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+  tags: ['gpu', 'drivers']
+
+- name: Remove GPU environment config when VA-API disabled or no GPU
+  ansible.builtin.file:
+    path: /etc/environment.d/gpu.conf
+    state: absent
+  when:
+    - not gpu_drivers_vaapi or
+      not (_gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel)
+  tags: ['gpu', 'drivers']

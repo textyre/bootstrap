@@ -1,0 +1,10 @@
+# Managed by Ansible — do not edit manually
+# Role: gpu_drivers
+# Add NVIDIA kernel modules to initramfs for early KMS (required for Wayland, DRM)
+# Drop-in for /etc/mkinitcpio.conf.d/ — overrides base config without editing it
+
+{% if gpu_drivers_nvidia_variant == 'open-kernel' %}
+MODULES=(nvidia_open nvidia_modeset nvidia_uvm nvidia_drm)
+{% else %}
+MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
+{% endif %}

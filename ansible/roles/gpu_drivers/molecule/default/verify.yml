@@ -3,8 +3,6 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
     - name: Detect GPU for verification
@@ -15,9 +13,45 @@
 
     - name: Set GPU vendor facts for verification
       ansible.builtin.set_fact:
-        _gpu_verify_has_nvidia: "{{ _gpu_verify_lspci.stdout is search('NVIDIA.*(?:VGA|Display)') }}"
-        _gpu_verify_has_amd: "{{ _gpu_verify_lspci.stdout is search('(?:AMD|ATI).*(?:VGA|Display)') }}"
-        _gpu_verify_has_intel: "{{ _gpu_verify_lspci.stdout is search('Intel Corporation.*(?:VGA|Display)') }}"
+        _gpu_verify_has_nvidia: "{{ _gpu_verify_lspci.stdout is search('NVIDIA.*(?:VGA|Display|3D)') }}"
+        _gpu_verify_has_amd: "{{ _gpu_verify_lspci.stdout is search('(?:AMD|ATI).*(?:VGA|Display|3D)') }}"
+        _gpu_verify_has_intel: "{{ _gpu_verify_lspci.stdout is search('Intel Corporation.*(?:VGA|Display|3D)') }}"
+
+    # ---- NVIDIA: variant-aware package check ----
+
+    - name: Check NVIDIA driver package (variant-aware)
+      ansible.builtin.package:
+        name: >-
+          {{ 'nvidia-open' if gpu_drivers_nvidia_variant | default('proprietary') == 'open-kernel'
+             else ('xf86-video-nouveau' if gpu_drivers_nvidia_variant | default('proprietary') == 'nouveau'
+             else 'nvidia') }}
+        state: present
+      check_mode: true
+      register: _gpu_verify_nvidia
+      failed_when: _gpu_verify_nvidia is changed
+      when: _gpu_verify_has_nvidia
+
+    # ---- AMD / Intel package checks ----
+
+    - name: Check AMD driver package
+      ansible.builtin.package:
+        name: vulkan-radeon
+        state: present
+      check_mode: true
+      register: _gpu_verify_amd
+      failed_when: _gpu_verify_amd is changed
+      when: _gpu_verify_has_amd
+
+    - name: Check Intel driver package
+      ansible.builtin.package:
+        name: vulkan-intel
+        state: present
+      check_mode: true
+      register: _gpu_verify_intel
+      failed_when: _gpu_verify_intel is changed
+      when: _gpu_verify_has_intel
+
+    # ---- Vulkan ICD loader ----
 
     - name: Check Vulkan ICD loader is installed
       ansible.builtin.package:
@@ -28,45 +62,46 @@
       failed_when: _gpu_verify_vulkan is changed
       when: _gpu_verify_has_nvidia or _gpu_verify_has_amd or _gpu_verify_has_intel
 
-    - name: Check NVIDIA packages (proprietary)
-      ansible.builtin.package:
-        name: nvidia
-        state: present
-      check_mode: true
-      register: _gpu_verify_nvidia
-      failed_when: _gpu_verify_nvidia is changed
+    # ---- NVIDIA modprobe.d files ----
+
+    - name: Check NVIDIA DRM KMS modprobe config exists
+      ansible.builtin.stat:
+        path: /etc/modprobe.d/nvidia.conf
+      register: _gpu_verify_modprobe
+      failed_when:
+        - gpu_drivers_nvidia_kms | default(true)
+        - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
+        - not _gpu_verify_modprobe.stat.exists
       when: _gpu_verify_has_nvidia
 
-    - name: Check AMD packages
-      ansible.builtin.package:
-        name: vulkan-radeon
-        state: present
-      check_mode: true
-      register: _gpu_verify_amd
-      failed_when: _gpu_verify_amd is changed
-      when: _gpu_verify_has_amd
+    - name: Check nouveau blacklist config exists
+      ansible.builtin.stat:
+        path: /etc/modprobe.d/nvidia-blacklist.conf
+      register: _gpu_verify_blacklist
+      failed_when:
+        - gpu_drivers_nvidia_blacklist_nouveau | default(true)
+        - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
+        - not _gpu_verify_blacklist.stat.exists
+      when: _gpu_verify_has_nvidia
 
-    - name: Check Intel packages
-      ansible.builtin.package:
-        name: vulkan-intel
-        state: present
-      check_mode: true
-      register: _gpu_verify_intel
-      failed_when: _gpu_verify_intel is changed
-      when: _gpu_verify_has_intel
+    # ---- VA-API environment config ----
 
-    - name: Check GPU environment config exists
+    - name: Check GPU VA-API environment config exists
       ansible.builtin.stat:
         path: /etc/environment.d/gpu.conf
       register: _gpu_verify_env_conf
-      failed_when: not _gpu_verify_env_conf.stat.exists
+      failed_when:
+        - gpu_drivers_vaapi | default(true)
+        - not _gpu_verify_env_conf.stat.exists
       when: _gpu_verify_has_nvidia or _gpu_verify_has_amd or _gpu_verify_has_intel
 
-    - name: Show test results
+    # ---- Summary ----
+
+    - name: Show verification results
       ansible.builtin.debug:
         msg:
-          - "All GPU driver checks passed!"
+          - "=== GPU Driver Verification Passed ==="
           - "NVIDIA detected: {{ _gpu_verify_has_nvidia }}"
-          - "AMD detected: {{ _gpu_verify_has_amd }}"
-          - "Intel detected: {{ _gpu_verify_has_intel }}"
-          - "Vulkan and VA-API configured"
+          - "AMD detected:    {{ _gpu_verify_has_amd }}"
+          - "Intel detected:  {{ _gpu_verify_has_intel }}"
+          - "Variant: {{ gpu_drivers_nvidia_variant | default('proprietary') }}"

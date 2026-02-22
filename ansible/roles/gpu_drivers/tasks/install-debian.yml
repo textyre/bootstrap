@@ -1,8 +1,84 @@
 ---
 # Debian GPU driver installation
-# Placeholder — Debian GPU driver installation is complex and varies by release
+# Supports: NVIDIA (proprietary, nouveau), AMD (firmware+Mesa), Intel (Mesa+VA-API)
 
-- name: Debian GPU drivers — not yet implemented
-  ansible.builtin.debug:
-    msg: "Debian GPU driver installation is not yet implemented. Install drivers manually."
-  tags: ['gpu', 'drivers']
+# ---- NVIDIA ----
+
+- name: Install NVIDIA proprietary drivers (Debian)
+  ansible.builtin.apt:
+    name:
+      - nvidia-driver
+      - nvidia-driver-libs
+    state: present
+    update_cache: true
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'proprietary'
+  tags: ['gpu', 'nvidia']
+
+- name: Install NVIDIA VA-API driver (Debian)
+  ansible.builtin.apt:
+    name: libva-nvidia-driver
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'proprietary'
+    - gpu_drivers_vaapi
+  tags: ['gpu', 'nvidia']
+
+- name: Install NVIDIA nouveau drivers (Debian)
+  ansible.builtin.apt:
+    name:
+      - xserver-xorg-video-nouveau
+      - libgl1-mesa-dri
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant == 'nouveau'
+  tags: ['gpu', 'nvidia']
+
+# ---- AMD ----
+
+- name: Install AMD firmware and Mesa (Debian)
+  ansible.builtin.apt:
+    name:
+      - firmware-amd-graphics
+      - mesa-vulkan-drivers
+      - libgl1-mesa-dri
+    state: present
+    update_cache: true
+  when: _gpu_drivers_has_amd
+  tags: ['gpu', 'amd']
+
+- name: Install AMD VA-API driver (Debian)
+  ansible.builtin.apt:
+    name: mesa-va-drivers
+    state: present
+  when:
+    - _gpu_drivers_has_amd
+    - gpu_drivers_vaapi
+  tags: ['gpu', 'amd']
+
+# ---- Intel ----
+
+- name: Install Intel Mesa and VA-API (Debian)
+  ansible.builtin.apt:
+    name:
+      - intel-media-va-driver
+      - mesa-vulkan-drivers
+      - libgl1-mesa-dri
+    state: present
+    update_cache: true
+  when: _gpu_drivers_has_intel
+  tags: ['gpu', 'intel']
+
+# ---- Vulkan tools ----
+
+- name: Install Vulkan tools (Debian)
+  ansible.builtin.apt:
+    name: vulkan-tools
+    state: present
+  when:
+    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_vulkan_tools
+  tags: ['gpu', 'vulkan']

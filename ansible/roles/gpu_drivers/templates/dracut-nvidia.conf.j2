@@ -1,0 +1,10 @@
+# Managed by Ansible — do not edit manually
+# Role: gpu_drivers
+# Force-include NVIDIA kernel modules in dracut initramfs (Debian/Ubuntu)
+# Drop-in for /etc/dracut.conf.d/
+
+{% if gpu_drivers_nvidia_variant == 'open-kernel' %}
+force_drivers+=" nvidia_open nvidia_modeset nvidia_uvm nvidia_drm "
+{% else %}
+force_drivers+=" nvidia nvidia_modeset nvidia_uvm nvidia_drm "
+{% endif %}
