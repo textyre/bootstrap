@@ -33,6 +33,39 @@
     _rpt_detail: "sudo installed via {{ ansible_facts['os_family'] | lower }}"
   tags: [user, report]
 
+# Remove absent users (zero-trust: revoked users cleaned up)
+- name: "Remove absent users"
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    state: absent
+    remove: true
+  loop: >-
+    {{ (accounts | default([]))
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'absent')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [user, security]
+
+- name: "Report: removed users"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_phase: "Remove absent"
+    _rpt_detail: >-
+      count={{ (accounts | default([]))
+               | selectattr('state', 'defined')
+               | selectattr('state', 'equalto', 'absent')
+               | list | length }}
+    _rpt_status: "{{ 'done' if ((accounts | default([]))
+                     | selectattr('state', 'defined')
+                     | selectattr('state', 'equalto', 'absent')
+                     | list | length > 0) else 'skip' }}"
+  tags: [user, report]
+
 # Create and configure owner
 - name: Configure owner user
   ansible.builtin.include_tasks: owner.yml
