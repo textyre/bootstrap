@@ -1,0 +1,11 @@
+---
+# === sysctl: packages ===
+# ansible.builtin.package = distro-agnostic (pacman/apt/dnf/zypper)
+# Заменяет include_tasks archlinux.yml / debian.yml — не нужна дистро-специфика
+# для установки одного пакета
+
+- name: Ensure procps is installed
+  ansible.builtin.package:
+    name: procps
+    state: present
+  tags: ['sysctl', 'packages']

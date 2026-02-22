@@ -23,6 +23,7 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 
 **Research & Analysis:**
 - `claudette-researcher` — Deep research with multi-source verification and synthesis. Use for technical investigations, literature reviews, comparative analysis, and fact-finding requiring authoritative sources with explicit citations.
+- `supergrep` (MCP) — Search GitHub and Sourcegraph for real-world code examples. Use when you need to verify implementation patterns by looking at how other projects do it.
 
 ### Routing rules
 
@@ -35,11 +36,30 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 | Ansible operations | `/ansible` skill | "Run caddy role" |
 | Ansible debugging | `/ansible-debug` skill | "Why did the docker role fail?" |
 | Research with citations | `claudette-researcher` | "Research React state management best practices across multiple sources" |
+| Find real-world code patterns | `supergrep` MCP tool | "How do Arch packages configure faillock.conf?" |
 | Explore/read code, gather context | `reader` | "Find all files using relative paths" |
 | Run tests, linters, checks | `linter` | "Run shellcheck on all .sh files" |
 | Fix errors, modify code | `fixer` | "Convert relative paths to absolute" |
 | Complex multi-step task | `claudette-auto` | "Refactor authentication system" |
 | Simple question, single-line fix | Do it yourself | "What does this function do?" |
+
+### Supergrep MCP tools
+
+Available when supergrep MCP server is connected. Use to find real-world code patterns on GitHub/Sourcegraph — useful for confirming implementation approaches before writing code.
+
+| Tool | Purpose | Key inputs |
+|------|---------|------------|
+| `search_code` | Search GitHub + Sourcegraph for code | `q` (query), `language` (e.g. `"python"`), `repo` (e.g. `"torvalds/linux"`), `limit` (default 20) |
+| `fetch_file` | Fetch full file content from a search result | `url` (use `rawUrl` field from `search_code` result) |
+| `cache_stats` | Check cache hit rates and request metrics | — |
+| `cache_clear` | Clear cached results | `pattern` (SQL LIKE, optional) |
+
+**When to use:** Verifying distro-specific configs, finding canonical implementations, checking how popular projects handle a specific pattern (e.g. PAM config, nftables rules, systemd units).
+
+**Example queries:**
+- `q: "faillock.conf" language: "shell"` — find real faillock configurations
+- `q: "pam_faillock.so" repo: "archlinux/svntogit-packages"` — Arch-specific PAM patterns
+- `q: "ct state new limit rate" language: "nftables"` — nftables rate limiting examples
 
 ### Chaining workflow
 

@@ -2,5 +2,9 @@
 # Handlers for sysctl role
 
 - name: Apply sysctl settings
-  ansible.builtin.command: sysctl --system
+  listen: "reload sysctl"
+  # -e = игнорировать ошибки неизвестных параметров (например kernel.unprivileged_userns_clone
+  #      отсутствует на стандартном upstream ядре — distro-agnostic поведение)
+  # --system = читает все /etc/sysctl.d/*.conf (init-agnostic, не зависит от systemd)
+  ansible.builtin.command: sysctl -e --system
   changed_when: true

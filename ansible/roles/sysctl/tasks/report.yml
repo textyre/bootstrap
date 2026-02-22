@@ -1,0 +1,13 @@
+---
+# === sysctl: report ===
+
+- name: Report sysctl configuration
+  ansible.builtin.debug:
+    msg:
+      - "sysctl drop-in: /etc/sysctl.d/99-ansible.conf"
+      - "vm.swappiness={{ sysctl_vm_swappiness }}"
+      - "fs.inotify.max_user_watches={{ sysctl_fs_inotify_max_user_watches }}"
+      - "net.core.somaxconn={{ sysctl_net_core_somaxconn }}"
+      - "Security hardening: {{ 'включён' if sysctl_security_enabled else 'выключен' }}"
+      - "Custom params: {{ sysctl_custom_params | length }}"
+  tags: ['sysctl']

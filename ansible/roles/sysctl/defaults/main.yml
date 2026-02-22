@@ -9,6 +9,8 @@ _sysctl_supported_os:
 
 # ---- VM / Memory ----
 sysctl_vm_swappiness: 10
+# Security note: Kicksecure использует 1 для минимизации записи sensitive данных в swap.
+# Dev workstation: 10 (производительность). Production/sensitive: 1.
 sysctl_vm_vfs_cache_pressure: 50
 sysctl_vm_dirty_ratio: 10
 sysctl_vm_dirty_background_ratio: 5
@@ -21,9 +23,14 @@ sysctl_fs_file_max: 2097152
 # ---- Network ----
 sysctl_net_core_somaxconn: 4096
 sysctl_net_ipv4_tcp_fastopen: 3
-sysctl_net_ipv4_tcp_tw_reuse: 1
+# ВАЖНО: tcp_tw_reuse требует tcp_timestamps=1 для безопасной работы.
+# При tcp_timestamps=0 (security default) ДОЛЖНО быть 0.
+# Ref: https://vincent.bernat.ch/en/blog/2014-tcp-time-wait-state-linux
+sysctl_net_ipv4_tcp_tw_reuse: 0
 
 # ---- Kernel ----
+# kernel.unprivileged_userns_clone существует ТОЛЬКО в Arch linux-hardened ядре.
+# Отсутствует в стандартном upstream ядре. Игнорируется если не поддерживается (sysctl -e).
 sysctl_kernel_unprivileged_userns_clone: 1
 
 # ---- Security ----
@@ -35,38 +42,103 @@ sysctl_security_network_hardening: true
 sysctl_security_filesystem_hardening: true
 sysctl_security_ipv6_disable: false       # ОСТОРОЖНО: может сломать DNS, Docker, Happy Eyeballs
 
-# Kernel hardening
-sysctl_kernel_randomize_va_space: 2       # Полный ASLR (DISA STIG)
-sysctl_kernel_kptr_restrict: 2            # Скрыть указатели ядра
-sysctl_kernel_dmesg_restrict: 1           # Ограничить dmesg
-# ptrace_scope: 1 = только child-процессы (для dev-workstation, gdb ./app работает)
-# ptrace_scope: 2 = только root (ломает gdb --pid=, strace -p, perf record -p)
+# ---- Security: Kernel hardening ----
+
+# ASLR: рандомизация адресного пространства. KSPP=yes (DISA STIG)
+sysctl_kernel_randomize_va_space: 2
+
+# Скрыть адреса ядра из /proc/kallsyms и других интерфейсов. KSPP=yes
+sysctl_kernel_kptr_restrict: 2
+
+# Ограничить dmesg для непривилегированных пользователей. KSPP=yes
+sysctl_kernel_dmesg_restrict: 1
+
+# ptrace: 1=только child-процессы (dev, gdb ./app работает)
+# ptrace: 2=только root (ломает gdb --pid=, strace -p, perf record -p)
 sysctl_kernel_yama_ptrace_scope: 1
-# Ограничить доступ к perf counters (защита от Spectre side-channel)
+
+# Ограничить доступ к perf counters (Spectre side-channel). KSPP=yes. DISA STIG V-258076
 sysctl_kernel_perf_event_paranoid: 3
-# Заблокировать непривилегированный доступ к bpf() (CVE-2021-3490, CVE-2022-23222)
+
+# Заблокировать непривилегированный bpf(). KSPP=yes. CVE-2021-3490, CVE-2022-23222
 sysctl_kernel_unprivileged_bpf_disabled: 1
 
-# Network anti-spoofing (IPv4)
-sysctl_net_ipv4_rp_filter: 1                       # Reverse path filtering
-sysctl_net_ipv4_tcp_syncookies: 1                   # SYN flood protection
-sysctl_net_ipv4_accept_redirects: 0                 # Блокировать ICMP redirect
-sysctl_net_ipv4_send_redirects: 0                   # Не отправлять ICMP redirect
-sysctl_net_ipv4_accept_source_route: 0              # Блокировать source routing
-sysctl_net_ipv4_log_martians: 1                     # Логировать spoofed пакеты
-sysctl_net_ipv4_icmp_echo_ignore_broadcasts: 1      # Игнорировать broadcast ICMP
+# Ограничить загрузку TTY line disciplines до CAP_SYS_MODULE.
+# Закрывает класс CVE-2017-2636. KSPP=yes. Kernel 4.7+.
+sysctl_kernel_tty_ldisc_autoload: 0
+
+# Ограничить userfaultfd() syscall до CAP_SYS_PTRACE.
+# Снижает риск heap spray атак (use-after-free). KSPP=yes. Kernel 5.11+.
+sysctl_vm_unprivileged_userfaultfd: 0
+
+# Минимальный адрес mmap(): защита от null pointer dereference эксплуатации.
+# Атакующий не может замапить код на NULL адрес. KSPP=yes.
+sysctl_vm_mmap_min_addr: 65536
+
+# ---- Security: Network hardening ----
+
+# BPF JIT compiler hardening: constant blinding против JIT spray атак. KSPP=yes.
+# 0=off, 1=только unprivileged, 2=все пользователи (рекомендуется)
+sysctl_net_core_bpf_jit_harden: 2
+
+# Reverse path filtering (source validation). Предотвращает IP spoofing. CVE-2019-14899.
+sysctl_net_ipv4_rp_filter: 1
+
+# SYN flood protection (SYN cookies). KSPP=yes (CONFIG_SYN_COOKIES=y).
+sysctl_net_ipv4_tcp_syncookies: 1
+
+# Защита TIME_WAIT сокетов от RST атак (TIME_WAIT Assassination). RFC 1337.
+sysctl_net_ipv4_tcp_rfc1337: 1
+
+# Блокировать ICMP redirect. Предотвращает MITM атаки.
+sysctl_net_ipv4_accept_redirects: 0
+
+# Не отправлять ICMP redirect.
+sysctl_net_ipv4_send_redirects: 0
+
+# Блокировать IPv4 source routing.
+sysctl_net_ipv4_accept_source_route: 0
+
+# Логировать spoofed/martian пакеты (невозможные source/dest адреса).
+sysctl_net_ipv4_log_martians: 1
+
+# Игнорировать broadcast ICMP echo (Smurf attack mitigation).
+sysctl_net_ipv4_icmp_echo_ignore_broadcasts: 1
+
+# Игнорировать bogus ICMP error responses.
 sysctl_net_ipv4_icmp_ignore_bogus_error_responses: 1
-# Отключить TCP timestamps (скрыть uptime от fingerprinting, CIS 3.3.10)
+
+# Отключить TCP timestamps (скрыть uptime от fingerprinting). CIS 3.3.10.
+# ВНИМАНИЕ: при tcp_timestamps=0 необходимо tcp_tw_reuse=0 (см. выше).
 sysctl_net_ipv4_tcp_timestamps: 0
 
-# IPv6 anti-spoofing
-sysctl_net_ipv6_accept_redirects: 0                 # Блокировать ICMPv6 redirect
-sysctl_net_ipv6_accept_source_route: 0              # Блокировать IPv6 source routing
+# ARP hardening — защита от ARP spoofing и cache poisoning
+# arp_filter: не отвечать на ARP через "чужой" интерфейс.
+sysctl_net_ipv4_arp_filter: 1
+# arp_ignore=2: отвечать только если target IP принадлежит этому интерфейсу.
+# ОСТОРОЖНО: может дать breakages в некоторых VM конфигурациях. При проблемах: 1.
+sysctl_net_ipv4_arp_ignore: 2
+# Отбрасывать gratuitous ARP — основной вектор ARP cache poisoning.
+sysctl_net_ipv4_drop_gratuitous_arp: 1
 
-# Filesystem protection
+# IPv6 anti-spoofing
+# Блокировать ICMPv6 redirect.
+sysctl_net_ipv6_accept_redirects: 0
+# Блокировать IPv6 source routing.
+sysctl_net_ipv6_accept_source_route: 0
+# Отклонять IPv6 Router Advertisements. Rogue RA = MITM через перехват default gateway.
+# Ref: RFC 6104/6105
+sysctl_net_ipv6_accept_ra: 0
+
+# ---- Security: Filesystem protection ----
 sysctl_fs_protected_hardlinks: 1
 sysctl_fs_protected_symlinks: 1
-# Запретить core dump SUID-бинарников (пароли, ключи в дампе)
+# Запретить запись в FIFO в world-writable sticky директориях если не владелец.
+# TOCTOU race mitigation. KSPP=yes.
+sysctl_fs_protected_fifos: 2
+# Запретить запись в regular файлы в sticky директориях если не владелец. KSPP=yes.
+sysctl_fs_protected_regular: 2
+# Запретить core dump SUID-бинарников. KSPP=yes. CIS 1.6.4, DISA STIG V-230462.
 sysctl_fs_suid_dumpable: 0
 
 # ---- Custom parameters ----

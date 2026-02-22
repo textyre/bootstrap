@@ -1,8 +1,13 @@
 # Managed by Ansible — do not edit manually
 # Role: sysctl
 # Drop-in: /etc/sysctl.d/99-ansible.conf
+#
+# KSPP=yes    — compliant with Kernel Self Protection Project recommendations
+# KSPP=no     — not compliant (documented reason below)
+# KSPP=partial — partially compliant
 
 # ---- VM / Memory ----
+## Агрессивность использования swap. Security: 1, Performance: 10-60.
 vm.swappiness = {{ sysctl_vm_swappiness }}
 vm.vfs_cache_pressure = {{ sysctl_vm_vfs_cache_pressure }}
 vm.dirty_ratio = {{ sysctl_vm_dirty_ratio }}
@@ -13,52 +18,125 @@ fs.inotify.max_user_watches = {{ sysctl_fs_inotify_max_user_watches }}
 fs.inotify.max_user_instances = {{ sysctl_fs_inotify_max_user_instances }}
 fs.file-max = {{ sysctl_fs_file_max }}
 
-# ---- Network ----
+# ---- Network: Performance ----
 net.core.somaxconn = {{ sysctl_net_core_somaxconn }}
 net.ipv4.tcp_fastopen = {{ sysctl_net_ipv4_tcp_fastopen }}
+## ВНИМАНИЕ: tcp_tw_reuse безопасно ТОЛЬКО при tcp_timestamps=1.
+## При tcp_timestamps=0 (security default) установлено в 0.
 net.ipv4.tcp_tw_reuse = {{ sysctl_net_ipv4_tcp_tw_reuse }}
 
 # ---- Kernel ----
+## kernel.unprivileged_userns_clone — ТОЛЬКО Arch linux-hardened ядро.
+## Отсутствует в стандартном upstream ядре. sysctl -e игнорирует если не поддерживается.
 kernel.unprivileged_userns_clone = {{ sysctl_kernel_unprivileged_userns_clone }}
 
 {% if sysctl_security_enabled and sysctl_security_kernel_hardening %}
 # ---- Security: Kernel hardening ----
-# ASLR: рандомизация адресного пространства (CIS, DISA STIG)
+## ASLR: рандомизация адресного пространства для mmap/stack/heap/VDSO. KSPP=yes (DISA STIG)
 kernel.randomize_va_space = {{ sysctl_kernel_randomize_va_space }}
-# Скрыть адреса ядра из /proc/kallsyms
+
+## Скрыть адреса ядра из /proc/kallsyms. KSPP=yes.
+## Предотвращает leakage kernel pointers для эксплойтов.
 kernel.kptr_restrict = {{ sysctl_kernel_kptr_restrict }}
-# Ограничить dmesg для непривилегированных пользователей
+
+## Ограничить dmesg для непривилегированных пользователей. KSPP=yes.
+## dmesg часто содержит kernel pointers и sensitive info.
 kernel.dmesg_restrict = {{ sysctl_kernel_dmesg_restrict }}
-# ptrace: 1=child only (dev), 2=root only (server), 3=никто
+
+## ptrace scope. KSPP=yes.
+## 1=только child-процессы (dev workstation, gdb ./app работает)
+## 2=только root (ломает gdb --pid=, strace -p, perf record -p для обычных пользователей)
+## 3=никто кроме root (максимальная безопасность, ломает многие dev tools)
 kernel.yama.ptrace_scope = {{ sysctl_kernel_yama_ptrace_scope }}
-# Ограничить perf counters (защита от Spectre side-channel, DISA STIG V-258076)
+
+## Ограничить perf counters. KSPP=yes. DISA STIG V-258076.
+## Защита от Spectre side-channel атак через performance counters.
 kernel.perf_event_paranoid = {{ sysctl_kernel_perf_event_paranoid }}
-# Блокировать непривилегированный bpf() (CVE-2021-3490, CVE-2022-23222)
+
+## Заблокировать непривилегированный bpf(). KSPP=yes.
+## CVE-2021-3490, CVE-2022-23222. Без этого: LPE через eBPF programs.
 kernel.unprivileged_bpf_disabled = {{ sysctl_kernel_unprivileged_bpf_disabled }}
+
+## Ограничить загрузку TTY line disciplines до CAP_SYS_MODULE. KSPP=yes.
+## Закрывает класс CVE-2017-2636 (privilege escalation через TIOCSETD ioctl).
+## Kernel 4.7+. https://a13xp0p0v.github.io/2017/03/24/CVE-2017-2636.html
+dev.tty.ldisc_autoload = {{ sysctl_kernel_tty_ldisc_autoload }}
+
+## Ограничить userfaultfd() syscall до CAP_SYS_PTRACE. KSPP=yes.
+## Снижает вероятность use-after-free эксплойтов через heap spray.
+## Kernel 5.11+. https://duasynt.com/blog/linux-kernel-heap-spray
+vm.unprivileged_userfaultfd = {{ sysctl_vm_unprivileged_userfaultfd }}
+
+## Минимальный адрес для пользовательского mmap(). KSPP=yes.
+## Блокирует эксплуатацию null pointer dereferences в ядре.
+## KSPP рекомендует CONFIG_DEFAULT_MMAP_MIN_ADDR=65536.
+vm.mmap_min_addr = {{ sysctl_vm_mmap_min_addr }}
 {% endif %}
 
 {% if sysctl_security_enabled and sysctl_security_network_hardening %}
-# ---- Security: Network anti-spoofing (IPv4) ----
-net.ipv4.conf.all.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
+# ---- Security: Network hardening ----
+
+## BPF JIT compiler hardening: constant blinding против JIT spray атак. KSPP=yes.
+## 2=применяется ко всем пользователям. Kernel 4.7+.
+net.core.bpf_jit_harden = {{ sysctl_net_core_bpf_jit_harden }}
+
+## Reverse path filtering на ВСЕХ интерфейсах (включая Docker/VPN, создаваемые после boot).
+## * = wildcard в sysctl.d применяется к существующим и будущим интерфейсам.
+## Предотвращает IP spoofing. CVE-2019-14899.
+net.ipv4.conf.*.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
 net.ipv4.conf.default.rp_filter = {{ sysctl_net_ipv4_rp_filter }}
+
+## SYN flood protection. KSPP=yes (CONFIG_SYN_COOKIES=y).
 net.ipv4.tcp_syncookies = {{ sysctl_net_ipv4_tcp_syncookies }}
+
+## Защита TIME_WAIT сокетов от RST атак (TIME_WAIT Assassination). RFC 1337.
+net.ipv4.tcp_rfc1337 = {{ sysctl_net_ipv4_tcp_rfc1337 }}
+
+## Блокировать ICMP redirect. Предотвращает MITM routing атаки.
 net.ipv4.conf.all.accept_redirects = {{ sysctl_net_ipv4_accept_redirects }}
 net.ipv4.conf.default.accept_redirects = {{ sysctl_net_ipv4_accept_redirects }}
 net.ipv4.conf.all.send_redirects = {{ sysctl_net_ipv4_send_redirects }}
 net.ipv4.conf.default.send_redirects = {{ sysctl_net_ipv4_send_redirects }}
+
+## Блокировать IPv4 source routing. Предотвращает MITM через принудительный routing.
 net.ipv4.conf.all.accept_source_route = {{ sysctl_net_ipv4_accept_source_route }}
 net.ipv4.conf.default.accept_source_route = {{ sysctl_net_ipv4_accept_source_route }}
+
+## Логировать пакеты с невозможными source/dest адресами.
+## Martian packets могут использоваться для reconnaissance.
 net.ipv4.conf.all.log_martians = {{ sysctl_net_ipv4_log_martians }}
+
+## Игнорировать broadcast ICMP echo. Предотвращает Smurf DDoS атаки.
 net.ipv4.icmp_echo_ignore_broadcasts = {{ sysctl_net_ipv4_icmp_echo_ignore_broadcasts }}
+
+## Игнорировать bogus ICMP error responses. Предотвращает log flooding атаки.
 net.ipv4.icmp_ignore_bogus_error_responses = {{ sysctl_net_ipv4_icmp_ignore_bogus_error_responses }}
-# Отключить TCP timestamps (скрыть uptime, CIS 3.3.10)
+
+## Отключить TCP timestamps. CIS 3.3.10. Предотвращает uptime fingerprinting.
+## ВАЖНО: при timestamps=0 tcp_tw_reuse ДОЛЖЕН быть 0.
 net.ipv4.tcp_timestamps = {{ sysctl_net_ipv4_tcp_timestamps }}
 
-# ---- Security: Network anti-spoofing (IPv6) ----
+## ARP hardening — защита от ARP spoofing и cache poisoning в LAN.
+## arp_filter: не отвечать на ARP через "чужой" интерфейс.
+net.ipv4.conf.all.arp_filter = {{ sysctl_net_ipv4_arp_filter }}
+## arp_ignore=2: отвечать только если target IP принадлежит этому интерфейсу.
+## ОСТОРОЖНО: может дать breakages в некоторых VM. При проблемах: снизить до 1.
+## Ref: https://github.com/Kicksecure/security-misc/pull/290
+net.ipv4.conf.all.arp_ignore = {{ sysctl_net_ipv4_arp_ignore }}
+## Отбрасывать gratuitous ARP — основной вектор ARP cache poisoning и MITM.
+net.ipv4.conf.all.drop_gratuitous_arp = {{ sysctl_net_ipv4_drop_gratuitous_arp }}
+
+# ---- Security: Network hardening (IPv6) ----
+## Блокировать ICMPv6 redirect. Предотвращает MITM.
 net.ipv6.conf.all.accept_redirects = {{ sysctl_net_ipv6_accept_redirects }}
 net.ipv6.conf.default.accept_redirects = {{ sysctl_net_ipv6_accept_redirects }}
+## Блокировать IPv6 source routing.
 net.ipv6.conf.all.accept_source_route = {{ sysctl_net_ipv6_accept_source_route }}
 net.ipv6.conf.default.accept_source_route = {{ sysctl_net_ipv6_accept_source_route }}
+## Отклонять IPv6 Router Advertisements (RA). RFC 6104/6105.
+## Rogue RA позволяет любому в сети стать default gateway (MITM).
+net.ipv6.conf.all.accept_ra = {{ sysctl_net_ipv6_accept_ra }}
+net.ipv6.conf.default.accept_ra = {{ sysctl_net_ipv6_accept_ra }}
 {% endif %}
 
 {% if sysctl_security_enabled and sysctl_security_ipv6_disable %}
@@ -70,9 +148,19 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 
 {% if sysctl_security_enabled and sysctl_security_filesystem_hardening %}
 # ---- Security: Filesystem protection ----
+## Запретить создание hardlink на файл без read/write/ownership. KSPP=yes.
+## TOCTOU mitigation для cross-privilege атак.
 fs.protected_hardlinks = {{ sysctl_fs_protected_hardlinks }}
+## Запретить следование symlinks в world-writable sticky директориях. KSPP=yes.
+## Предотвращает /tmp race conditions (CVE class).
 fs.protected_symlinks = {{ sysctl_fs_protected_symlinks }}
-# Запретить core dump SUID-бинарников (CIS 1.6.4, DISA STIG V-230462)
+## Запретить запись в FIFO в sticky директориях если не владелец. KSPP=yes.
+## Предотвращает data spoofing через FIFO race conditions.
+fs.protected_fifos = {{ sysctl_fs_protected_fifos }}
+## Запретить запись в regular файлы в sticky директориях если не владелец. KSPP=yes.
+fs.protected_regular = {{ sysctl_fs_protected_regular }}
+## Запретить core dump SUID-бинарников. KSPP=yes. CIS 1.6.4, DISA STIG V-230462.
+## Пароли и ключи могут оказаться в core dump setuid-процессов.
 fs.suid_dumpable = {{ sysctl_fs_suid_dumpable }}
 {% endif %}
 

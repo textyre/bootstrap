@@ -37,6 +37,31 @@
       changed_when: false
       failed_when: _sysctl_verify_live_somaxconn.stdout | int != 4096
 
+    - name: Verify security sysctl parameters are live
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_security
+      changed_when: false
+      failed_when: false
+      loop:
+        - { param: "kernel.randomize_va_space",   expected: "2" }
+        - { param: "kernel.kptr_restrict",         expected: "2" }
+        - { param: "fs.protected_hardlinks",       expected: "1" }
+        - { param: "fs.protected_symlinks",        expected: "1" }
+        - { param: "net.ipv4.tcp_syncookies",      expected: "1" }
+        - { param: "net.ipv4.tcp_timestamps",      expected: "0" }
+        - { param: "net.ipv4.tcp_tw_reuse",        expected: "0" }
+        - { param: "net.core.bpf_jit_harden",     expected: "2" }
+
+    - name: Assert security parameters match expected values
+      ansible.builtin.assert:
+        that: item.stdout == item.item.expected
+        fail_msg: >-
+          SECURITY PARAM MISMATCH: {{ item.item.param }}
+          expected={{ item.item.expected }} got={{ item.stdout }}
+        success_msg: "OK: {{ item.item.param }}={{ item.stdout }}"
+      loop: "{{ _sysctl_verify_security.results }}"
+      when: item.rc == 0
+
     - name: Show test results
       ansible.builtin.debug:
         msg:
