@@ -3,22 +3,66 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/user/defaults/main.yml"
 
   tasks:
-    - name: Check user exists
+    - name: Check owner user exists
       ansible.builtin.getent:
         database: passwd
-        key: "{{ user_name | default(ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'])) }}"
-      register: _user_verify_user
+        key: testuser_owner
+      register: _user_verify_owner
+      failed_when: _user_verify_owner is failed
 
-    - name: Check user is in wheel group
-      ansible.builtin.command: "groups {{ user_name | default(ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'])) }}"
-      register: _user_verify_groups
+    - name: Check owner is in wheel group
+      ansible.builtin.command:
+        cmd: groups testuser_owner
+      register: _user_verify_owner_groups
       changed_when: false
-      failed_when: "'wheel' not in _user_verify_groups.stdout"
+      failed_when: "'wheel' not in _user_verify_owner_groups.stdout"
+
+    - name: Check owner umask profile deployed
+      ansible.builtin.stat:
+        path: /etc/profile.d/umask-testuser_owner.sh
+      register: _user_verify_umask
+      failed_when: not _user_verify_umask.stat.exists
+
+    - name: Check owner umask value is 027
+      ansible.builtin.command:
+        cmd: grep -q "umask 027" /etc/profile.d/umask-testuser_owner.sh
+      changed_when: false
+      failed_when: false
+      register: _user_verify_umask_value
+
+    - name: Assert owner umask is 027
+      ansible.builtin.assert:
+        that: _user_verify_umask_value.rc == 0
+        fail_msg: "Owner umask profile does not contain 'umask 027'"
+
+    - name: Check authorized_keys exists for owner
+      ansible.builtin.stat:
+        path: /home/testuser_owner/.ssh/authorized_keys
+      register: _user_verify_ssh
+      failed_when: not _user_verify_ssh.stat.exists
+
+    - name: Check SSH key content
+      ansible.builtin.command:
+        cmd: grep -q "testuser@molecule" /home/testuser_owner/.ssh/authorized_keys
+      changed_when: false
+      register: _user_verify_ssh_key
+      failed_when: _user_verify_ssh_key.rc != 0
+
+    - name: Check extra user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: testuser_extra
+      register: _user_verify_extra
+      failed_when: _user_verify_extra is failed
+
+    - name: Check extra user is NOT in wheel group
+      ansible.builtin.command:
+        cmd: groups testuser_extra
+      register: _user_verify_extra_groups
+      changed_when: false
+      failed_when: "'wheel' in _user_verify_extra_groups.stdout"
 
     - name: Check sudoers.d/wheel exists
       ansible.builtin.stat:
@@ -27,14 +71,26 @@
       failed_when: not _user_verify_sudoers.stat.exists
 
     - name: Validate sudoers.d/wheel syntax
-      ansible.builtin.command: /usr/sbin/visudo -cf /etc/sudoers.d/wheel
-      register: _user_user_verify_sudoers_syntax
+      ansible.builtin.command:
+        cmd: /usr/sbin/visudo -cf /etc/sudoers.d/wheel
+      register: _user_verify_sudoers_syntax
       changed_when: false
-      failed_when: _user_user_verify_sudoers_syntax.rc != 0
+      failed_when: _user_verify_sudoers_syntax.rc != 0
+
+    - name: Check use_pty in sudoers
+      ansible.builtin.command:
+        cmd: grep -q "use_pty" /etc/sudoers.d/wheel
+      changed_when: false
+      register: _user_verify_pty
+      failed_when: _user_verify_pty.rc != 0
+
+    - name: Check logfile in sudoers
+      ansible.builtin.command:
+        cmd: grep -q "logfile" /etc/sudoers.d/wheel
+      changed_when: false
+      register: _user_verify_logfile
+      failed_when: _user_verify_logfile.rc != 0
 
     - name: Show test results
       ansible.builtin.debug:
-        msg:
-          - "All checks passed!"
-          - "User exists and in wheel group"
-          - "sudoers.d/wheel is valid"
+        msg: "All user role checks passed!"

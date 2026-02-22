@@ -2,11 +2,21 @@
 galaxy_info:
   role_name: user
   author: textyre
-  description: Управление пользователем (создание, sudo, группы)
+  description: >-
+    User account lifecycle management: owner user, additional users, sudo hardening,
+    SSH authorized keys, password aging, umask. CIS Level 1 Workstation compliant.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [user, sudo, groups]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [user, sudo, ssh, groups, cis, hardening]
 dependencies: []
