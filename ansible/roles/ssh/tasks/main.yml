@@ -2,6 +2,21 @@
 # === Настройка SSH ===
 # Полный hardening sshd: ключи, конфиг, модули, баннер, сервис
 
+# ROLE-003: Validate supported OS
+- name: "Assert supported operating system"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ssh_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _ssh_supported_os | join(', ') }}
+  tags: [ssh]
+
+# ROLE-001: OS-specific variables
+- name: "Include OS-specific variables"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: [ssh]
+
 # ---- Установка openssh (OS-specific) ----
 
 - name: Install openssh (OS-specific)

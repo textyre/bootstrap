@@ -1,5 +1,5 @@
 ---
-- name: "Install OpenSSH packages (Archlinux)"
+- name: "Install OpenSSH packages (Gentoo)"
   ansible.builtin.package:
     name: "{{ _ssh_packages }}"
     state: present

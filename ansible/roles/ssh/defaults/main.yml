@@ -4,6 +4,14 @@
 #  Источники: dev-sec.io, konstruktoid, CIS Benchmark, Mozilla Modern
 # =====================================================================
 
+# ROLE-003: Supported operating systems
+_ssh_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # ---- Целевой пользователь ----
 
 # Пользователь для генерации ключей и проверки блокировки
