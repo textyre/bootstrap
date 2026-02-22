@@ -20,6 +20,6 @@ galaxy_info:
     - security
     - ssh
     - access
-    - zero-trust
+    - zerotrust
 
 dependencies: []

@@ -19,7 +19,7 @@ galaxy_info:
   galaxy_tags:
     - ssh
     - security
-    - authorized_keys
+    - authorizedkeys
     - keys
 
 dependencies: []
