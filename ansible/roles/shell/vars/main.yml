@@ -1,0 +1,16 @@
+---
+# === Shell role — internal variables ===
+
+# Supported OS families (ROLE-003)
+_shell_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Supported shell types
+_shell_supported_types:
+  - bash
+  - zsh
+  - fish

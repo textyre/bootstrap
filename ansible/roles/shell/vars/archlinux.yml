@@ -1,0 +1,14 @@
+---
+# === Shell packages — Arch Linux ===
+
+_shell_packages:
+  bash: []
+  zsh:
+    - zsh
+  fish:
+    - fish
+
+_shell_bin:
+  bash: /bin/bash
+  zsh: /usr/bin/zsh
+  fish: /usr/bin/fish
