@@ -1,7 +1,8 @@
 # Arch Linux Workstation Bootstrap
 
 Полностью автоматизированный bootstrap Arch Linux рабочей станции через Ansible.
-13 модульных ролей: от базовой настройки системы до desktop environment и dotfiles через chezmoi.
+33 модульных роли в 7 фазах: от базовой настройки системы до desktop environment и dotfiles.
+Multi-distro (Archlinux, Debian, RedHat, Void, Gentoo), init-system agnostic.
 
 ## Quick Start
 
@@ -17,22 +18,81 @@ git clone <repo-url> bootstrap && cd bootstrap
 
 ## Что делает
 
-| # | Роль | Описание |
-|---|------|----------|
-| 1 | `base_system` | Локаль, таймзона, hostname, pacman.conf |
-| 2 | `reflector` | Оптимизация зеркал pacman |
-| 3 | `yay` | Сборка AUR helper из исходников |
-| 4 | `packages` | Установка всех пакетов (pacman + AUR) |
-| 5 | `user` | Пользователь, sudo, группы |
-| 6 | `ssh` | SSH ключи, hardening sshd |
-| 7 | `git` | Глобальная конфигурация git |
-| 8 | `shell` | Bash/Zsh конфигурация, алиасы |
-| 9 | `docker` | Docker daemon, сервис, группа |
-| 10 | `firewall` | Базовый nftables firewall |
-| 11 | `xorg` | Конфигурация X11 мониторов |
-| 12 | `lightdm` | Display manager |
-| 13 | `chezmoi` | Деплой дотфайлов через chezmoi |
-| 14 | `pam_hardening` | PAM faillock — защита от brute-force (Arch, Ubuntu, Fedora) |
+### Phase 1: System Foundation
+
+| Роль | Описание |
+|------|----------|
+| `timezone` | Часовой пояс |
+| `locale` | Локаль, LC_* |
+| `hostname` | Имя машины |
+| `hostctl` | /etc/hosts |
+| `vconsole` | Шрифт и клавиатура TTY |
+| `ntp` | Chrony + NTS серверы |
+| `ntp_audit` | Аудит NTP синхронизации |
+| `package_manager` | pacman.conf, зеркала |
+| `pam_hardening` | PAM faillock — защита от brute-force |
+| `vm` | Гостевые утилиты VirtualBox/VMware/Hyper-V |
+
+### Phase 1.5: Hardware & Kernel
+
+| Роль | Описание |
+|------|----------|
+| `gpu_drivers` | Драйверы GPU (NVIDIA/AMD/Intel) |
+| `sysctl` | Hardening ядра, сети, производительность |
+| `power_management` | TLP, управление питанием |
+
+### Phase 2: Package Infrastructure
+
+| Роль | Описание |
+|------|----------|
+| `packages` | Установка всех пакетов (pacman + AUR) |
+
+### Phase 3: User & Access
+
+| Роль | Описание |
+|------|----------|
+| `user` | Пользователь, sudo, группы, SSH ключи, пароли |
+| `ssh_keys` | Генерация и деплой SSH ключей |
+| `ssh` | sshd hardening, moduli, баннеры |
+| `teleport` | Teleport agent (zero-trust access) |
+| `fail2ban` | Jail для SSH brute-force |
+
+### Phase 4: Development Tools
+
+| Роль | Описание |
+|------|----------|
+| `git` | Developer toolchain: signing, aliases, LFS, hooks, multi-user |
+| `shell` | Bash/Zsh, алиасы, PATH |
+
+### Phase 5: Services
+
+| Роль | Описание |
+|------|----------|
+| `docker` | daemon.json, сервис, группа |
+| `firewall` | nftables firewall |
+| `caddy` | Reverse proxy |
+| `vaultwarden` | Password manager (self-hosted) |
+
+### Phase 6: Desktop Environment
+
+| Роль | Описание |
+|------|----------|
+| `xorg` | Конфигурация X11 мониторов |
+| `lightdm` | Display manager |
+| `greeter` | LightDM greeter |
+| `zen_browser` | Zen Browser (Arch only) |
+
+### Phase 7: User Dotfiles
+
+| Роль | Описание |
+|------|----------|
+| `chezmoi` | Деплой дотфайлов через chezmoi |
+
+### Shared
+
+| Роль | Описание |
+|------|----------|
+| `common` | Shared tasks: report_phase, report_render |
 
 ## Использование
 
@@ -51,7 +111,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 ./bootstrap.sh --skip-tags firewall
 
 # Переопределить переменные
-./bootstrap.sh -e '{"base_system_hostname": "mybox"}'
+./bootstrap.sh -e '{"ntp_enabled": false}'
 ```
 
 ## Разработка
@@ -61,7 +121,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 task bootstrap    # Установить Python зависимости (один раз)
 task check        # Проверить синтаксис
 task lint         # ansible-lint best practices
-task test         # Все molecule тесты (13 ролей)
+task test         # Все molecule тесты
 task test-<role>  # Тест конкретной роли
 task dry-run      # Показать изменения
 task workstation  # Применить playbook
@@ -79,44 +139,37 @@ bootstrap/
 │   ├── requirements.txt                   # Python deps
 │   ├── vault-pass.sh                      # Vault password resolver
 │   ├── inventory/
-│   │   ├── hosts.ini                      # localhost
+│   │   ├── hosts.ini
 │   │   └── group_vars/all/
 │   │       ├── packages.yml               # Реестр пакетов
 │   │       ├── system.yml                 # Системные переменные
-│   │       └── vault.yml                  # Encrypted sudo password
+│   │       └── vault.yml                  # Encrypted (Ansible Vault)
 │   ├── playbooks/
-│   │   ├── workstation.yml                # Полный bootstrap (13 ролей)
-│   │   └── mirrors-update.yml             # Только зеркала
-│   └── roles/                             # 13 модульных ролей
-│       ├── base_system/
-│       ├── reflector/
-│       ├── yay/
-│       ├── packages/
-│       ├── user/
-│       ├── ssh/
-│       ├── git/
-│       ├── shell/
-│       ├── docker/
-│       ├── firewall/
-│       ├── xorg/
-│       ├── lightdm/
-│       └── chezmoi/
+│   │   └── workstation.yml                # Полный bootstrap (7 фаз)
+│   └── roles/                             # 33 модульных роли
+├── wiki/                                  # Wiki + стандарты ролей
+│   ├── roles/                             # Документация по каждой роли
+│   └── standards/                         # Требования к ролям
+├── docs/plans/                            # Планы и дизайн-доки
+├── scripts/                               # Bootstrap скрипты
 ├── dotfiles/                              # Исходные дотфайлы (chezmoi source)
-├── bin/                                   # Утилиты (анализ пакетов)
+├── greeter/                               # LightDM greeter (Vite + TS)
 ├── ci/                                    # CI скрипты
-├── windows/                               # Windows SSH/sync утилиты
-└── docs/                                  # Документация
+└── windows/                               # Windows SSH/sync утилиты
 ```
 
-## Переменные
+## Стандарты ролей
 
-Все переменные в `ansible/inventory/group_vars/all/`:
+Каждая роль соответствует 11 требованиям (`wiki/standards/role-requirements.md`):
 
-- **packages.yml** — реестр пакетов (100+ пакетов по категориям)
-- **system.yml** — системные переменные (locale, hostname, user, git, shell, etc.)
-- **vault.yml** — зашифрованный sudo пароль (Ansible Vault)
-
-Переопределение: `host_vars/<hostname>/` или `-e` флаг.
+- **ROLE-001** Distro-agnostic: `vars/` per distro
+- **ROLE-003** Five distros: Archlinux, Debian, RedHat, Void, Gentoo
+- **ROLE-005** In-role verification: `verify.yml`
+- **ROLE-006** Molecule tests
+- **ROLE-008** Dual logging: `common/report_phase.yml`
+- **ROLE-009** Profile-aware defaults: `workstation_profiles`
+- **ROLE-010** Modular config: per-subsystem toggles + `_overwrite` pattern
+- **ROLE-011** Ansible-native: FQCN modules only
 
 ## Безопасность
 
@@ -125,6 +178,10 @@ bootstrap/
 - SSH ключи Ed25519
 - sshd hardening (no root, no password auth)
 - nftables firewall (drop by default)
+- PAM faillock (brute-force protection)
+- Kernel hardening (sysctl: ASLR, ptrace, BPF, ARP)
+- Fail2ban SSH jail
+- Git commit signing (SSH/GPG)
 
 ## Лицензия
 
