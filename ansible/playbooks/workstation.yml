@@ -75,6 +75,9 @@
     - role: user
       tags: [user]
 
+    - role: ssh_keys
+      tags: [ssh_keys, security]
+
     - role: ssh
       tags: [ssh, security]
 
