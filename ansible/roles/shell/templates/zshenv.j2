@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Global zsh environment — loaded for ALL zsh sessions (login + non-login)
+# Per-user config managed by chezmoi at $ZDOTDIR/.zshrc
+
+{% if shell_zsh_zdotdir %}
+export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
+{% endif %}

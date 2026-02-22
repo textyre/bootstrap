@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# System-wide PATH additions for development toolchains
+# Fish shell conf.d — fish ignores /etc/profile.d/
+
+{% for dir in shell_global_path %}
+if test -d "{{ dir }}"
+    fish_add_path --global "{{ dir }}"
+end
+{% endfor %}
+{% if shell_global_env | length > 0 %}
+
+# Environment variables
+{% for key, value in shell_global_env.items() %}
+set -gx {{ key }} "{{ value }}"
+{% endfor %}
+{% endif %}

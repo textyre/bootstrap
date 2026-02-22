@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# System-wide PATH additions for development toolchains
+# Sourced by bash/zsh on login (/etc/profile.d/)
+
+{% for dir in shell_global_path %}
+[ -d "{{ dir }}" ] && case ":$PATH:" in *":{{ dir }}:"*) ;; *) PATH="{{ dir }}:$PATH" ;; esac
+{% endfor %}
+export PATH
+{% if shell_global_env | length > 0 %}
+
+# Environment variables
+{% for key, value in shell_global_env.items() %}
+export {{ key }}="{{ value }}"
+{% endfor %}
+{% endif %}
