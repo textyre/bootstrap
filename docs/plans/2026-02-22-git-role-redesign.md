@@ -176,7 +176,6 @@ ansible/roles/git/
     main.yml                  # orchestrator: preflight → system → per-user → verify → report
     # --- System layer (root) ---
     install.yml               # install git + git-lfs (per-distro via vars)
-    hooks_global.yml          # create global hooks directory
     # --- Per-user layer (become_user) ---
     configure_user.yml        # dispatcher: calls all per-user task files for one user
     config_base.yml           # user.name, email, defaultBranch, editor, pull.rebase, etc.
@@ -203,18 +202,18 @@ wiki/roles/git.md
 3. Report: preflight passed
 4. System: install.yml — install git + git-lfs
 5. Report: packages installed
-6. System: hooks_global.yml — when git_manage_hooks
-7. Per-user: configure_user.yml — loop over [git_owner] + git_additional_users
+6. Per-user: configure_user.yml — loop over [git_owner] + git_additional_users
    ├── config_base.yml
    ├── config_extra.yml
    ├── signing.yml — when git_manage_signing
    ├── aliases.yml — when git_manage_aliases
    ├── credential.yml — when git_manage_credential
-   └── lfs_user.yml — when git_lfs_enabled
-8. Report: users configured
-9. Verify (verify.yml)
-10. Report: verification complete
-11. Report render (ROLE-008)
+   ├── lfs_user.yml — when git_lfs_enabled
+   └── hooks directory + core.hooksPath — when git_manage_hooks
+7. Report: users configured
+8. Verify (verify.yml)
+9. Report: verification complete
+10. Report render (ROLE-008)
 ```
 
 ---
