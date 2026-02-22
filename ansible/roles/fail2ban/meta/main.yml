@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: fail2ban
+  author: textyre
+  description: Fail2ban brute-force protection for SSH
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: GenericLinux
+      versions: [all]
+  galaxy_tags:
+    - fail2ban
+    - security
+    - ssh
+    - brute-force
+
+dependencies: []

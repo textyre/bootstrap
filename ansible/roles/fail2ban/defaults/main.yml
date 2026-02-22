@@ -1,0 +1,28 @@
+---
+# === fail2ban — защита от brute-force атак ===
+
+# ROLE-003: Поддерживаемые ОС
+_fail2ban_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# ---- Главный переключатель ----
+fail2ban_enabled: true
+
+# ---- SSH jail ----
+fail2ban_sshd_enabled: true
+fail2ban_sshd_port: "{{ ssh_port | default(22) }}"
+fail2ban_sshd_maxretry: 5
+fail2ban_sshd_findtime: 600
+fail2ban_sshd_bantime: 3600
+fail2ban_sshd_bantime_increment: true
+fail2ban_sshd_bantime_maxtime: 86400
+fail2ban_sshd_backend: auto
+
+# ---- Белый список ----
+fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - "::1"

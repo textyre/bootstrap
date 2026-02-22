@@ -1,0 +1,62 @@
+---
+- name: Verify fail2ban role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    # ---- fail2ban установлен ----
+
+    - name: "Verify fail2ban package is installed"
+      ansible.builtin.command:
+        cmd: "fail2ban-client --version"
+      register: _verify_version
+      changed_when: false
+      failed_when: _verify_version.rc != 0
+
+    # ---- конфигурация jail ----
+
+    - name: "Verify jail.d/sshd.conf exists"
+      ansible.builtin.stat:
+        path: /etc/fail2ban/jail.d/sshd.conf
+      register: _verify_jail_config
+
+    - name: "Assert jail config exists with correct permissions"
+      ansible.builtin.assert:
+        that:
+          - _verify_jail_config.stat.exists
+          - _verify_jail_config.stat.mode == '0644'
+        fail_msg: "/etc/fail2ban/jail.d/sshd.conf missing or wrong permissions"
+
+    - name: "Verify jail config contains correct maxretry"
+      ansible.builtin.command:
+        cmd: "grep 'maxretry = 3' /etc/fail2ban/jail.d/sshd.conf"
+      register: _verify_maxretry
+      changed_when: false
+      failed_when: _verify_maxretry.rc != 0
+
+    - name: "Verify jail config contains correct bantime"
+      ansible.builtin.command:
+        cmd: "grep 'bantime = 600' /etc/fail2ban/jail.d/sshd.conf"
+      register: _verify_bantime
+      changed_when: false
+      failed_when: _verify_bantime.rc != 0
+
+    # ---- сервис работает ----
+
+    - name: "Verify fail2ban service is running (systemd)"
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: "Assert fail2ban is active (systemd)"
+      ansible.builtin.assert:
+        that:
+          - "'fail2ban.service' in ansible_facts.services"
+          - "ansible_facts.services['fail2ban.service'].state == 'running'"
+        fail_msg: "fail2ban is not running"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: "Show result"
+      ansible.builtin.debug:
+        msg: "fail2ban check passed: installed, configured, running"
