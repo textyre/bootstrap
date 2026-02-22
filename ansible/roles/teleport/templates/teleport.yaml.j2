@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+# Teleport node configuration
+
+version: v3
+teleport:
+  nodename: {{ teleport_node_name }}
+  data_dir: /var/lib/teleport
+  auth_token: {{ teleport_join_token }}
+  auth_server: {{ teleport_auth_server }}
+  log:
+    output: stderr
+    severity: INFO
+
+ssh_service:
+  enabled: {{ teleport_ssh_enabled | lower }}
+{% if teleport_labels %}
+  labels:
+{% for key, value in teleport_labels.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+
+proxy_service:
+  enabled: {{ teleport_proxy_mode | lower }}
+
+auth_service:
+  enabled: false
+
+{% if teleport_session_recording != 'off' %}
+session_recording:
+  mode: {{ teleport_session_recording }}
+{% if teleport_enhanced_recording %}
+  enhanced_recording:
+    enabled: true
+{% endif %}
+{% endif %}

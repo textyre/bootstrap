@@ -1,0 +1,24 @@
+---
+# === Export Teleport CA public key for ssh role integration ===
+
+- name: "Export Teleport user CA public key"
+  ansible.builtin.command:
+    cmd: "tctl auth export --type=user"
+  register: _teleport_user_ca
+  changed_when: false
+  failed_when: _teleport_user_ca.rc != 0
+  tags: [teleport, security]
+
+- name: "Deploy CA public key for sshd"
+  ansible.builtin.copy:
+    content: "{{ _teleport_user_ca.stdout }}\n"
+    dest: "{{ teleport_ca_keys_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [teleport, security]
+
+- name: "Set ssh_teleport_integration fact"
+  ansible.builtin.set_fact:
+    ssh_teleport_integration: true
+  tags: [teleport, security]

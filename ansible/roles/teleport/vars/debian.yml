@@ -1,0 +1,9 @@
+---
+_teleport_packages: []
+_teleport_install_method: repo
+_teleport_service_name:
+  systemd: teleport
+  runit: teleport
+  openrc: teleport
+  s6: teleport
+  dinit: teleport

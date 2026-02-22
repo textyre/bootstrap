@@ -1,0 +1,10 @@
+---
+_teleport_packages:
+  - teleport-bin
+_teleport_install_method: package
+_teleport_service_name:
+  systemd: teleport
+  runit: teleport
+  openrc: teleport
+  s6: teleport
+  dinit: teleport

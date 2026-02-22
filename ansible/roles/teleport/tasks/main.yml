@@ -1,0 +1,81 @@
+---
+# === teleport: SSH access platform agent ===
+
+- name: teleport role
+  when: teleport_enabled | bool
+  tags: ['teleport']
+  block:
+    # ROLE-003: Validate supported OS
+    - name: "Assert supported operating system"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in _teleport_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ _teleport_supported_os | join(', ') }}
+      tags: [teleport]
+
+    # ROLE-001: OS-specific variables
+    - name: "Include OS-specific variables"
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: [teleport]
+
+    # Validate required variables
+    - name: "Assert auth server is configured"
+      ansible.builtin.assert:
+        that:
+          - teleport_auth_server | length > 0
+        fail_msg: "teleport_auth_server must be set (e.g., 'auth.example.com:443')"
+      tags: [teleport]
+
+    # Install
+    - name: "Install Teleport"
+      ansible.builtin.include_tasks: install.yml
+      tags: [teleport, install]
+
+    # Configure
+    - name: "Configure Teleport"
+      ansible.builtin.include_tasks: configure.yml
+      tags: [teleport]
+
+    # Export CA key for ssh role integration
+    - name: "Export CA public key"
+      ansible.builtin.include_tasks: ca_export.yml
+      when: teleport_export_ca_key | bool
+      tags: [teleport, security]
+
+    # Service management (ROLE-002)
+    - name: "Enable and start teleport"
+      ansible.builtin.service:
+        name: "{{ _teleport_service_name[ansible_facts['service_mgr']] | default('teleport') }}"
+        enabled: true
+        state: started
+      tags: [teleport, service]
+
+    # ROLE-005: Verification
+    - name: "Verify Teleport"
+      ansible.builtin.include_tasks: verify.yml
+      tags: [teleport]
+
+    # ROLE-008: Reporting
+    - name: "Report: Teleport"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        _rpt_fact: "_teleport_phases"
+        _rpt_phase: "Teleport agent"
+        _rpt_detail: >-
+          auth={{ teleport_auth_server }}
+          node={{ teleport_node_name }}
+          recording={{ teleport_session_recording }}
+      tags: [teleport, report]
+
+    - name: "teleport — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        _rpt_fact: "_teleport_phases"
+        _rpt_title: "teleport"
+      tags: [teleport, report]

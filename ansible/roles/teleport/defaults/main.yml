@@ -1,0 +1,28 @@
+---
+# === teleport role defaults ===
+
+# ROLE-003: Supported operating systems
+_teleport_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Core configuration
+teleport_enabled: true
+teleport_version: "17"
+teleport_auth_server: ""
+teleport_join_token: ""
+teleport_node_name: "{{ ansible_hostname }}"
+teleport_labels: {}
+
+# SSH features
+teleport_ssh_enabled: true
+teleport_proxy_mode: false
+teleport_session_recording: "node"
+teleport_enhanced_recording: false
+
+# CA integration with ssh role
+teleport_export_ca_key: true
+teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub
