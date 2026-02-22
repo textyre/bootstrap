@@ -9,7 +9,7 @@
     - name: "Assert supported operating system"
       ansible.builtin.assert:
         that:
-          - ansible_facts['os_family'] in _teleport_supported_os
+          - ansible_facts['os_family'] in teleport_supported_os
         fail_msg: >-
           OS family '{{ ansible_facts['os_family'] }}' is not supported.
           Supported: {{ teleport_supported_os | join(', ') }}

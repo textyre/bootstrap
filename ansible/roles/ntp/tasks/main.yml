@@ -32,9 +32,9 @@
     # Set defaults when auto-detect is disabled
     - name: Set default environment facts (auto-detect disabled)
       ansible.builtin.set_fact:
-        _ntp_virt_type: "none"
-        _ntp_env: "{{ ntp_env_defaults }}"
-        _ntp_active_refclocks: "{{ ntp_refclocks }}"
+        ntp_virt_type: "none"
+        ntp_env: "{{ ntp_env_defaults }}"
+        ntp_active_refclocks: "{{ ntp_refclocks }}"
       when: not (ntp_auto_detect | bool)
       tags: ['ntp']
 
@@ -44,7 +44,7 @@
 
     - name: Load ptp_kvm module (KVM only)
       ansible.builtin.include_tasks: load_ptp_kvm.yml
-      when: _ntp_virt_type == 'kvm'
+      when: ntp_virt_type == 'kvm'
       tags: ['ntp']
 
     # ======================================================================
@@ -72,7 +72,7 @@
     - name: Disable VMware periodic time sync
       ansible.builtin.include_tasks: vmware_disable_timesync.yml
       when:
-        - _ntp_virt_type == 'vmware'
+        - ntp_virt_type == 'vmware'
         - ntp_vmware_disable_periodic_sync | bool
       tags: ['ntp']
 

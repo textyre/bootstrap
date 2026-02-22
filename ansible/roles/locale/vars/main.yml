@@ -1,7 +1,7 @@
 ---
 # Supported os_family values for locale generation
 # Used in main.yml for with_first_found dispatch and unsupported-OS warning
-_locale_supported_os_families:
+locale_supported_os_families:
   - archlinux
   - debian
   - redhat

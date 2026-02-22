@@ -10,7 +10,7 @@
 - name: Assert keymap is set (openrc)
   ansible.builtin.assert:
     that:
-      - "'keymap=\"' + _vconsole_value + '\"' in (_vconsole_slurp_openrc.content | b64decode)"
+      - "'keymap=\"' + vconsole_value + '\"' in (_vconsole_slurp_openrc.content | b64decode)"
     fail_msg: >-
       Keymap '{{ vconsole_value }}' not found in /etc/conf.d/keymaps.
       Content: {{ vconsole_slurp_openrc.content | b64decode }}

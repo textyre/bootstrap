@@ -81,7 +81,7 @@
       python3 -m zipapp /usr/local/src/ntp-audit
       -o /usr/local/bin/ntp-audit
       -p "/usr/bin/env python3"
-  when: not _ntp_audit_zipapp_stat.stat.exists
+  when: not ntp_audit_zipapp_stat.stat.exists
   changed_when: true
   tags: ['ntp_audit', 'ntp_audit_script']
 

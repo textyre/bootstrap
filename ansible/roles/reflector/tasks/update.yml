@@ -31,7 +31,7 @@
 
 - name: Record backup path as fact
   ansible.builtin.set_fact:
-    _reflector_latest_backup: "{{ reflector_backup_result.dest }}"
+    reflector_latest_backup: "{{ reflector_backup_result.dest }}"
   when: _reflector_backup_result is not skipped
   tags: ['update']
 
@@ -92,7 +92,7 @@
 
     - name: Determine if mirrorlist changed
       ansible.builtin.set_fact:
-        _reflector_mirrorlist_changed: >-
+        reflector_mirrorlist_changed: >-
           {{ (_reflector_old_mirror.content | default('')) != (_reflector_new_mirror.content | default('')) }}
 
     - name: Report reflector result
@@ -100,7 +100,7 @@
         msg: >-
           Reflector completed. Mirrorlist changed: {{ reflector_mirrorlist_changed }}.
           Servers in mirrorlist: {{ reflector_server_count.stdout }}.
-      changed_when: _reflector_mirrorlist_changed | bool
+      changed_when: reflector_mirrorlist_changed | bool
 
   rescue:
     - name: Restore mirrorlist from backup
@@ -109,13 +109,13 @@
         src: "{{ reflector_latest_backup }}"
         dest: "{{ reflector_mirrorlist_path }}"
         mode: '0644'
-      when: _reflector_latest_backup is defined
+      when: reflector_latest_backup is defined
 
     - name: Fail with descriptive message
       ansible.builtin.fail:
         msg: >-
           reflector failed or produced an invalid mirrorlist.
-          {% if _reflector_latest_backup is defined %}
+          {% if reflector_latest_backup is defined %}
           Restored from {{ reflector_latest_backup }}.
           {% else %}
           No backup was available — mirrorlist may be empty or missing.

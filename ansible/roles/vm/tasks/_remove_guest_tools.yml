@@ -5,7 +5,7 @@
 # Orchestrator: stop services, remove packages, remove facts, display report.
 #
 # Expected variables (set by main.yml detection phase):
-#   _vm_is_guest    (bool)   - Whether running as guest
+#   vm_is_guest    (bool)   - Whether running as guest
 #   _vm_virt_type   (string) - Virtualization type
 #   _vm_virt_role   (string) - Virtualization role
 # =========================================================================
@@ -15,8 +15,8 @@
 - name: "Stop services: All hypervisors"
   ansible.builtin.include_tasks: _stop_services.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
-    _vm_svc_list:
+    vm_pkg_label: "All hypervisors"
+    vm_svc_list:
       # VirtualBox
       - vboxservice        # guest service from package manager (time sync, clipboard, seamless)
       - vboxadd-service    # guest service from ISO install (same role as vboxservice)
@@ -35,11 +35,11 @@
 - name: "Remove packages: All hypervisors"
   ansible.builtin.include_tasks: _remove_packages.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
-    _vm_pkg_list: >-
+    vm_pkg_label: "All hypervisors"
+    vm_pkg_list: >-
       {{ packages_virtualbox_guest + packages_vmware_guest
-         + (_vm_hyperv_packages | default(packages_hyperv_guest))
-         + (_vm_kvm_packages | default(packages_kvm_guest)) }}
+         + (vm_hyperv_packages | default(packages_hyperv_guest))
+         + (vm_kvm_packages | default(packages_kvm_guest)) }}
   tags: ['vm', 'vm:install']
 
 - name: "Report: Remove guest tools"
@@ -75,17 +75,17 @@
 - name: "Build service stopped report: All hypervisors"
   ansible.builtin.include_tasks: _build_svc_stopped_report.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
 - name: "Build package removed report: All hypervisors"
   ansible.builtin.include_tasks: _build_pkg_removed_report.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
 - name: "Display removal report: All hypervisors"
   ansible.builtin.include_tasks: _display_removal.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']

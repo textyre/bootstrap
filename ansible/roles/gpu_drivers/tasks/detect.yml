@@ -10,9 +10,9 @@
 
 - name: Apply manual vendor override
   ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
-    _gpu_drivers_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
-    _gpu_drivers_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
+    gpu_drivers_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
+    gpu_drivers_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
+    gpu_drivers_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
   when: gpu_drivers_vendor != 'auto'
   tags: ['gpu', 'drivers']
 
@@ -27,19 +27,19 @@
 
 - name: Detect NVIDIA GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
+    gpu_drivers_has_nvidia: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect AMD GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_amd: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
+    gpu_drivers_has_amd: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect Intel GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_intel: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
+    gpu_drivers_has_intel: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
@@ -47,9 +47,9 @@
 
 - name: Set no-GPU facts when vendor is 'none'
   ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: false
-    _gpu_drivers_has_amd: false
-    _gpu_drivers_has_intel: false
+    gpu_drivers_has_nvidia: false
+    gpu_drivers_has_amd: false
+    gpu_drivers_has_intel: false
   when: gpu_drivers_vendor == 'none'
   tags: ['gpu', 'drivers']
 
@@ -69,12 +69,12 @@
 - name: Warn about hybrid GPU configuration (Optimus/dual-GPU)
   ansible.builtin.debug:
     msg:
-      - "WARNING: Hybrid GPU detected (NVIDIA + {{ 'Intel' if _gpu_drivers_has_intel else 'AMD' }})."
+      - "WARNING: Hybrid GPU detected (NVIDIA + {{ 'Intel' if gpu_drivers_has_intel else 'AMD' }})."
       - "This role installs drivers for both GPUs but does NOT configure Optimus/PRIME offloading."
       - "For Wayland PRIME: set gpu_drivers_vaapi: true (uses NVIDIA VA-API for video decode)."
       - "For X11 PRIME: configure xorg.conf manually or use prime-run / nvidia-prime package."
   when:
-    - _gpu_drivers_has_nvidia
-    - _gpu_drivers_has_intel or _gpu_drivers_has_amd
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_has_intel or gpu_drivers_has_amd
     - gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']

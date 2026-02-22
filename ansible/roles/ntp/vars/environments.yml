@@ -14,13 +14,13 @@
 #   VMware:   https://knowledge.broadcom.com/external/article/310053
 #   VirtualBox: https://www.virtualbox.org/manual/ch09.html
 
-_ntp_env_defaults:
+ntp_env_defaults:
   refclocks: []
   rtcsync: true
   makestep_threshold: 1.0
   makestep_limit: 3
 
-_ntp_env_map:
+ntp_env_map:
   # Hyper-V: hv_utils exposes /dev/ptp_hyperv. chrony uses it as stratum 2.
   hyperv:
     refclocks:

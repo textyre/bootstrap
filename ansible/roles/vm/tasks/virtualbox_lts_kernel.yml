@@ -11,7 +11,7 @@
 #   virtualbox.yml (only for pacman path, not ISO path)
 #
 # Expected variables:
-#   - _vm_vbox_iso_installed: should be false or undefined
+#   - vm_vbox_iso_installed: should be false or undefined
 #   - _vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
 #
 # Behavior:
@@ -28,7 +28,7 @@
   register: vm_vbox_kernel
   changed_when: false
   when:
-    - not (_vm_vbox_iso_installed | default(false))
+    - not (vm_vbox_iso_installed | default(false))
     - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
   tags: ['vm', 'vbox', 'vm:install']
 
@@ -39,9 +39,9 @@
       - linux-lts-headers
     state: present
   when:
-    - not (_vm_vbox_iso_installed | default(false))
+    - not (vm_vbox_iso_installed | default(false))
     - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
-    - _vm_vbox_lts_kernel_support | default(false)
+    - vm_vbox_lts_kernel_support | default(false)
     - _vm_vbox_kernel.stdout is defined
     - "'lts' in _vm_vbox_kernel.stdout"
   register: vm_vbox_lts_install

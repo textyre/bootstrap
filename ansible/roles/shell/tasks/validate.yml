@@ -5,7 +5,7 @@
 - name: Assert supported operating system
   ansible.builtin.assert:
     that:
-      - ansible_facts['os_family'] in _shell_supported_os
+      - ansible_facts['os_family'] in shell_supported_os
     fail_msg: >-
       OS family '{{ ansible_facts['os_family'] }}' is not supported.
       Supported: {{ shell_supported_os | join(', ') }}.
@@ -14,7 +14,7 @@
 - name: Assert shell_type is valid
   ansible.builtin.assert:
     that:
-      - shell_type in _shell_supported_types
+      - shell_type in shell_supported_types
     fail_msg: >-
       shell_type '{{ shell_type }}' is not supported.
       Supported: {{ shell_supported_types | join(', ') }}.

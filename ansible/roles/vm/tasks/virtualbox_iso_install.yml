@@ -11,12 +11,12 @@
 #   virtualbox_version.yml (only when versions mismatch)
 #
 # Expected variables:
-#   - _vm_vbox_host_ver: target version to install (from version check)
+#   - vm_vbox_host_ver: target version to install (from version check)
 #   - _vm_vbox_iso_dirs_pre: find result for existing ISO dirs
 #   - packages_virtualbox_guest: package list from group_vars
 #
 # Sets facts:
-#   - _vm_vbox_iso_installed: true (on success)
+#   - vm_vbox_iso_installed: true (on success)
 #
 # Recovery guarantee:
 #   On failure, automatically reverts to pacman GA packages.
@@ -136,7 +136,7 @@
 
     - name: "VirtualBox: Mark ISO installation complete"
       ansible.builtin.set_fact:
-        _vm_vbox_iso_installed: true
+        vm_vbox_iso_installed: true
 
   rescue:
     - name: "VirtualBox: RECOVERY - Re-install pacman GA packages"

@@ -5,8 +5,8 @@
 # Stop and disable VM guest services.
 #
 # Required parameters:
-#   _vm_svc_list  (list)   - Service names to stop
-#   _vm_pkg_label (string) - Hypervisor name for task names
+#   vm_svc_list  (list)   - Service names to stop
+#   vm_pkg_label (string) - Hypervisor name for task names
 #
 # Output:
 #   _vm_svc_stop_result (register) - Per-service results

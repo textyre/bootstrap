@@ -27,7 +27,7 @@
     group: root
     mode: "0644"
   vars:
-    _umask_user: "{{ user_owner.name }}"
-    _umask_value: "{{ user_owner.umask | default('027') }}"
+    umask_user: "{{ user_owner.name }}"
+    umask_value: "{{ user_owner.umask | default('027') }}"
   when: user_manage_umask | bool
   tags: [user, cis_5.4.2]

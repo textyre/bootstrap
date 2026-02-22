@@ -40,8 +40,8 @@
     group: root
     mode: "0644"
   vars:
-    _umask_user: "{{ item.name }}"
-    _umask_value: "{{ item.umask | default('077') }}"
+    umask_user: "{{ item.name }}"
+    umask_value: "{{ item.umask | default('077') }}"
   loop: "{{ user_additional_users }}"
   when:
     - user_manage_umask | bool

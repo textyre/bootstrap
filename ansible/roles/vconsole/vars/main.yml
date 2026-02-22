@@ -1,6 +1,6 @@
 ---
 # Поддерживаемые init-системы для vconsole
-_vconsole_supported_inits:
+vconsole_supported_inits:
   - systemd
   - openrc
   - runit

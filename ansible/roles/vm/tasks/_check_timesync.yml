@@ -13,12 +13,12 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _check_timesync.yml
 #     vars:
-#       _vm_timesync_label: "VMware"
-#       _vm_timesync_service: "vmtoolsd"
+#       vm_timesync_label: "VMware"
+#       vm_timesync_service: "vmtoolsd"
 #
 # Required parameters:
-#   _vm_timesync_label (string)   - Hypervisor name for task names
-#   _vm_timesync_service (string) - Name of the hypervisor service that manages time sync
+#   vm_timesync_label (string)   - Hypervisor name for task names
+#   vm_timesync_service (string) - Name of the hypervisor service that manages time sync
 #
 # Behavior:
 #   - Queries systemd to check if systemd-timesyncd is active

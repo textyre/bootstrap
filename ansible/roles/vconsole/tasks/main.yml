@@ -37,7 +37,7 @@
       WARNING: Console keymap skipped — init system
       '{{ ansible_facts['service_mgr'] }}' not supported.
       Supported: {{ vconsole_supported_inits | join(', ') }}.
-  when: ansible_facts['service_mgr'] not in _vconsole_supported_inits
+  when: ansible_facts['service_mgr'] not in vconsole_supported_inits
   tags: ['vconsole']
 
 # ---- GPM ----
@@ -66,7 +66,7 @@
   vars:
     common_rpt_fact: "_vconsole_phases"
     common_rpt_phase: "Console keymap"
-    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in _vconsole_supported_inits else 'skip' }}"
+    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in vconsole_supported_inits else 'skip' }}"
     common_rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
   tags: ['vconsole', 'report']
 

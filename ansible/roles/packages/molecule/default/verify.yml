@@ -11,7 +11,7 @@
   tasks:
     - name: Build combined package list
       ansible.builtin.set_fact:
-        _packages_all: >-
+        packages_all: >-
           {{ packages_base
              + packages_editors
              + packages_docker

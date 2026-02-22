@@ -5,27 +5,27 @@
 # Build package report rows from _vm_pkg_remove_result.
 #
 # Expected variables:
-#   _vm_pkg_label          (string)   - Hypervisor label
+#   vm_pkg_label          (string)   - Hypervisor label
 #   _vm_pkg_remove_result  (register) - Per-package remove results
 #
 # Output:
-#   _vm_rpt_pkg_rows (list) - Formatted table rows
+#   vm_rpt_pkg_rows (list) - Formatted table rows
 # =========================================================================
 
 - name: "{{ vm_pkg_label }}: Initialize package report"
   ansible.builtin.set_fact:
-    _vm_rpt_pkg_rows: []
+    vm_rpt_pkg_rows: []
   tags: ['vm', 'vm:report']
 
 - name: "{{ vm_pkg_label }}: Collect package results"
   ansible.builtin.set_fact:
-    _vm_rpt_pkg_rows: "{{ vm_rpt_pkg_rows + [_row] }}"
+    vm_rpt_pkg_rows: "{{ vm_rpt_pkg_rows + [row] }}"
   vars:
-    _failed: "{{ item.failed | default(false) | bool }}"
-    _changed: "{{ item.changed | default(false) | bool }}"
-    _common_rpt_status_mark: "{{ '! fail' if _failed else ('+ removed' if _changed else '- skipped') }}"
-    _detail: "{{ (item.msg | default('error')) | truncate(28, true, '..') if _failed else ('not installed' if not _changed else '') }}"
-    _row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(_detail) }} |"
+    failed: "{{ item.failed | default(false) | bool }}"
+    changed: "{{ item.changed | default(false) | bool }}"
+    common_rpt_status_mark: "{{ '! fail' if failed else ('+ removed' if changed else '- skipped') }}"
+    detail: "{{ (item.msg | default('error')) | truncate(28, true, '..') if failed else ('not installed' if not changed else '') }}"
+    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(detail) }} |"
   loop: "{{ vm_pkg_remove_result.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"

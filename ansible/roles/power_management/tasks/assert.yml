@@ -10,8 +10,8 @@
   changed_when: false
   failed_when: false
   when:
-    - _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify TLP is running
@@ -25,8 +25,8 @@
     success_msg: "TLP service is active"
   when:
     - power_management_assert_strict
-    - _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- power-profiles-daemon masked (laptop + systemd) ----
@@ -37,8 +37,8 @@
   changed_when: false
   failed_when: false
   when:
-    - _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify power-profiles-daemon is masked or absent
@@ -52,8 +52,8 @@
     success_msg: "power-profiles-daemon is masked or absent"
   when:
     - power_management_assert_strict
-    - _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- CPU governor matches expected (laptop — TLP managed) ----
@@ -69,7 +69,7 @@
     success_msg: "CPU governor '{{ power_management_status.governor }}' (TLP-managed)"
   when:
     - power_management_assert_strict
-    - _power_management_is_laptop
+    - power_management_is_laptop
   tags: ['power', 'assert']
 
 # ---- CPU governor matches expected (desktop) ----
@@ -86,7 +86,7 @@
     success_msg: "CPU governor is '{{ power_management_cpu_governor }}'"
   when:
     - power_management_assert_strict
-    - not _power_management_is_laptop
+    - not power_management_is_laptop
   tags: ['power', 'assert']
 
 # ---- sleep.conf HibernateMode ----
@@ -96,7 +96,7 @@
   register: pm_assert_hibernate
   changed_when: false
   failed_when: false
-  when: _power_management_init == 'systemd'
+  when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify HibernateMode in sleep.conf
@@ -109,7 +109,7 @@
     success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
   when:
     - power_management_assert_strict
-    - _power_management_init == 'systemd'
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- Validate sleep.conf via systemd-analyze ----
@@ -119,13 +119,13 @@
   changed_when: false
   failed_when: false
   register: pm_assert_sleep_analyze
-  when: _power_management_init == 'systemd'
+  when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Log sleep.conf validation result
   ansible.builtin.debug:
     msg: "sleep.conf validation: {{ 'OK' if _pm_assert_sleep_analyze.rc == 0 else 'WARNING: ' + _pm_assert_sleep_analyze.stderr }}"
-  when: _power_management_init == 'systemd'
+  when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- logind.conf HandleLidSwitch ----
@@ -135,7 +135,7 @@
   register: pm_assert_lid
   changed_when: false
   failed_when: false
-  when: _power_management_init == 'systemd'
+  when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify HandleLidSwitch in logind.conf
@@ -149,7 +149,7 @@
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
   when:
     - power_management_assert_strict
-    - _power_management_init == 'systemd'
+    - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- Charge thresholds applied ----

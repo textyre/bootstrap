@@ -11,20 +11,20 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _install_packages.yml
 #     vars:
-#       _vm_pkg_list: "{{ packages_hyperv_guest }}"
-#       _vm_pkg_label: "Hyper-V"
+#       vm_pkg_list: "{{ packages_hyperv_guest }}"
+#       vm_pkg_label: "Hyper-V"
 #
 # Required parameters:
-#   _vm_pkg_list (list)   - List of package names to install
-#   _vm_pkg_label (string) - Hypervisor name for task names (e.g., "Hyper-V", "VMware")
+#   vm_pkg_list (list)   - List of package names to install
+#   vm_pkg_label (string) - Hypervisor name for task names (e.g., "Hyper-V", "VMware")
 #
 # Optional parameters:
-#   _vm_notify_handler (string) - Handler name to notify when packages change (default: empty)
+#   vm_notify_handler (string) - Handler name to notify when packages change (default: empty)
 #
 # Behavior:
 #   - Installs packages using ansible.builtin.package with state=present
 #   - Retries up to 3 times with 5-second delay between attempts
-#   - Only runs when _vm_pkg_list is not empty
+#   - Only runs when vm_pkg_list is not empty
 #   - Registers result as _vm_pkg_install_result for inspection by caller
 #
 # Exit conditions:
@@ -36,7 +36,7 @@
   ansible.builtin.package:
     name: "{{ vm_pkg_list }}"
     state: present
-  when: _vm_pkg_list | length > 0
+  when: vm_pkg_list | length > 0
   register: vm_pkg_install_result
   retries: 3
   delay: 5

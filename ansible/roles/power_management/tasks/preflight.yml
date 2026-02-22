@@ -6,7 +6,7 @@
 
 - name: Set hibernate-in-use flag
   ansible.builtin.set_fact:
-    _pm_hibernate_in_use: >-
+    pm_hibernate_in_use: >-
       {{ power_management_lid_switch_action in ['hibernate', 'hybrid-sleep']
          or power_management_lid_switch_ac_action in ['hibernate', 'hybrid-sleep']
          or power_management_idle_action in ['hibernate', 'hybrid-sleep']
@@ -18,7 +18,7 @@
   register: pm_swap_check
   changed_when: false
   failed_when: false
-  when: _pm_hibernate_in_use | bool
+  when: pm_hibernate_in_use | bool
   tags: ['power', 'preflight']
 
 - name: Assert swap is available for hibernate
@@ -31,7 +31,7 @@
       or change logind actions that reference 'hibernate' / 'hybrid-sleep'
       to 'suspend' or 'ignore'.
     success_msg: "Swap detected, hibernate is viable"
-  when: _pm_hibernate_in_use | bool
+  when: pm_hibernate_in_use | bool
   tags: ['power', 'preflight']
 
 # ---- SSH lockout warning for idle suspend/hibernate ----

@@ -8,7 +8,7 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/shell/defaults/main.yml"
 
   vars:
-    _verify_shell_type: zsh
+    verify_shell_type: zsh
 
   tasks:
 

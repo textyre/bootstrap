@@ -7,12 +7,12 @@
     msg:
       - "=== GPU Driver Configuration ==="
       - "Detection:       {{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }}"
-      - "NVIDIA:          {{ gpu_drivers_has_nvidia }} (variant: {{ gpu_drivers_nvidia_variant if _gpu_drivers_has_nvidia else 'n/a' }})"
+      - "NVIDIA:          {{ gpu_drivers_has_nvidia }} (variant: {{ gpu_drivers_nvidia_variant if gpu_drivers_has_nvidia else 'n/a' }})"
       - "AMD:             {{ gpu_drivers_has_amd }}"
       - "Intel:           {{ gpu_drivers_has_intel }}"
       - "Multilib:        {{ gpu_drivers_multilib }}"
       - "Vulkan tools:    {{ gpu_drivers_vulkan_tools }}"
       - "VA-API:          {{ gpu_drivers_vaapi }}"
-      - "KMS:             {{ gpu_drivers_nvidia_kms if _gpu_drivers_has_nvidia else 'n/a' }}"
-      - "Initramfs:       {{ (_gpu_drivers_initramfs_tool | default('n/a')) if _gpu_drivers_has_nvidia else 'n/a' }}"
+      - "KMS:             {{ gpu_drivers_nvidia_kms if gpu_drivers_has_nvidia else 'n/a' }}"
+      - "Initramfs:       {{ (gpu_drivers_initramfs_tool | default('n/a')) if gpu_drivers_has_nvidia else 'n/a' }}"
   tags: ['gpu', 'drivers']

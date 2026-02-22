@@ -1,7 +1,7 @@
 ---
-_ssh_packages:
+ssh_packages:
   - openssh
-_ssh_service_name:
+ssh_service_name:
   systemd: sshd
   runit: sshd
   openrc: sshd

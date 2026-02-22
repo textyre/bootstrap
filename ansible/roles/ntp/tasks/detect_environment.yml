@@ -1,13 +1,13 @@
 ---
 # === NTP environment detection ===
 # Reads ansible_facts['virtualization_type'] and sets:
-#   _ntp_virt_type        — normalized virt type (hyperv/kvm/vmware/virtualbox/none)
-#   _ntp_env              — merged config dict from _ntp_env_map
-#   _ntp_active_refclocks — final list of refclock strings for chrony.conf
+#   ntp_virt_type        — normalized virt type (hyperv/kvm/vmware/virtualbox/none)
+#   ntp_env              — merged config dict from ntp_env_map
+#   ntp_active_refclocks — final list of refclock strings for chrony.conf
 
 - name: "NTP env: Determine virtualization type"
   ansible.builtin.set_fact:
-    _ntp_virt_type: >-
+    ntp_virt_type: >-
       {{ ansible_facts['virtualization_type'] | default('none')
          if (ansible_facts['virtualization_role'] | default('') == 'guest')
          else 'none' }}
@@ -15,8 +15,8 @@
 
 - name: "NTP env: Load environment config"
   ansible.builtin.set_fact:
-    _ntp_env: >-
-      {{ ntp_env_defaults | combine(_ntp_env_map[_ntp_virt_type] | default({})) }}
+    ntp_env: >-
+      {{ ntp_env_defaults | combine(ntp_env_map[ntp_virt_type] | default({})) }}
   tags: ['ntp']
 
 # VMware: check if /dev/ptp0 actually exists before adding refclock.
@@ -25,26 +25,26 @@
   ansible.builtin.stat:
     path: /dev/ptp0
   register: ntp_vmware_ptp_stat
-  when: _ntp_virt_type == 'vmware'
+  when: ntp_virt_type == 'vmware'
   tags: ['ntp']
 
 - name: "NTP env: Set VMware refclock if PTP device present"
   ansible.builtin.set_fact:
-    _ntp_env: >-
+    ntp_env: >-
       {{ ntp_env | combine({
            'refclocks': ['refclock PHC /dev/ptp0 poll 0 delay 0.0004 stratum 1']
          }) }}
   when:
-    - _ntp_virt_type == 'vmware'
+    - ntp_virt_type == 'vmware'
     - _ntp_vmware_ptp_stat.stat.exists | default(false)
   tags: ['ntp']
 
 # Final refclock list: user-supplied ntp_refclocks takes priority over auto-detected.
 - name: "NTP env: Resolve final refclock list"
   ansible.builtin.set_fact:
-    _ntp_active_refclocks: >-
+    ntp_active_refclocks: >-
       {{ ntp_refclocks if (ntp_refclocks | length > 0)
-         else _ntp_env.refclocks | default([]) }}
+         else ntp_env.refclocks | default([]) }}
   tags: ['ntp']
 
 - name: "NTP env: Report detected environment"

@@ -18,7 +18,7 @@
 
     - name: Set user home fact
       ansible.builtin.set_fact:
-        _shell_user_home: "{{ getent_passwd[shell_user][4] }}"
+        shell_user_home: "{{ getent_passwd[shell_user][4] }}"
       tags: ['shell']
 
     # ======================================================================

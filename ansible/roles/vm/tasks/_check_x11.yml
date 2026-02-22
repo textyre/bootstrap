@@ -12,7 +12,7 @@
 #   - ansible.builtin.include_tasks: _check_x11.yml
 #     vars:
 #       _vm_x11_label: "VirtualBox"
-#       _vm_x11_paths:
+#       vm_x11_paths:
 #         - path: /etc/xdg/autostart/vboxclient.desktop
 #           description: "VBoxClient X11 autostart"
 #         - path: /usr/bin/VBoxClient
@@ -20,7 +20,7 @@
 #
 # Required parameters:
 #   _vm_x11_label (string)       - Hypervisor name for task names
-#   _vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
+#   vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
 #     - path (string)        - Absolute path to file or directory
 #     - description (string) - Human-readable description for reporting
 #     - content (string, optional) - Content to write if file is missing

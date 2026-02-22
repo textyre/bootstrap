@@ -5,9 +5,9 @@
 # Install hypervisor-specific guest tools and persist facts.
 #
 # Expected variables (set by main.yml detection phase):
-#   _vm_is_guest    (bool)   - Whether running as guest
-#   _vm_hypervisor  (string) - Detected hypervisor name
-#   _vm_is_container (bool)  - Whether running in container/WSL2
+#   vm_is_guest    (bool)   - Whether running as guest
+#   vm_hypervisor  (string) - Detected hypervisor name
+#   vm_is_container (bool)  - Whether running in container/WSL2
 #   _vm_virt_type   (string) - Virtualization type
 #   _vm_virt_role   (string) - Virtualization role
 # =========================================================================
@@ -16,8 +16,8 @@
 
 - name: Include hypervisor-specific tasks
   ansible.builtin.include_tasks:
-    file: "{{ vm_hypervisor_map[_vm_hypervisor] }}"
-  when: _vm_is_guest | bool
+    file: "{{ vm_hypervisor_map[vm_hypervisor] }}"
+  when: vm_is_guest | bool
   tags: ['vm']
 
 - name: "Report: Install guest tools"
@@ -28,7 +28,7 @@
     common_rpt_fact: "_vm_phases"
     common_rpt_phase: "Install guest tools"
     common_rpt_detail: "{{ vm_hypervisor }}"
-  when: _vm_is_guest | bool
+  when: vm_is_guest | bool
   tags: ['vm']
 
 - name: "Report: Install guest tools (skip)"
@@ -40,7 +40,7 @@
     common_rpt_phase: "Install guest tools"
     common_rpt_status: "skip"
     common_rpt_detail: "not a guest"
-  when: not (_vm_is_guest | bool)
+  when: not (vm_is_guest | bool)
   tags: ['vm']
 
 # ---- Skip messages ----
@@ -50,7 +50,7 @@
     msg: >-
       Container or WSL2 environment detected (type={{ vm_virt_type }}).
       Guest tools not applicable for containers.
-  when: _vm_is_container | bool
+  when: vm_is_container | bool
   tags: ['vm', 'vm:report']
 
 - name: "Report: Environment check (container)"
@@ -62,7 +62,7 @@
     common_rpt_phase: "Environment check"
     common_rpt_status: "skip"
     common_rpt_detail: "container/WSL2 ({{ vm_virt_type }})"
-  when: _vm_is_container | bool
+  when: vm_is_container | bool
   tags: ['vm']
 
 - name: Skip - not a supported guest VM
@@ -71,8 +71,8 @@
       Not a supported guest VM (type={{ vm_virt_type }}, role={{ vm_virt_role }}).
       No guest tools to install.
   when:
-    - not (_vm_is_guest | bool)
-    - not (_vm_is_container | bool)
+    - not (vm_is_guest | bool)
+    - not (vm_is_container | bool)
   tags: ['vm', 'vm:report']
 
 - name: "Report: Environment check (not a guest)"
@@ -85,8 +85,8 @@
     common_rpt_status: "skip"
     common_rpt_detail: "not a guest ({{ vm_virt_type }}/{{ vm_virt_role }})"
   when:
-    - not (_vm_is_guest | bool)
-    - not (_vm_is_container | bool)
+    - not (vm_is_guest | bool)
+    - not (vm_is_container | bool)
   tags: ['vm']
 
 # ---- Persist facts for downstream roles ----

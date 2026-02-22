@@ -1,7 +1,7 @@
 ---
-_teleport_packages: []
-_teleport_install_method: binary
-_teleport_service_name:
+teleport_packages: []
+teleport_install_method: binary
+teleport_service_name:
   openrc: teleport
   systemd: teleport
   runit: teleport

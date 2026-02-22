@@ -16,8 +16,8 @@
 #   - packages_virtualbox_guest: package list from group_vars
 #
 # Sets facts:
-#   - _vm_vbox_host_ver: parsed host VirtualBox version
-#   - _vm_vbox_guest_ver: parsed installed GA version
+#   - vm_vbox_host_ver: parsed host VirtualBox version
+#   - vm_vbox_guest_ver: parsed installed GA version
 #
 # Calls:
 #   - virtualbox_iso_install.yml (when versions mismatch)
@@ -42,11 +42,11 @@
 
 - name: "VirtualBox: Parse versions"
   ansible.builtin.set_fact:
-    _vm_vbox_host_ver: >-
+    vm_vbox_host_ver: >-
       {{ vm_vbox_host_version_raw.stdout | default('')
          | regex_search('Value:\s*(.+)', '\1')
          | default(['unknown'], true) | first | trim }}
-    _vm_vbox_guest_ver: >-
+    vm_vbox_guest_ver: >-
       {{ vm_vbox_guest_version_raw.stdout | default('')
          | regex_replace('[^0-9.].*', '') }}
   when:
@@ -58,15 +58,15 @@
   ansible.builtin.debug:
     msg: "Detected versions - Host: {{ vm_vbox_host_ver | default('unknown') }}, Guest: {{ vm_vbox_guest_ver | default('unknown') }}"
   when:
-    - _vm_vbox_host_ver is defined
-    - _vm_vbox_guest_ver is defined
+    - vm_vbox_host_ver is defined
+    - vm_vbox_guest_ver is defined
   tags: ['vm', 'vbox', 'vm:verify']
 
 - name: "VirtualBox: Trigger ISO installation on version mismatch"
   ansible.builtin.include_tasks: virtualbox_iso_install.yml
   when:
-    - _vm_vbox_host_ver is defined
-    - _vm_vbox_guest_ver is defined
-    - _vm_vbox_host_ver != 'unknown'
-    - _vm_vbox_host_ver != _vm_vbox_guest_ver
+    - vm_vbox_host_ver is defined
+    - vm_vbox_guest_ver is defined
+    - vm_vbox_host_ver != 'unknown'
+    - vm_vbox_host_ver != vm_vbox_guest_ver
   tags: ['vm', 'vbox', 'vm:install']

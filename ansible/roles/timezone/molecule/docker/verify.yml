@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    _test_timezone: "Asia/Almaty"
+    test_timezone: "Asia/Almaty"
 
   tasks:
     - name: Check /etc/localtime symlink
@@ -16,7 +16,7 @@
     - name: Assert timezone matches
       ansible.builtin.assert:
         that:
-          - _test_timezone in verify_localtime.stdout
+          - test_timezone in verify_localtime.stdout
         fail_msg: "Expected '{{ test_timezone }}' in '{{ verify_localtime.stdout }}'"
 
     - name: Check tzdata is installed

@@ -5,7 +5,7 @@
 # ---- Deploy TLP config with rollback ----
 
 - name: Deploy TLP configuration
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'tlp']
   block:
     - name: Check if existing TLP config exists
@@ -73,5 +73,5 @@
     name: tlp
     enabled: true
     state: started
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'tlp']

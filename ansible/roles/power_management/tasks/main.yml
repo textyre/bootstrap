@@ -30,13 +30,13 @@
   ansible.builtin.import_tasks: sleep.yml
   when:
     - power_management_enabled | bool
-    - _power_management_init == 'systemd'
+    - power_management_init == 'systemd'
 
 - name: Configure logind power behaviour
   ansible.builtin.import_tasks: logind.yml
   when:
     - power_management_enabled | bool
-    - _power_management_init == 'systemd'
+    - power_management_init == 'systemd'
 
 - name: Collect system power facts
   ansible.builtin.import_tasks: collect_facts.yml

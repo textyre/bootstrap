@@ -5,15 +5,15 @@
   ansible.builtin.package:
     name: "{{ teleport_packages }}"
     state: present
-  when: _teleport_install_method == 'package'
+  when: teleport_install_method == 'package'
   tags: [teleport, install]
 
 - name: "Install Teleport via official repository (Debian/RedHat)"
-  when: _teleport_install_method == 'repo'
+  when: teleport_install_method == 'repo'
   block:
     - name: "Set Teleport major version for repository URL"
       ansible.builtin.set_fact:
-        _teleport_major_version: "{{ teleport_version.split('.')[0] }}"
+        teleport_major_version: "{{ teleport_version.split('.')[0] }}"
 
     - name: "Add Teleport GPG key"
       ansible.builtin.get_url:
@@ -47,11 +47,11 @@
   tags: [teleport, install]
 
 - name: "Install Teleport via binary download (Void/Gentoo)"
-  when: _teleport_install_method == 'binary'
+  when: teleport_install_method == 'binary'
   block:
     - name: "Set architecture mapping for Teleport download"
       ansible.builtin.set_fact:
-        _teleport_arch: >-
+        teleport_arch: >-
           {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture]
              | default(ansible_architecture) }}
 

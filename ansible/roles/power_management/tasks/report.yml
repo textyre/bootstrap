@@ -6,11 +6,11 @@
   ansible.builtin.debug:
     msg:
       - "====== Power Management Report ======"
-      - "Device type    : {{ 'laptop' if _power_management_is_laptop else 'desktop' }}"
+      - "Device type    : {{ 'laptop' if power_management_is_laptop else 'desktop' }}"
       - "Init system    : {{ power_management_init }}"
-      - "CPU vendor     : {{ 'Intel' if _power_management_cpu_is_intel else ('AMD' if _power_management_cpu_is_amd else 'other') }}"
+      - "CPU vendor     : {{ 'Intel' if power_management_cpu_is_intel else ('AMD' if power_management_cpu_is_amd else 'other') }}"
       - "CPU governor   : {{ power_management_status.governor }}"
-      - "TLP status     : {{ power_management_status.tlp_active if _power_management_is_laptop else 'N/A (desktop)' }}"
+      - "TLP status     : {{ power_management_status.tlp_active if power_management_is_laptop else 'N/A (desktop)' }}"
       - "Battery        : {{ power_management_status.battery.status }} ({{ power_management_status.battery.capacity }}%)"
       - "Hibernate mode : {{ power_management_hibernate_mode }}"
       - "Lid switch     : {{ power_management_lid_switch_action }}"

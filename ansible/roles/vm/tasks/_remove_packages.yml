@@ -5,8 +5,8 @@
 # Remove VM guest packages (per-package for granular reporting).
 #
 # Required parameters:
-#   _vm_pkg_list  (list)   - Package names to remove
-#   _vm_pkg_label (string) - Hypervisor name for task names
+#   vm_pkg_list  (list)   - Package names to remove
+#   vm_pkg_label (string) - Hypervisor name for task names
 #
 # Output:
 #   _vm_pkg_remove_result (register) - Per-package results

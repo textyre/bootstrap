@@ -12,7 +12,7 @@
 - name: Assert login shell is correct
   ansible.builtin.assert:
     that:
-      - getent_passwd[shell_user][5] == _shell_bin[shell_type]
+      - getent_passwd[shell_user][5] == shell_bin[shell_type]
     fail_msg: >-
       Login shell for {{ shell_user }} is '{{ getent_passwd[shell_user][5] }}'
       but expected '{{ shell_bin[shell_type] }}'.

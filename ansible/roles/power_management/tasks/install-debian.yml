@@ -10,7 +10,7 @@
       - tlp
       - tlp-rdw
     state: present
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'install']
 
 # ---- cpupower (kernel-versioned) ----

@@ -1,4 +1,4 @@
 ---
-_git_packages:
+git_packages:
   - dev-vcs/git
-_git_lfs_package: dev-vcs/git-lfs
+git_lfs_package: dev-vcs/git-lfs

@@ -25,7 +25,7 @@ shell_global_env: {}
 #   JAVA_HOME: "/usr/lib/jvm/default"
 
 # XDG Base Directories to create (XDG Base Directory Specification)
-# Uses _shell_user_home fact resolved at runtime
+# Uses shell_user_home fact resolved at runtime
 shell_xdg_dirs:
   - ".config"
   - ".local/share"

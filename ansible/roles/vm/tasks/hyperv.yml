@@ -17,9 +17,9 @@
 - ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    _vm_pkg_list: "{{ vm_hyperv_packages }}"
-    _vm_pkg_label: "Hyper-V"
-    _vm_notify_handler: "Restart hyper-v services"
+    vm_pkg_list: "{{ vm_hyperv_packages }}"
+    vm_pkg_label: "Hyper-V"
+    vm_notify_handler: "Restart hyper-v services"
   tags: ['vm', 'hyperv']
 
 # ---- Check time sync ----
@@ -27,8 +27,8 @@
 - ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
-    _vm_timesync_label: "Hyper-V"
-    _vm_timesync_service: "hv_utils (via hv_vmbus)"
+    vm_timesync_label: "Hyper-V"
+    vm_timesync_service: "hv_utils (via hv_vmbus)"
   tags: ['vm', 'hyperv']
 
 # ---- Manage services ----
@@ -36,7 +36,7 @@
 - ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
-    _vm_svc_list:
+    vm_svc_list:
       - name: hv_fcopy_daemon
         description: "file copy between host and guest"
         required: true
@@ -46,7 +46,7 @@
       - name: hv_vss_daemon
         description: "Volume Shadow Copy (live backup support)"
         required: true
-    _vm_svc_label: "Hyper-V"
+    vm_svc_label: "Hyper-V"
   tags: ['vm', 'hyperv']
 
 # ---- Verify kernel modules ----
@@ -54,7 +54,7 @@
 - ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
-    _vm_mod_list:
+    vm_mod_list:
       - name: hv_vmbus
         description: "VMBus communication layer (REQUIRED foundation)"
         required: true
@@ -67,7 +67,7 @@
       - name: hv_utils
         description: "integration utilities (shutdown, heartbeat, time sync)"
         required: false
-    _vm_mod_label: "Hyper-V"
+    vm_mod_label: "Hyper-V"
   tags: ['vm', 'hyperv']
 
 # ---- Version report ----
@@ -75,9 +75,9 @@
 - ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
-    _vm_ver_label: "Hyper-V"
-    _vm_ver_command: "modinfo -F version hv_vmbus"
-    _vm_ver_extra_commands:
+    vm_ver_label: "Hyper-V"
+    vm_ver_command: "modinfo -F version hv_vmbus"
+    vm_ver_extra_commands:
       - cmd: "modinfo -F vermagic hv_vmbus"
         label: "Kernel compatibility"
   tags: ['vm', 'hyperv']
@@ -88,7 +88,7 @@
     file: _check_x11.yml
   vars:
     _vm_x11_label: "Hyper-V"
-    _vm_x11_paths:
+    vm_x11_paths:
       - path: /usr/bin/xrdp
         description: "xrdp remote desktop (Enhanced Session)"
   tags: ['vm', 'hyperv']
@@ -98,6 +98,6 @@
 - ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
-    _vm_reboot_label: "Hyper-V"
-    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('hv_vmbus' not in _vm_lsmod_output.stdout) }}"
+    vm_reboot_label: "Hyper-V"
+    vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('hv_vmbus' not in _vm_lsmod_output.stdout) }}"
   tags: ['vm', 'hyperv']

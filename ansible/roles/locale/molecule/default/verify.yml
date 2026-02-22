@@ -7,11 +7,11 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   vars:
-    _test_locales:
+    test_locales:
       - "en_US.UTF-8"
       - "ru_RU.UTF-8"
-    _test_locale: "en_US.UTF-8"
-    _test_lc_overrides:
+    test_locale: "en_US.UTF-8"
+    test_lc_overrides:
       LC_TIME: "ru_RU.UTF-8"
 
   tasks:
@@ -23,11 +23,11 @@
     - name: Assert all test locales are generated
       ansible.builtin.assert:
         that:
-          - _locale_normalized in _available_list
+          - locale_normalized in available_list
         fail_msg: "{{ item }} locale not found in locale -a output"
       vars:
-        _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
-        _available_list: "{{ locale_verify_locales.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
+        locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
+        available_list: "{{ locale_verify_locales.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
       loop: "{{ test_locales }}"
 
     - name: Read locale.conf
@@ -61,14 +61,14 @@
       changed_when: false
       environment: >-
         {{
-          {'LANG': _test_locale} |
-          combine(_test_lc_overrides)
+          {'LANG': test_locale} |
+          combine(test_lc_overrides)
         }}
 
     - name: Assert LANG is active in locale output
       ansible.builtin.assert:
         that:
-          - "'LANG=' ~ _test_locale in locale_verify_locale_cmd.stdout"
+          - "'LANG=' ~ test_locale in locale_verify_locale_cmd.stdout"
         fail_msg: >
           LANG={{ test_locale }} not found in 'locale' output:
           {{ locale_verify_locale_cmd.stdout }}

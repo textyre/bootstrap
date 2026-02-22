@@ -10,22 +10,22 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _manage_services.yml
 #     vars:
-#       _vm_svc_list:
+#       vm_svc_list:
 #         - name: vgauthd
 #           description: "VMware Guest Authentication Service"
 #           required: true
 #         - name: vmware-vmblock-fuse
 #           description: "VMware Shared Folders FUSE Service"
 #           required: false
-#       _vm_svc_label: "VMware"
+#       vm_svc_label: "VMware"
 #
 # Required parameters:
-#   _vm_svc_list (list of dicts) - Services to manage. Each dict must have:
+#   vm_svc_list (list of dicts) - Services to manage. Each dict must have:
 #     - name (string)        - systemd service name
 #     - description (string) - Human-readable description for reporting
 #     - required (bool)      - If true, failure will abort playbook.
 #                              If false, failure is logged but ignored.
-#   _vm_svc_label (string)   - Hypervisor name for task names
+#   vm_svc_label (string)   - Hypervisor name for task names
 #
 # Behavior:
 #   - Loops over all services and enables + starts each
@@ -62,7 +62,7 @@
   register: vm_svc_journal
   changed_when: false
   failed_when: false
-  when: _vm_service_manager | default('systemd') == 'systemd'
+  when: vm_service_manager | default('systemd') == 'systemd'
   tags: ['vm', 'vm:service']
 
 - name: "{{ vm_svc_label }}: Report service status"

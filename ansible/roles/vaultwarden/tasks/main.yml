@@ -79,7 +79,7 @@
 
 - name: Set admin token fact
   ansible.builtin.set_fact:
-    _vaultwarden_admin_token: "{{ vaultwarden_admin_token_raw.content | b64decode | trim }}"
+    vaultwarden_admin_token: "{{ vaultwarden_admin_token_raw.content | b64decode | trim }}"
   when: vaultwarden_enabled and vaultwarden_admin_enabled
   tags: ['vaultwarden', 'secrets']
 

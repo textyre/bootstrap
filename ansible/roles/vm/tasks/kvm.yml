@@ -15,9 +15,9 @@
 - ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    _vm_pkg_list: "{{ vm_kvm_packages }}"
-    _vm_pkg_label: "KVM"
-    _vm_notify_handler: "Restart kvm services"
+    vm_pkg_list: "{{ vm_kvm_packages }}"
+    vm_pkg_label: "KVM"
+    vm_notify_handler: "Restart kvm services"
   tags: ['vm', 'kvm']
 
 # ---- Check time sync ----
@@ -25,8 +25,8 @@
 - ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
-    _vm_timesync_label: "KVM"
-    _vm_timesync_service: "qemu-guest-agent"
+    vm_timesync_label: "KVM"
+    vm_timesync_service: "qemu-guest-agent"
   tags: ['vm', 'kvm']
 
 # ---- Manage services ----
@@ -34,11 +34,11 @@
 - ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
-    _vm_svc_list:
+    vm_svc_list:
       - name: qemu-guest-agent
         description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
         required: true
-    _vm_svc_label: "KVM"
+    vm_svc_label: "KVM"
   tags: ['vm', 'kvm']
 
 # ---- Verify kernel modules ----
@@ -46,7 +46,7 @@
 - ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
-    _vm_mod_list:
+    vm_mod_list:
       - name: virtio_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: false
@@ -59,7 +59,7 @@
       - name: virtio_scsi
         description: "paravirtual SCSI controller (optional, depends on VM disk config)"
         required: false
-    _vm_mod_label: "KVM"
+    vm_mod_label: "KVM"
   tags: ['vm', 'kvm']
 
 # ---- Version report ----
@@ -67,8 +67,8 @@
 - ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
-    _vm_ver_label: "KVM"
-    _vm_ver_command: "qemu-ga --version"
+    vm_ver_label: "KVM"
+    vm_ver_command: "qemu-ga --version"
   when: vm_kvm_version_report
   tags: ['vm', 'kvm']
 
@@ -77,6 +77,6 @@
 - ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
-    _vm_reboot_label: "KVM"
-    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('virtio_balloon' not in _vm_lsmod_output.stdout) }}"
+    vm_reboot_label: "KVM"
+    vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('virtio_balloon' not in _vm_lsmod_output.stdout) }}"
   tags: ['vm', 'kvm']

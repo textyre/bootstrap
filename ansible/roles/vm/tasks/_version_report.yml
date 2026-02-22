@@ -11,30 +11,30 @@
 # Usage (basic):
 #   - ansible.builtin.include_tasks: _version_report.yml
 #     vars:
-#       _vm_ver_label: "VMware"
-#       _vm_ver_command: "vmware-toolbox-cmd -v"
+#       vm_ver_label: "VMware"
+#       vm_ver_command: "vmware-toolbox-cmd -v"
 #
 # Usage (with extra commands):
 #   - ansible.builtin.include_tasks: _version_report.yml
 #     vars:
-#       _vm_ver_label: "VMware"
-#       _vm_ver_command: "vmware-toolbox-cmd -v"
-#       _vm_ver_extra_commands:
+#       vm_ver_label: "VMware"
+#       vm_ver_command: "vmware-toolbox-cmd -v"
+#       vm_ver_extra_commands:
 #         - cmd: "vmware-toolbox-cmd stat raw text vmprovider"
 #           label: "Host platform"
 #
 # Required parameters:
-#   _vm_ver_label (string)   - Hypervisor name for task names
-#   _vm_ver_command (string) - Shell command to get version info
+#   vm_ver_label (string)   - Hypervisor name for task names
+#   vm_ver_command (string) - Shell command to get version info
 #
 # Optional parameters:
-#   _vm_ver_extra_commands (list of dicts) - Additional commands to run. Each dict:
+#   vm_ver_extra_commands (list of dicts) - Additional commands to run. Each dict:
 #     - cmd (string)   - Shell command to execute
 #     - label (string) - Description for output
 #
 # Behavior:
 #   - Runs the main version command, stores output
-#   - Optionally runs extra commands if _vm_ver_extra_commands is defined
+#   - Optionally runs extra commands if vm_ver_extra_commands is defined
 #   - Reports version information via debug task
 #   - If main command fails: reports "version info not available"
 #   - Never fails (version reporting is informational only)
@@ -60,15 +60,15 @@
   register: vm_ver_extra_result
   changed_when: false
   failed_when: false
-  when: _vm_ver_extra_commands is defined
+  when: vm_ver_extra_commands is defined
   tags: ['vm', 'vm:verify']
 
 - name: "{{ vm_ver_label }}: Report version information"
   ansible.builtin.debug:
     msg: >-
       {{ vm_ver_label }} guest tools version: {{ vm_ver_main_result.stdout | default('not available') }}
-      {% if _vm_ver_extra_result is defined and _vm_ver_extra_result.results is defined %}
-      {% for result in _vm_ver_extra_result.results %}
+      {% if vm_ver_extra_result is defined and vm_ver_extra_result.results is defined %}
+      {% for result in vm_ver_extra_result.results %}
       {{ result.item.label }}: {{ result.stdout | default('not available') }}
       {% endfor %}
       {% endif %}

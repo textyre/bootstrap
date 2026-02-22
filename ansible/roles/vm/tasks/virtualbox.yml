@@ -66,12 +66,12 @@
     state: present
   when:
     - packages_virtualbox_guest | length > 0
-    - not (_vm_vbox_iso_installed | default(false))
+    - not (vm_vbox_iso_installed | default(false))
     - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
     - >-
       not vm_vbox_version_check
-      or (_vm_vbox_host_ver | default('') == _vm_vbox_guest_ver | default(''))
-      or _vm_vbox_host_ver | default('') == 'unknown'
+      or (vm_vbox_host_ver | default('') == vm_vbox_guest_ver | default(''))
+      or vm_vbox_host_ver | default('') == 'unknown'
   register: vm_vbox_pkg_install
   retries: 3
   delay: 5
@@ -89,8 +89,8 @@
 
 - name: "VirtualBox: Determine active service name"
   ansible.builtin.set_fact:
-    _vm_vbox_service_name: >-
-      {{ 'vboxadd-service' if (_vm_vbox_iso_installed | default(false))
+    vm_vbox_service_name: >-
+      {{ 'vboxadd-service' if (vm_vbox_iso_installed | default(false))
          or (_vm_vbox_iso_dirs_pre.matched | default(0) > 0)
          else 'vboxservice' }}
   tags: ['vm', 'vbox', 'vm:service']
@@ -101,8 +101,8 @@
   ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
-    _vm_timesync_label: "VirtualBox"
-    _vm_timesync_service: "{{ vm_vbox_service_name }}"
+    vm_timesync_label: "VirtualBox"
+    vm_timesync_service: "{{ vm_vbox_service_name }}"
   tags: ['vm', 'vbox']
 
 # ---- Phase 8: Service management ----
@@ -111,12 +111,12 @@
   ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
-    _vm_svc_label: "VirtualBox"
-    _vm_svc_list:
+    vm_svc_label: "VirtualBox"
+    vm_svc_list:
       - name: "{{ vm_vbox_service_name }}"
         description: "guest service (time sync, clipboard, seamless mode)"
         required: true
-  when: not (_vm_vbox_iso_installed | default(false))
+  when: not (vm_vbox_iso_installed | default(false))
   tags: ['vm', 'vbox']
 
 # ---- Phase 9: Module verification ----
@@ -125,8 +125,8 @@
   ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
-    _vm_mod_label: "VirtualBox"
-    _vm_mod_list:
+    vm_mod_label: "VirtualBox"
+    vm_mod_list:
       - name: vboxguest
         description: "core guest integration module"
         required: true
@@ -145,7 +145,7 @@
     file: _check_x11.yml
   vars:
     _vm_x11_label: "VirtualBox"
-    _vm_x11_paths:
+    vm_x11_paths:
       - path: /etc/xdg/autostart/vboxclient.desktop
         description: "VBoxClient X11 autostart (clipboard, seamless, display resize)"
         content: |
@@ -162,8 +162,8 @@
   ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
-    _vm_ver_label: "VirtualBox"
-    _vm_ver_command: "VBoxControl --version"
+    vm_ver_label: "VirtualBox"
+    vm_ver_command: "VBoxControl --version"
   when: vm_vbox_version_check
   tags: ['vm', 'vbox']
 
@@ -173,9 +173,9 @@
   ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
-    _vm_reboot_label: "VirtualBox"
-    _vm_reboot_condition: >-
+    vm_reboot_label: "VirtualBox"
+    vm_reboot_condition: >-
       {{ ((_vm_vbox_pkg_install is defined and _vm_vbox_pkg_install is changed)
-          or (_vm_vbox_iso_installed | default(false)))
+          or (vm_vbox_iso_installed | default(false)))
          and ('vboxguest' not in (_vm_lsmod_output.stdout | default(''))) }}
   tags: ['vm', 'vbox']

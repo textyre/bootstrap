@@ -13,7 +13,7 @@
 
 - name: Set governor fact
   ansible.builtin.set_fact:
-    _pm_fact_governor: "{{ (_pm_fact_governor_raw.content | b64decode | trim) if _pm_fact_governor_raw is succeeded else 'unknown' }}"
+    pm_fact_governor: "{{ (_pm_fact_governor_raw.content | b64decode | trim) if _pm_fact_governor_raw is succeeded else 'unknown' }}"
   tags: ['power', 'facts']
 
 # ---- Battery status ----
@@ -39,7 +39,7 @@
   register: pm_fact_tlp_status_raw
   changed_when: false
   failed_when: false
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'facts']
 
 # ---- Charge thresholds ----
@@ -71,5 +71,5 @@
         status: "{{ (_pm_fact_bat0_status_raw.content | b64decode | trim) if _pm_fact_bat0_status_raw is succeeded else 'N/A' }}"
         charge_start_threshold: "{{ (_pm_fact_bat0_thresh_start_raw.content | b64decode | trim) if _pm_fact_bat0_thresh_start_raw is succeeded else 'N/A' }}"
         charge_stop_threshold: "{{ (_pm_fact_bat0_thresh_stop_raw.content | b64decode | trim) if _pm_fact_bat0_thresh_stop_raw is succeeded else 'N/A' }}"
-      tlp_active: "{{ 'enabled' in (_pm_fact_tlp_status_raw.stdout | default('')) if _power_management_is_laptop else 'N/A' }}"
+      tlp_active: "{{ 'enabled' in (_pm_fact_tlp_status_raw.stdout | default('')) if power_management_is_laptop else 'N/A' }}"
   tags: ['power', 'facts']

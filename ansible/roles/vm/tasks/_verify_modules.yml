@@ -10,22 +10,22 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _verify_modules.yml
 #     vars:
-#       _vm_mod_list:
+#       vm_mod_list:
 #         - name: hv_vmbus
 #           description: "Hyper-V VMBus driver"
 #           required: true
 #         - name: hv_storvsc
 #           description: "Hyper-V storage driver"
 #           required: false
-#       _vm_mod_label: "Hyper-V"
+#       vm_mod_label: "Hyper-V"
 #
 # Required parameters:
-#   _vm_mod_list (list of dicts) - Kernel modules to verify. Each dict must have:
+#   vm_mod_list (list of dicts) - Kernel modules to verify. Each dict must have:
 #     - name (string)        - Kernel module name (as shown in lsmod output)
 #     - description (string) - Human-readable description for error messages
 #     - required (bool)      - If true, missing module will abort playbook.
 #                              If false, status is logged but no failure.
-#   _vm_mod_label (string)   - Hypervisor name for task names
+#   vm_mod_label (string)   - Hypervisor name for task names
 #
 # Behavior:
 #   - Checks each module is available on disk via modinfo (can be loaded)

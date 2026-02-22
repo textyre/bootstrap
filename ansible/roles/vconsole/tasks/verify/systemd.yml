@@ -10,7 +10,7 @@
 - name: Assert keymap is set (systemd)
   ansible.builtin.assert:
     that:
-      - "_vconsole_check.stdout | regex_search('VC Keymap:\\s+' + _vconsole_value + '(\\s|$)')"
+      - "_vconsole_check.stdout | regex_search('VC Keymap:\\s+' + vconsole_value + '(\\s|$)')"
     fail_msg: >-
       Keymap '{{ vconsole_value }}' not found as VC Keymap in localectl status.
       Output: {{ vconsole_check.stdout }}

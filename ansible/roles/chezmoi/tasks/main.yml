@@ -12,7 +12,7 @@
 
 - name: Set user home fact
   ansible.builtin.set_fact:
-    _chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
+    chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
   tags: ['chezmoi', 'dotfiles']
 
 # ---- Установка chezmoi (OS-specific) ----

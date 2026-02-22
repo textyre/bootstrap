@@ -24,8 +24,8 @@
 - name: Assert greeter dist directory exists
   ansible.builtin.assert:
     that:
-      - _greeter_dist_stat.stat.exists
-      - _greeter_dist_stat.stat.isdir
+      - greeter_dist_stat.stat.exists
+      - greeter_dist_stat.stat.isdir
     fail_msg: "Greeter dist не найден: {{ greeter_dist_dir }}. Запустите 'task greeter:build'."
   tags: ['greeter', 'display']
 
@@ -118,8 +118,8 @@
 
 - name: Extract SSH fingerprint hash
   ansible.builtin.set_fact:
-    _greeter_ssh_fp_hash:
-      stdout: "{{ (_greeter_ssh_fp_raw.stdout | default('unknown')).split()[1] | default('unknown') }}"
+    greeter_ssh_fp_hash:
+      stdout: "{{ (greeter_ssh_fp_raw.stdout | default('unknown')).split()[1] | default('unknown') }}"
   tags: ['greeter', 'display']
 
 # ---- Генерация system-info.json ----
@@ -158,7 +158,7 @@
     owner: root
     group: root
     mode: '0755'
-  when: _greeter_wallpaper_stat.stat.exists | default(false)
+  when: greeter_wallpaper_stat.stat.exists | default(false)
   tags: ['greeter', 'display']
 
 - name: Copy wallpapers to system backgrounds
@@ -170,7 +170,7 @@
     mode: '0644'
     directory_mode: '0755'
     remote_src: true
-  when: _greeter_wallpaper_stat.stat.exists | default(false)
+  when: greeter_wallpaper_stat.stat.exists | default(false)
   tags: ['greeter', 'display']
 
 # ---- Отчёт ----

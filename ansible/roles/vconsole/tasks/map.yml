@@ -1,9 +1,9 @@
 ---
 # === Custom keymap file support ===
 
-- name: Compute _vconsole_value fact
+- name: Compute vconsole_value fact
   ansible.builtin.set_fact:
-    _vconsole_value: >-
+    vconsole_value: >-
       {{ '/usr/local/share/kbd/keymaps/' + (vconsole_console_map_src | basename)
          if vconsole_console_map_src | default('') | length > 0
          else vconsole_console }}

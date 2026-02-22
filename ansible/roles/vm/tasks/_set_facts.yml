@@ -23,5 +23,5 @@
       }
     dest: /etc/ansible/facts.d/vm_guest.fact
     mode: '0644'
-  when: _vm_is_guest | bool
+  when: vm_is_guest | bool
   tags: ['vm']

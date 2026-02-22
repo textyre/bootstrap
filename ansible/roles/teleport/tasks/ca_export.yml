@@ -6,7 +6,7 @@
     cmd: "tctl auth export --type=user"
   register: teleport_user_ca
   changed_when: false
-  failed_when: _teleport_user_ca.rc != 0
+  failed_when: teleport_user_ca.rc != 0
   tags: [teleport, security]
 
 - name: "Deploy CA public key for sshd"
