@@ -1,0 +1,42 @@
+---
+# === git — commit signing configuration (per-user layer) ===
+# Supports SSH signing (git 2.34+) and GPG signing.
+# Signing method is per-user via _git_current_user.signing_method.
+
+- name: Configure SSH commit signing
+  when: (_git_current_user.signing_method | default('none')) == 'ssh'
+  tags: [git, signing]
+  block:
+    - name: Set gpg.format to ssh
+      community.general.git_config:
+        name: gpg.format
+        value: ssh
+        scope: global
+
+    - name: Set user.signingKey (SSH)
+      community.general.git_config:
+        name: user.signingKey
+        value: "{{ _git_current_user.signing_key }}"
+        scope: global
+
+    - name: Set commit.gpgSign
+      community.general.git_config:
+        name: commit.gpgSign
+        value: "{{ git_commit_sign | string | lower }}"
+        scope: global
+
+- name: Configure GPG commit signing
+  when: (_git_current_user.signing_method | default('none')) == 'gpg'
+  tags: [git, signing]
+  block:
+    - name: Set user.signingKey (GPG)
+      community.general.git_config:
+        name: user.signingKey
+        value: "{{ _git_current_user.signing_key }}"
+        scope: global
+
+    - name: Set commit.gpgSign
+      community.general.git_config:
+        name: commit.gpgSign
+        value: "{{ git_commit_sign | string | lower }}"
+        scope: global
