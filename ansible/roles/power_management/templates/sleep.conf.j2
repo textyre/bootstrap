@@ -1,8 +1,8 @@
 # Managed by Ansible — role: power_management
+# systemd sleep configuration — /etc/systemd/sleep.conf
+# See: man systemd.sleep.conf(5)
 [Sleep]
-SuspendMode={{ power_management_suspend_mode }}
 HibernateMode={{ power_management_hibernate_mode }}
-HybridSleepMode={{ power_management_hybrid_sleep_mode }}
 {% if power_management_suspend_state %}
 SuspendState={{ power_management_suspend_state }}
 {% endif %}

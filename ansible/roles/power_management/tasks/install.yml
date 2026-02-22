@@ -1,6 +1,12 @@
 ---
 # === power_management / install ===
-# OS-specific package installation dispatch
+# OS-specific package dispatch.
+#
+# NOTE: include_tasks (unlike import_tasks) is required here because the filename
+# is dynamic (variable in path). As a consequence, tags on this task do NOT
+# propagate into the included file. Running --tags power,install will execute
+# this include task but not the tasks inside install-*.yml.
+# Workaround: run without --tags, or tag the play directly.
 
 - name: Include OS-specific installation
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"

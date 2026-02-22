@@ -25,11 +25,11 @@
       register: _power_verify_sleep_conf
       failed_when: not _power_verify_sleep_conf.stat.exists
 
-    - name: Check sleep.conf contains SuspendMode
-      ansible.builtin.command: grep 'SuspendMode' /etc/systemd/sleep.conf
-      register: _power_verify_suspend_mode
+    - name: Check sleep.conf contains HibernateMode
+      ansible.builtin.command: grep 'HibernateMode' /etc/systemd/sleep.conf
+      register: _power_verify_hibernate_mode
       changed_when: false
-      failed_when: _power_verify_suspend_mode.rc != 0
+      failed_when: _power_verify_hibernate_mode.rc != 0
 
     # ---- Device detection ----
 
@@ -43,7 +43,7 @@
       ansible.builtin.set_fact:
         _power_verify_is_laptop: >-
           {{ _power_verify_chassis is succeeded and
-             (_power_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '31'] }}
+             (_power_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32'] }}
 
     # ---- TLP checks (laptop only) ----
 
@@ -70,7 +70,7 @@
       check_mode: true
       register: _power_verify_tlp_service
       failed_when: _power_verify_tlp_service is changed
-      when: _power_verify_is_laptop
+      when: _power_verify_is_laptop and ansible_service_mgr == 'systemd'
 
     # ---- CPU governor check ----
 
@@ -96,6 +96,7 @@
       register: _power_verify_logind
       changed_when: false
       failed_when: _power_verify_logind.rc != 0
+      when: ansible_service_mgr == 'systemd'
 
     # ---- Audit checks ----
 
@@ -117,6 +118,7 @@
       register: _power_verify_audit_timer
       changed_when: false
       failed_when: _power_verify_audit_timer.stdout != 'enabled'
+      when: ansible_service_mgr == 'systemd'
 
     # ---- Drift detection state directory ----
 

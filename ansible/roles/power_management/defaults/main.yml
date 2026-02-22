@@ -16,7 +16,16 @@ _power_management_laptop_chassis_types:
   - "9"   # Laptop
   - "10"  # Notebook
   - "14"  # Sub Notebook
+  - "30"  # Tablet
   - "31"  # Convertible
+  - "32"  # Detachable
+
+# ---- Internal facts (overridden by detect.yml) ----
+# Explicit defaults ensure safe behaviour when power_management_enabled: false
+_power_management_is_laptop: false
+_power_management_init: "unknown"
+_power_management_cpu_is_intel: false
+_power_management_cpu_is_amd: false
 
 # ---- Device detection ----
 # auto = detect via DMI chassis_type
@@ -75,9 +84,11 @@ power_management_cpu_governor: schedutil
 power_management_governor_persist: udev
 
 # ---- systemd sleep ----
-power_management_suspend_mode: suspend
+# NOTE: The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen at
+# runtime via logind.conf actions (HandleLidSwitch, IdleAction) or manually
+# with 'systemctl suspend|hibernate|hybrid-sleep'. The settings below control
+# HOW each mode is implemented by the kernel — see systemd.sleep.conf(5).
 power_management_hibernate_mode: platform
-power_management_hybrid_sleep_mode: suspend
 power_management_suspend_state: ""
 power_management_hibernate_delay_sec: ""
 
@@ -99,6 +110,10 @@ power_management_audit_battery_wear_threshold: 20
 
 power_management_drift_detection: true
 power_management_drift_state_dir: /var/lib/ansible-power-management
+
+# Cron schedule for non-systemd systems (ignored when systemd is available)
+power_management_audit_cron_hour: "0"
+power_management_audit_cron_minute: "0"
 
 # ---- Assertions ----
 power_management_assert_strict: true

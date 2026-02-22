@@ -47,13 +47,13 @@ Configures `/etc/systemd/logind.conf` to define system-level behaviour independe
 
 ### Sleep modes
 
-Deploys `/etc/systemd/sleep.conf` with explicit suspend, hibernate, and hybrid-sleep modes.
+Deploys `/etc/systemd/sleep.conf` to configure HOW the kernel implements each sleep state (see `systemd.sleep.conf(5)`). The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen at runtime via logind actions (`HandleLidSwitch`, `IdleAction`) or manually with `systemctl suspend|hibernate`.
 
 Default hibernate mode: `platform` (not `shutdown`) — resumes via firmware even if the battery ran out completely while sleeping. `shutdown` risks an unclean state if the system powers off before fully saving to swap.
 
 ### Conflict prevention
 
-Masks `power-profiles-daemon` before TLP starts. Without this, both tools fight over the CPU governor: TLP sets `powersave`, PPD overrides it back to `balanced`, and neither one controls the system predictably. The mask is guarded — applied only when TLP is enabled.
+Masks `power-profiles-daemon` on laptops (conflicts with TLP) and on desktops with persistent governor (conflicts with manual `cpupower` settings). Without this, both tools fight over the CPU governor: TLP sets `powersave`, PPD overrides it back to `balanced`, and neither one controls the system predictably.
 
 On Arch Linux, also masks `systemd-rfkill.service` and `systemd-rfkill.socket` — rfkill conflicts with TLP's radio device management.
 
@@ -64,7 +64,7 @@ After every apply, the role reads the actual system state and asserts 6 conditio
 - TLP service is `active`
 - `power-profiles-daemon` is masked or absent
 - CPU governor matches the configured value (reads `/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`)
-- `/etc/systemd/sleep.conf` contains the expected `SuspendMode`
+- `/etc/systemd/sleep.conf` contains the expected `HibernateMode`
 - `/etc/systemd/logind.conf` contains the expected `HandleLidSwitch`
 - Battery charge thresholds are applied in `/sys/` (when configured)
 
@@ -119,7 +119,7 @@ On non-systemd systems (OpenRC, runit), a cron job is deployed instead of the sy
 | OS family | Package manager | TLP | cpupower |
 |-----------|----------------|-----|---------|
 | Arch Linux | pacman | `tlp`, `tlp-rdw` | `cpupower` |
-| Debian / Ubuntu | apt | `tlp` | `linux-tools-common`, `linux-tools-$(uname -r)` |
+| Debian / Ubuntu | apt | `tlp`, `tlp-rdw` | `linux-tools-common`, `linux-tools-$(uname -r)` (fallback: `linux-cpupower`) |
 
 ## Variables
 
@@ -150,7 +150,7 @@ On non-systemd systems (OpenRC, runit), a cron job is deployed instead of the sy
 | `power_management_tlp_disk_devices` | `""` | Disk device names. Empty = auto-detect. Example: `"sda nvme0n1"` |
 | `power_management_tlp_disk_iosched` | `mq-deadline` | I/O scheduler for rotational disks |
 | `power_management_tlp_disk_apm_ac` | `254` | Advanced Power Management level on AC. 1=max power saving, 254=max performance, 255=disable |
-| `power_management_tlp_disk_apm_bat` | `128` | APM level on battery. 128 enables head parking and spindown. |
+| `power_management_tlp_disk_apm_bat` | `128` | APM level on battery. 128 enables head parking — disable for media servers or systems with frequent random HDD access. |
 | `power_management_tlp_sata_linkpwr_ac` | `max_performance` | SATA link power on AC |
 | `power_management_tlp_sata_linkpwr_bat` | `min_power` | SATA link power on battery |
 
@@ -158,14 +158,14 @@ On non-systemd systems (OpenRC, runit), a cron job is deployed instead of the sy
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `power_management_tlp_usb_autosuspend` | `true` | Suspend USB devices when idle |
+| `power_management_tlp_usb_autosuspend` | `true` | Suspend USB devices when idle. Set to `false` for media servers with USB drives, gaming peripherals, or audio interfaces. |
 | `power_management_tlp_usb_allowlist` | `[]` | USB device IDs excluded from autosuspend. Format: `["1234:5678"]` |
 | `power_management_tlp_usb_denylist` | `[]` | USB device IDs always suspended (overrides allowlist) |
 | `power_management_tlp_pcie_aspm_ac` | `default` | PCIe Active State Power Management on AC |
 | `power_management_tlp_pcie_aspm_bat` | `powersupersave` | PCIe ASPM on battery |
 | `power_management_tlp_wifi_pwr_ac` | `"off"` | WiFi power saving on AC (`off` = full speed) |
 | `power_management_tlp_wifi_pwr_bat` | `"on"` | WiFi power saving on battery |
-| `power_management_tlp_sound_powersave_bat` | `true` | HDA audio autosuspend on battery |
+| `power_management_tlp_sound_powersave_bat` | `true` | HDA audio autosuspend on battery. Causes ~1s audio dropout when sound card wakes. Set to `false` for audio production or gaming. |
 | `power_management_tlp_sound_powersave_controller` | `true` | HDA controller power save |
 | `power_management_tlp_runtime_pm_ac` | `"on"` | Runtime power management for PCI devices on AC |
 | `power_management_tlp_runtime_pm_bat` | `auto` | Runtime power management on battery |
@@ -190,12 +190,12 @@ Only effective on ThinkPad, Dell, and other hardware that exposes `/sys/class/po
 
 ### Sleep
 
+The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen via logind actions or `systemctl`. These variables control how the kernel implements each mode -- see `systemd.sleep.conf(5)`.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `power_management_suspend_mode` | `suspend` | Suspend mode: `suspend`, `hibernate`, `hybrid-sleep` |
 | `power_management_hibernate_mode` | `platform` | Hibernate mode: `platform` (firmware-managed, safe), `shutdown`, `reboot` |
-| `power_management_hybrid_sleep_mode` | `suspend` | Hybrid sleep mode |
-| `power_management_suspend_state` | `""` | Kernel sleep state. Empty = system default (`mem` or `freeze`). |
+| `power_management_suspend_state` | `""` | Kernel sleep state override (`mem`, `standby`, `freeze`). Empty = system default. |
 | `power_management_hibernate_delay_sec` | `""` | Seconds of suspend before switching to hibernate. Empty = no auto-hibernate. |
 
 ### logind (systemd only)
@@ -219,6 +219,8 @@ Only effective on ThinkPad, Dell, and other hardware that exposes `/sys/class/po
 | `power_management_audit_schedule` | `daily` | systemd `OnCalendar` value or cron schedule |
 | `power_management_audit_battery` | `true` | Include battery health check in audit |
 | `power_management_audit_battery_wear_threshold` | `20` | Battery wear % above which a `WARNING` is logged |
+| `power_management_audit_cron_hour` | `"0"` | Hour for cron fallback (non-systemd systems only) |
+| `power_management_audit_cron_minute` | `"0"` | Minute for cron fallback (non-systemd systems only) |
 
 ### Drift detection
 
@@ -318,6 +320,52 @@ Stops charging at 80%, resumes at 40%. Extends battery calendar lifespan by avoi
 
 Post-deploy checks log warnings instead of failing. Useful when rolling out to a fleet where some hosts may have unsupported hardware (e.g. charge thresholds, missing swap for hibernate).
 
+### Media server with USB drives -- prevent disk disconnection
+
+**Critical:** Default `USB_AUTOSUSPEND=true` will spin down USB-connected HDDs during
+inactivity, causing streaming interruptions and potential write errors. Disable for any
+system serving media from USB or SATA drives.
+
+```yaml
+- role: power_management
+  vars:
+    power_management_device_type: laptop   # or detected automatically
+    power_management_tlp_usb_autosuspend: false        # never suspend USB drives
+    power_management_tlp_disk_apm_ac: 254              # no spindown on AC
+    power_management_tlp_disk_apm_bat: 192             # light saving, no head parking
+    power_management_tlp_sound_powersave_bat: false    # no audio interruption
+    power_management_idle_action: ignore               # don't suspend during playback
+```
+
+### Gaming on battery -- performance profile
+
+Default `power_management_tlp_cpu_boost_bat: false` saves battery but hurts gaming
+performance. USB autosuspend can disconnect gamepads and headsets mid-session.
+
+```yaml
+- role: power_management
+  vars:
+    power_management_tlp_cpu_boost_bat: true           # keep turbo boost on battery
+    power_management_tlp_cpu_governor_bat: performance # max frequency
+    power_management_tlp_cpu_epp_bat: balance_performance
+    power_management_tlp_usb_autosuspend: false        # never disconnect gamepad/headset
+    power_management_tlp_sound_powersave_bat: false    # no audio dropout
+    power_management_tlp_runtime_pm_bat: "on"          # GPU stays powered (no micro-stutter)
+```
+
+### Headless server
+
+```yaml
+- role: power_management
+  vars:
+    power_management_device_type: desktop
+    power_management_cpu_governor: performance
+    power_management_governor_persist: udev
+    power_management_power_key_action: ignore          # rack server — no accidental poweroff
+    power_management_audit_enabled: true
+    power_management_drift_detection: true
+```
+
 ## Files deployed
 
 | Path | Description |
@@ -398,6 +446,8 @@ loki.source.journal "power_audit" {
 - `become: true`
 - `gather_facts: true`
 - Supported OS: Arch Linux, Debian (and derivatives)
+- TLP >= 1.4 for `USB_ALLOWLIST` / `USB_DENYLIST` support. Debian Bullseye ships TLP 1.3
+  (uses `USB_WHITELIST`/`USB_BLACKLIST`). Upgrade from backports or use Bookworm+.
 - Hibernate requires a swap partition or swap file. The role asserts this in preflight and fails with a clear message if swap is missing.
 
 ## Dependencies

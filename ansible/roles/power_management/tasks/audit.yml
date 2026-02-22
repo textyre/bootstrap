@@ -46,11 +46,11 @@
 
 # ---- Cron fallback path ----
 
-- name: Deploy power-audit cron job
+- name: Deploy power-audit cron job (non-systemd fallback)
   ansible.builtin.cron:
     name: "power-audit"
-    minute: "0"
-    hour: "0"
+    minute: "{{ power_management_audit_cron_minute }}"
+    hour: "{{ power_management_audit_cron_hour }}"
     job: "/usr/local/bin/power-audit.sh"
   when: _power_management_init != 'systemd'
   tags: ['power', 'audit']

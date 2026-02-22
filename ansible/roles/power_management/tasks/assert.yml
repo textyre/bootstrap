@@ -56,42 +56,72 @@
     - _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
-# ---- CPU governor matches expected ----
+# ---- CPU governor matches expected (laptop — TLP managed) ----
 
-- name: Verify CPU governor matches expected value
+- name: Verify CPU governor is in expected set (laptop — TLP managed)
   ansible.builtin.assert:
     that:
-      - power_management_status.governor == (power_management_tlp_cpu_governor_ac if _power_management_is_laptop else power_management_cpu_governor)
+      - power_management_status.governor in [power_management_tlp_cpu_governor_ac, power_management_tlp_cpu_governor_bat, 'unknown']
+    fail_msg: >-
+      CPU governor '{{ power_management_status.governor }}' is not one of TLP's configured
+      values (AC: {{ power_management_tlp_cpu_governor_ac }}, BAT: {{ power_management_tlp_cpu_governor_bat }}).
+      Check 'tlp-stat -g' to see what TLP applied.
+    success_msg: "CPU governor '{{ power_management_status.governor }}' (TLP-managed)"
+  ignore_errors: "{{ not power_management_assert_strict }}"
+  when: _power_management_is_laptop
+  tags: ['power', 'assert']
+
+# ---- CPU governor matches expected (desktop) ----
+
+- name: Verify CPU governor matches expected value (desktop)
+  ansible.builtin.assert:
+    that:
+      - power_management_status.governor == power_management_cpu_governor
         or power_management_status.governor == 'unknown'
     fail_msg: >-
       CPU governor is '{{ power_management_status.governor }}', expected
-      '{{ power_management_tlp_cpu_governor_ac if _power_management_is_laptop else power_management_cpu_governor }}'.
-      Check with 'cpupower frequency-info' and verify no conflicting
-      services override the governor.
-    success_msg: "CPU governor is '{{ power_management_status.governor }}'"
+      '{{ power_management_cpu_governor }}'. Check 'cpupower frequency-info'
+      and verify no conflicting services (power-profiles-daemon) override the governor.
+    success_msg: "CPU governor is '{{ power_management_cpu_governor }}'"
   ignore_errors: "{{ not power_management_assert_strict }}"
+  when: not _power_management_is_laptop
   tags: ['power', 'assert']
 
-# ---- sleep.conf SuspendMode ----
+# ---- sleep.conf HibernateMode ----
 
-- name: Check sleep.conf SuspendMode
-  ansible.builtin.command: grep -E '^SuspendMode=' /etc/systemd/sleep.conf
-  register: _pm_assert_suspend
+- name: Check sleep.conf HibernateMode
+  ansible.builtin.command: grep -E '^HibernateMode=' /etc/systemd/sleep.conf
+  register: _pm_assert_hibernate
   changed_when: false
   failed_when: false
   when: _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
-- name: Verify SuspendMode in sleep.conf
+- name: Verify HibernateMode in sleep.conf
   ansible.builtin.assert:
     that:
-      - power_management_suspend_mode in (_pm_assert_suspend.stdout | default(''))
+      - _pm_assert_hibernate.stdout == 'HibernateMode=' + power_management_hibernate_mode
     fail_msg: >-
-      sleep.conf SuspendMode does not match. Expected '{{ power_management_suspend_mode }}'
-      but found '{{ _pm_assert_suspend.stdout | default('not found') }}'.
-      Check /etc/systemd/sleep.conf for manual edits.
-    success_msg: "sleep.conf SuspendMode={{ power_management_suspend_mode }}"
+      sleep.conf HibernateMode does not match. Expected 'HibernateMode={{ power_management_hibernate_mode }}'
+      but found '{{ _pm_assert_hibernate.stdout | default('not found') }}'.
+    success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
   ignore_errors: "{{ not power_management_assert_strict }}"
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+# ---- Validate sleep.conf via systemd-analyze ----
+
+- name: Validate sleep.conf is accepted by systemd
+  ansible.builtin.command: systemd-analyze cat-config systemd/sleep.conf
+  changed_when: false
+  failed_when: false
+  register: _pm_assert_sleep_analyze
+  when: _power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Log sleep.conf validation result
+  ansible.builtin.debug:
+    msg: "sleep.conf validation: {{ 'OK' if _pm_assert_sleep_analyze.rc == 0 else 'WARNING: ' + _pm_assert_sleep_analyze.stderr }}"
   when: _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
@@ -108,9 +138,9 @@
 - name: Verify HandleLidSwitch in logind.conf
   ansible.builtin.assert:
     that:
-      - power_management_lid_switch_action in (_pm_assert_lid.stdout | default(''))
+      - _pm_assert_lid.stdout == 'HandleLidSwitch=' + power_management_lid_switch_action
     fail_msg: >-
-      logind.conf HandleLidSwitch does not match. Expected '{{ power_management_lid_switch_action }}'
+      logind.conf HandleLidSwitch does not match. Expected 'HandleLidSwitch={{ power_management_lid_switch_action }}'
       but found '{{ _pm_assert_lid.stdout | default('not found') }}'.
       Check /etc/systemd/logind.conf for manual edits.
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"

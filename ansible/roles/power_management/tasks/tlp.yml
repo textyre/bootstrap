@@ -8,18 +8,23 @@
   when: _power_management_is_laptop
   tags: ['power', 'tlp']
   block:
+    - name: Check if existing TLP config exists
+      ansible.builtin.stat:
+        path: /etc/tlp.conf
+      register: _pm_tlp_existing
+      tags: ['power', 'tlp']
+
     - name: Backup existing TLP config
       ansible.builtin.copy:
         src: /etc/tlp.conf
-        dest: /etc/tlp.conf.ansible-backup
+        dest: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         remote_src: true
-        owner: root
-        group: root
         mode: '0644'
-      failed_when: false
+      register: _pm_tlp_backup
+      when: _pm_tlp_existing.stat.exists
       tags: ['power', 'tlp']
 
-    - name: Deploy TLP config from template
+    - name: Deploy TLP configuration
       ansible.builtin.template:
         src: tlp.conf.j2
         dest: /etc/tlp.conf
@@ -29,29 +34,36 @@
       notify: "restart tlp"
       tags: ['power', 'tlp']
 
-    - name: Verify TLP config syntax
+    # NOTE: tlp-stat -c displays config but does NOT validate values strictly.
+    # TLP silently ignores unknown/invalid keys. This check only verifies
+    # the file is readable and TLP binary works — not semantic correctness.
+    - name: Verify TLP binary can read config
       ansible.builtin.command: tlp-stat -c
       changed_when: false
+      register: _pm_tlp_config_check
       tags: ['power', 'tlp']
 
   rescue:
-    - name: Restore TLP config from backup
+    - name: Restore TLP backup on failure
       ansible.builtin.copy:
-        src: /etc/tlp.conf.ansible-backup
+        src: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         dest: /etc/tlp.conf
         remote_src: true
-        owner: root
-        group: root
         mode: '0644'
+      when: _pm_tlp_backup is defined and _pm_tlp_backup is not failed
       failed_when: false
       tags: ['power', 'tlp']
 
     - name: Fail with TLP deploy context
       ansible.builtin.fail:
         msg: >-
-          TLP configuration deployment failed. Previous config restored
-          from /etc/tlp.conf.ansible-backup. Check tlp-stat -c output
-          for syntax errors.
+          TLP configuration deployment failed.
+          {% if _pm_tlp_backup is defined and _pm_tlp_backup is not failed %}
+          Previous config restored from /etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}.
+          {% else %}
+          No previous config existed (first run) — nothing to restore.
+          {% endif %}
+          Check template syntax and run 'tlp-stat -c' manually.
       tags: ['power', 'tlp']
 
 # ---- Enable TLP service ----

@@ -4,12 +4,21 @@
 
 # ---- Hibernate requires swap ----
 
+- name: Set hibernate-in-use flag
+  ansible.builtin.set_fact:
+    _pm_hibernate_in_use: >-
+      {{ power_management_lid_switch_action in ['hibernate', 'hybrid-sleep']
+         or power_management_lid_switch_ac_action in ['hibernate', 'hybrid-sleep']
+         or power_management_idle_action in ['hibernate', 'hybrid-sleep']
+         or power_management_hibernate_key_action == 'hibernate' }}
+  tags: ['power', 'preflight']
+
 - name: Check swap availability for hibernate
   ansible.builtin.command: swapon --show --noheadings
   register: _pm_swap_check
   changed_when: false
   failed_when: false
-  when: power_management_suspend_mode == 'hibernate'
+  when: _pm_hibernate_in_use | bool
   tags: ['power', 'preflight']
 
 - name: Assert swap is available for hibernate
@@ -19,9 +28,10 @@
     fail_msg: >-
       Hibernate requires active swap (swap partition or swapfile).
       No swap detected via 'swapon --show'. Either enable swap
-      or change power_management_suspend_mode to 'suspend'.
+      or change logind actions that reference 'hibernate' / 'hybrid-sleep'
+      to 'suspend' or 'ignore'.
     success_msg: "Swap detected, hibernate is viable"
-  when: power_management_suspend_mode == 'hibernate'
+  when: _pm_hibernate_in_use | bool
   tags: ['power', 'preflight']
 
 # ---- SSH lockout warning for idle suspend/hibernate ----

@@ -12,7 +12,7 @@
       - "CPU governor   : {{ power_management_status.governor }}"
       - "TLP status     : {{ power_management_status.tlp_active if _power_management_is_laptop else 'N/A (desktop)' }}"
       - "Battery        : {{ power_management_status.battery.status }} ({{ power_management_status.battery.capacity }}%)"
-      - "Suspend mode   : {{ power_management_suspend_mode }}"
+      - "Hibernate mode : {{ power_management_hibernate_mode }}"
       - "Lid switch     : {{ power_management_lid_switch_action }}"
       - "Audit          : {{ 'enabled (' + power_management_audit_schedule + ')' if power_management_audit_enabled else 'disabled' }}"
       - "Drift detection: {{ 'enabled' if power_management_drift_detection else 'disabled' }}"
