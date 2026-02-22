@@ -26,6 +26,11 @@
 - [[Rhai-Reference]]
 - [[GTK-CSS-Reference]]
 
+### Standards
+- [[Role Requirements|standards/role-requirements]]
+- [[Security Standards|standards/security-standards]]
+- [[Workstation Profiles|standards/workstation-profiles]]
+
 ### Планы
 - [[Roadmap]]
 

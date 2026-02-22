@@ -1,5 +1,9 @@
 # Ansible Role Patterns
 
+> **Note:** This document covers implementation patterns. For role requirements
+> and compliance checklist, see [[Role Requirements|standards/role-requirements]].
+> Security control mappings: [[Security Standards|standards/security-standards]].
+
 Чеклисты паттернов для написания ролей в этом проекте.
 
 ---
@@ -144,10 +148,13 @@
 
 ### Мульти-дистро
 
-- [ ] OS dispatch: `include_tasks: "install-{{ ansible_os_family | lower }}.yml"`
-- [ ] `archlinux.yml` — полная реализация
-- [ ] `debian.yml` — заглушки для будущего
-- [ ] OS-specific install файлы для: user, ssh, firewall, shell, chezmoi
+- [ ] OS dispatch: `include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"`
+- [ ] 5 поддерживаемых дистро: Arch, Ubuntu (Debian), Fedora (RedHat), Void, Gentoo
+- [ ] `vars/<os_family>.yml` — маппинг пакетов и путей per-distro
+- [ ] `_<role>_supported_os` в defaults с preflight assert
+- [ ] Init-agnostic: `ansible.builtin.service` вместо `ansible.builtin.systemd`
+- [ ] Init dispatch: `with_first_found: "service_{{ ansible_facts['service_mgr'] }}.yml"`
+- [ ] 5 supported inits: systemd, runit, openrc, s6, dinit
 
 ### Reflector
 
