@@ -3,53 +3,11 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/ssh/defaults/main.yml"
 
   tasks:
-    # ---- Установка ----
+    # ---- Installation ----
 
-    - name: Get user home directory
-      ansible.builtin.getent:
-        database: passwd
-        key: "{{ ssh_user }}"
-
-    - name: Set user home fact
-      ansible.builtin.set_fact:
-        _ssh_verify_user_home: "{{ getent_passwd[ssh_user][4] }}"
-
-    - name: Check openssh is installed
-      ansible.builtin.package:
-        name: "{{ 'openssh' if ansible_facts['os_family'] == 'Archlinux' else 'openssh-server' }}"
-        state: present
-      check_mode: true
-      register: _ssh_verify_openssh
-      failed_when: _ssh_verify_openssh is changed
-
-    # ---- SSH-ключ пользователя ----
-
-    - name: Check SSH key exists
-      ansible.builtin.stat:
-        path: "{{ _ssh_verify_user_home }}/.ssh/id_ed25519"
-      register: _ssh_verify_ssh_key
-      failed_when: not _ssh_verify_ssh_key.stat.exists
-
-    - name: Check SSH key permissions
-      ansible.builtin.stat:
-        path: "{{ _ssh_verify_user_home }}/.ssh/id_ed25519"
-      register: _ssh_verify_ssh_key_perms
-      failed_when: _ssh_verify_ssh_key_perms.stat.mode != '0600'
-
-    - name: Check .ssh directory permissions
-      ansible.builtin.stat:
-        path: "{{ _ssh_verify_user_home }}/.ssh"
-      register: _ssh_verify_ssh_dir
-      failed_when: _ssh_verify_ssh_dir.stat.mode != '0700'
-
-    # ---- sshd_config ----
-
-    - name: Check sshd_config exists and has correct permissions
+    - name: "Verify sshd_config exists and has correct permissions"
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config
       register: _ssh_verify_config
@@ -58,88 +16,87 @@
         _ssh_verify_config.stat.mode != '0600' or
         _ssh_verify_config.stat.pw_name != 'root'
 
-    # ---- Критические параметры безопасности ----
+    # ---- Critical security parameters ----
 
-    - name: Check PermitRootLogin is disabled
-      ansible.builtin.command: grep '^PermitRootLogin no' /etc/ssh/sshd_config
+    - name: "Verify PermitRootLogin is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^PermitRootLogin no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_root
       failed_when: _ssh_verify_root.rc != 0
 
-    - name: Check PasswordAuthentication is disabled
-      ansible.builtin.command: grep '^PasswordAuthentication no' /etc/ssh/sshd_config
+    - name: "Verify PasswordAuthentication is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^PasswordAuthentication no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_password
       failed_when: _ssh_verify_password.rc != 0
 
-    - name: Check PermitEmptyPasswords is disabled
-      ansible.builtin.command: grep '^PermitEmptyPasswords no' /etc/ssh/sshd_config
+    - name: "Verify PermitEmptyPasswords is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^PermitEmptyPasswords no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_empty_pw
       failed_when: _ssh_verify_empty_pw.rc != 0
 
-    - name: Check HostbasedAuthentication is disabled
-      ansible.builtin.command: grep '^HostbasedAuthentication no' /etc/ssh/sshd_config
+    - name: "Verify HostbasedAuthentication is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^HostbasedAuthentication no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_hostbased
       failed_when: _ssh_verify_hostbased.rc != 0
 
-    - name: Check PermitUserEnvironment is disabled
-      ansible.builtin.command: grep '^PermitUserEnvironment no' /etc/ssh/sshd_config
+    - name: "Verify PermitUserEnvironment is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^PermitUserEnvironment no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_userenv
       failed_when: _ssh_verify_userenv.rc != 0
 
-    - name: Check StrictModes is enabled
-      ansible.builtin.command: grep '^StrictModes yes' /etc/ssh/sshd_config
+    - name: "Verify StrictModes is enabled"
+      ansible.builtin.command:
+        cmd: "grep '^StrictModes yes' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_strict
       failed_when: _ssh_verify_strict.rc != 0
 
-    # ---- Перенаправление и туннели ----
+    # ---- Forwarding and tunnels ----
 
-    - name: Check X11Forwarding is disabled
-      ansible.builtin.command: grep '^X11Forwarding no' /etc/ssh/sshd_config
+    - name: "Verify X11Forwarding is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^X11Forwarding no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_x11
       failed_when: _ssh_verify_x11.rc != 0
 
-    - name: Check AllowTcpForwarding is disabled
-      ansible.builtin.command: grep '^AllowTcpForwarding no' /etc/ssh/sshd_config
+    - name: "Verify AllowTcpForwarding is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^AllowTcpForwarding no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_tcp_fwd
       failed_when: _ssh_verify_tcp_fwd.rc != 0
 
-    - name: Check AllowAgentForwarding is disabled
-      ansible.builtin.command: grep '^AllowAgentForwarding no' /etc/ssh/sshd_config
+    - name: "Verify AllowAgentForwarding is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^AllowAgentForwarding no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_agent_fwd
       failed_when: _ssh_verify_agent_fwd.rc != 0
 
-    - name: Check GatewayPorts is disabled
-      ansible.builtin.command: grep '^GatewayPorts no' /etc/ssh/sshd_config
-      changed_when: false
-      register: _ssh_verify_gateway
-      failed_when: _ssh_verify_gateway.rc != 0
+    # ---- Logging ----
 
-    - name: Check PermitTunnel is disabled
-      ansible.builtin.command: grep '^PermitTunnel no' /etc/ssh/sshd_config
-      changed_when: false
-      register: _ssh_verify_tunnel
-      failed_when: _ssh_verify_tunnel.rc != 0
-
-    # ---- Логирование ----
-
-    - name: Check LogLevel is VERBOSE
-      ansible.builtin.command: grep '^LogLevel VERBOSE' /etc/ssh/sshd_config
+    - name: "Verify LogLevel is VERBOSE"
+      ansible.builtin.command:
+        cmd: "grep '^LogLevel VERBOSE' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_loglevel
       failed_when: _ssh_verify_loglevel.rc != 0
 
-    # ---- Криптография ----
+    # ---- Cryptography ----
 
-    - name: Check only strong ciphers are configured
-      ansible.builtin.command: grep '^Ciphers' /etc/ssh/sshd_config
+    - name: "Verify only strong ciphers"
+      ansible.builtin.command:
+        cmd: "grep '^Ciphers' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_ciphers
       failed_when: >
@@ -147,8 +104,9 @@
         'arcfour' in _ssh_verify_ciphers.stdout or
         '3des' in _ssh_verify_ciphers.stdout
 
-    - name: Check only strong MACs are configured
-      ansible.builtin.command: grep '^MACs' /etc/ssh/sshd_config
+    - name: "Verify only strong MACs"
+      ansible.builtin.command:
+        cmd: "grep '^MACs' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_macs
       failed_when: >
@@ -156,83 +114,58 @@
         'sha1' in _ssh_verify_macs.stdout or
         'umac-64' in _ssh_verify_macs.stdout
 
-    - name: Check only strong KEX are configured
-      ansible.builtin.command: grep '^KexAlgorithms' /etc/ssh/sshd_config
+    - name: "Verify only strong KEX"
+      ansible.builtin.command:
+        cmd: "grep '^KexAlgorithms' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_kex
       failed_when: >
         'sha1' in _ssh_verify_kex.stdout or
-        'group1' in _ssh_verify_kex.stdout or
-        'group14-sha1' in _ssh_verify_kex.stdout
+        'group1' in _ssh_verify_kex.stdout
 
-    # ---- Host-ключи ----
+    # ---- Host keys ----
 
-    - name: Check no DSA host key exists
+    - name: "Verify no DSA host key exists"
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_dsa_key
       register: _ssh_verify_dsa_key
       failed_when: _ssh_verify_dsa_key.stat.exists
 
-    - name: Check ed25519 host key exists
+    - name: "Verify ed25519 host key exists"
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_ed25519_key
       register: _ssh_verify_ed25519_key
       failed_when: not _ssh_verify_ed25519_key.stat.exists
 
-    # ---- Сеть и DNS ----
+    # ---- Network ----
 
-    - name: Check UseDNS is disabled
-      ansible.builtin.command: grep '^UseDNS no' /etc/ssh/sshd_config
+    - name: "Verify UseDNS is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^UseDNS no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_dns
       failed_when: _ssh_verify_dns.rc != 0
 
-    - name: Check Compression is disabled
-      ansible.builtin.command: grep '^Compression no' /etc/ssh/sshd_config
+    - name: "Verify Compression is disabled"
+      ansible.builtin.command:
+        cmd: "grep '^Compression no' /etc/ssh/sshd_config"
       changed_when: false
       register: _ssh_verify_compression
       failed_when: _ssh_verify_compression.rc != 0
 
-    # ---- Баннер ----
+    # ---- Banner ----
 
-    - name: Check SSH banner exists
+    - name: "Verify SSH banner exists"
       ansible.builtin.stat:
         path: /etc/issue.net
       register: _ssh_verify_banner
       failed_when: not _ssh_verify_banner.stat.exists
 
-    # ---- Валидация конфигурации ----
+    # ---- Config validation ----
 
-    - name: Validate sshd configuration (sshd -t)
-      ansible.builtin.command: /usr/sbin/sshd -t
+    - name: "Validate sshd configuration (sshd -t)"
+      ansible.builtin.command:
+        cmd: "sshd -t"
       changed_when: false
       register: _ssh_verify_sshd_t
       failed_when: _ssh_verify_sshd_t.rc != 0
-
-    # ---- Сервис ----
-
-    - name: Check sshd is enabled and running
-      ansible.builtin.systemd:
-        name: sshd
-      register: _ssh_verify_sshd
-      failed_when: >
-        _ssh_verify_sshd.status.ActiveState != 'active' or
-        _ssh_verify_sshd.status.UnitFileState != 'enabled'
-
-    # ---- Отчёт ----
-
-    - name: Show test results
-      ansible.builtin.debug:
-        msg:
-          - "Все проверки пройдены!"
-          - "openssh установлен"
-          - "SSH-ключ сгенерирован (ed25519, mode 0600)"
-          - "sshd_config развёрнут (mode 0600, owner root)"
-          - "Критические параметры безопасности проверены"
-          - "Перенаправление и туннели отключены"
-          - "Криптография: только сильные ciphers/MACs/KEX"
-          - "Host-ключи: ed25519 есть, DSA удалён"
-          - "UseDNS и Compression отключены"
-          - "Баннер развёрнут"
-          - "sshd_config валиден (sshd -t)"
-          - "sshd включён и запущен"

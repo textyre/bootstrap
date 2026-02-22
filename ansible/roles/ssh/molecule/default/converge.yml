@@ -6,13 +6,6 @@
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
-  pre_tasks:
-    - name: Ensure we're running on a supported OS
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] in ['Archlinux', 'Debian']
-        fail_msg: "This test requires Arch Linux or Debian"
-
   roles:
     - role: ssh
       vars:
