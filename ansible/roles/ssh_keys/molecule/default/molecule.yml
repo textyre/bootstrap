@@ -1,0 +1,23 @@
+# ansible/roles/ssh_keys/molecule/default/molecule.yml
+---
+driver:
+  name: default
+platforms:
+  - name: instance
+    managed: false
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      instance:
+        ansible_connection: local
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_VAULT_PASSWORD_FILE: "${MOLECULE_PROJECT_DIRECTORY}/../../vault-pass.sh"
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - syntax
+    - converge
+    - verify
