@@ -3,7 +3,7 @@ driver:
   name: docker
 
 platforms:
-  - name: archlinux-systemd
+  - name: Archlinux-systemd
     image: archlinux:base
     dockerfile: ../../../../molecule/Dockerfile.archlinux
     pre_build_image: false

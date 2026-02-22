@@ -37,13 +37,13 @@
     file: _manage_services.yml
   vars:
     vm_svc_list:
-      - name: hv_fcopy_daemon
+      - name: Hv_fcopy_daemon
         description: "file copy between host and guest"
         required: true
-      - name: hv_kvp_daemon
+      - name: Hv_kvp_daemon
         description: "key-value pair exchange (network config, metadata)"
         required: true
-      - name: hv_vss_daemon
+      - name: Hv_vss_daemon
         description: "Volume Shadow Copy (live backup support)"
         required: true
     vm_svc_label: "Hyper-V"
@@ -55,16 +55,16 @@
     file: _verify_modules.yml
   vars:
     vm_mod_list:
-      - name: hv_vmbus
+      - name: Hv_vmbus
         description: "VMBus communication layer (REQUIRED foundation)"
         required: true
-      - name: hv_storvsc
+      - name: Hv_storvsc
         description: "virtual storage controller"
         required: false
-      - name: hv_netvsc
+      - name: Hv_netvsc
         description: "virtual network adapter"
         required: false
-      - name: hv_utils
+      - name: Hv_utils
         description: "integration utilities (shutdown, heartbeat, time sync)"
         required: false
     vm_mod_label: "Hyper-V"

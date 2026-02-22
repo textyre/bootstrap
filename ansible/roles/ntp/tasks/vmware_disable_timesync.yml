@@ -18,14 +18,14 @@
   register: ntp_vmware_timesync_status
   changed_when: false
   failed_when: false
-  when: _ntp_vmware_toolbox_check.rc == 0
+  when: ntp_vmware_toolbox_check.rc == 0
   tags: ['ntp']
 
 - name: "VMware: Disable periodic timesync"
   ansible.builtin.command:
     cmd: vmware-toolbox-cmd timesync disable
   when:
-    - _ntp_vmware_toolbox_check.rc == 0
+    - ntp_vmware_toolbox_check.rc == 0
     - _ntp_vmware_timesync_status.stdout | default('') != 'Disabled'
   changed_when: true
   tags: ['ntp']

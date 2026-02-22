@@ -21,31 +21,31 @@
   register: yay_ldd
   failed_when: false
   changed_when: false
-  when: _yay_exists.rc == 0
+  when: yay_exists.rc == 0
   tags: ['aur', 'setup']
 
 - name: Set fact — yay needs rebuild due to broken shared libs
   ansible.builtin.set_fact:
-    _yay_needs_rebuild: "{{ 'not found' in (_yay_ldd.stdout | default('')) }}"
-  when: _yay_exists.rc == 0
+    yay_needs_rebuild: "{{ 'not found' in (_yay_ldd.stdout | default('')) }}"
+  when: yay_exists.rc == 0
   tags: ['aur', 'setup']
 
 - name: Remove broken yay binary to trigger rebuild
   ansible.builtin.file:
     path: /usr/bin/yay
     state: absent
-  when: _yay_needs_rebuild | default(false)
+  when: yay_needs_rebuild | default(false)
   tags: ['aur', 'setup']
 
 - name: Install build dependencies
   community.general.pacman:
     name: "{{ yay_build_deps }}"
     state: present
-  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
+  when: yay_exists.rc != 0 or yay_needs_rebuild | default(false)
   tags: ['aur', 'setup']
 
 - name: Build and install yay
-  when: _yay_exists.rc != 0 or _yay_needs_rebuild | default(false)
+  when: yay_exists.rc != 0 or yay_needs_rebuild | default(false)
   tags: ['aur', 'setup']
   block:
     - name: Create temp build directory
@@ -90,7 +90,7 @@
       ansible.builtin.file:
         path: "{{ yay_build_dir.path }}"
         state: absent
-      when: _yay_build_dir is defined
+      when: yay_build_dir is defined
 
 - name: Verify yay installed
   ansible.builtin.command: yay --version

@@ -67,7 +67,7 @@
   when:
     - packages_virtualbox_guest | length > 0
     - not (vm_vbox_iso_installed | default(false))
-    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
     - >-
       not vm_vbox_version_check
       or (vm_vbox_host_ver | default('') == vm_vbox_guest_ver | default(''))
@@ -91,7 +91,7 @@
   ansible.builtin.set_fact:
     vm_vbox_service_name: >-
       {{ 'vboxadd-service' if (vm_vbox_iso_installed | default(false))
-         or (_vm_vbox_iso_dirs_pre.matched | default(0) > 0)
+         or (vm_vbox_iso_dirs_pre.matched | default(0) > 0)
          else 'vboxservice' }}
   tags: ['vm', 'vbox', 'vm:service']
 
@@ -127,13 +127,13 @@
   vars:
     vm_mod_label: "VirtualBox"
     vm_mod_list:
-      - name: vboxguest
+      - name: Vboxguest
         description: "core guest integration module"
         required: true
-      - name: vboxsf
+      - name: Vboxsf
         description: "shared folders support"
         required: true
-      - name: vboxvideo
+      - name: Vboxvideo
         description: "graphics driver (may use VMSVGA instead)"
         required: false
   tags: ['vm', 'vbox']

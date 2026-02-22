@@ -3,7 +3,7 @@ driver:
   name: default
 
 platforms:
-  - name: instance
+  - name: Instance
     managed: false
 
 provisioner:

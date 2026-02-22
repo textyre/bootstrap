@@ -21,7 +21,7 @@
         remote_src: true
         mode: '0644'
       register: pm_tlp_backup
-      when: _pm_tlp_existing.stat.exists
+      when: pm_tlp_existing.stat.exists
       tags: ['power', 'tlp']
 
     - name: Deploy TLP configuration
@@ -50,7 +50,7 @@
         dest: /etc/tlp.conf
         remote_src: true
         mode: '0644'
-      when: _pm_tlp_backup is defined and _pm_tlp_backup is not failed
+      when: pm_tlp_backup is defined and pm_tlp_backup is not failed
       failed_when: false
       tags: ['power', 'tlp']
 
@@ -58,7 +58,7 @@
       ansible.builtin.fail:
         msg: >-
           TLP configuration deployment failed.
-          {% if _pm_tlp_backup is defined and _pm_tlp_backup is not failed %}
+          {% if pm_tlp_backup is defined and pm_tlp_backup is not failed %}
           Previous config restored from /etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}.
           {% else %}
           No previous config existed (first run) — nothing to restore.

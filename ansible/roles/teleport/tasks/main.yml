@@ -1,7 +1,7 @@
 ---
 # === teleport: SSH access platform agent ===
 
-- name: teleport role
+- name: Teleport role
   when: teleport_enabled | bool
   tags: ['teleport']
   block:

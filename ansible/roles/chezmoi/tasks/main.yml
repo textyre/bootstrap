@@ -62,7 +62,7 @@
     owner: "{{ chezmoi_user }}"
     group: "{{ chezmoi_user }}"
     mode: '0755'
-  when: _chezmoi_wallpapers_dir.stat.exists
+  when: chezmoi_wallpapers_dir.stat.exists
   tags: ['chezmoi', 'dotfiles']
 
 - name: Deploy wallpapers
@@ -73,7 +73,7 @@
     group: "{{ chezmoi_user }}"
     mode: '0644'
     remote_src: true
-  when: _chezmoi_wallpapers_dir.stat.exists
+  when: chezmoi_wallpapers_dir.stat.exists
   tags: ['chezmoi', 'dotfiles']
 
 # ---- Инициализация и применение ----
@@ -89,7 +89,7 @@
   args:
     chdir: "{{ chezmoi_user_home }}"
   register: chezmoi_apply
-  changed_when: _chezmoi_apply.rc == 0
+  changed_when: chezmoi_apply.rc == 0
   tags: ['chezmoi', 'dotfiles']
 
 - name: Verify no nested chezmoidata (guard against stale theme data)
@@ -99,7 +99,7 @@
     cmd: find {{ chezmoi_user_home }}/.local/share/chezmoi -mindepth 2 -name '.chezmoidata' -type d
   register: chezmoi_nested_check
   changed_when: false
-  failed_when: _chezmoi_nested_check.stdout | length > 0
+  failed_when: chezmoi_nested_check.stdout | length > 0
   tags: ['chezmoi', 'dotfiles']
 
 - name: Report chezmoi deployment

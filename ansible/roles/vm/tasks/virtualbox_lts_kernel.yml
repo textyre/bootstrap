@@ -12,7 +12,7 @@
 #
 # Expected variables:
 #   - vm_vbox_iso_installed: should be false or undefined
-#   - _vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
+#   - vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
 #
 # Behavior:
 #   - Detects kernel version via uname -r
@@ -29,7 +29,7 @@
   changed_when: false
   when:
     - not (vm_vbox_iso_installed | default(false))
-    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
   tags: ['vm', 'vbox', 'vm:install']
 
 - name: "VirtualBox: Install LTS kernel headers and DKMS"
@@ -40,7 +40,7 @@
     state: present
   when:
     - not (vm_vbox_iso_installed | default(false))
-    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
     - vm_vbox_lts_kernel_support | default(false)
     - _vm_vbox_kernel.stdout is defined
     - "'lts' in _vm_vbox_kernel.stdout"

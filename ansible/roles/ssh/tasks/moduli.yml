@@ -18,7 +18,7 @@
     cmd: "awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
   register: ssh_weak_moduli
   changed_when: false
-  when: _ssh_moduli_file.stat.exists
+  when: ssh_moduli_file.stat.exists
   tags: [ssh, security, moduli]
 
 - name: "Filter strong DH moduli (>= {{ ssh_moduli_minimum_bits }} bits)"
@@ -27,7 +27,7 @@
   register: ssh_strong_moduli
   changed_when: false
   when:
-    - _ssh_moduli_file.stat.exists
+    - ssh_moduli_file.stat.exists
     - _ssh_weak_moduli.stdout_lines | length > 0
   tags: [ssh, security, moduli]
 
@@ -40,7 +40,7 @@
     mode: "0644"
     backup: true
   when:
-    - _ssh_moduli_file.stat.exists
+    - ssh_moduli_file.stat.exists
     - _ssh_weak_moduli.stdout_lines | default([]) | length > 0
     - _ssh_strong_moduli.stdout | default('') | length > 0
   notify: "Restart sshd"

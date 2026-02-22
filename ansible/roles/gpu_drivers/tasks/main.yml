@@ -3,7 +3,7 @@
 # SRP: main.yml — ТОЛЬКО оркестратор.
 # Каждый import_tasks = одна бизнес-функция роли.
 
-- name: gpu_drivers role
+- name: Gpu_drivers role
   tags: ['gpu', 'drivers']
   block:
 

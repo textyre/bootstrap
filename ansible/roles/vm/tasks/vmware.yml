@@ -38,13 +38,13 @@
     file: _manage_services.yml
   vars:
     vm_svc_list:
-      - name: vgauthd
+      - name: Vgauthd
         description: "guest authentication for vSphere operations"
         required: true
-      - name: vmtoolsd
+      - name: Vmtoolsd
         description: "core VMware Tools daemon (status, time sync, display resize)"
         required: true
-      - name: vmware-vmblock-fuse
+      - name: Vmware-vmblock-fuse
         description: "drag-and-drop via FUSE (optional, desktop only)"
         required: false
     vm_svc_label: "VMware"
@@ -57,10 +57,10 @@
     file: _verify_modules.yml
   vars:
     vm_mod_list:
-      - name: vmw_balloon
+      - name: Vmw_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: true
-      - name: vmxnet3
+      - name: Vmxnet3
         description: "paravirtual high-performance network adapter (optional, depends on VM NIC config)"
         required: false
     vm_mod_label: "VMware"

@@ -35,12 +35,12 @@
       - linux-tools-common
       - linux-cpupower
     state: present
-  when: _pm_linux_tools_result is failed or _pm_linux_tools_result.rc | default(0) != 0
+  when: pm_linux_tools_result is failed or pm_linux_tools_result.rc | default(0) != 0
   tags: ['power', 'install']
 
 - name: Install linux-tools-common (cpupower helpers)
   ansible.builtin.apt:
     name: linux-tools-common
     state: present
-  when: _pm_linux_tools_result is not failed
+  when: pm_linux_tools_result is not failed
   tags: ['power', 'install']

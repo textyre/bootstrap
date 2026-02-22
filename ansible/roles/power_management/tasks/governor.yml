@@ -39,7 +39,7 @@
   when:
     - not power_management_is_laptop
     - pm_current_governor != power_management_cpu_governor
-  failed_when: _pm_governor_set.rc != 0
+  failed_when: pm_governor_set.rc != 0
   tags: ['power', 'cpu']
 
 # ---- Persist governor ----

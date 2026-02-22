@@ -5,7 +5,7 @@
 # Reads user list from `accounts` variable (shared data source).
 # Depends on users existing (user role must run first).
 
-- name: ssh_keys role
+- name: Ssh_keys role
   tags: ['ssh_keys']
   block:
     # ROLE-003: Validate supported OS

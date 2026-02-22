@@ -5,7 +5,7 @@ driver:
     managed: false
 
 platforms:
-  - name: localhost
+  - name: Localhost
 
 provisioner:
   name: ansible

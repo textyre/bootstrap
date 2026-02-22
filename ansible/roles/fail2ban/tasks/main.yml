@@ -2,7 +2,7 @@
 # === fail2ban — защита от brute-force атак ===
 # Установка → Конфигурация → Запуск → Проверка → Логирование
 
-- name: fail2ban role
+- name: Fail2ban role
   when: fail2ban_enabled | bool
   tags: ['fail2ban']
   block:

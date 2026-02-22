@@ -12,7 +12,7 @@
 #
 # Expected variables:
 #   - vm_vbox_version_check: boolean (should already be checked by caller)
-#   - _vm_vbox_iso_dirs_pre: result of find task for existing ISO dirs
+#   - vm_vbox_iso_dirs_pre: result of find task for existing ISO dirs
 #   - packages_virtualbox_guest: package list from group_vars
 #
 # Sets facts:

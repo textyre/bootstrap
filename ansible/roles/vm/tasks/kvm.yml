@@ -35,7 +35,7 @@
     file: _manage_services.yml
   vars:
     vm_svc_list:
-      - name: qemu-guest-agent
+      - name: Qemu-guest-agent
         description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
         required: true
     vm_svc_label: "KVM"
@@ -47,16 +47,16 @@
     file: _verify_modules.yml
   vars:
     vm_mod_list:
-      - name: virtio_balloon
+      - name: Virtio_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: false
-      - name: virtio_net
+      - name: Virtio_net
         description: "paravirtual network adapter (optional, depends on VM NIC config)"
         required: false
-      - name: virtio_blk
+      - name: Virtio_blk
         description: "paravirtual block device (optional, depends on VM disk config)"
         required: false
-      - name: virtio_scsi
+      - name: Virtio_scsi
         description: "paravirtual SCSI controller (optional, depends on VM disk config)"
         required: false
     vm_mod_label: "KVM"

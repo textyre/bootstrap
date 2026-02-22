@@ -37,7 +37,7 @@
 - name: Fail if yay is not installed
   ansible.builtin.fail:
     msg: "yay не найден — установите роль yay перед zen_browser"
-  when: _zen_browser_yay_check.rc != 0
+  when: zen_browser_yay_check.rc != 0
   tags: ['zen_browser', 'browser']
 
 # ---- Установка через AUR ----
@@ -53,7 +53,7 @@
   no_log: true
   changed_when: false
   when:
-    - _zen_browser_exists.rc != 0
+    - zen_browser_exists.rc != 0
     - ansible_become_password is defined
   tags: ['zen_browser', 'browser']
 
@@ -71,7 +71,7 @@
     }}
   register: zen_browser_install
   changed_when: "'there is nothing to do' not in _zen_browser_install.stdout | default('')"
-  when: _zen_browser_exists.rc != 0
+  when: zen_browser_exists.rc != 0
   tags: ['zen_browser', 'browser']
 
 - name: Remove temporary SUDO_ASKPASS helper
@@ -79,7 +79,7 @@
     path: /tmp/.ansible_sudo_askpass_zen
     state: absent
   changed_when: false
-  when: _zen_browser_exists.rc != 0
+  when: zen_browser_exists.rc != 0
   tags: ['zen_browser', 'browser']
 
 # ---- Верификация установки ----
