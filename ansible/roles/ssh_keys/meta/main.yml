@@ -1,0 +1,25 @@
+# ansible/roles/ssh_keys/meta/main.yml
+---
+galaxy_info:
+  author: textyre
+  description: SSH authorized_keys and key generation management
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: GenericLinux
+      versions: [all]
+  galaxy_tags:
+    - ssh
+    - security
+    - authorized_keys
+    - keys
+
+dependencies: []
