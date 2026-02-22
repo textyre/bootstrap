@@ -10,20 +10,20 @@
   changed_when: false
   failed_when: item.rc is defined and item.rc not in [0, 255]
   loop:
-    - { param: "kernel.randomize_va_space",       expected: "2",  label: "ASLR" }
-    - { param: "kernel.kptr_restrict",             expected: "2",  label: "kernel pointer restrict" }
-    - { param: "kernel.dmesg_restrict",            expected: "1",  label: "dmesg restrict" }
-    - { param: "kernel.perf_event_paranoid",       expected: "3",  label: "perf event paranoid" }
-    - { param: "kernel.unprivileged_bpf_disabled", expected: "1",  label: "unprivileged BPF disabled" }
-    - { param: "dev.tty.ldisc_autoload",           expected: "0",  label: "TTY ldisc autoload restricted (kernel 4.7+)" }
-    - { param: "vm.unprivileged_userfaultfd",      expected: "0",  label: "unprivileged userfaultfd restricted (kernel 5.11+)" }
-    - { param: "fs.protected_hardlinks",           expected: "1",  label: "hardlink protection" }
-    - { param: "fs.protected_symlinks",            expected: "1",  label: "symlink protection" }
-    - { param: "fs.suid_dumpable",                 expected: "0",  label: "SUID core dump disabled" }
-    - { param: "net.ipv4.tcp_syncookies",          expected: "1",  label: "SYN cookies" }
-    - { param: "net.ipv4.tcp_timestamps",          expected: "0",  label: "TCP timestamps disabled" }
-    - { param: "net.ipv4.tcp_tw_reuse",            expected: "0",  label: "TIME_WAIT reuse disabled" }
-    - { param: "net.core.bpf_jit_harden",         expected: "2",  label: "BPF JIT hardening" }
+    - { param: "kernel.randomize_va_space", expected: "2", label: "ASLR" }
+    - { param: "kernel.kptr_restrict", expected: "2", label: "kernel pointer restrict" }
+    - { param: "kernel.dmesg_restrict", expected: "1", label: "dmesg restrict" }
+    - { param: "kernel.perf_event_paranoid", expected: "3", label: "perf event paranoid" }
+    - { param: "kernel.unprivileged_bpf_disabled", expected: "1", label: "unprivileged BPF disabled" }
+    - { param: "dev.tty.ldisc_autoload", expected: "0", label: "TTY ldisc autoload restricted (kernel 4.7+)" }
+    - { param: "vm.unprivileged_userfaultfd", expected: "0", label: "unprivileged userfaultfd restricted (kernel 5.11+)" }
+    - { param: "fs.protected_hardlinks", expected: "1", label: "hardlink protection" }
+    - { param: "fs.protected_symlinks", expected: "1", label: "symlink protection" }
+    - { param: "fs.suid_dumpable", expected: "0", label: "SUID core dump disabled" }
+    - { param: "net.ipv4.tcp_syncookies", expected: "1", label: "SYN cookies" }
+    - { param: "net.ipv4.tcp_timestamps", expected: "0", label: "TCP timestamps disabled" }
+    - { param: "net.ipv4.tcp_tw_reuse", expected: "0", label: "TIME_WAIT reuse disabled" }
+    - { param: "net.core.bpf_jit_harden", expected: "2", label: "BPF JIT hardening" }
   tags: ['sysctl', 'verify']
 
 - name: Report live sysctl parameter status
