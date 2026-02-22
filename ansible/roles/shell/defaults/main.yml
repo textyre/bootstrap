@@ -1,40 +1,37 @@
 ---
-# === Конфигурация shell-окружения ===
-# Настройка bash/zsh, алиасы, PATH, переменные окружения
+# === System-level shell environment ===
+# Install shell, set login shell, create XDG dirs, deploy global config.
+# Per-user dotfiles (.bashrc, .zshrc) managed by chezmoi — NOT this role.
 
-# Целевой пользователь
+# Target user
 shell_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
-# Тип шелла (bash или zsh)
-shell_type: bash
+# Shell type: bash | zsh | fish
+shell_type: zsh
 
-# Деплоить конфиг шелла (.bashrc/.zshrc)?
-# false если chezmoi управляет дотфайлами (избегаем бесполезную перезапись)
-shell_deploy_config: true
+# Set as user's login shell via chsh?
+shell_set_login: true
 
-# Дополнения к PATH
-shell_path_additions:
+# System-wide PATH additions (deployed to /etc/profile.d/ or /etc/fish/conf.d/)
+# Use absolute paths or $HOME-relative paths
+shell_global_path:
   - "$HOME/.local/bin"
+  - "$HOME/.cargo/bin"
+  - "/usr/local/go/bin"
 
-# Алиасы
-shell_aliases:
-  ll: "ls -lah --color=auto"
-  la: "ls -A --color=auto"
-  l: "ls -CF --color=auto"
-  grep: "grep --color=auto"
-  df: "df -h"
-  du: "du -h"
-  free: "free -h"
-  gs: "git status"
-  gl: "git log --oneline -20"
-  gd: "git diff"
+# System-wide environment variables (deployed alongside PATH)
+shell_global_env: {}
+#   GOPATH: "$HOME/go"
+#   JAVA_HOME: "/usr/lib/jvm/default"
 
-# Переменные окружения
-shell_env_vars:
-  EDITOR: "vim"
-  VISUAL: "vim"
-  LANG: "en_US.UTF-8"
+# XDG Base Directories to create (XDG Base Directory Specification)
+# Uses _shell_user_home fact resolved at runtime
+shell_xdg_dirs:
+  - ".config"
+  - ".local/share"
+  - ".local/bin"
+  - ".cache"
 
-# Опции шелла
-shell_history_size: 10000
-shell_histcontrol: "ignoreboth:erasedups"
+# Set ZDOTDIR in /etc/zsh/zshenv? (zsh only)
+# Points ZDOTDIR to ${XDG_CONFIG_HOME:-$HOME/.config}/zsh
+shell_zsh_zdotdir: true
