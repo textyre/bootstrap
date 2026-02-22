@@ -1,7 +1,7 @@
 # Design: SSH Family — Zero-Trust Architecture
 
 **Date:** 2026-02-22
-**Status:** Draft
+**Status:** Implemented
 **Scope:** 5 roles (users, ssh_keys, ssh, teleport, fail2ban) forming a zero-trust SSH access platform
 
 ---
