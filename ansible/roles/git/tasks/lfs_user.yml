@@ -5,6 +5,5 @@
 - name: Initialize git-lfs for user
   ansible.builtin.command:
     cmd: git lfs install --skip-repo
-  register: _git_lfs_init
-  changed_when: "'Updated' in _git_lfs_init.stdout"
+  changed_when: false
   tags: [git, lfs]

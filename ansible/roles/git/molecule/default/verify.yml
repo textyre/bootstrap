@@ -74,6 +74,34 @@
       changed_when: false
       failed_when: _git_verify_autocrlf.stdout != 'input'
 
+    # ---- extra config ----
+
+    - name: Check color.ui  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get color.ui
+      register: _git_verify_color_ui
+      changed_when: false
+      failed_when: _git_verify_color_ui.stdout != 'auto'
+
+    - name: Check diff.colorMoved  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get diff.colorMoved
+      register: _git_verify_colormoved
+      changed_when: false
+      failed_when: _git_verify_colormoved.stdout != 'zebra'
+
+    # ---- safe.directory ----
+
+    - name: Check safe.directory entries  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get-all safe.directory
+      register: _git_verify_safe_dirs
+      changed_when: false
+      failed_when: "'/tmp/test-safe-dir' not in _git_verify_safe_dirs.stdout_lines"
+
     # ---- aliases ----
 
     - name: Check alias.st exists  # noqa: command-instead-of-module
@@ -137,6 +165,9 @@
           - "core.editor = {{ _git_verify_editor.stdout }}"
           - "pull.rebase = {{ _git_verify_rebase.stdout }}"
           - "alias.st = {{ _git_verify_alias_st.stdout }}"
+          - "color.ui = {{ _git_verify_color_ui.stdout }}"
+          - "diff.colorMoved = {{ _git_verify_colormoved.stdout }}"
+          - "safe.directory = {{ _git_verify_safe_dirs.stdout_lines }}"
           - "credential.helper = {{ _git_verify_credential.stdout }}"
           - "git-lfs = installed"
           - "hooks dir = /tmp/test-git-hooks exists"

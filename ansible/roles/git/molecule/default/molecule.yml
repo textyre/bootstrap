@@ -19,6 +19,11 @@ provisioner:
           credential_helper: ""
         git_manage_hooks: true
         git_hooks_path: "/tmp/test-git-hooks"
+        git_config_extra:
+          color.ui: auto
+          diff.colorMoved: zebra
+        git_safe_directories:
+          - /tmp/test-safe-dir
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

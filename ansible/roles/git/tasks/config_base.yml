@@ -66,7 +66,13 @@
 
 - name: "CVE-2022-24765 | Add git safe.directory entries"  # noqa: command-instead-of-module
   ansible.builtin.command:
-    cmd: "git config --global --add safe.directory {{ item }}"
+    argv:
+      - git
+      - config
+      - --global
+      - --add
+      - safe.directory
+      - "{{ item }}"
   loop: "{{ git_safe_directories }}"
   when:
     - git_safe_directories | length > 0
