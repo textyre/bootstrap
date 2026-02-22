@@ -12,13 +12,13 @@
     - name: Check faillock.conf exists
       ansible.builtin.stat:
         path: /etc/security/faillock.conf
-      register: _verify_faillock_conf
+      register: verify_faillock_conf
       failed_when: not _verify_faillock_conf.stat.exists
 
     - name: Slurp faillock.conf
       ansible.builtin.slurp:
         src: /etc/security/faillock.conf
-      register: _verify_faillock_content
+      register: verify_faillock_content
 
     - name: Verify faillock deny setting
       ansible.builtin.assert:
@@ -42,14 +42,14 @@
     - name: Check pam-auth-update faillock profile exists (Debian)
       ansible.builtin.stat:
         path: /usr/share/pam-configs/faillock
-      register: _verify_pam_profile
+      register: verify_pam_profile
       failed_when: not _verify_pam_profile.stat.exists
       when: ansible_facts['os_family'] == 'Debian'
 
     - name: Check pam-auth-update faillock-authfail profile exists (Debian)
       ansible.builtin.stat:
         path: /usr/share/pam-configs/faillock-authfail
-      register: _verify_pam_authfail_profile
+      register: verify_pam_authfail_profile
       failed_when: not _verify_pam_authfail_profile.stat.exists
       when: ansible_facts['os_family'] == 'Debian'
 

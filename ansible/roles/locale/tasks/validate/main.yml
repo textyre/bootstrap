@@ -35,6 +35,6 @@
 
 - name: Warn if locale config is invalid
   ansible.builtin.debug:
-    msg: "WARNING: locale role skipped — {{ _locale_skip_reason }}"
+    msg: "WARNING: locale role skipped — {{ locale_skip_reason }}"
   when: _locale_skip | default(false)
   tags: ['locale']

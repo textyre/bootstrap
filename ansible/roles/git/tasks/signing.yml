@@ -8,8 +8,8 @@
     that:
       - (_git_current_user.signing_key | default('')) | length > 0
     fail_msg: >-
-      signing_method={{ _git_current_user.signing_method }} for user
-      {{ _git_current_user.name }} but signing_key is empty
+      signing_method={{ git_current_user.signing_method }} for user
+      {{ git_current_user.name }} but signing_key is empty
     quiet: true
   when: (_git_current_user.signing_method | default('none')) in ['ssh', 'gpg']
   tags: [git, signing]
@@ -27,7 +27,7 @@
     - name: Set user.signingKey (SSH)
       community.general.git_config:
         name: user.signingKey
-        value: "{{ _git_current_user.signing_key }}"
+        value: "{{ git_current_user.signing_key }}"
         scope: global
 
     - name: Set commit.gpgSign
@@ -43,7 +43,7 @@
     - name: Set user.signingKey (GPG)
       community.general.git_config:
         name: user.signingKey
-        value: "{{ _git_current_user.signing_key }}"
+        value: "{{ git_current_user.signing_key }}"
         scope: global
 
     - name: Set commit.gpgSign

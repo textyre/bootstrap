@@ -7,9 +7,9 @@
     msg:
       - "=== GPU Driver Configuration ==="
       - "Detection:       {{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }}"
-      - "NVIDIA:          {{ _gpu_drivers_has_nvidia }} (variant: {{ gpu_drivers_nvidia_variant if _gpu_drivers_has_nvidia else 'n/a' }})"
-      - "AMD:             {{ _gpu_drivers_has_amd }}"
-      - "Intel:           {{ _gpu_drivers_has_intel }}"
+      - "NVIDIA:          {{ gpu_drivers_has_nvidia }} (variant: {{ gpu_drivers_nvidia_variant if _gpu_drivers_has_nvidia else 'n/a' }})"
+      - "AMD:             {{ gpu_drivers_has_amd }}"
+      - "Intel:           {{ gpu_drivers_has_intel }}"
       - "Multilib:        {{ gpu_drivers_multilib }}"
       - "Vulkan tools:    {{ gpu_drivers_vulkan_tools }}"
       - "VA-API:          {{ gpu_drivers_vaapi }}"

@@ -3,12 +3,12 @@
 
 - name: "Determine sshd service name"
   ansible.builtin.set_fact:
-    _ssh_svc: "{{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    _ssh_svc: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
   tags: [ssh, service]
 
 - name: "Enable and start sshd"
   ansible.builtin.service:
-    name: "{{ _ssh_svc }}"
+    name: "{{ ssh_svc }}"
     enabled: true
     state: started
   tags: [ssh, service]

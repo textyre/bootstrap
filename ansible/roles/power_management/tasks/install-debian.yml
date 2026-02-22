@@ -17,15 +17,15 @@
 
 - name: Get running kernel version
   ansible.builtin.command: uname -r
-  register: _pm_kernel_version
+  register: pm_kernel_version
   changed_when: false
   tags: ['power', 'install']
 
 - name: Install linux-tools for cpupower (kernel-versioned)
   ansible.builtin.apt:
-    name: "linux-tools-{{ _pm_kernel_version.stdout }}"
+    name: "linux-tools-{{ pm_kernel_version.stdout }}"
     state: present
-  register: _pm_linux_tools_result
+  register: pm_linux_tools_result
   failed_when: false
   tags: ['power', 'install']
 

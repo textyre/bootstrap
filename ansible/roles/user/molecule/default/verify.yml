@@ -9,20 +9,20 @@
       ansible.builtin.getent:
         database: passwd
         key: testuser_owner
-      register: _user_verify_owner
+      register: user_verify_owner
       failed_when: _user_verify_owner is failed
 
     - name: Check owner is in wheel group
       ansible.builtin.command:
         cmd: groups testuser_owner
-      register: _user_verify_owner_groups
+      register: user_verify_owner_groups
       changed_when: false
       failed_when: "'wheel' not in _user_verify_owner_groups.stdout"
 
     - name: Check owner umask profile deployed
       ansible.builtin.stat:
         path: /etc/profile.d/umask-testuser_owner.sh
-      register: _user_verify_umask
+      register: user_verify_umask
       failed_when: not _user_verify_umask.stat.exists
 
     - name: Check owner umask value is 027
@@ -30,7 +30,7 @@
         cmd: grep -q "umask 027" /etc/profile.d/umask-testuser_owner.sh
       changed_when: false
       failed_when: false
-      register: _user_verify_umask_value
+      register: user_verify_umask_value
 
     - name: Assert owner umask is 027
       ansible.builtin.assert:
@@ -41,26 +41,26 @@
       ansible.builtin.getent:
         database: passwd
         key: testuser_extra
-      register: _user_verify_extra
+      register: user_verify_extra
       failed_when: _user_verify_extra is failed
 
     - name: Check extra user is NOT in wheel group
       ansible.builtin.command:
         cmd: groups testuser_extra
-      register: _user_verify_extra_groups
+      register: user_verify_extra_groups
       changed_when: false
       failed_when: "'wheel' in _user_verify_extra_groups.stdout"
 
     - name: Check sudoers.d/wheel exists
       ansible.builtin.stat:
         path: /etc/sudoers.d/wheel
-      register: _user_verify_sudoers
+      register: user_verify_sudoers
       failed_when: not _user_verify_sudoers.stat.exists
 
     - name: Validate sudoers.d/wheel syntax
       ansible.builtin.command:
         cmd: /usr/sbin/visudo -cf /etc/sudoers.d/wheel
-      register: _user_verify_sudoers_syntax
+      register: user_verify_sudoers_syntax
       changed_when: false
       failed_when: _user_verify_sudoers_syntax.rc != 0
 
@@ -68,14 +68,14 @@
       ansible.builtin.command:
         cmd: grep -q "use_pty" /etc/sudoers.d/wheel
       changed_when: false
-      register: _user_verify_pty
+      register: user_verify_pty
       failed_when: _user_verify_pty.rc != 0
 
     - name: Check logfile in sudoers
       ansible.builtin.command:
         cmd: grep -q "logfile" /etc/sudoers.d/wheel
       changed_when: false
-      register: _user_verify_logfile
+      register: user_verify_logfile
       failed_when: _user_verify_logfile.rc != 0
 
     - name: Show test results

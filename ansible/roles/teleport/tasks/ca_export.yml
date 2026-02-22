@@ -4,14 +4,14 @@
 - name: "Export Teleport user CA public key"
   ansible.builtin.command:
     cmd: "tctl auth export --type=user"
-  register: _teleport_user_ca
+  register: teleport_user_ca
   changed_when: false
   failed_when: _teleport_user_ca.rc != 0
   tags: [teleport, security]
 
 - name: "Deploy CA public key for sshd"
   ansible.builtin.copy:
-    content: "{{ _teleport_user_ca.stdout }}\n"
+    content: "{{ teleport_user_ca.stdout }}\n"
     dest: "{{ teleport_ca_keys_file }}"
     owner: root
     group: root

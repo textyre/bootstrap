@@ -7,7 +7,7 @@
   community.general.modprobe:
     name: ptp_kvm
     state: present
-  register: _ntp_ptp_kvm_load
+  register: ntp_ptp_kvm_load
   failed_when:
     - _ntp_ptp_kvm_load is failed
     - "'not found' not in (_ntp_ptp_kvm_load.msg | default(''))"
@@ -25,7 +25,7 @@
 - name: "KVM: Verify /dev/ptp0 is present after module load"
   ansible.builtin.stat:
     path: /dev/ptp0
-  register: _ntp_ptp0_stat
+  register: ntp_ptp0_stat
   tags: ['ntp']
 
 - name: "KVM: Warn if /dev/ptp0 not found after loading ptp_kvm"

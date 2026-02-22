@@ -6,7 +6,7 @@
 
 - name: Assert TLP service is active
   ansible.builtin.command: systemctl is-active tlp
-  register: _pm_assert_tlp
+  register: pm_assert_tlp
   changed_when: false
   failed_when: false
   when:
@@ -33,7 +33,7 @@
 
 - name: Check power-profiles-daemon is masked
   ansible.builtin.command: systemctl is-enabled power-profiles-daemon
-  register: _pm_assert_ppd
+  register: pm_assert_ppd
   changed_when: false
   failed_when: false
   when:
@@ -47,7 +47,7 @@
       - _pm_assert_ppd.stdout | default('') in ['masked', '']
         or _pm_assert_ppd.rc != 0
     fail_msg: >-
-      power-profiles-daemon is NOT masked (status: {{ _pm_assert_ppd.stdout | default('unknown') }}).
+      power-profiles-daemon is NOT masked (status: {{ pm_assert_ppd.stdout | default('unknown') }}).
       It conflicts with TLP. Run 'systemctl mask power-profiles-daemon'.
     success_msg: "power-profiles-daemon is masked or absent"
   when:
@@ -93,7 +93,7 @@
 
 - name: Check sleep.conf HibernateMode
   ansible.builtin.command: grep -E '^HibernateMode=' /etc/systemd/sleep.conf
-  register: _pm_assert_hibernate
+  register: pm_assert_hibernate
   changed_when: false
   failed_when: false
   when: _power_management_init == 'systemd'
@@ -105,7 +105,7 @@
       - _pm_assert_hibernate.stdout == 'HibernateMode=' + power_management_hibernate_mode
     fail_msg: >-
       sleep.conf HibernateMode does not match. Expected 'HibernateMode={{ power_management_hibernate_mode }}'
-      but found '{{ _pm_assert_hibernate.stdout | default('not found') }}'.
+      but found '{{ pm_assert_hibernate.stdout | default('not found') }}'.
     success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
   when:
     - power_management_assert_strict
@@ -118,7 +118,7 @@
   ansible.builtin.command: systemd-analyze cat-config systemd/sleep.conf
   changed_when: false
   failed_when: false
-  register: _pm_assert_sleep_analyze
+  register: pm_assert_sleep_analyze
   when: _power_management_init == 'systemd'
   tags: ['power', 'assert']
 
@@ -132,7 +132,7 @@
 
 - name: Check logind.conf HandleLidSwitch
   ansible.builtin.command: grep -E '^HandleLidSwitch=' /etc/systemd/logind.conf
-  register: _pm_assert_lid
+  register: pm_assert_lid
   changed_when: false
   failed_when: false
   when: _power_management_init == 'systemd'
@@ -144,7 +144,7 @@
       - _pm_assert_lid.stdout == 'HandleLidSwitch=' + power_management_lid_switch_action
     fail_msg: >-
       logind.conf HandleLidSwitch does not match. Expected 'HandleLidSwitch={{ power_management_lid_switch_action }}'
-      but found '{{ _pm_assert_lid.stdout | default('not found') }}'.
+      but found '{{ pm_assert_lid.stdout | default('not found') }}'.
       Check /etc/systemd/logind.conf for manual edits.
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
   when:

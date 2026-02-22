@@ -10,7 +10,7 @@
     - name: "Verify sshd_config exists and has correct permissions"
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config
-      register: _ssh_verify_config
+      register: ssh_verify_config
       failed_when: >
         not _ssh_verify_config.stat.exists or
         _ssh_verify_config.stat.mode != '0600' or
@@ -22,42 +22,42 @@
       ansible.builtin.command:
         cmd: "grep '^PermitRootLogin no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_root
+      register: ssh_verify_root
       failed_when: _ssh_verify_root.rc != 0
 
     - name: "Verify PasswordAuthentication is disabled"
       ansible.builtin.command:
         cmd: "grep '^PasswordAuthentication no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_password
+      register: ssh_verify_password
       failed_when: _ssh_verify_password.rc != 0
 
     - name: "Verify PermitEmptyPasswords is disabled"
       ansible.builtin.command:
         cmd: "grep '^PermitEmptyPasswords no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_empty_pw
+      register: ssh_verify_empty_pw
       failed_when: _ssh_verify_empty_pw.rc != 0
 
     - name: "Verify HostbasedAuthentication is disabled"
       ansible.builtin.command:
         cmd: "grep '^HostbasedAuthentication no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_hostbased
+      register: ssh_verify_hostbased
       failed_when: _ssh_verify_hostbased.rc != 0
 
     - name: "Verify PermitUserEnvironment is disabled"
       ansible.builtin.command:
         cmd: "grep '^PermitUserEnvironment no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_userenv
+      register: ssh_verify_userenv
       failed_when: _ssh_verify_userenv.rc != 0
 
     - name: "Verify StrictModes is enabled"
       ansible.builtin.command:
         cmd: "grep '^StrictModes yes' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_strict
+      register: ssh_verify_strict
       failed_when: _ssh_verify_strict.rc != 0
 
     # ---- Forwarding and tunnels ----
@@ -66,21 +66,21 @@
       ansible.builtin.command:
         cmd: "grep '^X11Forwarding no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_x11
+      register: ssh_verify_x11
       failed_when: _ssh_verify_x11.rc != 0
 
     - name: "Verify AllowTcpForwarding is disabled"
       ansible.builtin.command:
         cmd: "grep '^AllowTcpForwarding no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_tcp_fwd
+      register: ssh_verify_tcp_fwd
       failed_when: _ssh_verify_tcp_fwd.rc != 0
 
     - name: "Verify AllowAgentForwarding is disabled"
       ansible.builtin.command:
         cmd: "grep '^AllowAgentForwarding no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_agent_fwd
+      register: ssh_verify_agent_fwd
       failed_when: _ssh_verify_agent_fwd.rc != 0
 
     # ---- Logging ----
@@ -89,7 +89,7 @@
       ansible.builtin.command:
         cmd: "grep '^LogLevel VERBOSE' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_loglevel
+      register: ssh_verify_loglevel
       failed_when: _ssh_verify_loglevel.rc != 0
 
     # ---- Cryptography ----
@@ -98,7 +98,7 @@
       ansible.builtin.command:
         cmd: "grep '^Ciphers' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_ciphers
+      register: ssh_verify_ciphers
       failed_when: >
         'cbc' in _ssh_verify_ciphers.stdout or
         'arcfour' in _ssh_verify_ciphers.stdout or
@@ -108,7 +108,7 @@
       ansible.builtin.command:
         cmd: "grep '^MACs' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_macs
+      register: ssh_verify_macs
       failed_when: >
         'md5' in _ssh_verify_macs.stdout or
         'sha1' in _ssh_verify_macs.stdout or
@@ -118,7 +118,7 @@
       ansible.builtin.command:
         cmd: "grep '^KexAlgorithms' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_kex
+      register: ssh_verify_kex
       failed_when: >
         'sha1' in _ssh_verify_kex.stdout or
         'group1' in _ssh_verify_kex.stdout
@@ -128,13 +128,13 @@
     - name: "Verify no DSA host key exists"
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_dsa_key
-      register: _ssh_verify_dsa_key
+      register: ssh_verify_dsa_key
       failed_when: _ssh_verify_dsa_key.stat.exists
 
     - name: "Verify ed25519 host key exists"
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_ed25519_key
-      register: _ssh_verify_ed25519_key
+      register: ssh_verify_ed25519_key
       failed_when: not _ssh_verify_ed25519_key.stat.exists
 
     # ---- Network ----
@@ -143,14 +143,14 @@
       ansible.builtin.command:
         cmd: "grep '^UseDNS no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_dns
+      register: ssh_verify_dns
       failed_when: _ssh_verify_dns.rc != 0
 
     - name: "Verify Compression is disabled"
       ansible.builtin.command:
         cmd: "grep '^Compression no' /etc/ssh/sshd_config"
       changed_when: false
-      register: _ssh_verify_compression
+      register: ssh_verify_compression
       failed_when: _ssh_verify_compression.rc != 0
 
     # ---- Banner ----
@@ -158,7 +158,7 @@
     - name: "Verify SSH banner exists"
       ansible.builtin.stat:
         path: /etc/issue.net
-      register: _ssh_verify_banner
+      register: ssh_verify_banner
       failed_when: not _ssh_verify_banner.stat.exists
 
     # ---- Config validation ----
@@ -167,5 +167,5 @@
       ansible.builtin.command:
         cmd: "sshd -t"
       changed_when: false
-      register: _ssh_verify_sshd_t
+      register: ssh_verify_sshd_t
       failed_when: _ssh_verify_sshd_t.rc != 0

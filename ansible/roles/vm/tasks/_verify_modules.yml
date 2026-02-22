@@ -38,36 +38,36 @@
 #   - Failure: Any required module is missing from the system
 # =========================================================================
 
-- name: "{{ _vm_mod_label }}: Check module availability"
+- name: "{{ vm_mod_label }}: Check module availability"
   ansible.builtin.command: "modinfo {{ item.name }}"
-  register: _vm_modinfo_results
-  loop: "{{ _vm_mod_list }}"
+  register: vm_modinfo_results
+  loop: "{{ vm_mod_list }}"
   loop_control:
     label: "{{ item.name }}"
   changed_when: false
   failed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_mod_label }}: Verify required modules available"
+- name: "{{ vm_mod_label }}: Verify required modules available"
   ansible.builtin.assert:
     that: "item.rc == 0"
     fail_msg: "{{ item.item.name }} kernel module ({{ item.item.description }}) not installed. Guest additions may need reinstalling."
     success_msg: "{{ item.item.name }} module available"
-  loop: "{{ _vm_modinfo_results.results | selectattr('item.required', 'equalto', true) | list }}"
+  loop: "{{ vm_modinfo_results.results | selectattr('item.required', 'equalto', true) | list }}"
   loop_control:
     label: "{{ item.item.name }}"
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_mod_label }}: Check loaded status"
+- name: "{{ vm_mod_label }}: Check loaded status"
   ansible.builtin.command: lsmod
-  register: _vm_lsmod_output
+  register: vm_lsmod_output
   changed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_mod_label }}: Report module status"
+- name: "{{ vm_mod_label }}: Report module status"
   ansible.builtin.debug:
     msg: "{{ item.name }} ({{ item.description }}): {{ 'loaded' if item.name in _vm_lsmod_output.stdout else 'available (not loaded)' }}"
-  loop: "{{ _vm_mod_list }}"
+  loop: "{{ vm_mod_list }}"
   loop_control:
     label: "{{ item.name }}"
   tags: ['vm', 'vm:verify', 'vm:report']

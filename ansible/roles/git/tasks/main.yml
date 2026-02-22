@@ -14,7 +14,7 @@
       - ansible_facts['os_family'] in _git_supported_os
     fail_msg: >-
       OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _git_supported_os | join(', ') }}
+      Supported: {{ git_supported_os | join(', ') }}
     success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
   tags: [git]
 
@@ -54,7 +54,7 @@
     common_rpt_fact: "_git_phases"
     common_rpt_phase: "Install"
     common_rpt_detail: >-
-      packages={{ _git_packages | join(', ') }}
+      packages={{ git_packages | join(', ') }}
       lfs={{ git_lfs_enabled }}
   tags: [git, report]
 
@@ -67,7 +67,7 @@
   loop: "{{ [git_owner] + git_additional_users }}"
   loop_control:
     loop_var: _git_current_user
-    label: "{{ _git_current_user.name }}"
+    label: "{{ git_current_user.name }}"
   tags: [git, configure]
 
 # ROLE-008: Report user configuration

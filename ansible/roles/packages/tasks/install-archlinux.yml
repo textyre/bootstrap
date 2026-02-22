@@ -3,6 +3,6 @@
 
 - name: Install packages (pacman)
   community.general.pacman:
-    name: "{{ _packages_all }}"
+    name: "{{ packages_all }}"
     state: present
     update_cache: true

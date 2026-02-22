@@ -7,7 +7,7 @@
 
 - name: Get current user groups
   ansible.builtin.command: "id -nG {{ ssh_user }}"
-  register: _ssh_user_groups
+  register: ssh_user_groups
   changed_when: false
   tags: ['ssh', 'security']
 
@@ -18,7 +18,7 @@
     msg: >-
       LOCKOUT RISK: Пользователь '{{ ssh_user }}' не является членом ни одной группы
       из ssh_allow_groups {{ ssh_allow_groups }}.
-      Текущие группы: {{ _ssh_user_groups.stdout }}.
+      Текущие группы: {{ ssh_user_groups.stdout }}.
       AllowGroups НЕ будет применён для предотвращения блокировки SSH.
   when:
     - ssh_allow_groups | length > 0

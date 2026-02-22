@@ -15,7 +15,7 @@
 - ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    _vm_pkg_list: "{{ _vm_kvm_packages }}"
+    _vm_pkg_list: "{{ vm_kvm_packages }}"
     _vm_pkg_label: "KVM"
     _vm_notify_handler: "Restart kvm services"
   tags: ['vm', 'kvm']

@@ -43,30 +43,30 @@
 #   - Always succeeds (informational only, no failures)
 # =========================================================================
 
-- name: "{{ _vm_ver_label }}: Get version information"
+- name: "{{ vm_ver_label }}: Get version information"
   ansible.builtin.command:
-    cmd: "{{ _vm_ver_command }}"
-  register: _vm_ver_main_result
+    cmd: "{{ vm_ver_command }}"
+  register: vm_ver_main_result
   changed_when: false
   failed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_ver_label }}: Get additional version information"
+- name: "{{ vm_ver_label }}: Get additional version information"
   ansible.builtin.command:
     cmd: "{{ item.cmd }}"
-  loop: "{{ _vm_ver_extra_commands | default([]) }}"
+  loop: "{{ vm_ver_extra_commands | default([]) }}"
   loop_control:
     label: "{{ item.label }}"
-  register: _vm_ver_extra_result
+  register: vm_ver_extra_result
   changed_when: false
   failed_when: false
   when: _vm_ver_extra_commands is defined
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_ver_label }}: Report version information"
+- name: "{{ vm_ver_label }}: Report version information"
   ansible.builtin.debug:
     msg: >-
-      {{ _vm_ver_label }} guest tools version: {{ _vm_ver_main_result.stdout | default('not available') }}
+      {{ vm_ver_label }} guest tools version: {{ vm_ver_main_result.stdout | default('not available') }}
       {% if _vm_ver_extra_result is defined and _vm_ver_extra_result.results is defined %}
       {% for result in _vm_ver_extra_result.results %}
       {{ result.item.label }}: {{ result.stdout | default('not available') }}
@@ -75,8 +75,8 @@
   when: _vm_ver_main_result.rc | default(1) == 0
   tags: ['vm', 'vm:verify', 'vm:report']
 
-- name: "{{ _vm_ver_label }}: Version info not available"
+- name: "{{ vm_ver_label }}: Version info not available"
   ansible.builtin.debug:
-    msg: "{{ _vm_ver_label }} guest tools version information not available"
+    msg: "{{ vm_ver_label }} guest tools version information not available"
   when: _vm_ver_main_result.rc | default(1) != 0
   tags: ['vm', 'vm:verify', 'vm:report']

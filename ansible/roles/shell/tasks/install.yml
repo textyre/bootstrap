@@ -4,7 +4,7 @@
 
 - name: Install shell packages
   ansible.builtin.package:
-    name: "{{ _shell_packages[shell_type] }}"
+    name: "{{ shell_packages[shell_type] }}"
     state: present
   when: _shell_packages[shell_type] | length > 0
   tags: ['shell', 'install']

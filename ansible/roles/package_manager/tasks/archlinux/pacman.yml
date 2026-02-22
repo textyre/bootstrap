@@ -39,7 +39,7 @@
       ansible.builtin.getent:
         database: passwd
         key: alpm
-      register: _pkgmgr_alpm_user
+      register: pkgmgr_alpm_user
       failed_when: false
 
     - name: Set alpm ownership on pacman cache dirs

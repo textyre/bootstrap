@@ -4,7 +4,7 @@
 - name: Verify git is installed
   ansible.builtin.command:
     cmd: git --version
-  register: _git_verify_installed
+  register: git_verify_installed
   changed_when: false
   failed_when: _git_verify_installed.rc != 0
   tags: [git]
@@ -14,7 +14,7 @@
   become_user: "{{ git_owner.name }}"
   ansible.builtin.command:
     cmd: git config --global --get user.name
-  register: _git_verify_username
+  register: git_verify_username
   changed_when: false
   failed_when: _git_verify_username.rc != 0
   when: (git_owner.user_name | default('')) | length > 0
@@ -26,7 +26,7 @@
       - _git_verify_username.stdout == git_owner.user_name
     fail_msg: >-
       git user.name mismatch: expected '{{ git_owner.user_name }}',
-      got '{{ _git_verify_username.stdout }}'
+      got '{{ git_verify_username.stdout }}'
     quiet: true
   when:
     - (git_owner.user_name | default('')) | length > 0
@@ -38,7 +38,7 @@
   become_user: "{{ git_owner.name }}"
   ansible.builtin.command:
     cmd: git config --global --get commit.gpgSign
-  register: _git_verify_signing
+  register: git_verify_signing
   changed_when: false
   failed_when: false
   when:
@@ -50,7 +50,7 @@
   ansible.builtin.assert:
     that:
       - _git_verify_signing.stdout == (git_commit_sign | string | lower)
-    fail_msg: "commit.gpgSign expected '{{ git_commit_sign | string | lower }}', got '{{ _git_verify_signing.stdout }}'"
+    fail_msg: "commit.gpgSign expected '{{ git_commit_sign | string | lower }}', got '{{ git_verify_signing.stdout }}'"
     quiet: true
   when:
     - git_manage_signing | bool
@@ -61,7 +61,7 @@
 - name: Verify git-lfs is installed
   ansible.builtin.command:
     cmd: git lfs version
-  register: _git_verify_lfs
+  register: git_verify_lfs
   changed_when: false
   failed_when: _git_verify_lfs.rc != 0
   when: git_lfs_enabled | bool
@@ -72,7 +72,7 @@
   become_user: "{{ git_owner.name }}"
   ansible.builtin.stat:
     path: "{{ git_hooks_path }}"
-  register: _git_verify_hooks_dir
+  register: git_verify_hooks_dir
   when: git_manage_hooks | bool
   tags: [git, hooks]
 

@@ -4,7 +4,7 @@
 - name: "Verify teleport binary exists"
   ansible.builtin.command:
     cmd: "teleport version"
-  register: _teleport_verify_version
+  register: teleport_verify_version
   changed_when: false
   failed_when: _teleport_verify_version.rc != 0
   tags: [teleport]
@@ -12,7 +12,7 @@
 - name: "Verify teleport configuration exists"
   ansible.builtin.stat:
     path: /etc/teleport.yaml
-  register: _teleport_verify_config
+  register: teleport_verify_config
   tags: [teleport]
 
 - name: "Assert teleport configuration exists"
@@ -26,7 +26,7 @@
 - name: "Verify teleport service is running"
   ansible.builtin.command:
     cmd: "teleport status"
-  register: _teleport_verify_status
+  register: teleport_verify_status
   changed_when: false
   failed_when: false
   tags: [teleport]

@@ -36,7 +36,7 @@
     msg: >-
       WARNING: Console keymap skipped — init system
       '{{ ansible_facts['service_mgr'] }}' not supported.
-      Supported: {{ _vconsole_supported_inits | join(', ') }}.
+      Supported: {{ vconsole_supported_inits | join(', ') }}.
   when: ansible_facts['service_mgr'] not in _vconsole_supported_inits
   tags: ['vconsole']
 

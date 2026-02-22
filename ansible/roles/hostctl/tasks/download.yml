@@ -14,7 +14,7 @@
         return_content: true
         headers:
           Accept: application/vnd.github.v3+json
-      register: _hostctl_release
+      register: hostctl_release
       when: hostctl_version == "latest"
 
     - name: Query specific hostctl release from GitHub API
@@ -23,7 +23,7 @@
         return_content: true
         headers:
           Accept: application/vnd.github.v3+json
-      register: _hostctl_release_pinned
+      register: hostctl_release_pinned
       when: hostctl_version != "latest"
 
     - name: Set hostctl release facts
@@ -34,7 +34,7 @@
 
     - name: Map system architecture to hostctl naming
       ansible.builtin.set_fact:
-        _hostctl_arch: "{{ _hostctl_arch_map[ansible_facts['architecture']] | default(omit) }}"
+        _hostctl_arch: "{{ hostctl_arch_map[ansible_facts['architecture']] | default(omit) }}"
 
     - name: Fail on unsupported architecture
       ansible.builtin.fail:
@@ -48,12 +48,12 @@
     - name: Find tarball asset URL
       ansible.builtin.set_fact:
         _hostctl_tarball_url: >-
-          {{ _hostctl_release_data.json.assets
+          {{ hostctl_release_data.json.assets
              | selectattr('name', 'match', '.*linux_' ~ _hostctl_arch ~ '\.tar\.gz$')
              | map(attribute='browser_download_url')
              | first }}
         _hostctl_tarball_name: >-
-          {{ _hostctl_release_data.json.assets
+          {{ hostctl_release_data.json.assets
              | selectattr('name', 'match', '.*linux_' ~ _hostctl_arch ~ '\.tar\.gz$')
              | map(attribute='name')
              | first }}
@@ -61,7 +61,7 @@
     - name: Find checksums asset URL
       ansible.builtin.set_fact:
         _hostctl_checksums_url: >-
-          {{ _hostctl_release_data.json.assets
+          {{ hostctl_release_data.json.assets
              | selectattr('name', 'match', '.*checksum.*')
              | map(attribute='browser_download_url')
              | first | default('') }}
@@ -79,15 +79,15 @@
 
     - name: Download checksums file
       ansible.builtin.uri:
-        url: "{{ _hostctl_checksums_url }}"
+        url: "{{ hostctl_checksums_url }}"
         return_content: true
-      register: _hostctl_checksums
+      register: hostctl_checksums
       when: _hostctl_checksums_url | length > 0
 
     - name: Extract SHA256 checksum for target asset
       ansible.builtin.set_fact:
         _hostctl_checksum: >-
-          sha256:{{ _hostctl_checksums.content
+          sha256:{{ hostctl_checksums.content
              | regex_search('([a-f0-9]{64})\s+' ~ _hostctl_tarball_name, '\1')
              | first }}
       when: _hostctl_checksums is not skipped
@@ -96,15 +96,15 @@
 
     - name: Download hostctl archive (with checksum)
       ansible.builtin.get_url:
-        url: "{{ _hostctl_tarball_url }}"
+        url: "{{ hostctl_tarball_url }}"
         dest: /tmp/hostctl.tar.gz
-        checksum: "{{ _hostctl_checksum }}"
+        checksum: "{{ hostctl_checksum }}"
         mode: '0644'
       when: _hostctl_checksum is defined
 
     - name: Download hostctl archive (no checksum available)
       ansible.builtin.get_url:
-        url: "{{ _hostctl_tarball_url }}"
+        url: "{{ hostctl_tarball_url }}"
         dest: /tmp/hostctl.tar.gz
         mode: '0644'
       when: _hostctl_checksum is not defined
@@ -112,7 +112,7 @@
     - name: Verify archive was downloaded
       ansible.builtin.stat:
         path: /tmp/hostctl.tar.gz
-      register: _hostctl_archive_stat
+      register: hostctl_archive_stat
 
     - name: Assert archive exists
       ansible.builtin.assert:
@@ -125,18 +125,18 @@
       ansible.builtin.tempfile:
         state: directory
         prefix: hostctl_
-      register: _hostctl_tmpdir
+      register: hostctl_tmpdir
 
     - name: Extract hostctl archive
       ansible.builtin.unarchive:
         src: /tmp/hostctl.tar.gz
-        dest: "{{ _hostctl_tmpdir.path }}"
+        dest: "{{ hostctl_tmpdir.path }}"
         remote_src: true
 
     - name: Verify binary was extracted
       ansible.builtin.stat:
-        path: "{{ _hostctl_tmpdir.path }}/hostctl"
-      register: _hostctl_bin_stat
+        path: "{{ hostctl_tmpdir.path }}/hostctl"
+      register: hostctl_bin_stat
 
     - name: Assert binary exists and is executable
       ansible.builtin.assert:
@@ -147,7 +147,7 @@
 
     - name: Install hostctl binary
       ansible.builtin.copy:
-        src: "{{ _hostctl_tmpdir.path }}/hostctl"
+        src: "{{ hostctl_tmpdir.path }}/hostctl"
         dest: "{{ hostctl_install_dir }}/hostctl"
         remote_src: true
         owner: root
@@ -156,7 +156,7 @@
 
     - name: Verify hostctl installation
       ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
-      register: _hostctl_install_verify
+      register: hostctl_install_verify
       changed_when: false
       failed_when: _hostctl_install_verify.rc != 0
 
@@ -167,5 +167,5 @@
         state: absent
       loop:
         - /tmp/hostctl.tar.gz
-        - "{{ _hostctl_tmpdir.path | default('') }}"
+        - "{{ hostctl_tmpdir.path | default('') }}"
       when: item | length > 0

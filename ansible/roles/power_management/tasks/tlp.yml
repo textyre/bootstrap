@@ -11,7 +11,7 @@
     - name: Check if existing TLP config exists
       ansible.builtin.stat:
         path: /etc/tlp.conf
-      register: _pm_tlp_existing
+      register: pm_tlp_existing
       tags: ['power', 'tlp']
 
     - name: Backup existing TLP config
@@ -20,7 +20,7 @@
         dest: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: '0644'
-      register: _pm_tlp_backup
+      register: pm_tlp_backup
       when: _pm_tlp_existing.stat.exists
       tags: ['power', 'tlp']
 
@@ -40,7 +40,7 @@
     - name: Verify TLP binary can read config
       ansible.builtin.command: tlp-stat -c
       changed_when: false
-      register: _pm_tlp_config_check
+      register: pm_tlp_config_check
       tags: ['power', 'tlp']
 
   rescue:

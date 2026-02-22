@@ -10,20 +10,20 @@
   tasks:
     - name: Check zen-browser binary exists
       ansible.builtin.command: which zen-browser
-      register: _zen_verify_bin
+      register: zen_verify_bin
       changed_when: false
       failed_when: _zen_verify_bin.rc != 0
 
     - name: Check zen-browser package is installed
       ansible.builtin.command: pacman -Qi zen-browser-bin
-      register: _zen_verify_pkg
+      register: zen_verify_pkg
       changed_when: false
       failed_when: _zen_verify_pkg.rc != 0
 
     - name: Check zen.desktop file exists
       ansible.builtin.stat:
         path: /usr/share/applications/zen.desktop
-      register: _zen_verify_desktop
+      register: zen_verify_desktop
       failed_when: not _zen_verify_desktop.stat.exists
 
     - name: Check default browser is set
@@ -32,7 +32,7 @@
       ansible.builtin.command: xdg-settings get default-web-browser
       environment:
         DISPLAY: "{{ ansible_facts['env']['DISPLAY'] | default(':0') }}"
-      register: _zen_verify_default
+      register: zen_verify_default
       changed_when: false
       when: zen_browser_set_default
 
@@ -40,14 +40,14 @@
       ansible.builtin.assert:
         that:
           - _zen_verify_default.stdout == zen_browser_desktop_file
-        fail_msg: "Default browser is '{{ _zen_verify_default.stdout }}', expected '{{ zen_browser_desktop_file }}'"
+        fail_msg: "Default browser is '{{ zen_verify_default.stdout }}', expected '{{ zen_browser_desktop_file }}'"
       when: zen_browser_set_default
 
     - name: Show test results
       ansible.builtin.debug:
         msg:
           - "All checks passed!"
-          - "zen-browser binary: {{ _zen_verify_bin.stdout }}"
+          - "zen-browser binary: {{ zen_verify_bin.stdout }}"
           - "zen-browser-bin package installed"
           - "zen.desktop present"
-          - "default browser: {{ _zen_verify_default.stdout | default('check skipped') }}"
+          - "default browser: {{ zen_verify_default.stdout | default('check skipped') }}"

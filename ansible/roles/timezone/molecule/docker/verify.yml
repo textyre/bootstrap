@@ -10,21 +10,21 @@
   tasks:
     - name: Check /etc/localtime symlink
       ansible.builtin.command: readlink -f /etc/localtime
-      register: _verify_localtime
+      register: verify_localtime
       changed_when: false
 
     - name: Assert timezone matches
       ansible.builtin.assert:
         that:
           - _test_timezone in _verify_localtime.stdout
-        fail_msg: "Expected '{{ _test_timezone }}' in '{{ _verify_localtime.stdout }}'"
+        fail_msg: "Expected '{{ test_timezone }}' in '{{ verify_localtime.stdout }}'"
 
     - name: Check tzdata is installed
       ansible.builtin.command: pacman -Q tzdata
-      register: _verify_tzdata
+      register: verify_tzdata
       changed_when: false
       failed_when: _verify_tzdata.rc != 0
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "Timezone verification passed: {{ _test_timezone }}, tzdata installed"
+        msg: "Timezone verification passed: {{ test_timezone }}, tzdata installed"

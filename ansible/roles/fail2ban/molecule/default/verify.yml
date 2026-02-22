@@ -11,7 +11,7 @@
     - name: "Verify fail2ban package is installed"
       ansible.builtin.command:
         cmd: "fail2ban-client --version"
-      register: _verify_version
+      register: verify_version
       changed_when: false
       failed_when: _verify_version.rc != 0
 
@@ -20,7 +20,7 @@
     - name: "Verify jail.d/sshd.conf exists"
       ansible.builtin.stat:
         path: /etc/fail2ban/jail.d/sshd.conf
-      register: _verify_jail_config
+      register: verify_jail_config
 
     - name: "Assert jail config exists with correct permissions"
       ansible.builtin.assert:
@@ -32,14 +32,14 @@
     - name: "Verify jail config contains correct maxretry"
       ansible.builtin.command:
         cmd: "grep 'maxretry = 3' /etc/fail2ban/jail.d/sshd.conf"
-      register: _verify_maxretry
+      register: verify_maxretry
       changed_when: false
       failed_when: _verify_maxretry.rc != 0
 
     - name: "Verify jail config contains correct bantime"
       ansible.builtin.command:
         cmd: "grep 'bantime = 600' /etc/fail2ban/jail.d/sshd.conf"
-      register: _verify_bantime
+      register: verify_bantime
       changed_when: false
       failed_when: _verify_bantime.rc != 0
 

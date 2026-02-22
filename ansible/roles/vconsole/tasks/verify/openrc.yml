@@ -4,7 +4,7 @@
 - name: Slurp keymap config (openrc)
   ansible.builtin.slurp:
     src: /etc/conf.d/keymaps
-  register: _vconsole_slurp_openrc
+  register: vconsole_slurp_openrc
   tags: ['vconsole']
 
 - name: Assert keymap is set (openrc)
@@ -12,15 +12,15 @@
     that:
       - "'keymap=\"' + _vconsole_value + '\"' in (_vconsole_slurp_openrc.content | b64decode)"
     fail_msg: >-
-      Keymap '{{ _vconsole_value }}' not found in /etc/conf.d/keymaps.
-      Content: {{ _vconsole_slurp_openrc.content | b64decode }}
+      Keymap '{{ vconsole_value }}' not found in /etc/conf.d/keymaps.
+      Content: {{ vconsole_slurp_openrc.content | b64decode }}
     quiet: true
   tags: ['vconsole']
 
 - name: Slurp consolefont config (openrc)
   ansible.builtin.slurp:
     src: /etc/conf.d/consolefont
-  register: _vconsole_slurp_consolefont
+  register: vconsole_slurp_consolefont
   when: vconsole_console_font | default('') | length > 0
   tags: ['vconsole']
 
@@ -30,7 +30,7 @@
       - "'CONSOLEFONT=\"' + vconsole_console_font + '\"' in (_vconsole_slurp_consolefont.content | b64decode)"
     fail_msg: >-
       Font '{{ vconsole_console_font }}' not found in /etc/conf.d/consolefont.
-      Content: {{ _vconsole_slurp_consolefont.content | b64decode }}
+      Content: {{ vconsole_slurp_consolefont.content | b64decode }}
     quiet: true
   when: vconsole_console_font | default('') | length > 0
   tags: ['vconsole']

@@ -7,7 +7,7 @@
 - name: "VMware: Check if vmware-toolbox-cmd is available"
   ansible.builtin.command:
     cmd: which vmware-toolbox-cmd
-  register: _ntp_vmware_toolbox_check
+  register: ntp_vmware_toolbox_check
   changed_when: false
   failed_when: false
   tags: ['ntp']
@@ -15,7 +15,7 @@
 - name: "VMware: Check current timesync status"
   ansible.builtin.command:
     cmd: vmware-toolbox-cmd timesync status
-  register: _ntp_vmware_timesync_status
+  register: ntp_vmware_timesync_status
   changed_when: false
   failed_when: false
   when: _ntp_vmware_toolbox_check.rc == 0

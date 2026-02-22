@@ -17,7 +17,7 @@
   tasks:
     - name: Get available locales
       ansible.builtin.command: locale -a
-      register: _verify_locales
+      register: verify_locales
       changed_when: false
 
     - name: Assert all test locales are generated
@@ -27,37 +27,37 @@
         fail_msg: "{{ item }} locale not found in locale -a output"
       vars:
         _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
-        _available_list: "{{ _verify_locales.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
-      loop: "{{ _test_locales }}"
+        _available_list: "{{ verify_locales.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
+      loop: "{{ test_locales }}"
 
     - name: Read locale.conf
       ansible.builtin.slurp:
         src: /etc/locale.conf
-      register: _verify_locale_conf
+      register: verify_locale_conf
 
     - name: Assert locale.conf contains LANG
       ansible.builtin.assert:
         that:
-          - "'LANG={{ _test_locale }}' in (_verify_locale_conf.content | b64decode)"
-        fail_msg: "LANG={{ _test_locale }} not found in /etc/locale.conf"
+          - "'LANG={{ test_locale }}' in (_verify_locale_conf.content | b64decode)"
+        fail_msg: "LANG={{ test_locale }} not found in /etc/locale.conf"
 
     - name: Assert locale.conf contains LC_* overrides
       ansible.builtin.assert:
         that:
           - "'{{ item.key }}={{ item.value }}' in (_verify_locale_conf.content | b64decode)"
         fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
-      loop: "{{ _test_lc_overrides | dict2items }}"
+      loop: "{{ test_lc_overrides | dict2items }}"
 
     - name: Show result
       ansible.builtin.debug:
         msg:
           - "Locale check passed!"
-          - "Locales generated: {{ _test_locales | join(', ') }}"
-          - "LC overrides: {{ _test_lc_overrides | to_nice_yaml | trim }}"
+          - "Locales generated: {{ test_locales | join(', ') }}"
+          - "LC overrides: {{ test_lc_overrides | to_nice_yaml | trim }}"
 
     - name: Run locale command (smoke test)
       ansible.builtin.command: locale
-      register: _verify_locale_cmd
+      register: verify_locale_cmd
       changed_when: false
       environment: >-
         {{
@@ -70,8 +70,8 @@
         that:
           - "'LANG=' ~ _test_locale in _verify_locale_cmd.stdout"
         fail_msg: >-
-          LANG={{ _test_locale }} not found in 'locale' output:
-          {{ _verify_locale_cmd.stdout }}
+          LANG={{ test_locale }} not found in 'locale' output:
+          {{ verify_locale_cmd.stdout }}
 
     - name: Assert LC_* overrides are active in locale output
       ansible.builtin.assert:
@@ -79,5 +79,5 @@
           - "item.key ~ '=' ~ item.value in _verify_locale_cmd.stdout"
         fail_msg: >-
           {{ item.key }}={{ item.value }} not found in 'locale' output:
-          {{ _verify_locale_cmd.stdout }}
-      loop: "{{ _test_lc_overrides | dict2items }}"
+          {{ verify_locale_cmd.stdout }}
+      loop: "{{ test_lc_overrides | dict2items }}"

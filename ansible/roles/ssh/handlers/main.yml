@@ -3,10 +3,10 @@
 
 - name: "Restart sshd"
   ansible.builtin.service:
-    name: "{{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    name: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
     state: restarted
 
 - name: "Reload sshd"
   ansible.builtin.service:
-    name: "{{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    name: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
     state: reloaded

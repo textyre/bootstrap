@@ -8,7 +8,7 @@
   ansible.builtin.find:
     paths: /etc/ssh
     patterns: "ssh_host_*_key*"
-  register: _ssh_existing_host_keys
+  register: ssh_existing_host_keys
   when: ssh_host_key_cleanup
   tags: ['ssh', 'security']
 
@@ -16,7 +16,7 @@
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
-  loop: "{{ _ssh_existing_host_keys.files | default([]) }}"
+  loop: "{{ ssh_existing_host_keys.files | default([]) }}"
   loop_control:
     label: "{{ item.path | basename }}"
   when:

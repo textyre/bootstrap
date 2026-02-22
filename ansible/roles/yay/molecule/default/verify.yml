@@ -16,7 +16,7 @@
       ansible.builtin.getent:
         database: passwd
         key: "{{ yay_builder_user }}"
-      register: _verify_aur_builder
+      register: verify_aur_builder
 
     - name: Check that aur_builder has nologin shell
       ansible.builtin.assert:
@@ -27,13 +27,13 @@
     - name: Check that sudoers file exists
       ansible.builtin.stat:
         path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
-      register: _verify_sudoers
+      register: verify_sudoers
       failed_when: not _verify_sudoers.stat.exists
 
     - name: Check sudoers file mode is 0440
       ansible.builtin.assert:
         that: _verify_sudoers.stat.mode == '0440'
-        fail_msg: "sudoers file mode is {{ _verify_sudoers.stat.mode }}, expected 0440"
+        fail_msg: "sudoers file mode is {{ verify_sudoers.stat.mode }}, expected 0440"
 
     - name: Validate sudoers syntax
       ansible.builtin.command: /usr/sbin/visudo -cf "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
@@ -45,24 +45,24 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: _verify_dep_check
+      register: verify_dep_check
       failed_when: _verify_dep_check is changed
       loop: "{{ yay_build_deps }}"
 
     - name: Check that yay binary exists
       ansible.builtin.command: which yay
       changed_when: false
-      register: _verify_yay_path
+      register: verify_yay_path
 
     - name: Check that yay is executable
       ansible.builtin.command: yay --version
       changed_when: false
-      register: _verify_yay_version
+      register: verify_yay_version
 
     - name: Check that yay has no broken shared libs
       ansible.builtin.command: ldd /usr/bin/yay
       changed_when: false
-      register: _verify_yay_ldd
+      register: verify_yay_ldd
       failed_when: "'not found' in _verify_yay_ldd.stdout"
 
     # --- cleanup ---
@@ -71,7 +71,7 @@
         paths: /tmp
         patterns: "yay_build_*"
         file_type: directory
-      register: _verify_build_dirs
+      register: verify_build_dirs
       failed_when: _verify_build_dirs.matched > 0
 
     # --- AUR packages ---
@@ -87,8 +87,8 @@
           - "All checks passed!"
           - "aur_builder user: exists, shell=/usr/bin/nologin"
           - "sudoers: /etc/sudoers.d/{{ yay_builder_sudoers_file }} (mode 0440)"
-          - "yay binary: {{ _verify_yay_path.stdout }}"
-          - "yay version: {{ _verify_yay_version.stdout }}"
+          - "yay binary: {{ verify_yay_path.stdout }}"
+          - "yay version: {{ verify_yay_version.stdout }}"
           - "yay ldd: OK (no broken shared libs)"
           - "Build deps: installed"
           - "Temp build dirs: cleaned up"

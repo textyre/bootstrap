@@ -18,7 +18,7 @@
 - name: Verify chronyd is running
   ansible.builtin.command:
     cmd: chronyc tracking
-  register: _ntp_check
+  register: ntp_check
   changed_when: false
   failed_when: _ntp_check.rc != 0
   tags: ['ntp']
@@ -35,7 +35,7 @@
 - name: Check chrony has NTP sources
   ansible.builtin.command:
     cmd: chronyc sources
-  register: _ntp_sources
+  register: ntp_sources
   changed_when: false
   failed_when: false
   tags: ['ntp']
@@ -51,7 +51,7 @@
 - name: Check chrony has a synced source
   ansible.builtin.command:
     cmd: chronyc -n sources
-  register: _ntp_synced
+  register: ntp_synced
   changed_when: false
   failed_when: false
   tags: ['ntp']

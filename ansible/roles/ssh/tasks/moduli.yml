@@ -10,13 +10,13 @@
 - name: "Check if /etc/ssh/moduli exists"
   ansible.builtin.stat:
     path: /etc/ssh/moduli
-  register: _ssh_moduli_file
+  register: ssh_moduli_file
   tags: [ssh, security, moduli]
 
 - name: "Count weak DH moduli (< {{ ssh_moduli_minimum_bits }} bits)"
   ansible.builtin.command:
     cmd: "awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
-  register: _ssh_weak_moduli
+  register: ssh_weak_moduli
   changed_when: false
   when: _ssh_moduli_file.stat.exists
   tags: [ssh, security, moduli]
@@ -24,7 +24,7 @@
 - name: "Filter strong DH moduli (>= {{ ssh_moduli_minimum_bits }} bits)"
   ansible.builtin.command:
     cmd: "awk '$5 >= {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
-  register: _ssh_strong_moduli
+  register: ssh_strong_moduli
   changed_when: false
   when:
     - _ssh_moduli_file.stat.exists
@@ -33,7 +33,7 @@
 
 - name: "Deploy filtered moduli file"
   ansible.builtin.copy:
-    content: "{{ _ssh_strong_moduli.stdout }}\n"
+    content: "{{ ssh_strong_moduli.stdout }}\n"
     dest: /etc/ssh/moduli
     owner: root
     group: root

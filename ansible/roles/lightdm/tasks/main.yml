@@ -5,7 +5,7 @@
 - name: Resolve dotfiles source directory
   ansible.builtin.stat:
     path: "{{ lightdm_source_dir }}"
-  register: _lightdm_source_stat
+  register: lightdm_source_stat
   tags: ['lightdm', 'display']
 
 - name: Assert dotfiles source directory exists

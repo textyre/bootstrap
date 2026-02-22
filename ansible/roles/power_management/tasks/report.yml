@@ -7,7 +7,7 @@
     msg:
       - "====== Power Management Report ======"
       - "Device type    : {{ 'laptop' if _power_management_is_laptop else 'desktop' }}"
-      - "Init system    : {{ _power_management_init }}"
+      - "Init system    : {{ power_management_init }}"
       - "CPU vendor     : {{ 'Intel' if _power_management_cpu_is_intel else ('AMD' if _power_management_cpu_is_amd else 'other') }}"
       - "CPU governor   : {{ power_management_status.governor }}"
       - "TLP status     : {{ power_management_status.tlp_active if _power_management_is_laptop else 'N/A (desktop)' }}"

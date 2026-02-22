@@ -12,18 +12,18 @@
         name: nftables
         state: present
       check_mode: true
-      register: _firewall_verify_nftables
+      register: firewall_verify_nftables
       failed_when: _firewall_verify_nftables is changed
 
     - name: Check /etc/nftables.conf exists
       ansible.builtin.stat:
         path: /etc/nftables.conf
-      register: _firewall_verify_nftables_conf
+      register: firewall_verify_nftables_conf
       failed_when: not _firewall_verify_nftables_conf.stat.exists
 
     - name: Check nftables config contains filter table
       ansible.builtin.command: grep 'table inet filter' /etc/nftables.conf
-      register: _firewall_verify_nftables_table
+      register: firewall_verify_nftables_table
       changed_when: false
       failed_when: _firewall_verify_nftables_table.rc != 0
 
@@ -32,12 +32,12 @@
         name: nftables
         enabled: true
       check_mode: true
-      register: _firewall_verify_service
+      register: firewall_verify_service
       failed_when: _firewall_verify_service is changed
 
     - name: Check nftables rules are loaded
       ansible.builtin.command: nft list tables
-      register: _firewall_verify_rules
+      register: firewall_verify_rules
       changed_when: false
       failed_when: "'inet filter' not in _firewall_verify_rules.stdout"
 

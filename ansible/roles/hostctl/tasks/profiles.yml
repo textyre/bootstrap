@@ -23,11 +23,11 @@
 - name: Verify profile files deployed
   ansible.builtin.stat:
     path: "/etc/hostctl/{{ item.key }}.hosts"
-  register: _hostctl_profile_stat
+  register: hostctl_profile_stat
   loop: "{{ hostctl_profiles | dict2items }}"
 
 - name: Assert all profile files exist
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: "hostctl profile file missing: /etc/hostctl/{{ item.item.key }}.hosts"
-  loop: "{{ _hostctl_profile_stat.results }}"
+  loop: "{{ hostctl_profile_stat.results }}"

@@ -17,7 +17,7 @@
           - ansible_facts['os_family'] in _fail2ban_supported_os
         fail_msg: >-
           OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ _fail2ban_supported_os | join(', ') }}
+          Supported: {{ fail2ban_supported_os | join(', ') }}
       tags: [fail2ban]
 
     - name: "Include OS-specific variables"
@@ -46,7 +46,7 @@
 
     - name: "Enable and start fail2ban"
       ansible.builtin.service:
-        name: "{{ _fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
+        name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         enabled: true
         state: started
       tags: [fail2ban, service]

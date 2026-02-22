@@ -20,26 +20,26 @@
 
 - name: Run lspci to detect GPU
   ansible.builtin.command: lspci -nn
-  register: _gpu_drivers_lspci
+  register: gpu_drivers_lspci
   changed_when: false
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect NVIDIA GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
+    _gpu_drivers_has_nvidia: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect AMD GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_amd: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
+    _gpu_drivers_has_amd: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect Intel GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_intel: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
+    _gpu_drivers_has_intel: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
@@ -59,9 +59,9 @@
   ansible.builtin.debug:
     msg:
       - "GPU detection: {{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }}"
-      - "NVIDIA:  {{ _gpu_drivers_has_nvidia }}"
-      - "AMD:     {{ _gpu_drivers_has_amd }}"
-      - "Intel:   {{ _gpu_drivers_has_intel }}"
+      - "NVIDIA:  {{ gpu_drivers_has_nvidia }}"
+      - "AMD:     {{ gpu_drivers_has_amd }}"
+      - "Intel:   {{ gpu_drivers_has_intel }}"
   tags: ['gpu', 'drivers']
 
 # ---- Hybrid GPU warning ----

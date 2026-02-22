@@ -3,9 +3,9 @@
 # Called from main.yml with _git_current_user set by loop_var.
 # Each include_tasks runs as become_user: _git_current_user.name.
 
-- name: "Configure git for {{ _git_current_user.name }}"
+- name: "Configure git for {{ git_current_user.name }}"
   become: true
-  become_user: "{{ _git_current_user.name }}"
+  become_user: "{{ git_current_user.name }}"
   tags: [git, configure]
   block:
     - name: Apply base git config

@@ -19,12 +19,12 @@
 
 - name: "{{ common_rpt_title }} — Execution Report"
   ansible.builtin.debug:
-    msg: "{{ _header + (lookup('vars', _rpt_fact, default=[]) | list) + _extra + _footer }}"
+    msg: "{{ header + (lookup('vars', _rpt_fact, default=[]) | list) + _extra + _footer }}"
   vars:
     _header:
       - "+----------------------------+------------+--------------------------+"
       - "| Phase                      | Status     | Details                  |"
       - "+----------------------------+------------+--------------------------+"
-    _extra: "{{ _rpt_footer_rows | default([]) }}"
+    _extra: "{{ rpt_footer_rows | default([]) }}"
     _footer:
       - "+----------------------------+------------+--------------------------+"

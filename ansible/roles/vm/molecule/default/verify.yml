@@ -315,5 +315,5 @@
         msg:
           - "Virtualization: {{ vmvm_verify_virt_type }} ({{ vmvm_verify_virt_role }})"
           - "VM guest verification passed"
-          - "Reboot required: {{ _vm_reboot_required | default('unknown') }}"
+          - "Reboot required: {{ vm_reboot_required | default('unknown') }}"
       when: vmvm_verify_virt_role == 'guest'

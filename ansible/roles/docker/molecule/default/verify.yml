@@ -10,18 +10,18 @@
     - name: Check /etc/docker/daemon.json exists
       ansible.builtin.stat:
         path: /etc/docker/daemon.json
-      register: _docker_verify_daemon_json
+      register: docker_verify_daemon_json
       failed_when: not _docker_verify_daemon_json.stat.exists
 
     - name: Check daemon.json is valid JSON
       ansible.builtin.command: python3 -c "import json; json.load(open('/etc/docker/daemon.json'))"
-      register: _docker_verify_json_valid
+      register: docker_verify_json_valid
       changed_when: false
       failed_when: _docker_verify_json_valid.rc != 0
 
     - name: Check user is in docker group
       ansible.builtin.command: "groups {{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-      register: _docker_verify_docker_group
+      register: docker_verify_docker_group
       changed_when: false
       failed_when: "'docker' not in _docker_verify_docker_group.stdout"
 
@@ -31,7 +31,7 @@
         state: started
         enabled: true
       check_mode: true
-      register: _docker_verify_service
+      register: docker_verify_service
       failed_when: _docker_verify_service is changed
 
     - name: Show test results

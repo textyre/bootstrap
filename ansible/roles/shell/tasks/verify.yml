@@ -15,7 +15,7 @@
       - getent_passwd[shell_user][5] == _shell_bin[shell_type]
     fail_msg: >-
       Login shell for {{ shell_user }} is '{{ getent_passwd[shell_user][5] }}'
-      but expected '{{ _shell_bin[shell_type] }}'.
+      but expected '{{ shell_bin[shell_type] }}'.
     quiet: true
   when: shell_set_login | bool
   tags: ['shell']
@@ -24,8 +24,8 @@
 
 - name: Verify XDG directories exist
   ansible.builtin.stat:
-    path: "{{ _shell_user_home }}/{{ item }}"
-  register: _shell_verify_xdg
+    path: "{{ shell_user_home }}/{{ item }}"
+  register: shell_verify_xdg
   loop: "{{ shell_xdg_dirs }}"
   tags: ['shell']
 
@@ -37,7 +37,7 @@
     fail_msg: >-
       XDG directory '{{ item.item }}' does not exist or is not a directory.
     quiet: true
-  loop: "{{ _shell_verify_xdg.results }}"
+  loop: "{{ shell_verify_xdg.results }}"
   loop_control:
     label: "{{ item.item }}"
   tags: ['shell']
@@ -47,7 +47,7 @@
 - name: Verify /etc/profile.d/dev-paths.sh exists
   ansible.builtin.stat:
     path: /etc/profile.d/dev-paths.sh
-  register: _shell_verify_profiled
+  register: shell_verify_profiled
   when: shell_type in ['bash', 'zsh']
   tags: ['shell']
 
@@ -65,7 +65,7 @@
 - name: Verify /etc/zsh/zshenv exists
   ansible.builtin.stat:
     path: /etc/zsh/zshenv
-  register: _shell_verify_zshenv
+  register: shell_verify_zshenv
   when: shell_type == 'zsh'
   tags: ['shell']
 
@@ -83,7 +83,7 @@
 - name: Verify /etc/fish/conf.d/dev-paths.fish exists
   ansible.builtin.stat:
     path: /etc/fish/conf.d/dev-paths.fish
-  register: _shell_verify_fish
+  register: shell_verify_fish
   when: shell_type == 'fish'
   tags: ['shell']
 

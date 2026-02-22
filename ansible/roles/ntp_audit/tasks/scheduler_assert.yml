@@ -21,7 +21,7 @@
 - name: Check cron entry exists (non-systemd)
   ansible.builtin.command:
     cmd: crontab -l -u root
-  register: _cron_list
+  register: cron_list
   changed_when: false
   failed_when: false
   when: ansible_facts['service_mgr'] != 'systemd'

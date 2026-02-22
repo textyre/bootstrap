@@ -27,7 +27,7 @@
 - name: "VirtualBox: Get host VirtualBox version"
   ansible.builtin.command:
     cmd: VBoxControl guestproperty get /VirtualBox/HostInfo/VBoxVer
-  register: _vm_vbox_host_version_raw
+  register: vm_vbox_host_version_raw
   changed_when: false
   failed_when: false
   tags: ['vm', 'vbox', 'vm:verify']
@@ -35,7 +35,7 @@
 - name: "VirtualBox: Get installed GA version"
   ansible.builtin.command:
     cmd: VBoxControl --version
-  register: _vm_vbox_guest_version_raw
+  register: vm_vbox_guest_version_raw
   changed_when: false
   failed_when: false
   tags: ['vm', 'vbox', 'vm:verify']
@@ -43,11 +43,11 @@
 - name: "VirtualBox: Parse versions"
   ansible.builtin.set_fact:
     _vm_vbox_host_ver: >-
-      {{ _vm_vbox_host_version_raw.stdout | default('')
+      {{ vm_vbox_host_version_raw.stdout | default('')
          | regex_search('Value:\s*(.+)', '\1')
          | default(['unknown'], true) | first | trim }}
     _vm_vbox_guest_ver: >-
-      {{ _vm_vbox_guest_version_raw.stdout | default('')
+      {{ vm_vbox_guest_version_raw.stdout | default('')
          | regex_replace('[^0-9.].*', '') }}
   when:
     - _vm_vbox_host_version_raw.rc | default(1) == 0
@@ -56,7 +56,7 @@
 
 - name: "VirtualBox: Report detected versions"
   ansible.builtin.debug:
-    msg: "Detected versions - Host: {{ _vm_vbox_host_ver | default('unknown') }}, Guest: {{ _vm_vbox_guest_ver | default('unknown') }}"
+    msg: "Detected versions - Host: {{ vm_vbox_host_ver | default('unknown') }}, Guest: {{ vm_vbox_guest_ver | default('unknown') }}"
   when:
     - _vm_vbox_host_ver is defined
     - _vm_vbox_guest_ver is defined

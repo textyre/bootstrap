@@ -20,6 +20,6 @@ galaxy_info:
     - fail2ban
     - security
     - ssh
-    - brute-force
+    - bruteforce
 
 dependencies: []

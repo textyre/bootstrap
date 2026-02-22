@@ -54,13 +54,13 @@
 
 - name: Check for container/WSL2 environment
   ansible.builtin.set_fact:
-    _vm_is_container: "{{ _vm_virt_role == 'guest' and _vm_virt_type in ['container', 'wsl'] }}"
+    _vm_is_container: "{{ vm_virt_role == 'guest' and _vm_virt_type in ['container', 'wsl'] }}"
   tags: ['vm']
 
 - name: Determine if running as guest in supported hypervisor
   ansible.builtin.set_fact:
-    _vm_is_guest: "{{ _vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors }}"
-    _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
+    _vm_is_guest: "{{ vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors }}"
+    _vm_hypervisor: "{{ vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
 - name: "Report: Detect virtualization"
@@ -70,7 +70,7 @@
   vars:
     common_rpt_fact: "_vm_phases"
     common_rpt_phase: "Detect virtualization"
-    common_rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
+    common_rpt_detail: "{{ vm_virt_type }} / {{ vm_virt_role }}"
   tags: ['vm']
 
 - name: "Report: Container/WSL2 check"
@@ -90,7 +90,7 @@
   vars:
     common_rpt_fact: "_vm_phases"
     common_rpt_phase: "Guest determination"
-    common_rpt_detail: "hypervisor={{ _vm_hypervisor }}"
+    common_rpt_detail: "hypervisor={{ vm_hypervisor }}"
   tags: ['vm']
 
 # ---- Initialize reboot flag ----

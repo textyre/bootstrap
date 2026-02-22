@@ -18,7 +18,7 @@
 - name: Read previous power state
   ansible.builtin.slurp:
     src: "{{ power_management_drift_state_dir }}/last_state.json"
-  register: _pm_drift_previous_raw
+  register: pm_drift_previous_raw
   failed_when: false
   tags: ['power', 'drift']
 
@@ -33,7 +33,7 @@
   ansible.builtin.debug:
     msg: >-
       DRIFT DETECTED: CPU governor changed from
-      '{{ _pm_drift_previous.governor | default('unknown') }}' to
+      '{{ pm_drift_previous.governor | default('unknown') }}' to
       '{{ power_management_status.governor }}'.
       This may indicate manual changes or conflicting services.
   when:
@@ -45,7 +45,7 @@
   ansible.builtin.debug:
     msg: >-
       DRIFT DETECTED: TLP status changed from
-      '{{ _pm_drift_previous.tlp_active | default('unknown') }}' to
+      '{{ pm_drift_previous.tlp_active | default('unknown') }}' to
       '{{ power_management_status.tlp_active }}'.
   when:
     - _power_management_is_laptop

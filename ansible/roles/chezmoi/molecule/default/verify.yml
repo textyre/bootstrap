@@ -10,7 +10,7 @@
   tasks:
     - name: Check chezmoi is installed
       ansible.builtin.command: which chezmoi
-      register: _chezmoi_verify_chezmoi_bin
+      register: chezmoi_verify_chezmoi_bin
       changed_when: false
       failed_when: _chezmoi_verify_chezmoi_bin.rc != 0
 
@@ -25,68 +25,68 @@
 
     - name: Check .xinitrc exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.xinitrc"
-      register: _chezmoi_verify_xinitrc
+        path: "{{ chezmoi_verify_home }}/.xinitrc"
+      register: chezmoi_verify_xinitrc
       failed_when: not _chezmoi_verify_xinitrc.stat.exists
 
     - name: Check .config/i3/config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/i3/config"
-      register: _chezmoi_verify_i3_config
+        path: "{{ chezmoi_verify_home }}/.config/i3/config"
+      register: chezmoi_verify_i3_config
       failed_when: not _chezmoi_verify_i3_config.stat.exists
 
     - name: Check .config/picom.conf exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/picom.conf"
-      register: _chezmoi_verify_picom
+        path: "{{ chezmoi_verify_home }}/.config/picom.conf"
+      register: chezmoi_verify_picom
       failed_when: not _chezmoi_verify_picom.stat.exists
 
     - name: Check ewwii config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
-      register: _chezmoi_verify_ewwii
+        path: "{{ chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
+      register: chezmoi_verify_ewwii
       failed_when: not _chezmoi_verify_ewwii.stat.exists
 
     - name: Check rofi config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/rofi/config.rasi"
-      register: _chezmoi_verify_rofi
+        path: "{{ chezmoi_verify_home }}/.config/rofi/config.rasi"
+      register: chezmoi_verify_rofi
       failed_when: not _chezmoi_verify_rofi.stat.exists
 
     - name: Check alacritty config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
-      register: _chezmoi_verify_alacritty
+        path: "{{ chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
+      register: chezmoi_verify_alacritty
       failed_when: not _chezmoi_verify_alacritty.stat.exists
 
     - name: Check dunst config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/dunst/dunstrc"
-      register: _chezmoi_verify_dunst
+        path: "{{ chezmoi_verify_home }}/.config/dunst/dunstrc"
+      register: chezmoi_verify_dunst
       failed_when: not _chezmoi_verify_dunst.stat.exists
 
     - name: Check starship config exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/starship.toml"
-      register: _chezmoi_verify_starship
+        path: "{{ chezmoi_verify_home }}/.config/starship.toml"
+      register: chezmoi_verify_starship
       failed_when: not _chezmoi_verify_starship.stat.exists
 
     - name: Check theme-switch is executable
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.local/bin/theme-switch"
-      register: _chezmoi_verify_theme_switch
+        path: "{{ chezmoi_verify_home }}/.local/bin/theme-switch"
+      register: chezmoi_verify_theme_switch
       failed_when: not _chezmoi_verify_theme_switch.stat.exists or not _chezmoi_verify_theme_switch.stat.executable
 
     - name: Check wallpapers directory exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.local/share/wallpapers"
-      register: _chezmoi_verify_wallpapers
+        path: "{{ chezmoi_verify_home }}/.local/share/wallpapers"
+      register: chezmoi_verify_wallpapers
       failed_when: not _chezmoi_verify_wallpapers.stat.exists or not _chezmoi_verify_wallpapers.stat.isdir
 
     - name: Check GTK3 settings exist
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
-      register: _chezmoi_verify_gtk3
+        path: "{{ chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
+      register: chezmoi_verify_gtk3
       failed_when: not _chezmoi_verify_gtk3.stat.exists
 
     - name: Show test results

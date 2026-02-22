@@ -8,7 +8,7 @@
 
 - name: Check if dracut is available (non-Arch systems)
   ansible.builtin.command: which dracut
-  register: _gpu_drivers_dracut_check
+  register: gpu_drivers_dracut_check
   changed_when: false
   failed_when: false
   when:

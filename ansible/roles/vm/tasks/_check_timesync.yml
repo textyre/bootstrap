@@ -30,17 +30,17 @@
 #   - Always succeeds (warning only, no failures)
 # =========================================================================
 
-- name: "{{ _vm_timesync_label }}: Get systemd-timesyncd status"
+- name: "{{ vm_timesync_label }}: Get systemd-timesyncd status"
   ansible.builtin.systemd:
     name: systemd-timesyncd
-  register: _vm_timesync_status
+  register: vm_timesync_status
   failed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_timesync_label }}: Warn about time sync conflict"
+- name: "{{ vm_timesync_label }}: Warn about time sync conflict"
   ansible.builtin.debug:
     msg: >-
-      WARNING: systemd-timesyncd is active. {{ _vm_timesync_service }} also manages time sync.
+      WARNING: systemd-timesyncd is active. {{ vm_timesync_service }} also manages time sync.
       Consider disabling systemd-timesyncd to avoid conflicts:
       systemctl disable --now systemd-timesyncd
   when:

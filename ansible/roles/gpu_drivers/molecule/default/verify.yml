@@ -7,7 +7,7 @@
   tasks:
     - name: Detect GPU for verification
       ansible.builtin.command: lspci -nn
-      register: _gpu_verify_lspci
+      register: gpu_verify_lspci
       changed_when: false
       failed_when: false
 
@@ -15,9 +15,9 @@
     # Class label appears BEFORE vendor name on each line.
     - name: Set GPU vendor facts for verification
       ansible.builtin.set_fact:
-        _gpu_verify_has_nvidia: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
-        _gpu_verify_has_amd: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
-        _gpu_verify_has_intel: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
+        _gpu_verify_has_nvidia: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
+        _gpu_verify_has_amd: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
+        _gpu_verify_has_intel: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
 
     # ---- OS-specific package name resolution ----
 
@@ -44,10 +44,10 @@
 
     - name: Check NVIDIA driver package (variant-aware, OS-aware)
       ansible.builtin.package:
-        name: "{{ _gpu_verify_nvidia_pkg | trim }}"
+        name: "{{ gpu_verify_nvidia_pkg | trim }}"
         state: present
       check_mode: true
-      register: _gpu_verify_nvidia
+      register: gpu_verify_nvidia
       failed_when: _gpu_verify_nvidia is changed
       when: _gpu_verify_has_nvidia
 
@@ -55,19 +55,19 @@
 
     - name: Check AMD driver package
       ansible.builtin.package:
-        name: "{{ _gpu_verify_amd_pkg | trim }}"
+        name: "{{ gpu_verify_amd_pkg | trim }}"
         state: present
       check_mode: true
-      register: _gpu_verify_amd
+      register: gpu_verify_amd
       failed_when: _gpu_verify_amd is changed
       when: _gpu_verify_has_amd
 
     - name: Check Intel driver package
       ansible.builtin.package:
-        name: "{{ _gpu_verify_intel_pkg | trim }}"
+        name: "{{ gpu_verify_intel_pkg | trim }}"
         state: present
       check_mode: true
-      register: _gpu_verify_intel
+      register: gpu_verify_intel
       failed_when: _gpu_verify_intel is changed
       when: _gpu_verify_has_intel
 
@@ -75,10 +75,10 @@
 
     - name: Check Vulkan ICD loader is installed
       ansible.builtin.package:
-        name: "{{ _gpu_verify_vulkan_pkg | trim }}"
+        name: "{{ gpu_verify_vulkan_pkg | trim }}"
         state: present
       check_mode: true
-      register: _gpu_verify_vulkan
+      register: gpu_verify_vulkan
       failed_when: _gpu_verify_vulkan is changed
       when: _gpu_verify_has_nvidia or _gpu_verify_has_amd or _gpu_verify_has_intel
 
@@ -87,7 +87,7 @@
     - name: Check NVIDIA DRM KMS modprobe config exists
       ansible.builtin.stat:
         path: /etc/modprobe.d/nvidia.conf
-      register: _gpu_verify_modprobe
+      register: gpu_verify_modprobe
       failed_when:
         - gpu_drivers_nvidia_kms | default(true)
         - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
@@ -97,7 +97,7 @@
     - name: Check nouveau blacklist config exists
       ansible.builtin.stat:
         path: /etc/modprobe.d/nvidia-blacklist.conf
-      register: _gpu_verify_blacklist
+      register: gpu_verify_blacklist
       failed_when:
         - gpu_drivers_nvidia_blacklist_nouveau | default(true)
         - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
@@ -109,7 +109,7 @@
     - name: Check GPU VA-API environment config exists
       ansible.builtin.stat:
         path: /etc/environment.d/gpu.conf
-      register: _gpu_verify_env_conf
+      register: gpu_verify_env_conf
       failed_when:
         - gpu_drivers_vaapi | default(true)
         - not _gpu_verify_env_conf.stat.exists
@@ -121,8 +121,8 @@
       ansible.builtin.debug:
         msg:
           - "=== GPU Driver Verification Passed ==="
-          - "NVIDIA detected: {{ _gpu_verify_has_nvidia }}"
-          - "AMD detected:    {{ _gpu_verify_has_amd }}"
-          - "Intel detected:  {{ _gpu_verify_has_intel }}"
+          - "NVIDIA detected: {{ gpu_verify_has_nvidia }}"
+          - "AMD detected:    {{ gpu_verify_has_amd }}"
+          - "Intel detected:  {{ gpu_verify_has_intel }}"
           - "Variant: {{ gpu_drivers_nvidia_variant | default('proprietary') }}"
           - "OS family: {{ ansible_facts['os_family'] }}"

@@ -12,7 +12,7 @@
     - name: Verify git is installed
       ansible.builtin.command:
         cmd: git --version
-      register: _git_verify_installed
+      register: git_verify_installed
       changed_when: false
       failed_when: _git_verify_installed.rc != 0
 
@@ -22,7 +22,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get user.name
-      register: _git_verify_username
+      register: git_verify_username
       changed_when: false
       failed_when: _git_verify_username.stdout != git_owner.user_name
 
@@ -30,7 +30,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get user.email
-      register: _git_verify_email
+      register: git_verify_email
       changed_when: false
       failed_when: _git_verify_email.stdout != git_owner.user_email
 
@@ -38,7 +38,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get init.defaultBranch
-      register: _git_verify_branch
+      register: git_verify_branch
       changed_when: false
       failed_when: _git_verify_branch.stdout != 'main'
 
@@ -46,7 +46,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.editor
-      register: _git_verify_editor
+      register: git_verify_editor
       changed_when: false
       failed_when: _git_verify_editor.stdout != 'vim'
 
@@ -54,7 +54,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get pull.rebase
-      register: _git_verify_rebase
+      register: git_verify_rebase
       changed_when: false
       failed_when: _git_verify_rebase.stdout != 'true'
 
@@ -62,7 +62,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get push.autoSetupRemote
-      register: _git_verify_autosetup
+      register: git_verify_autosetup
       changed_when: false
       failed_when: _git_verify_autosetup.stdout != 'true'
 
@@ -70,7 +70,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.autocrlf
-      register: _git_verify_autocrlf
+      register: git_verify_autocrlf
       changed_when: false
       failed_when: _git_verify_autocrlf.stdout != 'input'
 
@@ -80,7 +80,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get color.ui
-      register: _git_verify_color_ui
+      register: git_verify_color_ui
       changed_when: false
       failed_when: _git_verify_color_ui.stdout != 'auto'
 
@@ -88,7 +88,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get diff.colorMoved
-      register: _git_verify_colormoved
+      register: git_verify_colormoved
       changed_when: false
       failed_when: _git_verify_colormoved.stdout != 'zebra'
 
@@ -98,7 +98,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get-all safe.directory
-      register: _git_verify_safe_dirs
+      register: git_verify_safe_dirs
       changed_when: false
       failed_when: "'/tmp/test-safe-dir' not in _git_verify_safe_dirs.stdout_lines"
 
@@ -108,7 +108,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get alias.st
-      register: _git_verify_alias_st
+      register: git_verify_alias_st
       changed_when: false
       failed_when: _git_verify_alias_st.stdout != 'status'
 
@@ -116,7 +116,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get alias.lg
-      register: _git_verify_alias_lg
+      register: git_verify_alias_lg
       changed_when: false
       failed_when: _git_verify_alias_lg.rc != 0
 
@@ -126,7 +126,7 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get credential.helper
-      register: _git_verify_credential
+      register: git_verify_credential
       changed_when: false
       failed_when: "'cache' not in _git_verify_credential.stdout"
 
@@ -135,7 +135,7 @@
     - name: Check git-lfs is installed
       ansible.builtin.command:
         cmd: git lfs version
-      register: _git_verify_lfs
+      register: git_verify_lfs
       changed_when: false
       failed_when: _git_verify_lfs.rc != 0
 
@@ -144,7 +144,7 @@
     - name: Check hooks directory exists
       ansible.builtin.stat:
         path: /tmp/test-git-hooks
-      register: _git_verify_hooks
+      register: git_verify_hooks
 
     - name: Assert hooks directory exists
       ansible.builtin.assert:
@@ -159,15 +159,15 @@
       ansible.builtin.debug:
         msg:
           - "All git role checks passed!"
-          - "user.name = {{ _git_verify_username.stdout }}"
-          - "user.email = {{ _git_verify_email.stdout }}"
-          - "init.defaultBranch = {{ _git_verify_branch.stdout }}"
-          - "core.editor = {{ _git_verify_editor.stdout }}"
-          - "pull.rebase = {{ _git_verify_rebase.stdout }}"
-          - "alias.st = {{ _git_verify_alias_st.stdout }}"
-          - "color.ui = {{ _git_verify_color_ui.stdout }}"
-          - "diff.colorMoved = {{ _git_verify_colormoved.stdout }}"
-          - "safe.directory = {{ _git_verify_safe_dirs.stdout_lines }}"
-          - "credential.helper = {{ _git_verify_credential.stdout }}"
+          - "user.name = {{ git_verify_username.stdout }}"
+          - "user.email = {{ git_verify_email.stdout }}"
+          - "init.defaultBranch = {{ git_verify_branch.stdout }}"
+          - "core.editor = {{ git_verify_editor.stdout }}"
+          - "pull.rebase = {{ git_verify_rebase.stdout }}"
+          - "alias.st = {{ git_verify_alias_st.stdout }}"
+          - "color.ui = {{ git_verify_color_ui.stdout }}"
+          - "diff.colorMoved = {{ git_verify_colormoved.stdout }}"
+          - "safe.directory = {{ git_verify_safe_dirs.stdout_lines }}"
+          - "credential.helper = {{ git_verify_credential.stdout }}"
           - "git-lfs = installed"
           - "hooks dir = /tmp/test-git-hooks exists"

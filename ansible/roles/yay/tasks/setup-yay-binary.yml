@@ -11,14 +11,14 @@
 
 - name: Check if yay is already installed
   ansible.builtin.command: yay --version
-  register: _yay_exists
+  register: yay_exists
   changed_when: false
   failed_when: false
   tags: ['aur', 'setup']
 
 - name: Check for broken yay binary (missing shared libs after Go upgrade)
   ansible.builtin.command: ldd /usr/bin/yay
-  register: _yay_ldd
+  register: yay_ldd
   failed_when: false
   changed_when: false
   when: _yay_exists.rc == 0
@@ -54,14 +54,14 @@
       ansible.builtin.tempfile:
         state: directory
         prefix: yay_build_
-      register: _yay_build_dir
+      register: yay_build_dir
 
     - name: Clone yay from AUR
       become: true
       become_user: "{{ yay_builder_user }}"
       ansible.builtin.git:
         repo: "{{ yay_source_url }}"
-        dest: "{{ _yay_build_dir.path }}/yay"
+        dest: "{{ yay_build_dir.path }}/yay"
         depth: 1
         version: master
 
@@ -70,35 +70,35 @@
       become_user: "{{ yay_builder_user }}"
       ansible.builtin.command:
         cmd: makepkg --noconfirm
-        chdir: "{{ _yay_build_dir.path }}/yay"
+        chdir: "{{ yay_build_dir.path }}/yay"
       changed_when: true
 
     - name: Find built yay package
       ansible.builtin.find:
-        paths: "{{ _yay_build_dir.path }}/yay"
+        paths: "{{ yay_build_dir.path }}/yay"
         patterns: "yay-*.pkg.tar.*"
         excludes: "*-debug-*"
-      register: _yay_pkg
+      register: yay_pkg
 
     - name: Install yay package
       community.general.pacman:
-        name: "{{ _yay_pkg.files[0].path }}"
+        name: "{{ yay_pkg.files[0].path }}"
         state: present
 
   always:
     - name: Clean up build directory
       ansible.builtin.file:
-        path: "{{ _yay_build_dir.path }}"
+        path: "{{ yay_build_dir.path }}"
         state: absent
       when: _yay_build_dir is defined
 
 - name: Verify yay installed
   ansible.builtin.command: yay --version
-  register: _yay_version
+  register: yay_version
   changed_when: false
   tags: ['aur', 'setup']
 
 - name: Report yay version
   ansible.builtin.debug:
-    msg: "yay установлен: {{ _yay_version.stdout }}"
+    msg: "yay установлен: {{ yay_version.stdout }}"
   tags: ['aur']

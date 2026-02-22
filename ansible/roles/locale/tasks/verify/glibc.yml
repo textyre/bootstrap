@@ -5,7 +5,7 @@
 
 - name: Get available locales
   ansible.builtin.command: locale -a
-  register: _locale_check
+  register: locale_check
   changed_when: false
   tags: ['locale']
 
@@ -17,7 +17,7 @@
          ([] if _locale_normalized in _available_list else [item]) }}
   vars:
     _locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
-    _available_list: "{{ _locale_check.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
+    _available_list: "{{ locale_check.stdout_lines | map('lower') | map('regex_replace', '[\\-\\.]', '') | list }}"
   loop: "{{ locale_list }}"
   tags: ['locale']
 
@@ -25,6 +25,6 @@
   ansible.builtin.debug:
     msg: >-
       WARNING: locale verify failed —
-      missing: {{ _locale_verify_missing | join(', ') }}
+      missing: {{ locale_verify_missing | join(', ') }}
   when: not (_locale_verify_ok | default(true))
   tags: ['locale']

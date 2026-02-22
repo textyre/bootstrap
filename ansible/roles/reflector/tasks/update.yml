@@ -7,13 +7,13 @@
 - name: Stat current mirrorlist
   ansible.builtin.stat:
     path: "{{ reflector_mirrorlist_path }}"
-  register: _reflector_stat
+  register: reflector_stat
   tags: ['update']
 
 - name: Read current mirrorlist (for change comparison)
   ansible.builtin.slurp:
     src: "{{ reflector_mirrorlist_path }}"
-  register: _reflector_old_mirror
+  register: reflector_old_mirror
   when: _reflector_stat.stat.exists
   tags: ['update']
 
@@ -23,7 +23,7 @@
     src: "{{ reflector_mirrorlist_path }}"
     dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] }}"
     mode: '0644'
-  register: _reflector_backup_result
+  register: reflector_backup_result
   when:
     - reflector_backup_mirrorlist | bool
     - _reflector_stat.stat.exists
@@ -31,7 +31,7 @@
 
 - name: Record backup path as fact
   ansible.builtin.set_fact:
-    _reflector_latest_backup: "{{ _reflector_backup_result.dest }}"
+    _reflector_latest_backup: "{{ reflector_backup_result.dest }}"
   when: _reflector_backup_result is not skipped
   tags: ['update']
 
@@ -50,7 +50,7 @@
         --download-timeout {{ reflector_download_timeout }}
         --threads {{ reflector_threads }}
         --save {{ reflector_mirrorlist_path }}
-      register: _reflector_run
+      register: reflector_run
       retries: "{{ reflector_retries }}"
       delay: "{{ reflector_retry_delay }}"
       until: _reflector_run.rc == 0
@@ -62,12 +62,12 @@
     - name: Read new mirrorlist
       ansible.builtin.slurp:
         src: "{{ reflector_mirrorlist_path }}"
-      register: _reflector_new_mirror
+      register: reflector_new_mirror
 
     - name: Validate mirrorlist contains Server entries
       ansible.builtin.command:
         cmd: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
-      register: _reflector_server_count
+      register: reflector_server_count
       changed_when: false
       failed_when: _reflector_server_count.stdout | int < 1
 
@@ -75,7 +75,7 @@
       ansible.builtin.find:
         paths: "{{ reflector_mirrorlist_path | dirname }}"
         patterns: "mirrorlist.bak.*"
-      register: _reflector_backups
+      register: reflector_backups
       when:
         - reflector_backup_mirrorlist | bool
         - reflector_backup_keep | int > 0
@@ -98,15 +98,15 @@
     - name: Report reflector result
       ansible.builtin.debug:
         msg: >-
-          Reflector completed. Mirrorlist changed: {{ _reflector_mirrorlist_changed }}.
-          Servers in mirrorlist: {{ _reflector_server_count.stdout }}.
+          Reflector completed. Mirrorlist changed: {{ reflector_mirrorlist_changed }}.
+          Servers in mirrorlist: {{ reflector_server_count.stdout }}.
       changed_when: _reflector_mirrorlist_changed | bool
 
   rescue:
     - name: Restore mirrorlist from backup
       ansible.builtin.copy:
         remote_src: true
-        src: "{{ _reflector_latest_backup }}"
+        src: "{{ reflector_latest_backup }}"
         dest: "{{ reflector_mirrorlist_path }}"
         mode: '0644'
       when: _reflector_latest_backup is defined
@@ -116,7 +116,7 @@
         msg: >-
           reflector failed or produced an invalid mirrorlist.
           {% if _reflector_latest_backup is defined %}
-          Restored from {{ _reflector_latest_backup }}.
+          Restored from {{ reflector_latest_backup }}.
           {% else %}
           No backup was available — mirrorlist may be empty or missing.
           {% endif %}

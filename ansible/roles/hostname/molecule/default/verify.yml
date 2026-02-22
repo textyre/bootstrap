@@ -9,7 +9,7 @@
   tasks:
     - name: Check hostname is set
       ansible.builtin.command: hostname
-      register: _verify_hostname
+      register: verify_hostname
       changed_when: false
 
     - name: Assert hostname is not empty
@@ -19,14 +19,14 @@
         fail_msg: "Hostname is empty"
 
     - name: Verify hostname is present in /etc/hosts
-      ansible.builtin.command: grep -q '{{ _verify_hostname.stdout }}' /etc/hosts
-      register: _verify_hosts_resolve
+      ansible.builtin.command: grep -q '{{ verify_hostname.stdout }}' /etc/hosts
+      register: verify_hosts_resolve
       changed_when: false
       failed_when: _verify_hosts_resolve.rc != 0
 
     - name: Check /etc/hosts contains 127.0.1.1 entry
       ansible.builtin.command: grep '127.0.1.1' /etc/hosts
-      register: _verify_hosts
+      register: verify_hosts
       changed_when: false
       failed_when: _verify_hosts.rc != 0
 
@@ -34,5 +34,5 @@
       ansible.builtin.debug:
         msg:
           - "Hostname check passed!"
-          - "Hostname: {{ _verify_hostname.stdout }}"
+          - "Hostname: {{ verify_hostname.stdout }}"
           - "/etc/hosts: 127.0.1.1 entry present"

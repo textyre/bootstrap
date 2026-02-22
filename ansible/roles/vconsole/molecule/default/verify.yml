@@ -16,13 +16,13 @@
     - name: Check vconsole.conf exists and has KEYMAP (systemd)
       ansible.builtin.slurp:
         src: /etc/vconsole.conf
-      register: _verify_vconsole
+      register: verify_vconsole
       failed_when: "'KEYMAP=' not in (_verify_vconsole.content | b64decode)"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Verify keymap via localectl (systemd)
       ansible.builtin.command: localectl status
-      register: _verify_localectl
+      register: verify_localectl
       changed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
@@ -58,14 +58,14 @@
 
     - name: Check keymap config (openrc)
       ansible.builtin.command: grep -i 'keymap=' /etc/conf.d/keymaps
-      register: _verify_keymap_openrc
+      register: verify_keymap_openrc
       changed_when: false
       failed_when: _verify_keymap_openrc.rc != 0
       when: ansible_facts['service_mgr'] == 'openrc'
 
     - name: Check keymap config (runit)
       ansible.builtin.command: grep -i 'KEYMAP=' /etc/rc.conf
-      register: _verify_keymap_runit
+      register: verify_keymap_runit
       changed_when: false
       failed_when: _verify_keymap_runit.rc != 0
       when: ansible_facts['service_mgr'] == 'runit'

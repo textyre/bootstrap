@@ -5,7 +5,7 @@
 - name: Set login shell for {{ shell_user }}
   ansible.builtin.user:
     name: "{{ shell_user }}"
-    shell: "{{ _shell_bin[shell_type] }}"
+    shell: "{{ shell_bin[shell_type] }}"
   when: shell_set_login | bool
   tags: ['shell', 'configure']
 
@@ -17,5 +17,5 @@
     common_rpt_fact: "_shell_phases"
     common_rpt_phase: "Set login shell"
     common_rpt_status: "{{ 'done' if (shell_set_login | bool) else 'skip' }}"
-    common_rpt_detail: "{{ _shell_bin[shell_type] }}"
+    common_rpt_detail: "{{ shell_bin[shell_type] }}"
   tags: ['shell', 'report']

@@ -6,7 +6,7 @@
   ansible.builtin.lineinfile:
     path: /etc/rc.conf
     regexp: '^#?\s*KEYMAP='
-    line: "KEYMAP={{ _vconsole_value }}"
+    line: "KEYMAP={{ vconsole_value }}"
     create: true
     owner: root
     group: root

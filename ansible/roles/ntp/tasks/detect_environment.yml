@@ -16,7 +16,7 @@
 - name: "NTP env: Load environment config"
   ansible.builtin.set_fact:
     _ntp_env: >-
-      {{ _ntp_env_defaults | combine(_ntp_env_map[_ntp_virt_type] | default({})) }}
+      {{ ntp_env_defaults | combine(_ntp_env_map[_ntp_virt_type] | default({})) }}
   tags: ['ntp']
 
 # VMware: check if /dev/ptp0 actually exists before adding refclock.
@@ -24,14 +24,14 @@
 - name: "NTP env: Check VMware PTP device presence"
   ansible.builtin.stat:
     path: /dev/ptp0
-  register: _ntp_vmware_ptp_stat
+  register: ntp_vmware_ptp_stat
   when: _ntp_virt_type == 'vmware'
   tags: ['ntp']
 
 - name: "NTP env: Set VMware refclock if PTP device present"
   ansible.builtin.set_fact:
     _ntp_env: >-
-      {{ _ntp_env | combine({
+      {{ ntp_env | combine({
            'refclocks': ['refclock PHC /dev/ptp0 poll 0 delay 0.0004 stratum 1']
          }) }}
   when:
@@ -55,7 +55,7 @@
     common_rpt_fact: "_ntp_phases"
     common_rpt_phase: "Detect environment"
     common_rpt_detail: >-
-      virt={{ _ntp_virt_type }}
-      refclocks={{ _ntp_active_refclocks | length }}
-      rtcsync={{ _ntp_env.rtcsync }}
+      virt={{ ntp_virt_type }}
+      refclocks={{ ntp_active_refclocks | length }}
+      rtcsync={{ ntp_env.rtcsync }}
   tags: ['ntp']

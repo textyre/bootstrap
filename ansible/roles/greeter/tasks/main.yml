@@ -18,7 +18,7 @@
 - name: Resolve greeter dist directory
   ansible.builtin.stat:
     path: "{{ greeter_dist_dir }}"
-  register: _greeter_dist_stat
+  register: greeter_dist_stat
   tags: ['greeter', 'display']
 
 - name: Assert greeter dist directory exists
@@ -71,44 +71,47 @@
 
 - name: Get system timezone
   ansible.builtin.command: timedatectl show -p Timezone --value
-  register: _greeter_timezone
+  register: greeter_timezone
   changed_when: false
   failed_when: false
   tags: ['greeter', 'display']
 
 - name: Get systemd version
-  ansible.builtin.shell: systemctl --version 2>/dev/null | head -1 | cut -d' ' -f2
-  register: _greeter_systemd_ver
+  ansible.builtin.shell: set -o pipefail; systemctl --version 2>/dev/null | head -1 | cut -d' ' -f2
+  register: greeter_systemd_ver
   changed_when: false
   failed_when: false
   tags: ['greeter', 'display']
 
 - name: Get connected display name (DRM sysfs)
   ansible.builtin.shell: >
+    set -o pipefail;
     for d in /sys/class/drm/card*-*; do
       [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && basename "$d" | sed 's/^card[0-9]*-//' && break;
     done
-  register: _greeter_display_name
+  register: greeter_display_name
   changed_when: false
   failed_when: false
   tags: ['greeter', 'display']
 
 - name: Get display resolution (DRM sysfs)
   ansible.builtin.shell: >
+    set -o pipefail;
     for d in /sys/class/drm/card*-*; do
       [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && head -1 "$d/modes" && break;
     done
-  register: _greeter_display_res
+  register: greeter_display_res
   changed_when: false
   failed_when: false
   tags: ['greeter', 'display']
 
 - name: Get SSH host key fingerprint
   ansible.builtin.shell: >
+    set -o pipefail;
     ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 2>/dev/null
     || ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub -E sha256 2>/dev/null
     || echo "unknown"
-  register: _greeter_ssh_fp_raw
+  register: greeter_ssh_fp_raw
   changed_when: false
   failed_when: false
   tags: ['greeter', 'display']
@@ -145,7 +148,7 @@
 - name: Check wallpaper source directory exists
   ansible.builtin.stat:
     path: "{{ greeter_wallpaper_source_dir }}"
-  register: _greeter_wallpaper_stat
+  register: greeter_wallpaper_stat
   tags: ['greeter', 'display']
 
 - name: Create backgrounds directory
@@ -177,5 +180,5 @@
     msg:
       - "Тема: {{ greeter_theme }}"
       - "Версия: {{ greeter_ctos_version }}"
-      - "Timezone: {{ _greeter_timezone.stdout | default('unknown') }}"
+      - "Timezone: {{ greeter_timezone.stdout | default('unknown') }}"
   tags: ['greeter']

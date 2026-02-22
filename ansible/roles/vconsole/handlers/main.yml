@@ -9,7 +9,7 @@
   when: ansible_facts['service_mgr'] == 'systemd'
 
 - name: Apply keymap (openrc/runit)
-  ansible.builtin.command: "loadkeys {{ _vconsole_value }}"
+  ansible.builtin.command: "loadkeys {{ vconsole_value }}"
   listen: "apply vconsole"
   when: ansible_facts['service_mgr'] in ['openrc', 'runit']
   changed_when: false

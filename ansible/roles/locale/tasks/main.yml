@@ -45,7 +45,7 @@
         msg: >-
           WARNING: locale generation skipped —
           '{{ ansible_facts['os_family'] }}' not supported.
-          Supported: {{ _locale_supported_os_families | join(', ') }}.
+          Supported: {{ locale_supported_os_families | join(', ') }}.
       when: ansible_facts['os_family'] | lower not in _locale_supported_os_families
       tags: ['locale']
 

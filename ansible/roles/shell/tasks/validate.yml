@@ -8,7 +8,7 @@
       - ansible_facts['os_family'] in _shell_supported_os
     fail_msg: >-
       OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _shell_supported_os | join(', ') }}.
+      Supported: {{ shell_supported_os | join(', ') }}.
   tags: ['shell']
 
 - name: Assert shell_type is valid
@@ -17,7 +17,7 @@
       - shell_type in _shell_supported_types
     fail_msg: >-
       shell_type '{{ shell_type }}' is not supported.
-      Supported: {{ _shell_supported_types | join(', ') }}.
+      Supported: {{ shell_supported_types | join(', ') }}.
   tags: ['shell']
 
 - name: Assert shell_user is defined and non-empty

@@ -5,7 +5,7 @@
 
 - name: Install NVIDIA proprietary drivers (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_proprietary_packages }}"
+    name: "{{ gpu_drivers_nvidia_proprietary_packages }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -14,7 +14,7 @@
 
 - name: Install NVIDIA proprietary multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_proprietary_multilib }}"
+    name: "{{ gpu_drivers_nvidia_proprietary_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -24,7 +24,7 @@
 
 - name: Install NVIDIA open kernel modules (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_open_packages }}"
+    name: "{{ gpu_drivers_nvidia_open_packages }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -33,7 +33,7 @@
 
 - name: Install NVIDIA open kernel multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_proprietary_multilib }}"
+    name: "{{ gpu_drivers_nvidia_proprietary_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -43,7 +43,7 @@
 
 - name: Install NVIDIA VA-API driver (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_vaapi_packages }}"
+    name: "{{ gpu_drivers_nvidia_vaapi_packages }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -53,7 +53,7 @@
 
 - name: Install NVIDIA nouveau drivers (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_nouveau_packages }}"
+    name: "{{ gpu_drivers_nvidia_nouveau_packages }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -62,7 +62,7 @@
 
 - name: Install NVIDIA nouveau multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_nvidia_nouveau_multilib }}"
+    name: "{{ gpu_drivers_nvidia_nouveau_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia
@@ -74,14 +74,14 @@
 
 - name: Install AMD drivers (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_amd_packages }}"
+    name: "{{ gpu_drivers_amd_packages }}"
     state: present
   when: _gpu_drivers_has_amd
   tags: ['gpu', 'amd']
 
 - name: Install AMD multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_amd_multilib }}"
+    name: "{{ gpu_drivers_amd_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_amd
@@ -92,14 +92,14 @@
 
 - name: Install Intel drivers (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_intel_packages }}"
+    name: "{{ gpu_drivers_intel_packages }}"
     state: present
   when: _gpu_drivers_has_intel
   tags: ['gpu', 'intel']
 
 - name: Install Intel multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_intel_multilib }}"
+    name: "{{ gpu_drivers_intel_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_intel
@@ -110,14 +110,14 @@
 
 - name: Install Vulkan ICD loader (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_vulkan_common }}"
+    name: "{{ gpu_drivers_vulkan_common }}"
     state: present
   when: _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
   tags: ['gpu', 'vulkan']
 
 - name: Install Vulkan ICD loader multilib (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_vulkan_common_multilib }}"
+    name: "{{ gpu_drivers_vulkan_common_multilib }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
@@ -126,7 +126,7 @@
 
 - name: Install Vulkan tools (Arch)
   community.general.pacman:
-    name: "{{ _gpu_drivers_vulkan_tools_packages }}"
+    name: "{{ gpu_drivers_vulkan_tools_packages }}"
     state: present
   when:
     - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel

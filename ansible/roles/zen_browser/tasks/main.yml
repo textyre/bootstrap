@@ -22,14 +22,14 @@
 
 - name: Check if Zen Browser is already installed
   ansible.builtin.command: which zen-browser
-  register: _zen_browser_exists
+  register: zen_browser_exists
   changed_when: false
   failed_when: false
   tags: ['zen_browser', 'browser']
 
 - name: Check if yay is available
   ansible.builtin.command: yay --version
-  register: _zen_browser_yay_check
+  register: zen_browser_yay_check
   changed_when: false
   failed_when: false
   tags: ['zen_browser', 'browser']
@@ -69,7 +69,7 @@
       {'PATH': '/usr/bin/core_perl:' + ansible_facts['env']['PATH']}
       | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass_zen'} if ansible_become_password is defined else {})
     }}
-  register: _zen_browser_install
+  register: zen_browser_install
   changed_when: "'there is nothing to do' not in _zen_browser_install.stdout | default('')"
   when: _zen_browser_exists.rc != 0
   tags: ['zen_browser', 'browser']
@@ -86,7 +86,7 @@
 
 - name: Verify Zen Browser binary exists
   ansible.builtin.command: which zen-browser
-  register: _zen_browser_verify
+  register: zen_browser_verify
   changed_when: false
   tags: ['zen_browser', 'browser']
 
@@ -98,7 +98,7 @@
   ansible.builtin.command: xdg-settings get default-web-browser
   environment:
     DISPLAY: "{{ ansible_facts['env']['DISPLAY'] | default(':0') }}"
-  register: _zen_browser_current_default
+  register: zen_browser_current_default
   changed_when: false
   failed_when: false
   when: zen_browser_set_default
@@ -120,5 +120,5 @@
 
 - name: Report Zen Browser installation result
   ansible.builtin.debug:
-    msg: "Zen Browser установлен: {{ _zen_browser_verify.stdout }}"
+    msg: "Zen Browser установлен: {{ zen_browser_verify.stdout }}"
   tags: ['zen_browser', 'browser']

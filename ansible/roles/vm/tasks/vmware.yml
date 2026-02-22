@@ -12,7 +12,8 @@
 
 # ---- Install packages ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Install packages"
+  ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
     _vm_pkg_list: "{{ packages_vmware_guest }}"
@@ -22,7 +23,8 @@
 
 # ---- Check time sync ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check time sync"
+  ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
     _vm_timesync_label: "VMware"
@@ -31,7 +33,8 @@
 
 # ---- Manage services ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Manage services"
+  ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
     _vm_svc_list:
@@ -49,7 +52,8 @@
 
 # ---- Verify kernel modules ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Verify kernel modules"
+  ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
     _vm_mod_list:
@@ -64,7 +68,8 @@
 
 # ---- Version report ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Version report"
+  ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
     _vm_ver_label: "VMware"
@@ -77,7 +82,8 @@
 
 # ---- Check X11 integration ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check X11 integration"
+  ansible.builtin.include_tasks:
     file: _check_x11.yml
   vars:
     _vm_x11_label: "VMware"
@@ -94,7 +100,8 @@
 
 # ---- Check reboot requirement ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check reboot requirement"
+  ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
     _vm_reboot_label: "VMware"

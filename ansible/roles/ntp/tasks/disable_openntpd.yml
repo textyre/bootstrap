@@ -6,7 +6,7 @@
     name: openntpd
     enabled: false
     state: stopped
-  register: _ntp_openntpd_disable
+  register: ntp_openntpd_disable
   failed_when:
     - _ntp_openntpd_disable is failed
     - >-

@@ -17,7 +17,7 @@
     - name: Check zsh is installed
       ansible.builtin.command:
         cmd: command -v zsh
-      register: _verify_zsh
+      register: verify_zsh
       changed_when: false
       failed_when: _verify_zsh.rc != 0
 
@@ -44,8 +44,8 @@
 
     - name: Check XDG directories exist
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/{{ item }}"
-      register: _verify_xdg
+        path: "{{ verify_home }}/{{ item }}"
+      register: verify_xdg
       loop:
         - ".config"
         - ".local/share"
@@ -58,7 +58,7 @@
           - item.stat.exists
           - item.stat.isdir
         fail_msg: "XDG directory '{{ item.item }}' missing"
-      loop: "{{ _verify_xdg.results }}"
+      loop: "{{ verify_xdg.results }}"
       loop_control:
         label: "{{ item.item }}"
 
@@ -67,7 +67,7 @@
     - name: Check /etc/profile.d/dev-paths.sh exists
       ansible.builtin.stat:
         path: /etc/profile.d/dev-paths.sh
-      register: _verify_profiled
+      register: verify_profiled
 
     - name: Assert /etc/profile.d/dev-paths.sh exists
       ansible.builtin.assert:
@@ -79,7 +79,7 @@
     - name: Read /etc/profile.d/dev-paths.sh
       ansible.builtin.slurp:
         src: /etc/profile.d/dev-paths.sh
-      register: _verify_profiled_content
+      register: verify_profiled_content
 
     - name: Assert profile.d contains managed marker
       ansible.builtin.assert:
@@ -105,7 +105,7 @@
     - name: Check /etc/zsh/zshenv exists
       ansible.builtin.stat:
         path: /etc/zsh/zshenv
-      register: _verify_zshenv
+      register: verify_zshenv
 
     - name: Assert /etc/zsh/zshenv exists
       ansible.builtin.assert:
@@ -117,7 +117,7 @@
     - name: Read /etc/zsh/zshenv
       ansible.builtin.slurp:
         src: /etc/zsh/zshenv
-      register: _verify_zshenv_content
+      register: verify_zshenv_content
 
     - name: Assert zshenv contains ZDOTDIR
       ansible.builtin.assert:

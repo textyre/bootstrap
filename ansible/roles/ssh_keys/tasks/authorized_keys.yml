@@ -9,7 +9,7 @@
     owner: "{{ item.name }}"
     mode: "0700"
   loop: >-
-    {{ _ssh_keys_users
+    {{ ssh_keys_users
        | selectattr('state', 'defined')
        | selectattr('state', 'equalto', 'present')
        | selectattr('ssh_keys', 'defined')
@@ -28,7 +28,7 @@
     state: present
   with_subelements:
     - >-
-      {{ _ssh_keys_users
+      {{ ssh_keys_users
          | selectattr('state', 'defined')
          | selectattr('state', 'equalto', 'present')
          | list }}
@@ -44,7 +44,7 @@
     path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh/authorized_keys"
     state: absent
   loop: >-
-    {{ _ssh_keys_users
+    {{ ssh_keys_users
        | selectattr('state', 'defined')
        | selectattr('state', 'equalto', 'absent')
        | list }}

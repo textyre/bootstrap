@@ -7,7 +7,7 @@
     - name: "Verify .ssh directory exists"
       ansible.builtin.stat:
         path: "/home/{{ ansible_user_id }}/.ssh"
-      register: _verify_ssh_dir
+      register: verify_ssh_dir
 
     - name: "Assert .ssh directory has 0700 permissions"
       ansible.builtin.assert:
@@ -18,7 +18,7 @@
     - name: "Verify authorized_keys exists"
       ansible.builtin.stat:
         path: "/home/{{ ansible_user_id }}/.ssh/authorized_keys"
-      register: _verify_authkeys
+      register: verify_authkeys
 
     - name: "Assert authorized_keys exists and has correct permissions"
       ansible.builtin.assert:
@@ -29,6 +29,6 @@
     - name: "Check authorized_keys contains test key"
       ansible.builtin.command:
         cmd: "grep -c 'test@molecule' /home/{{ ansible_user_id }}/.ssh/authorized_keys"
-      register: _verify_key_content
+      register: verify_key_content
       changed_when: false
       failed_when: _verify_key_content.rc != 0

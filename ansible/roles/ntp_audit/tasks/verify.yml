@@ -4,7 +4,7 @@
 - name: Assert ntp-audit zipapp exists and is executable
   ansible.builtin.stat:
     path: /usr/local/bin/ntp-audit
-  register: _v_script
+  register: v_script
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify ntp-audit zipapp
@@ -18,7 +18,7 @@
 - name: Assert audit log directory exists
   ansible.builtin.stat:
     path: "{{ ntp_audit_log_dir }}"
-  register: _v_logdir
+  register: v_logdir
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify log directory
@@ -32,7 +32,7 @@
 - name: Assert audit log file was written
   ansible.builtin.stat:
     path: "{{ ntp_audit_log_file }}"
-  register: _v_logfile
+  register: v_logfile
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify audit log not empty
@@ -46,7 +46,7 @@
 - name: Read last line of audit log
   ansible.builtin.command:
     cmd: tail -1 {{ ntp_audit_log_file }}
-  register: _v_last_line
+  register: v_last_line
   changed_when: false
   tags: ['ntp_audit', 'ntp_audit_verify']
 

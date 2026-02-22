@@ -6,7 +6,7 @@
     name: systemd-timesyncd
     enabled: false
     state: stopped
-  register: _ntp_timesyncd
+  register: ntp_timesyncd
   failed_when:
     - _ntp_timesyncd is failed
     - "'could not be found' not in (_ntp_timesyncd.msg | default(''))"

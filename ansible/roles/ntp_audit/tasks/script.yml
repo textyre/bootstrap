@@ -72,7 +72,7 @@
 - name: Check if ntp-audit zipapp already exists
   ansible.builtin.stat:
     path: /usr/local/bin/ntp-audit
-  register: _ntp_audit_zipapp_stat
+  register: ntp_audit_zipapp_stat
   tags: ['ntp_audit', 'ntp_audit_script']
 
 - name: Build ntp-audit zipapp on first deploy

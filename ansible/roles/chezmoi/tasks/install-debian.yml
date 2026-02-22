@@ -8,5 +8,5 @@
   ansible.builtin.shell: |
     sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
   args:
-    creates: "{{ _chezmoi_user_home | default('~') }}/.local/bin/chezmoi"
+    creates: "{{ chezmoi_user_home | default('~') }}/.local/bin/chezmoi"
   tags: ['chezmoi', 'dotfiles', 'install']

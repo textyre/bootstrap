@@ -32,14 +32,14 @@
 #   - Failure: Package installation failed after 3 retries
 # =========================================================================
 
-- name: "{{ _vm_pkg_label }}: Install guest packages"
+- name: "{{ vm_pkg_label }}: Install guest packages"
   ansible.builtin.package:
-    name: "{{ _vm_pkg_list }}"
+    name: "{{ vm_pkg_list }}"
     state: present
   when: _vm_pkg_list | length > 0
-  register: _vm_pkg_install_result
+  register: vm_pkg_install_result
   retries: 3
   delay: 5
   until: _vm_pkg_install_result is succeeded
-  notify: "{{ _vm_notify_handler | default(omit) }}"
+  notify: "{{ vm_notify_handler | default(omit) }}"
   tags: ['vm', 'vm:install']

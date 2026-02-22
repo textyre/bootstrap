@@ -23,7 +23,7 @@
     - name: Check chrony is installed
       ansible.builtin.command:
         cmd: command -v chronyd
-      register: _verify_chrony
+      register: verify_chrony
       changed_when: false
       failed_when: _verify_chrony.rc != 0
 
@@ -46,7 +46,7 @@
     - name: Verify chrony is functional
       ansible.builtin.command:
         cmd: chronyc tracking
-      register: _verify_ntp_tracking
+      register: verify_ntp_tracking
       changed_when: false
       failed_when: _verify_ntp_tracking.rc != 0
 
@@ -60,7 +60,7 @@
     - name: Verify chrony has NTP sources
       ansible.builtin.command:
         cmd: chronyc sources
-      register: _verify_ntp_sources
+      register: verify_ntp_sources
       changed_when: false
       failed_when: false
 
@@ -75,7 +75,7 @@
     - name: Verify chrony has a synced source
       ansible.builtin.command:
         cmd: chronyc -n sources
-      register: _verify_ntp_synced
+      register: verify_ntp_synced
       changed_when: false
       failed_when: false
 
@@ -92,7 +92,7 @@
     - name: Verify NTS sources are active
       ansible.builtin.command:
         cmd: chronyc ntssources
-      register: _verify_nts_sources
+      register: verify_nts_sources
       changed_when: false
       failed_when: false
 
@@ -109,7 +109,7 @@
     - name: Verify chrony.conf is deployed by Ansible
       ansible.builtin.stat:
         path: /etc/chrony.conf
-      register: _verify_chrony_conf
+      register: verify_chrony_conf
 
     - name: Assert chrony.conf exists and is a regular file
       ansible.builtin.assert:
@@ -121,11 +121,11 @@
     - name: Read chrony.conf content
       ansible.builtin.slurp:
         src: /etc/chrony.conf
-      register: _verify_chrony_conf_content
+      register: verify_chrony_conf_content
 
     - name: Decode chrony.conf content
       ansible.builtin.set_fact:
-        _verify_chrony_conf_text: "{{ _verify_chrony_conf_content.content | b64decode }}"
+        _verify_chrony_conf_text: "{{ verify_chrony_conf_content.content | b64decode }}"
 
     - name: Assert NTS flag present in at least one server line
       ansible.builtin.assert:
@@ -168,7 +168,7 @@
     - name: Check ntp_logdir exists
       ansible.builtin.stat:
         path: /var/log/chrony
-      register: _verify_logdir
+      register: verify_logdir
 
     - name: Assert ntp_logdir exists with correct ownership
       ansible.builtin.assert:
@@ -181,7 +181,7 @@
     - name: Check ntp_ntsdumpdir exists
       ansible.builtin.stat:
         path: /var/lib/chrony/nts-data
-      register: _verify_ntsdumpdir
+      register: verify_ntsdumpdir
 
     - name: Assert ntp_ntsdumpdir exists with correct ownership
       ansible.builtin.assert:
@@ -215,7 +215,7 @@
     - name: Check ptp_kvm module loaded (KVM only)
       ansible.builtin.command:
         cmd: lsmod
-      register: _verify_lsmod
+      register: verify_lsmod
       changed_when: false
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 

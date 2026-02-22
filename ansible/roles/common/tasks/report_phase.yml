@@ -35,6 +35,6 @@
   ansible.builtin.set_fact:
     "{{ common_rpt_fact }}": "{{ (lookup('vars', _rpt_fact, default=[]) | list) + [_row] }}"
   vars:
-    _common_rpt_status_mark: "{{ _rpt_status | default('done') }}"
+    _common_rpt_status_mark: "{{ rpt_status | default('done') }}"
     _common_rpt_mark: "{{ '+' if _st == 'done' else ('-' if _st == 'skip' else '!') }}"
     _row: "| {{ '%-26s' | format(_rpt_phase) }} | {{ '%-10s' | format(_mk ~ ' ' ~ _st) }} | {{ '%-24s' | format(_rpt_detail | default('') | truncate(24, True)) }} |"

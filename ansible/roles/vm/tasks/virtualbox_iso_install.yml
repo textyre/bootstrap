@@ -30,13 +30,13 @@
     - name: "VirtualBox: Detect kernel type for ISO build"
       ansible.builtin.command:
         cmd: uname -r
-      register: _vm_vbox_kernel_for_iso
+      register: vm_vbox_kernel_for_iso
       changed_when: false
 
     - name: "VirtualBox: Download VBoxGuestAdditions ISO"
       ansible.builtin.get_url:
-        url: "https://download.virtualbox.org/virtualbox/{{ _vm_vbox_host_ver }}/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
-        dest: "/tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
+        url: "https://download.virtualbox.org/virtualbox/{{ vm_vbox_host_ver }}/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
+        dest: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
         mode: '0644'
 
     - name: "VirtualBox: Install build dependencies"
@@ -46,7 +46,7 @@
       retries: 3
       delay: 5
       until: _vm_vbox_build_deps is succeeded
-      register: _vm_vbox_build_deps
+      register: vm_vbox_build_deps
 
     - name: "VirtualBox: Stop vboxservice"
       ansible.builtin.service:
@@ -69,9 +69,9 @@
     - name: "VirtualBox: Remove existing ISO Guest Additions"
       ansible.builtin.command:
         cmd: "{{ item.path }}/uninstall.sh"
-      loop: "{{ _vm_vbox_iso_dirs_pre.files }}"
+      loop: "{{ vm_vbox_iso_dirs_pre.files }}"
       when: _vm_vbox_iso_dirs_pre.matched > 0
-      register: _vm_vbox_old_iso_uninstall
+      register: vm_vbox_old_iso_uninstall
       changed_when: _vm_vbox_old_iso_uninstall.rc | default(1) == 0
       failed_when: false
 
@@ -83,19 +83,19 @@
 
     - name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
       ansible.builtin.command:
-        cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso /mnt/vbox_iso"
+        cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso /mnt/vbox_iso"
       changed_when: true
 
     - name: "VirtualBox: Run VBoxLinuxAdditions.run"
       ansible.builtin.command:
         cmd: /mnt/vbox_iso/VBoxLinuxAdditions.run --nox11
-      register: _vm_vbox_iso_install_result
+      register: vm_vbox_iso_install_result
       changed_when: true
       failed_when: false
 
     - name: "VirtualBox: Show ISO installer output"
       ansible.builtin.debug:
-        msg: "{{ _vm_vbox_iso_install_result.stdout_lines | default([]) }}"
+        msg: "{{ vm_vbox_iso_install_result.stdout_lines | default([]) }}"
       tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
     - name: "VirtualBox: Load vboxguest module"
@@ -143,7 +143,7 @@
       ansible.builtin.package:
         name: "{{ packages_virtualbox_guest }}"
         state: present
-      register: _vm_vbox_recovery
+      register: vm_vbox_recovery
       failed_when: false
 
     - name: "VirtualBox: RECOVERY - Re-enable vboxservice"
@@ -161,22 +161,22 @@
         - "uname -r"
         - "ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'"
         - "lsmod | grep vbox || echo 'No vbox modules'"
-      register: _vm_vbox_iso_diag
+      register: vm_vbox_iso_diag
       changed_when: false
       failed_when: false
 
     - name: "VirtualBox: CRITICAL - ISO install and recovery both failed"
       ansible.builtin.fail:
         msg: >-
-          Failed to install VBoxGuestAdditions {{ _vm_vbox_host_ver }} from ISO, and pacman recovery also failed.
-          Diagnostics: {{ _vm_vbox_iso_diag.results | map(attribute='stdout') | list }}
+          Failed to install VBoxGuestAdditions {{ vm_vbox_host_ver }} from ISO, and pacman recovery also failed.
+          Diagnostics: {{ vm_vbox_iso_diag.results | map(attribute='stdout') | list }}
       when: _vm_vbox_recovery is failed
 
     - name: "VirtualBox: ISO install failed, reverted to pacman"
       ansible.builtin.debug:
         msg: >-
-          WARNING: ISO GA install failed. Reverted to pacman packages ({{ _vm_vbox_guest_ver }}).
-          Version mismatch persists (host={{ _vm_vbox_host_ver }}).
+          WARNING: ISO GA install failed. Reverted to pacman packages ({{ vm_vbox_guest_ver }}).
+          Version mismatch persists (host={{ vm_vbox_host_ver }}).
       when: _vm_vbox_recovery is succeeded
       tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
@@ -194,5 +194,5 @@
 
     - name: "VirtualBox: Remove downloaded ISO"
       ansible.builtin.file:
-        path: "/tmp/VBoxGuestAdditions_{{ _vm_vbox_host_ver }}.iso"
+        path: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
         state: absent

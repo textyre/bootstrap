@@ -2,6 +2,6 @@
 # === Debian/Ubuntu: install sudo ===
 - name: Ensure sudo is installed
   ansible.builtin.package:
-    name: "{{ _user_packages }}"
+    name: "{{ user_packages }}"
     state: present
   tags: [user, sudo, install]

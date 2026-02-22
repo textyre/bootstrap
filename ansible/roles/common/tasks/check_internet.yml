@@ -19,8 +19,8 @@
   ansible.builtin.wait_for:
     host: "{{ common_check_internet_host }}"
     port: "{{ common_check_internet_port }}"
-    timeout: "{{ _check_internet_timeout | default(5) }}"
-  register: _common_internet_check
+    timeout: "{{ check_internet_timeout | default(5) }}"
+  register: common_internet_check
   failed_when: false
 
 - name: Fail if internet is unavailable

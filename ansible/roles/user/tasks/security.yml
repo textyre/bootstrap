@@ -5,7 +5,7 @@
   ansible.builtin.getent:
     database: shadow
     key: root
-  register: _user_root_shadow
+  register: user_root_shadow
   changed_when: false
   no_log: true
   tags: [user, security, cis_5.4.3]

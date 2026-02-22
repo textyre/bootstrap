@@ -6,7 +6,7 @@
     - name: "Verify teleport configuration exists"
       ansible.builtin.stat:
         path: /etc/teleport.yaml
-      register: _verify_config
+      register: verify_config
 
     - name: "Assert config exists with correct permissions"
       ansible.builtin.assert:
@@ -18,21 +18,21 @@
     - name: "Verify config contains auth server"
       ansible.builtin.command:
         cmd: "grep 'auth_server: localhost:3025' /etc/teleport.yaml"
-      register: _verify_auth_server
+      register: verify_auth_server
       changed_when: false
       failed_when: _verify_auth_server.rc != 0
 
     - name: "Verify config contains node name"
       ansible.builtin.command:
         cmd: "grep 'nodename: molecule-test' /etc/teleport.yaml"
-      register: _verify_node_name
+      register: verify_node_name
       changed_when: false
       failed_when: _verify_node_name.rc != 0
 
     - name: "Verify data directory exists"
       ansible.builtin.stat:
         path: /var/lib/teleport
-      register: _verify_datadir
+      register: verify_datadir
 
     - name: "Assert data directory exists"
       ansible.builtin.assert:

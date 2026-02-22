@@ -3,6 +3,6 @@
 
 - name: Restart chronyd
   ansible.builtin.service:
-    name: "{{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+    name: "{{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
     state: restarted
   listen: "restart ntp"

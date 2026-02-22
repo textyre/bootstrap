@@ -4,7 +4,7 @@
 
 - name: Create XDG directories
   ansible.builtin.file:
-    path: "{{ _shell_user_home }}/{{ item }}"
+    path: "{{ shell_user_home }}/{{ item }}"
     state: directory
     owner: "{{ shell_user }}"
     group: "{{ shell_user }}"

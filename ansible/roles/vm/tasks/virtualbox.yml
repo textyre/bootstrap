@@ -20,7 +20,7 @@
 - name: "VirtualBox: Check if VBoxControl is available"
   ansible.builtin.command:
     cmd: which VBoxControl
-  register: _vm_vbox_control_check
+  register: vm_vbox_control_check
   changed_when: false
   failed_when: false
   tags: ['vm', 'vbox', 'vm:install']
@@ -30,7 +30,7 @@
     paths: /opt
     patterns: 'VBoxGuestAdditions-*'
     file_type: directory
-  register: _vm_vbox_iso_dirs_pre
+  register: vm_vbox_iso_dirs_pre
   changed_when: false
   failed_when: false
   tags: ['vm', 'vbox', 'vm:install']
@@ -44,7 +44,7 @@
   when:
     - _vm_vbox_control_check.rc != 0
     - packages_virtualbox_guest | length > 0
-  register: _vm_vbox_initial_install
+  register: vm_vbox_initial_install
   retries: 3
   delay: 5
   until: _vm_vbox_initial_install is succeeded
@@ -72,7 +72,7 @@
       not vm_vbox_version_check
       or (_vm_vbox_host_ver | default('') == _vm_vbox_guest_ver | default(''))
       or _vm_vbox_host_ver | default('') == 'unknown'
-  register: _vm_vbox_pkg_install
+  register: vm_vbox_pkg_install
   retries: 3
   delay: 5
   until: _vm_vbox_pkg_install is succeeded
@@ -102,7 +102,7 @@
     file: _check_timesync.yml
   vars:
     _vm_timesync_label: "VirtualBox"
-    _vm_timesync_service: "{{ _vm_vbox_service_name }}"
+    _vm_timesync_service: "{{ vm_vbox_service_name }}"
   tags: ['vm', 'vbox']
 
 # ---- Phase 8: Service management ----
@@ -113,7 +113,7 @@
   vars:
     _vm_svc_label: "VirtualBox"
     _vm_svc_list:
-      - name: "{{ _vm_vbox_service_name }}"
+      - name: "{{ vm_vbox_service_name }}"
         description: "guest service (time sync, clipboard, seamless mode)"
         required: true
   when: not (_vm_vbox_iso_installed | default(false))

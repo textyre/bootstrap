@@ -8,7 +8,7 @@
       - ansible_facts['os_family'] in _ssh_supported_os
     fail_msg: >-
       OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _ssh_supported_os | join(', ') }}
+      Supported: {{ ssh_supported_os | join(', ') }}
   tags: [ssh]
 
 # ROLE-001: OS-specific variables
@@ -29,7 +29,7 @@
   vars:
     common_rpt_fact: "_ssh_phases"
     common_rpt_phase: "Install"
-    common_rpt_detail: "packages={{ _ssh_packages | join(',') }}"
+    common_rpt_detail: "packages={{ ssh_packages | join(',') }}"
   tags: [ssh, report]
 
 # Pre-flight: lockout protection
@@ -84,7 +84,7 @@
   vars:
     common_rpt_fact: "_ssh_phases"
     common_rpt_phase: "Service"
-    common_rpt_detail: "svc={{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    common_rpt_detail: "svc={{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
   tags: [ssh, report]
 
 # ROLE-005: In-role verification

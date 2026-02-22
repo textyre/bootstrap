@@ -25,7 +25,7 @@
 - name: "VirtualBox: Check if running linux-lts kernel"
   ansible.builtin.command:
     cmd: uname -r
-  register: _vm_vbox_kernel
+  register: vm_vbox_kernel
   changed_when: false
   when:
     - not (_vm_vbox_iso_installed | default(false))
@@ -44,7 +44,7 @@
     - _vm_vbox_lts_kernel_support | default(false)
     - _vm_vbox_kernel.stdout is defined
     - "'lts' in _vm_vbox_kernel.stdout"
-  register: _vm_vbox_lts_install
+  register: vm_vbox_lts_install
   retries: 3
   delay: 5
   until: _vm_vbox_lts_install is succeeded

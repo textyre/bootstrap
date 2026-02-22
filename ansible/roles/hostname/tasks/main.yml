@@ -24,13 +24,13 @@
 - name: Set hostname
   ansible.builtin.hostname:
     name: "{{ hostname_name }}"
-    use: "{{ _hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
+    use: "{{ hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
   tags: ['hostname']
 
 # Проверка
 - name: Verify hostname is set
   ansible.builtin.command: hostname
-  register: _hostname_check
+  register: hostname_check
   changed_when: false
   tags: ['hostname']
 
@@ -38,7 +38,7 @@
   ansible.builtin.assert:
     that:
       - _hostname_check.stdout == hostname_name
-    fail_msg: "Hostname mismatch: got '{{ _hostname_check.stdout }}', expected '{{ hostname_name }}'"
+    fail_msg: "Hostname mismatch: got '{{ hostname_check.stdout }}', expected '{{ hostname_name }}'"
     quiet: true
   tags: ['hostname']
 

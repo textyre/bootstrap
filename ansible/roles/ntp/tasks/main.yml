@@ -33,7 +33,7 @@
     - name: Set default environment facts (auto-detect disabled)
       ansible.builtin.set_fact:
         _ntp_virt_type: "none"
-        _ntp_env: "{{ _ntp_env_defaults }}"
+        _ntp_env: "{{ ntp_env_defaults }}"
         _ntp_active_refclocks: "{{ ntp_refclocks }}"
       when: not (ntp_auto_detect | bool)
       tags: ['ntp']
@@ -82,7 +82,7 @@
 
     - name: Install NTP daemon (chrony)
       ansible.builtin.package:
-        name: "{{ _ntp_package[ansible_facts['os_family']] | default('chrony') }}"
+        name: "{{ ntp_package[ansible_facts['os_family']] | default('chrony') }}"
         state: present
       tags: ['ntp']
 
@@ -94,8 +94,8 @@
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
-        group: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
+        owner: "{{ ntp_user[ansible_facts['os_family']] | default('chrony') }}"
+        group: "{{ ntp_user[ansible_facts['os_family']] | default('chrony') }}"
         mode: "{{ item.mode }}"
       loop:
         - { path: "{{ ntp_logdir }}", mode: "0755" }
@@ -123,7 +123,7 @@
 
     - name: Enable and start chronyd
       ansible.builtin.service:
-        name: "{{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+        name: "{{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
         enabled: true
         state: started
       tags: ['ntp', 'ntp:state']
@@ -148,9 +148,9 @@
         common_rpt_fact: "_ntp_phases"
         common_rpt_phase: "Configure NTP"
         common_rpt_detail: >-
-          chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
-          env={{ _ntp_virt_type | default('unknown') }}
-          refclocks={{ _ntp_active_refclocks | default([]) | length }}
+          chrony ({{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
+          env={{ ntp_virt_type | default('unknown') }}
+          refclocks={{ ntp_active_refclocks | default([]) | length }}
       tags: ['ntp', 'report']
 
     - name: "ntp — Execution Report"

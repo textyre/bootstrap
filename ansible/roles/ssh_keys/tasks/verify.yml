@@ -7,7 +7,7 @@
     database: passwd
     key: "{{ item.name }}"
   loop: >-
-    {{ _ssh_keys_users
+    {{ ssh_keys_users
        | selectattr('state', 'defined')
        | selectattr('state', 'equalto', 'present')
        | selectattr('ssh_keys', 'defined')
@@ -19,9 +19,9 @@
 - name: "Verify .ssh directory permissions for present users"
   ansible.builtin.stat:
     path: "{{ getent_passwd[item.name][4] }}/.ssh"
-  register: _ssh_keys_verify_dir
+  register: ssh_keys_verify_dir
   loop: >-
-    {{ _ssh_keys_users
+    {{ ssh_keys_users
        | selectattr('state', 'defined')
        | selectattr('state', 'equalto', 'present')
        | selectattr('ssh_keys', 'defined')
@@ -38,7 +38,7 @@
     fail_msg: >-
       .ssh directory for {{ item.item.name }} has incorrect permissions:
       exists={{ item.stat.exists }} mode={{ item.stat.mode | default('n/a') }}
-  loop: "{{ _ssh_keys_verify_dir.results }}"
+  loop: "{{ ssh_keys_verify_dir.results }}"
   loop_control:
     label: "{{ item.item.name }}"
   tags: [ssh_keys]
@@ -46,9 +46,9 @@
 - name: "Verify authorized_keys exists for present users with keys"
   ansible.builtin.stat:
     path: "{{ getent_passwd[item.name][4] }}/.ssh/authorized_keys"
-  register: _ssh_keys_verify_authkeys
+  register: ssh_keys_verify_authkeys
   loop: >-
-    {{ _ssh_keys_users
+    {{ ssh_keys_users
        | selectattr('state', 'defined')
        | selectattr('state', 'equalto', 'present')
        | selectattr('ssh_keys', 'defined')
@@ -63,7 +63,7 @@
     that:
       - item.stat.exists
     fail_msg: "authorized_keys missing for {{ item.item.name }}"
-  loop: "{{ _ssh_keys_verify_authkeys.results | default([]) }}"
+  loop: "{{ ssh_keys_verify_authkeys.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}"
   when:

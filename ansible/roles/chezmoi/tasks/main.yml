@@ -27,7 +27,7 @@
   ansible.builtin.shell: |
     sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
   args:
-    creates: "{{ _chezmoi_user_home }}/.local/bin/chezmoi"
+    creates: "{{ chezmoi_user_home }}/.local/bin/chezmoi"
   when: chezmoi_install_method == 'script'
   tags: ['chezmoi', 'dotfiles', 'install']
 
@@ -36,7 +36,7 @@
 - name: Resolve chezmoi source directory
   ansible.builtin.stat:
     path: "{{ chezmoi_source_dir }}"
-  register: _chezmoi_source_stat
+  register: chezmoi_source_stat
   tags: ['chezmoi', 'dotfiles']
 
 - name: Assert chezmoi source directory exists
@@ -52,12 +52,12 @@
 - name: Check wallpapers source directory
   ansible.builtin.stat:
     path: "{{ chezmoi_source_dir }}/wallpapers"
-  register: _chezmoi_wallpapers_dir
+  register: chezmoi_wallpapers_dir
   tags: ['chezmoi', 'dotfiles']
 
 - name: Ensure wallpapers directory exists
   ansible.builtin.file:
-    path: "{{ _chezmoi_user_home }}/.local/share/wallpapers"
+    path: "{{ chezmoi_user_home }}/.local/share/wallpapers"
     state: directory
     owner: "{{ chezmoi_user }}"
     group: "{{ chezmoi_user }}"
@@ -68,7 +68,7 @@
 - name: Deploy wallpapers
   ansible.builtin.copy:
     src: "{{ chezmoi_source_dir }}/wallpapers/"
-    dest: "{{ _chezmoi_user_home }}/.local/share/wallpapers/"
+    dest: "{{ chezmoi_user_home }}/.local/share/wallpapers/"
     owner: "{{ chezmoi_user }}"
     group: "{{ chezmoi_user }}"
     mode: '0644'
@@ -87,8 +87,8 @@
     --promptChoice "Choose color theme={{ chezmoi_theme_name }}"
     --apply
   args:
-    chdir: "{{ _chezmoi_user_home }}"
-  register: _chezmoi_apply
+    chdir: "{{ chezmoi_user_home }}"
+  register: chezmoi_apply
   changed_when: _chezmoi_apply.rc == 0
   tags: ['chezmoi', 'dotfiles']
 
@@ -96,8 +96,8 @@
   become: true
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command:
-    cmd: find {{ _chezmoi_user_home }}/.local/share/chezmoi -mindepth 2 -name '.chezmoidata' -type d
-  register: _chezmoi_nested_check
+    cmd: find {{ chezmoi_user_home }}/.local/share/chezmoi -mindepth 2 -name '.chezmoidata' -type d
+  register: chezmoi_nested_check
   changed_when: false
   failed_when: _chezmoi_nested_check.stdout | length > 0
   tags: ['chezmoi', 'dotfiles']

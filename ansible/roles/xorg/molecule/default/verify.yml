@@ -10,13 +10,13 @@
     - name: Check /etc/X11/xorg.conf.d/10-monitor.conf exists
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: _xorg_verify_xorg_monitor
+      register: xorg_verify_xorg_monitor
       failed_when: not _xorg_verify_xorg_monitor.stat.exists
 
     - name: Check 10-monitor.conf ownership
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: _xorg_verify_xorg_perms
+      register: xorg_verify_xorg_perms
       failed_when: >
         _xorg_verify_xorg_perms.stat.pw_name != 'root' or
         _xorg_verify_xorg_perms.stat.gr_name != 'root' or

@@ -6,7 +6,7 @@
     name: ntpd
     enabled: false
     state: stopped
-  register: _ntp_ntpd_disable
+  register: ntp_ntpd_disable
   failed_when:
     - _ntp_ntpd_disable is failed
     - >-

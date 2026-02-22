@@ -12,7 +12,7 @@
           - ansible_facts['os_family'] in _teleport_supported_os
         fail_msg: >-
           OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ _teleport_supported_os | join(', ') }}
+          Supported: {{ teleport_supported_os | join(', ') }}
       tags: [teleport]
 
     # ROLE-001: OS-specific variables
@@ -52,7 +52,7 @@
     # Service management (ROLE-002)
     - name: "Enable and start teleport"
       ansible.builtin.service:
-        name: "{{ _teleport_service_name[ansible_facts['service_mgr']] | default('teleport') }}"
+        name: "{{ teleport_service_name[ansible_facts['service_mgr']] | default('teleport') }}"
         enabled: true
         state: started
       tags: [teleport, service]
