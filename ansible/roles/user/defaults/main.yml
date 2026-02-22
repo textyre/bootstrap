@@ -17,7 +17,6 @@ user_owner:
     - "{{ user_sudo_group }}"
   password_hash: ""             # Empty = account locked (shadow '!'). To enable: set pre-hashed sha512 via vault.
   update_password: on_create    # Don't re-hash on every run (idempotent)
-  ssh_keys: []                  # List of public key strings
   umask: "027"                  # CIS 5.4.2: restrictive default umask
   password_max_age: 365         # CIS 5.5.1: days before password must change
   password_min_age: 1           # CIS 5.5.2: days before password can change
@@ -35,14 +34,12 @@ user_additional_users: []
 #     sudo: false
 #     password_hash: "{{ vault_alice_password }}"
 #     update_password: on_create
-#     ssh_keys: []
 #     umask: "077"
 #     password_max_age: 90
 #     password_min_age: 0
 #     password_warn_age: 7
 
 # --- Feature toggles ---
-user_manage_ssh_keys: true        # Manage ~/.ssh/authorized_keys
 user_manage_password_aging: true  # Set password_expire_max/min
 user_manage_umask: true           # Deploy /etc/profile.d/umask for each user
 user_verify_root_lock: true       # CIS 5.4.3: assert root has no direct password login

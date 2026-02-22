@@ -37,19 +37,6 @@
         that: _user_verify_umask_value.rc == 0
         fail_msg: "Owner umask profile does not contain 'umask 027'"
 
-    - name: Check authorized_keys exists for owner
-      ansible.builtin.stat:
-        path: /home/testuser_owner/.ssh/authorized_keys
-      register: _user_verify_ssh
-      failed_when: not _user_verify_ssh.stat.exists
-
-    - name: Check SSH key content
-      ansible.builtin.command:
-        cmd: grep -q "testuser@molecule" /home/testuser_owner/.ssh/authorized_keys
-      changed_when: false
-      register: _user_verify_ssh_key
-      failed_when: _user_verify_ssh_key.rc != 0
-
     - name: Check extra user exists
       ansible.builtin.getent:
         database: passwd

@@ -68,12 +68,6 @@
     _rpt_detail: "count={{ user_additional_users | length }}"
   tags: [user, report]
 
-# SSH keys
-- name: Manage SSH authorized keys
-  ansible.builtin.include_tasks: ssh_keys.yml
-  when: user_manage_ssh_keys | bool
-  tags: [user, ssh]
-
 # Deploy sudo policy
 - name: Deploy sudo policy
   ansible.builtin.include_tasks: sudo.yml

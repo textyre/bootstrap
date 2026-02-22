@@ -21,8 +21,6 @@
         - "{{ user_sudo_group }}"
       password_hash: ""
       update_password: on_create
-      ssh_keys:
-        - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBDummyKeyForTestingPurposesOnly testuser@molecule"
       umask: "027"
       password_max_age: 365
       password_min_age: 1
@@ -35,9 +33,7 @@
         sudo: false
         password_hash: ""
         update_password: on_create
-        ssh_keys: []
         umask: "077"
-    user_manage_ssh_keys: true
     user_manage_password_aging: false   # skip: may not be supported in container
     user_manage_umask: true
     user_verify_root_lock: false        # root may not be locked in test container
