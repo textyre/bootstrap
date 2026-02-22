@@ -31,6 +31,14 @@
       ansible.builtin.include_tasks: lfs_user.yml
       when: git_lfs_enabled | bool
 
+    - name: Ensure global hooks directory exists
+      ansible.builtin.file:
+        path: "{{ git_hooks_path }}"
+        state: directory
+        mode: "0755"
+      when: git_manage_hooks | bool
+      tags: [git, hooks]
+
     - name: Set core.hooksPath
       community.general.git_config:
         name: core.hooksPath

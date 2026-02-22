@@ -1,8 +1,8 @@
 ---
 # === git role — main orchestration ===
 # Two-level architecture:
-#   System layer (root): preflight, install, hooks directory
-#   Per-user layer (become_user): config, signing, aliases, credential, LFS
+#   System layer (root): preflight, install
+#   Per-user layer (become_user): config, signing, aliases, credential, LFS, hooks
 
 # ======================================================================
 # ---- ROLE-003: Preflight ----
@@ -57,15 +57,6 @@
       packages={{ _git_packages | join(', ') }}
       lfs={{ git_lfs_enabled }}
   tags: [git, report]
-
-# ======================================================================
-# ---- System layer: global hooks directory ----
-# ======================================================================
-
-- name: Create global hooks directories
-  ansible.builtin.include_tasks: hooks_global.yml
-  when: git_manage_hooks | bool
-  tags: [git, hooks]
 
 # ======================================================================
 # ---- Per-user layer: configure each user ----

@@ -68,6 +68,11 @@ git_hooks_path: "~/.config/git/hooks"
 
 # --- Extra git config (ROLE-010 dict pattern) ---
 git_config_extra: {}
+# Recommended settings (uncomment or add to group_vars):
+#   color.ui: auto
+#   diff.colorMoved: zebra
+#   merge.conflictstyle: diff3
+#   rerere.enabled: "true"
 git_config_overwrite: {}
 
 # --- Safe directory (CVE-2022-24765) ---

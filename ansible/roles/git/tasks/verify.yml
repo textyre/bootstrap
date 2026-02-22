@@ -68,8 +68,10 @@
   tags: [git, lfs]
 
 - name: Verify hooks directory exists
+  become: true
+  become_user: "{{ git_owner.name }}"
   ansible.builtin.stat:
-    path: "{{ git_hooks_path | replace('~', '/home/' ~ git_owner.name) }}"
+    path: "{{ git_hooks_path }}"
   register: _git_verify_hooks_dir
   when: git_manage_hooks | bool
   tags: [git, hooks]

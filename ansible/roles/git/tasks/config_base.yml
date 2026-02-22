@@ -55,11 +55,21 @@
     scope: global
   tags: [git, configure]
 
-- name: Set git safe.directory
-  community.general.git_config:
-    name: safe.directory
-    value: "{{ item }}"
-    scope: global
-  loop: "{{ git_safe_directories }}"
+- name: "CVE-2022-24765 | Check current safe.directory entries"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: git config --global --get-all safe.directory
+  register: _git_current_safe_dirs
+  changed_when: false
+  failed_when: false
   when: git_safe_directories | length > 0
+  tags: [git, configure, security]
+
+- name: "CVE-2022-24765 | Add git safe.directory entries"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: "git config --global --add safe.directory {{ item }}"
+  loop: "{{ git_safe_directories }}"
+  when:
+    - git_safe_directories | length > 0
+    - item not in (_git_current_safe_dirs.stdout_lines | default([]))
+  changed_when: true
   tags: [git, configure, security]
