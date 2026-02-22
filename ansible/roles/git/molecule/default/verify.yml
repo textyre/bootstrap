@@ -7,34 +7,136 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   tasks:
+    # ---- git installed ----
+
+    - name: Verify git is installed
+      ansible.builtin.command:
+        cmd: git --version
+      register: _git_verify_installed
+      changed_when: false
+      failed_when: _git_verify_installed.rc != 0
+
+    # ---- base config ----
+
+    - name: Check git user.name  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get user.name
+      register: _git_verify_username
+      changed_when: false
+      failed_when: _git_verify_username.stdout != git_owner.user_name
+
+    - name: Check git user.email  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get user.email
+      register: _git_verify_email
+      changed_when: false
+      failed_when: _git_verify_email.stdout != git_owner.user_email
+
     - name: Check git init.defaultBranch  # noqa: command-instead-of-module
       become: true
-      become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+      become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get init.defaultBranch
-      register: _git_verify_git_branch
+      register: _git_verify_branch
       changed_when: false
-      failed_when: _git_verify_git_branch.stdout != 'main'
+      failed_when: _git_verify_branch.stdout != 'main'
 
     - name: Check git core.editor  # noqa: command-instead-of-module
       become: true
-      become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+      become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.editor
-      register: _git_verify_git_editor
+      register: _git_verify_editor
       changed_when: false
-      failed_when: _git_verify_git_editor.stdout != 'vim'
+      failed_when: _git_verify_editor.stdout != 'vim'
 
     - name: Check git pull.rebase  # noqa: command-instead-of-module
       become: true
-      become_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+      become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get pull.rebase
-      register: _git_verify_git_rebase
+      register: _git_verify_rebase
       changed_when: false
-      failed_when: _git_verify_git_rebase.stdout != 'true'
+      failed_when: _git_verify_rebase.stdout != 'true'
 
-    - name: Show test results
+    - name: Check git push.autoSetupRemote  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get push.autoSetupRemote
+      register: _git_verify_autosetup
+      changed_when: false
+      failed_when: _git_verify_autosetup.stdout != 'true'
+
+    - name: Check git core.autocrlf  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get core.autocrlf
+      register: _git_verify_autocrlf
+      changed_when: false
+      failed_when: _git_verify_autocrlf.stdout != 'input'
+
+    # ---- aliases ----
+
+    - name: Check alias.st exists  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get alias.st
+      register: _git_verify_alias_st
+      changed_when: false
+      failed_when: _git_verify_alias_st.stdout != 'status'
+
+    - name: Check alias.lg exists  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get alias.lg
+      register: _git_verify_alias_lg
+      changed_when: false
+      failed_when: _git_verify_alias_lg.rc != 0
+
+    # ---- credential helper ----
+
+    - name: Check credential.helper  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get credential.helper
+      register: _git_verify_credential
+      changed_when: false
+      failed_when: "'cache' not in _git_verify_credential.stdout"
+
+    # ---- git-lfs ----
+
+    - name: Check git-lfs is installed
+      ansible.builtin.command:
+        cmd: git lfs version
+      register: _git_verify_lfs
+      changed_when: false
+      failed_when: _git_verify_lfs.rc != 0
+
+    # ---- hooks directory ----
+
+    - name: Check hooks directory exists
+      ansible.builtin.stat:
+        path: /tmp/test-git-hooks
+      register: _git_verify_hooks
+
+    - name: Assert hooks directory exists
+      ansible.builtin.assert:
+        that:
+          - _git_verify_hooks.stat.exists
+          - _git_verify_hooks.stat.isdir
+        fail_msg: "Global hooks directory /tmp/test-git-hooks does not exist"
+
+    # ---- report ----
+
+    - name: Show verify results
       ansible.builtin.debug:
         msg:
-          - "All checks passed!"
-          - "init.defaultBranch = main"
-          - "core.editor = vim"
-          - "pull.rebase = true"
+          - "All git role checks passed!"
+          - "user.name = {{ _git_verify_username.stdout }}"
+          - "user.email = {{ _git_verify_email.stdout }}"
+          - "init.defaultBranch = {{ _git_verify_branch.stdout }}"
+          - "core.editor = {{ _git_verify_editor.stdout }}"
+          - "pull.rebase = {{ _git_verify_rebase.stdout }}"
+          - "alias.st = {{ _git_verify_alias_st.stdout }}"
+          - "credential.helper = {{ _git_verify_credential.stdout }}"
+          - "git-lfs = installed"
+          - "hooks dir = /tmp/test-git-hooks exists"
