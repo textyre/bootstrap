@@ -1,48 +1,114 @@
 ---
-# === Управление пользователем ===
-# Создание/настройка пользователя, sudo, группы
+# === user role — main orchestration ===
 
+# ROLE-003: Preflight — fail fast on unsupported OS
+- name: "Assert supported operating system"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _user_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _user_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: [user]
+
+# ROLE-001: Load OS-specific variables
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: [user]
+
+# Install sudo
 - name: Install sudo (OS-specific)
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['user', 'sudo', 'install']
+  tags: [user, sudo, install]
 
-- name: Ensure user exists with correct shell and groups
-  ansible.builtin.user:
-    name: "{{ user_name }}"
-    shell: "{{ user_shell }}"
-    groups: "{{ user_groups }}"
-    append: true
-    create_home: true
-  tags: ['user']
+# ROLE-008: Report install phase
+- name: "Report: sudo install"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_phase: "Install"
+    _rpt_detail: "sudo installed via {{ ansible_facts['os_family'] | lower }}"
+  tags: [user, report]
 
-- name: Deploy sudoers hardening configuration
-  ansible.builtin.template:
-    src: sudoers_hardening.j2
-    dest: "/etc/sudoers.d/{{ user_sudo_group }}"
-    owner: root
-    group: root
-    mode: '0440'
-    validate: '/usr/sbin/visudo -cf %s'
-  when: user_create_sudo_rule
-  tags: ['user', 'sudo', 'security']
+# Create and configure owner
+- name: Configure owner user
+  ansible.builtin.include_tasks: owner.yml
+  tags: [user]
 
-- name: Configure logrotate for sudo log
-  ansible.builtin.template:
-    src: sudo_logrotate.j2
-    dest: /etc/logrotate.d/sudo
-    owner: root
-    group: root
-    mode: '0644'
-  when:
-    - user_create_sudo_rule
-    - user_sudo_logrotate_enabled
-    - user_sudo_logfile | length > 0
-  tags: ['user', 'sudo', 'security']
+# ROLE-008: Report owner phase
+- name: "Report: owner configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_phase: "Owner"
+    _rpt_detail: >-
+      user={{ user_owner.name }}
+      shell={{ user_owner.shell | default('/bin/bash') }}
+  tags: [user, report]
 
-- name: Report user configuration
-  ansible.builtin.debug:
-    msg:
-      - "Пользователь: {{ user_name }}"
-      - "Shell: {{ user_shell }}"
-      - "Группы: {{ user_groups | join(', ') }}"
-  tags: ['user']
+# Create additional users (when list is non-empty)
+- name: Configure additional users
+  ansible.builtin.include_tasks: additional_users.yml
+  when: user_additional_users | length > 0
+  tags: [user]
+
+# ROLE-008: Report additional users phase
+- name: "Report: additional users"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_phase: "Additional users"
+    _rpt_detail: "count={{ user_additional_users | length }}"
+  tags: [user, report]
+
+# SSH keys
+- name: Manage SSH authorized keys
+  ansible.builtin.include_tasks: ssh_keys.yml
+  when: user_manage_ssh_keys | bool
+  tags: [user, ssh]
+
+# Deploy sudo policy
+- name: Deploy sudo policy
+  ansible.builtin.include_tasks: sudo.yml
+  tags: [user, sudo]
+
+# ROLE-008: Report sudo phase
+- name: "Report: sudo policy"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_phase: "Sudo policy"
+    _rpt_detail: >-
+      group={{ user_sudo_group }}
+      timeout={{ user_sudo_timestamp_timeout }}
+  tags: [user, report]
+
+# CIS security checks
+- name: Security verification
+  ansible.builtin.include_tasks: security.yml
+  when: user_verify_root_lock | bool
+  tags: [user, security]
+
+# ROLE-005: In-role verification
+- name: Verify user configuration
+  ansible.builtin.include_tasks: verify.yml
+  tags: [user]
+
+# ROLE-008: Final report render
+- name: "user -- Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_user_phases"
+    _rpt_title: "user"
+  tags: [user, report]

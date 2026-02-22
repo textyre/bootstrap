@@ -1,0 +1,44 @@
+---
+# === In-role verification (ROLE-005) ===
+# Uses read-only checks: getent, command with changed_when: false, stat.
+# Must not modify state.
+
+- name: "Verify owner user exists in passwd"
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ user_owner.name }}"
+  register: _user_verify_owner
+  changed_when: false
+  tags: [user]
+
+- name: "Verify sudoers file exists"
+  ansible.builtin.stat:
+    path: "/etc/sudoers.d/{{ user_sudo_group }}"
+  register: _user_verify_sudoers_stat
+  failed_when: not _user_verify_sudoers_stat.stat.exists
+  tags: [user]
+
+- name: "Verify sudoers file syntax"
+  ansible.builtin.command:
+    cmd: "/usr/sbin/visudo -cf /etc/sudoers.d/{{ user_sudo_group }}"
+  register: _user_verify_sudoers_syntax
+  changed_when: false
+  failed_when: _user_verify_sudoers_syntax.rc != 0
+  tags: [user]
+
+- name: "Verify owner is in sudo group"
+  ansible.builtin.command:
+    cmd: "groups {{ user_owner.name }}"
+  register: _user_verify_groups
+  changed_when: false
+  failed_when: user_sudo_group not in _user_verify_groups.stdout
+  when: user_sudo_group in (user_owner.groups | default([]))
+  tags: [user]
+
+- name: "Verify umask profile deployed for owner"
+  ansible.builtin.stat:
+    path: "/etc/profile.d/umask-{{ user_owner.name }}.sh"
+  register: _user_verify_umask
+  failed_when: not _user_verify_umask.stat.exists
+  when: user_manage_umask | bool
+  tags: [user]
