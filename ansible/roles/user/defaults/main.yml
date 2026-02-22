@@ -1,30 +1,72 @@
 ---
-# === Управление пользователем ===
-# Создание пользователя, sudo, группы
+# === user role — defaults ===
 
-# Имя пользователя (по умолчанию — тот, кто запустил sudo)
-user_name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+# --- ROLE-003: Supported operating systems ---
+_user_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
-# Логин-шелл
-user_shell: /bin/bash
+# --- Primary owner (always one, admin of the machine) ---
+user_owner:
+  name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+  shell: /bin/bash
+  groups:
+    - "{{ user_sudo_group }}"
+  password_hash: ""             # Empty = account locked (shadow '!'). To enable: set pre-hashed sha512 via vault.
+  update_password: on_create    # Don't re-hash on every run (idempotent)
+  ssh_keys: []                  # List of public key strings
+  umask: "027"                  # CIS 5.4.2: restrictive default umask
+  password_max_age: 365         # CIS 5.5.1: days before password must change
+  password_min_age: 1           # CIS 5.5.2: days before password can change
+  password_warn_age: 7          # Days before expiry to warn
 
-# Группы пользователя (wheel для sudo)
-user_groups:
-  - wheel
+# --- Additional users (family, guests, etc.) ---
+# Each entry supports the same fields as user_owner, plus:
+#   sudo: true/false  — whether to add to user_sudo_group
+user_additional_users: []
+# Example:
+# user_additional_users:
+#   - name: alice
+#     shell: /bin/bash
+#     groups: [video, audio]
+#     sudo: false
+#     password_hash: "{{ vault_alice_password }}"
+#     update_password: on_create
+#     ssh_keys: []
+#     umask: "077"
+#     password_max_age: 90
+#     password_min_age: 0
+#     password_warn_age: 7
 
-# Создать правило sudo для группы wheel
-user_create_sudo_rule: true
+# --- Feature toggles ---
+user_manage_ssh_keys: true        # Manage ~/.ssh/authorized_keys
+user_manage_password_aging: true  # Set password_expire_max/min
+user_manage_umask: true           # Deploy /etc/profile.d/umask for each user
+user_verify_root_lock: true       # CIS 5.4.3: assert root has no direct password login
 
-# Sudo hardening
-user_sudo_group: "{{ 'wheel' if ansible_facts['os_family'] == 'Archlinux' else 'sudo' }}"
-user_sudo_timestamp_timeout: 5        # Таймаут кэша sudo (минуты), CIS <= 5
-user_sudo_use_pty: true               # Запуск через PTY (защита от pty injection)
-user_sudo_logfile: "/var/log/sudo.log" # Логирование sudo команд
-user_sudo_log_input: false            # Записывать stdin sudo-сессий
-user_sudo_log_output: false           # Записывать stdout/stderr sudo-сессий
-user_sudo_passwd_timeout: 1           # Таймаут ввода пароля (минуты)
+# --- Global sudo policy ---
+# sudo group name: wheel on Arch, sudo on Debian/Ubuntu
+user_sudo_group: "{{ 'sudo' if ansible_facts['os_family'] == 'Debian' else 'wheel' }}"
 
-# Logrotate для sudo.log
+# timestamp_timeout: profile-aware
+# developer profile → 15 min (comfortable for development)
+# security profile  → 0 min (re-enter password every time)
+# default           → 5 min (CIS 5.3.4: must be <= 5)
+user_sudo_timestamp_timeout: >-
+  {{ 0 if 'security' in (workstation_profiles | default([]))
+     else 15 if 'developer' in (workstation_profiles | default([]))
+     else 5 }}
+
+user_sudo_use_pty: true                # CIS 5.3.5: prevent PTY injection
+user_sudo_logfile: "/var/log/sudo.log" # CIS 5.3.7: audit trail
+user_sudo_log_input: false             # Record stdin of sudo sessions
+user_sudo_log_output: false            # Record stdout/stderr of sudo sessions
+user_sudo_passwd_timeout: 1            # Minutes to enter password
+
+# Logrotate for sudo.log
 user_sudo_logrotate_enabled: true
 user_sudo_logrotate_frequency: "weekly"
-user_sudo_logrotate_rotate: 13        # 13 недель ~ 90 дней (CIS minimum)
+user_sudo_logrotate_rotate: 13         # 13 weeks ≈ 90 days (CIS minimum retention)
