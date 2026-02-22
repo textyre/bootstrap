@@ -98,8 +98,8 @@
         group: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
         mode: "{{ item.mode }}"
       loop:
-        - { path: "{{ ntp_logdir }}",     mode: "0755" }
-        - { path: "{{ ntp_dumpdir }}",    mode: "0750" }
+        - { path: "{{ ntp_logdir }}", mode: "0755" }
+        - { path: "{{ ntp_dumpdir }}", mode: "0750" }
         - { path: "{{ ntp_ntsdumpdir }}", mode: "0700" }
       tags: ['ntp']
 
