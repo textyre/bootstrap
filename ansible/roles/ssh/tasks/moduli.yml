@@ -1,41 +1,47 @@
 ---
-# === Очистка DH-модулей ===
-# Удаление слабых DH-модулей < ssh_moduli_minimum_bits (по умолчанию 3072)
-# Рекомендация: dev-sec, konstruktoid, Mozilla Modern
+# === DH moduli hardening ===
+# Remove weak Diffie-Hellman parameters below minimum bit size.
+#
+# ROLE-011 exception: Uses command + awk because the moduli file format
+# is fixed-width columnar data with no Ansible module equivalent for
+# column-based filtering. The awk approach is canonical (dev-sec.io,
+# konstruktoid, Mozilla guidelines all use it).
 
-- name: Check if /etc/ssh/moduli exists
+- name: "Check if /etc/ssh/moduli exists"
   ansible.builtin.stat:
     path: /etc/ssh/moduli
   register: _ssh_moduli_file
-  tags: ['ssh', 'security', 'moduli']
+  tags: [ssh, security, moduli]
 
-- name: Count weak DH moduli (< {{ ssh_moduli_minimum_bits }} bits)
-  ansible.builtin.shell: >
-    awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli | wc -l
-  args:
-    executable: /bin/bash
-  register: _ssh_weak_moduli_count
+- name: "Count weak DH moduli (< {{ ssh_moduli_minimum_bits }} bits)"
+  ansible.builtin.command:
+    cmd: "awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
+  register: _ssh_weak_moduli
   changed_when: false
   when: _ssh_moduli_file.stat.exists
-  tags: ['ssh', 'security', 'moduli']
+  tags: [ssh, security, moduli]
 
-- name: Filter out weak DH moduli (< {{ ssh_moduli_minimum_bits }} bits)
-  ansible.builtin.shell: >
-    awk '$5 >= {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli > /etc/ssh/moduli.safe &&
-    mv /etc/ssh/moduli.safe /etc/ssh/moduli
-  args:
-    executable: /bin/bash
+- name: "Filter strong DH moduli (>= {{ ssh_moduli_minimum_bits }} bits)"
+  ansible.builtin.command:
+    cmd: "awk '$5 >= {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
+  register: _ssh_strong_moduli
+  changed_when: false
   when:
     - _ssh_moduli_file.stat.exists
-    - _ssh_weak_moduli_count.stdout | default('0') | int > 0
-  notify: Restart sshd
-  tags: ['ssh', 'security', 'moduli']
+    - _ssh_weak_moduli.stdout_lines | length > 0
+  tags: [ssh, security, moduli]
 
-- name: Set correct permissions on moduli
-  ansible.builtin.file:
-    path: /etc/ssh/moduli
+- name: "Deploy filtered moduli file"
+  ansible.builtin.copy:
+    content: "{{ _ssh_strong_moduli.stdout }}\n"
+    dest: /etc/ssh/moduli
     owner: root
     group: root
-    mode: '0644'
-  when: _ssh_moduli_file.stat.exists
-  tags: ['ssh', 'security', 'moduli']
+    mode: "0644"
+    backup: true
+  when:
+    - _ssh_moduli_file.stat.exists
+    - _ssh_weak_moduli.stdout_lines | default([]) | length > 0
+    - _ssh_strong_moduli.stdout | default('') | length > 0
+  notify: "restart sshd"
+  tags: [ssh, security, moduli]
