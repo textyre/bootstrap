@@ -1,8 +1,12 @@
 ---
 # === gpu_drivers / install — OS-specific driver installation dispatcher ===
 # SRP: only dispatches to the correct OS task file.
+# Uses import_tasks (static) so tags propagate to all child tasks.
 
-- name: Install GPU drivers ({{ ansible_facts['os_family'] }})
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  when: ansible_facts['os_family'] in _gpu_drivers_supported_os
-  tags: ['gpu', 'drivers']
+- name: Install GPU drivers (Arch Linux)
+  ansible.builtin.import_tasks: install-archlinux.yml
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+- name: Install GPU drivers (Debian)
+  ansible.builtin.import_tasks: install-debian.yml
+  when: ansible_facts['os_family'] == 'Debian'

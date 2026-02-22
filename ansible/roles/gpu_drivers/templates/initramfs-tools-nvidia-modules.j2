@@ -1,0 +1,19 @@
+#!/bin/sh
+# Managed by Ansible — do not edit manually
+# Role: gpu_drivers
+# initramfs-tools hook: add NVIDIA kernel modules for early KMS
+# Deployed to /etc/initramfs-tools/hooks/nvidia-ansible
+
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0;; esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+{% if gpu_drivers_nvidia_variant == 'open-kernel' %}
+# NVIDIA open kernel modules (Turing+ / RTX 2000+)
+manual_add_modules nvidia_open nvidia_modeset nvidia_uvm nvidia_drm
+{% else %}
+# NVIDIA proprietary kernel modules
+manual_add_modules nvidia nvidia_modeset nvidia_uvm nvidia_drm
+{% endif %}

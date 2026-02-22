@@ -34,3 +34,29 @@
       Either install pciutils or set gpu_drivers_vendor: nvidia|amd|intel|none
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
+
+- name: Assert open-kernel variant is not requested on Debian (not supported)
+  ansible.builtin.assert:
+    that: gpu_drivers_nvidia_variant != 'open-kernel'
+    fail_msg: >-
+      open-kernel variant on Debian uses nvidia-open-kernel-dkms which requires
+      non-free-firmware and backports on Bookworm. Verify your apt sources include
+      these components before setting gpu_drivers_nvidia_variant: open-kernel.
+      Set gpu_drivers_nvidia_variant: proprietary to suppress this warning.
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - gpu_drivers_vendor in ['auto', 'nvidia']
+    - gpu_drivers_nvidia_variant == 'open-kernel'
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu_drivers_cuda is not enabled (not yet implemented)
+  ansible.builtin.assert:
+    that: not gpu_drivers_cuda
+    fail_msg: "gpu_drivers_cuda: true is not yet implemented. Set gpu_drivers_cuda: false."
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu_drivers_headless is not enabled (not yet implemented)
+  ansible.builtin.assert:
+    that: not gpu_drivers_headless
+    fail_msg: "gpu_drivers_headless: true is not yet implemented. Set gpu_drivers_headless: false."
+  tags: ['gpu', 'drivers']

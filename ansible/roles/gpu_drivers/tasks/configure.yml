@@ -1,6 +1,6 @@
 ---
 # === gpu_drivers / configure — Kernel module config and VA-API environment ===
-# SRP: only deploys config files (modprobe.d, environment.d); never installs packages.
+# SRP: only deploys config files (modprobe.d, environment.d) and enables services; never installs packages.
 
 # ---- NVIDIA: DRM KMS modprobe options ----
 
@@ -18,13 +18,14 @@
     - gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']
 
-- name: Remove NVIDIA modprobe options when using nouveau
+- name: Remove NVIDIA modprobe options (not applicable)
   ansible.builtin.file:
     path: /etc/modprobe.d/nvidia.conf
     state: absent
-  when:
-    - _gpu_drivers_has_nvidia
-    - gpu_drivers_nvidia_variant == 'nouveau'
+  when: >-
+    not _gpu_drivers_has_nvidia
+    or gpu_drivers_nvidia_variant == 'nouveau'
+    or not gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']
 
 # ---- NVIDIA: blacklist nouveau ----
@@ -42,13 +43,49 @@
     - gpu_drivers_nvidia_blacklist_nouveau
   tags: ['gpu', 'nvidia']
 
-- name: Remove nouveau blacklist when switching to nouveau driver
+- name: Remove nouveau blacklist (not applicable)
   ansible.builtin.file:
     path: /etc/modprobe.d/nvidia-blacklist.conf
     state: absent
+  when: >-
+    not _gpu_drivers_has_nvidia
+    or gpu_drivers_nvidia_variant == 'nouveau'
+    or not gpu_drivers_nvidia_blacklist_nouveau
+  tags: ['gpu', 'nvidia']
+
+# ---- NVIDIA: suspend/resume systemd services ----
+
+- name: Enable NVIDIA suspend/resume systemd services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    daemon_reload: false
+  loop:
+    - nvidia-suspend.service
+    - nvidia-hibernate.service
+    - nvidia-resume.service
   when:
     - _gpu_drivers_has_nvidia
-    - gpu_drivers_nvidia_variant == 'nouveau'
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_suspend
+    - ansible_facts['service_mgr'] == 'systemd'
+  tags: ['gpu', 'nvidia']
+
+- name: Disable NVIDIA suspend/resume systemd services (not applicable)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    daemon_reload: false
+  loop:
+    - nvidia-suspend.service
+    - nvidia-hibernate.service
+    - nvidia-resume.service
+  when: >-
+    not _gpu_drivers_has_nvidia
+    or gpu_drivers_nvidia_variant == 'nouveau'
+    or not gpu_drivers_nvidia_suspend
+    or ansible_facts['service_mgr'] != 'systemd'
+  failed_when: false
   tags: ['gpu', 'nvidia']
 
 # ---- VA-API environment variables ----
@@ -81,7 +118,7 @@
   ansible.builtin.file:
     path: /etc/environment.d/gpu.conf
     state: absent
-  when:
-    - not gpu_drivers_vaapi or
-      not (_gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel)
+  when: >-
+    not gpu_drivers_vaapi
+    or not (_gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel)
   tags: ['gpu', 'drivers']

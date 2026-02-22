@@ -2,6 +2,9 @@
 # === gpu_drivers / detect — GPU vendor detection ===
 # SRP: only sets _gpu_drivers_has_* facts; never installs or configures.
 # Supports manual override via gpu_drivers_vendor variable.
+#
+# lspci -nn line format: "<slot> <class> [<class_id>]: <vendor> <device> [<vendor_id>:<device_id>]"
+# Class label appears BEFORE vendor name, so regexes match class first, then vendor.
 
 # ---- Manual override (gpu_drivers_vendor != 'auto') ----
 
@@ -24,19 +27,19 @@
 
 - name: Detect NVIDIA GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_nvidia: "{{ _gpu_drivers_lspci.stdout is search('NVIDIA.*(?:VGA|Display|3D)') }}"
+    _gpu_drivers_has_nvidia: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect AMD GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_amd: "{{ _gpu_drivers_lspci.stdout is search('(?:AMD|ATI).*(?:VGA|Display|3D)') }}"
+    _gpu_drivers_has_amd: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
 - name: Detect Intel GPU via lspci
   ansible.builtin.set_fact:
-    _gpu_drivers_has_intel: "{{ _gpu_drivers_lspci.stdout is search('Intel Corporation.*(?:VGA|Display|3D)') }}"
+    _gpu_drivers_has_intel: "{{ _gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
   when: gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']
 
@@ -59,4 +62,19 @@
       - "NVIDIA:  {{ _gpu_drivers_has_nvidia }}"
       - "AMD:     {{ _gpu_drivers_has_amd }}"
       - "Intel:   {{ _gpu_drivers_has_intel }}"
+  tags: ['gpu', 'drivers']
+
+# ---- Hybrid GPU warning ----
+
+- name: Warn about hybrid GPU configuration (Optimus/dual-GPU)
+  ansible.builtin.debug:
+    msg:
+      - "WARNING: Hybrid GPU detected (NVIDIA + {{ 'Intel' if _gpu_drivers_has_intel else 'AMD' }})."
+      - "This role installs drivers for both GPUs but does NOT configure Optimus/PRIME offloading."
+      - "For Wayland PRIME: set gpu_drivers_vaapi: true (uses NVIDIA VA-API for video decode)."
+      - "For X11 PRIME: configure xorg.conf manually or use prime-run / nvidia-prime package."
+  when:
+    - _gpu_drivers_has_nvidia
+    - _gpu_drivers_has_intel or _gpu_drivers_has_amd
+    - gpu_drivers_vendor == 'auto'
   tags: ['gpu', 'drivers']

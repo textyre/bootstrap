@@ -11,20 +11,40 @@
       changed_when: false
       failed_when: false
 
+    # lspci -nn format: "<slot> <class> [<class_id>]: <vendor> <device>"
+    # Class label appears BEFORE vendor name on each line.
     - name: Set GPU vendor facts for verification
       ansible.builtin.set_fact:
-        _gpu_verify_has_nvidia: "{{ _gpu_verify_lspci.stdout is search('NVIDIA.*(?:VGA|Display|3D)') }}"
-        _gpu_verify_has_amd: "{{ _gpu_verify_lspci.stdout is search('(?:AMD|ATI).*(?:VGA|Display|3D)') }}"
-        _gpu_verify_has_intel: "{{ _gpu_verify_lspci.stdout is search('Intel Corporation.*(?:VGA|Display|3D)') }}"
+        _gpu_verify_has_nvidia: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
+        _gpu_verify_has_amd: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
+        _gpu_verify_has_intel: "{{ _gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
 
-    # ---- NVIDIA: variant-aware package check ----
+    # ---- OS-specific package name resolution ----
 
-    - name: Check NVIDIA driver package (variant-aware)
-      ansible.builtin.package:
-        name: >-
+    - name: Set OS-specific package names for verification
+      ansible.builtin.set_fact:
+        _gpu_verify_nvidia_pkg: >-
+          {% if ansible_facts['os_family'] == 'Debian' %}
+          {{ 'nvidia-open-kernel-dkms' if gpu_drivers_nvidia_variant | default('proprietary') == 'open-kernel'
+             else ('xserver-xorg-video-nouveau' if gpu_drivers_nvidia_variant | default('proprietary') == 'nouveau'
+             else 'nvidia-driver') }}
+          {% else %}
           {{ 'nvidia-open' if gpu_drivers_nvidia_variant | default('proprietary') == 'open-kernel'
              else ('xf86-video-nouveau' if gpu_drivers_nvidia_variant | default('proprietary') == 'nouveau'
              else 'nvidia') }}
+          {% endif %}
+        _gpu_verify_amd_pkg: >-
+          {{ 'mesa-vulkan-drivers' if ansible_facts['os_family'] == 'Debian' else 'vulkan-radeon' }}
+        _gpu_verify_intel_pkg: >-
+          {{ 'intel-media-va-driver' if ansible_facts['os_family'] == 'Debian' else 'vulkan-intel' }}
+        _gpu_verify_vulkan_pkg: >-
+          {{ 'libvulkan1' if ansible_facts['os_family'] == 'Debian' else 'vulkan-icd-loader' }}
+
+    # ---- NVIDIA: variant-aware package check ----
+
+    - name: Check NVIDIA driver package (variant-aware, OS-aware)
+      ansible.builtin.package:
+        name: "{{ _gpu_verify_nvidia_pkg | trim }}"
         state: present
       check_mode: true
       register: _gpu_verify_nvidia
@@ -35,7 +55,7 @@
 
     - name: Check AMD driver package
       ansible.builtin.package:
-        name: vulkan-radeon
+        name: "{{ _gpu_verify_amd_pkg | trim }}"
         state: present
       check_mode: true
       register: _gpu_verify_amd
@@ -44,7 +64,7 @@
 
     - name: Check Intel driver package
       ansible.builtin.package:
-        name: vulkan-intel
+        name: "{{ _gpu_verify_intel_pkg | trim }}"
         state: present
       check_mode: true
       register: _gpu_verify_intel
@@ -55,7 +75,7 @@
 
     - name: Check Vulkan ICD loader is installed
       ansible.builtin.package:
-        name: vulkan-icd-loader
+        name: "{{ _gpu_verify_vulkan_pkg | trim }}"
         state: present
       check_mode: true
       register: _gpu_verify_vulkan
@@ -105,3 +125,4 @@
           - "AMD detected:    {{ _gpu_verify_has_amd }}"
           - "Intel detected:  {{ _gpu_verify_has_intel }}"
           - "Variant: {{ gpu_drivers_nvidia_variant | default('proprietary') }}"
+          - "OS family: {{ ansible_facts['os_family'] }}"

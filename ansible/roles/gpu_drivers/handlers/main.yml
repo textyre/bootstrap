@@ -16,3 +16,10 @@
   when:
     - _gpu_drivers_initramfs_tool is defined
     - _gpu_drivers_initramfs_tool == 'dracut'
+
+- name: Regenerate initramfs (initramfs-tools)
+  ansible.builtin.command: update-initramfs -u -k all
+  listen: "regenerate initramfs"
+  when:
+    - _gpu_drivers_initramfs_tool is defined
+    - _gpu_drivers_initramfs_tool == 'initramfs-tools'
