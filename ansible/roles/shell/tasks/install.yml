@@ -1,0 +1,21 @@
+---
+# === Shell — package installation ===
+# Uses per-distro vars for package names
+
+- name: Install shell packages
+  ansible.builtin.package:
+    name: "{{ _shell_packages[shell_type] }}"
+    state: present
+  when: _shell_packages[shell_type] | length > 0
+  tags: ['shell', 'install']
+
+- name: "Report: Install shell"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_shell_phases"
+    _rpt_phase: "Install shell"
+    _rpt_status: "{{ 'done' if (_shell_packages[shell_type] | length > 0) else 'skip' }}"
+    _rpt_detail: "{{ shell_type }} ({{ ansible_facts['os_family'] }})"
+  tags: ['shell', 'report']

@@ -1,0 +1,31 @@
+---
+# === Shell — preflight validation ===
+# Runs before any state changes
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _shell_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _shell_supported_os | join(', ') }}.
+  tags: ['shell']
+
+- name: Assert shell_type is valid
+  ansible.builtin.assert:
+    that:
+      - shell_type in _shell_supported_types
+    fail_msg: >-
+      shell_type '{{ shell_type }}' is not supported.
+      Supported: {{ _shell_supported_types | join(', ') }}.
+  tags: ['shell']
+
+- name: Assert shell_user is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - shell_user is defined
+      - shell_user | length > 0
+    fail_msg: >-
+      shell_user must be set to a valid username.
+      Current value: '{{ shell_user | default("") }}'.
+  tags: ['shell']
