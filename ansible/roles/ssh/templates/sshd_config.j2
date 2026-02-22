@@ -207,6 +207,12 @@ Compression {{ ssh_compression }}
 # CIS/Mozilla: 10:30:60 (агрессивный, но эффективный против brute-force)
 MaxStartups {{ ssh_max_startups }}
 
+{% if ssh_teleport_integration %}
+# ---- Teleport SSH CA ----
+# Trust certificates signed by Teleport auth server
+TrustedUserCAKeys {{ ssh_teleport_ca_keys_file }}
+{% endif %}
+
 # ---- SFTP ----
 
 {% if ssh_sftp_enabled %}
