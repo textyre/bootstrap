@@ -15,15 +15,15 @@
     # Class label appears BEFORE vendor name on each line.
     - name: Set GPU vendor facts for verification
       ansible.builtin.set_fact:
-        _gpu_verify_has_nvidia: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
-        _gpu_verify_has_amd: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
-        _gpu_verify_has_intel: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
+        gpu_verify_has_nvidia: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
+        gpu_verify_has_amd: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
+        gpu_verify_has_intel: "{{ gpu_verify_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
 
     # ---- OS-specific package name resolution ----
 
     - name: Set OS-specific package names for verification
       ansible.builtin.set_fact:
-        _gpu_verify_nvidia_pkg: >-
+        gpu_verify_nvidia_pkg: >-
           {% if ansible_facts['os_family'] == 'Debian' %}
           {{ 'nvidia-open-kernel-dkms' if gpu_drivers_nvidia_variant | default('proprietary') == 'open-kernel'
              else ('xserver-xorg-video-nouveau' if gpu_drivers_nvidia_variant | default('proprietary') == 'nouveau'
@@ -33,11 +33,11 @@
              else ('xf86-video-nouveau' if gpu_drivers_nvidia_variant | default('proprietary') == 'nouveau'
              else 'nvidia') }}
           {% endif %}
-        _gpu_verify_amd_pkg: >-
+        gpu_verify_amd_pkg: >-
           {{ 'mesa-vulkan-drivers' if ansible_facts['os_family'] == 'Debian' else 'vulkan-radeon' }}
-        _gpu_verify_intel_pkg: >-
+        gpu_verify_intel_pkg: >-
           {{ 'intel-media-va-driver' if ansible_facts['os_family'] == 'Debian' else 'vulkan-intel' }}
-        _gpu_verify_vulkan_pkg: >-
+        gpu_verify_vulkan_pkg: >-
           {{ 'libvulkan1' if ansible_facts['os_family'] == 'Debian' else 'vulkan-icd-loader' }}
 
     # ---- NVIDIA: variant-aware package check ----
@@ -48,8 +48,8 @@
         state: present
       check_mode: true
       register: gpu_verify_nvidia
-      failed_when: _gpu_verify_nvidia is changed
-      when: _gpu_verify_has_nvidia
+      failed_when: gpu_verify_nvidia is changed
+      when: gpu_verify_has_nvidia
 
     # ---- AMD / Intel package checks ----
 
@@ -59,8 +59,8 @@
         state: present
       check_mode: true
       register: gpu_verify_amd
-      failed_when: _gpu_verify_amd is changed
-      when: _gpu_verify_has_amd
+      failed_when: gpu_verify_amd is changed
+      when: gpu_verify_has_amd
 
     - name: Check Intel driver package
       ansible.builtin.package:
@@ -68,8 +68,8 @@
         state: present
       check_mode: true
       register: gpu_verify_intel
-      failed_when: _gpu_verify_intel is changed
-      when: _gpu_verify_has_intel
+      failed_when: gpu_verify_intel is changed
+      when: gpu_verify_has_intel
 
     # ---- Vulkan ICD loader ----
 
@@ -79,8 +79,8 @@
         state: present
       check_mode: true
       register: gpu_verify_vulkan
-      failed_when: _gpu_verify_vulkan is changed
-      when: _gpu_verify_has_nvidia or _gpu_verify_has_amd or _gpu_verify_has_intel
+      failed_when: gpu_verify_vulkan is changed
+      when: gpu_verify_has_nvidia or gpu_verify_has_amd or gpu_verify_has_intel
 
     # ---- NVIDIA modprobe.d files ----
 
@@ -91,8 +91,8 @@
       failed_when:
         - gpu_drivers_nvidia_kms | default(true)
         - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
-        - not _gpu_verify_modprobe.stat.exists
-      when: _gpu_verify_has_nvidia
+        - not gpu_verify_modprobe.stat.exists
+      when: gpu_verify_has_nvidia
 
     - name: Check nouveau blacklist config exists
       ansible.builtin.stat:
@@ -101,8 +101,8 @@
       failed_when:
         - gpu_drivers_nvidia_blacklist_nouveau | default(true)
         - gpu_drivers_nvidia_variant | default('proprietary') in ['proprietary', 'open-kernel']
-        - not _gpu_verify_blacklist.stat.exists
-      when: _gpu_verify_has_nvidia
+        - not gpu_verify_blacklist.stat.exists
+      when: gpu_verify_has_nvidia
 
     # ---- VA-API environment config ----
 
@@ -112,8 +112,8 @@
       register: gpu_verify_env_conf
       failed_when:
         - gpu_drivers_vaapi | default(true)
-        - not _gpu_verify_env_conf.stat.exists
-      when: _gpu_verify_has_nvidia or _gpu_verify_has_amd or _gpu_verify_has_intel
+        - not gpu_verify_env_conf.stat.exists
+      when: gpu_verify_has_nvidia or gpu_verify_has_amd or gpu_verify_has_intel
 
     # ---- Summary ----
 

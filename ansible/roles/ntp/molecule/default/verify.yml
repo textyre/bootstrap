@@ -15,17 +15,17 @@
         name: common
         tasks_from: check_internet.yml
       vars:
-        _check_internet_host: "time.cloudflare.com"
-        _check_internet_port: 123
+        common_check_internet_host: "time.cloudflare.com"
+        common_check_internet_port: 123
 
     # ---- chrony installed ----
 
     - name: Check chrony is installed
       ansible.builtin.command:
         cmd: command -v chronyd
-      register: verify_chrony
+      register: ntp_verify_chrony
       changed_when: false
-      failed_when: _verify_chrony.rc != 0
+      failed_when: ntp_verify_chrony.rc != 0
 
     # ---- service running ----
 
@@ -46,28 +46,28 @@
     - name: Verify chrony is functional
       ansible.builtin.command:
         cmd: chronyc tracking
-      register: verify_ntp_tracking
+      register: ntp_verify_ntp_tracking
       changed_when: false
-      failed_when: _verify_ntp_tracking.rc != 0
+      failed_when: ntp_verify_ntp_tracking.rc != 0
 
     - name: Assert chrony daemon responds correctly
       ansible.builtin.assert:
         that:
-          - "'Stratum' in _verify_ntp_tracking.stdout"
-          - "'System time' in _verify_ntp_tracking.stdout"
+          - "'Stratum' in ntp_verify_ntp_tracking.stdout"
+          - "'System time' in ntp_verify_ntp_tracking.stdout"
         fail_msg: "chronyc tracking output invalid"
 
     - name: Verify chrony has NTP sources
       ansible.builtin.command:
         cmd: chronyc sources
-      register: verify_ntp_sources
+      register: ntp_verify_ntp_sources
       changed_when: false
       failed_when: false
 
     - name: Assert chrony has at least one source
       ansible.builtin.assert:
         that:
-          - _verify_ntp_sources.stdout_lines | length > 2
+          - ntp_verify_ntp_sources.stdout_lines | length > 2
         fail_msg: "chrony has no NTP sources configured"
 
     # ---- actual sync (requires internet) ----
@@ -75,14 +75,14 @@
     - name: Verify chrony has a synced source
       ansible.builtin.command:
         cmd: chronyc -n sources
-      register: verify_ntp_synced
+      register: ntp_verify_ntp_synced
       changed_when: false
       failed_when: false
 
     - name: Assert at least one source is synced (^* marker)
       ansible.builtin.assert:
         that:
-          - _verify_ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
+          - ntp_verify_ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
         fail_msg: >-
           No synchronized NTP source (no '^*' marker in chronyc -n sources).
           Chrony is running but not synced — internet connectivity may be missing.
@@ -92,14 +92,14 @@
     - name: Verify NTS sources are active
       ansible.builtin.command:
         cmd: chronyc ntssources
-      register: verify_nts_sources
+      register: ntp_verify_nts_sources
       changed_when: false
       failed_when: false
 
     - name: Assert at least one NTS source is present
       ansible.builtin.assert:
         that:
-          - _verify_nts_sources.stdout_lines | length > 1
+          - ntp_verify_nts_sources.stdout_lines | length > 1
         fail_msg: >-
           No NTS sources found (chronyc ntssources returned no entries).
           Check NTS server reachability and NTS handshake logs.
@@ -109,58 +109,58 @@
     - name: Verify chrony.conf is deployed by Ansible
       ansible.builtin.stat:
         path: /etc/chrony.conf
-      register: verify_chrony_conf
+      register: ntp_verify_chrony_conf
 
     - name: Assert chrony.conf exists and is a regular file
       ansible.builtin.assert:
         that:
-          - _verify_chrony_conf.stat.exists
-          - _verify_chrony_conf.stat.isreg
+          - ntp_verify_chrony_conf.stat.exists
+          - ntp_verify_chrony_conf.stat.isreg
         fail_msg: "/etc/chrony.conf is missing"
 
     - name: Read chrony.conf content
       ansible.builtin.slurp:
         src: /etc/chrony.conf
-      register: verify_chrony_conf_content
+      register: ntp_verify_chrony_conf_content
 
     - name: Decode chrony.conf content
       ansible.builtin.set_fact:
-        _verify_chrony_conf_text: "{{ verify_chrony_conf_content.content | b64decode }}"
+        ntpntp_verify_chrony_conf_text: "{{ ntp_verify_chrony_conf_content.content | b64decode }}"
 
     - name: Assert NTS flag present in at least one server line
       ansible.builtin.assert:
         that:
-          - "'nts' in _verify_chrony_conf_text"
+          - "'nts' in ntpntp_verify_chrony_conf_text"
         fail_msg: "No NTS servers found in /etc/chrony.conf"
 
     - name: Assert minsources directive present
       ansible.builtin.assert:
         that:
-          - "'minsources' in _verify_chrony_conf_text"
+          - "'minsources' in ntpntp_verify_chrony_conf_text"
         fail_msg: "minsources directive missing from /etc/chrony.conf"
 
     - name: Assert driftfile directive present
       ansible.builtin.assert:
         that:
-          - "'driftfile' in _verify_chrony_conf_text"
+          - "'driftfile' in ntpntp_verify_chrony_conf_text"
         fail_msg: "driftfile directive missing from /etc/chrony.conf"
 
     - name: Assert dumpdir directive present
       ansible.builtin.assert:
         that:
-          - "'dumpdir' in _verify_chrony_conf_text"
+          - "'dumpdir' in ntpntp_verify_chrony_conf_text"
         fail_msg: "dumpdir directive missing from /etc/chrony.conf"
 
     - name: Assert ntsdumpdir directive present
       ansible.builtin.assert:
         that:
-          - "'ntsdumpdir' in _verify_chrony_conf_text"
+          - "'ntsdumpdir' in ntpntp_verify_chrony_conf_text"
         fail_msg: "ntsdumpdir directive missing from /etc/chrony.conf"
 
     - name: Assert log tracking directive present
       ansible.builtin.assert:
         that:
-          - "'log measurements statistics tracking' in _verify_chrony_conf_text"
+          - "'log measurements statistics tracking' in ntpntp_verify_chrony_conf_text"
         fail_msg: "log tracking directive missing from /etc/chrony.conf"
 
     # ---- directories ----
@@ -168,27 +168,27 @@
     - name: Check ntp_logdir exists
       ansible.builtin.stat:
         path: /var/log/chrony
-      register: verify_logdir
+      register: ntp_verify_logdir
 
     - name: Assert ntp_logdir exists with correct ownership
       ansible.builtin.assert:
         that:
-          - _verify_logdir.stat.exists
-          - _verify_logdir.stat.isdir
-          - _verify_logdir.stat.pw_name == 'chrony'
+          - ntp_verify_logdir.stat.exists
+          - ntp_verify_logdir.stat.isdir
+          - ntp_verify_logdir.stat.pw_name == 'chrony'
         fail_msg: "/var/log/chrony does not exist or is not owned by chrony"
 
     - name: Check ntp_ntsdumpdir exists
       ansible.builtin.stat:
         path: /var/lib/chrony/nts-data
-      register: verify_ntsdumpdir
+      register: ntp_verify_ntsdumpdir
 
     - name: Assert ntp_ntsdumpdir exists with correct ownership
       ansible.builtin.assert:
         that:
-          - _verify_ntsdumpdir.stat.exists
-          - _verify_ntsdumpdir.stat.isdir
-          - _verify_ntsdumpdir.stat.pw_name == 'chrony'
+          - ntp_verify_ntsdumpdir.stat.exists
+          - ntp_verify_ntsdumpdir.stat.isdir
+          - ntp_verify_ntsdumpdir.stat.pw_name == 'chrony'
         fail_msg: "/var/lib/chrony/nts-data does not exist or is not owned by chrony"
 
     # ---- environment detection ----
@@ -196,7 +196,7 @@
     - name: Assert environment comment present in chrony.conf
       ansible.builtin.assert:
         that:
-          - "'# Environment:' in _verify_chrony_conf_text"
+          - "'# Environment:' in ntpntp_verify_chrony_conf_text"
         fail_msg: "chrony.conf missing environment detection comment — template not updated"
 
     # ---- competitor services ----
@@ -222,21 +222,21 @@
     - name: Assert ptp_kvm loaded on KVM
       ansible.builtin.assert:
         that:
-          - "'ptp_kvm' in _verify_lsmod.stdout"
+          - "'ptp_kvm' in ntpntpntpverify_lsmod.stdout"
         fail_msg: "ptp_kvm module not loaded on KVM guest"
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 
     - name: Assert refclock present in chrony.conf on KVM
       ansible.builtin.assert:
         that:
-          - "'refclock PHC' in _verify_chrony_conf_text"
+          - "'refclock PHC' in ntp_verify_chrony_conf_text"
         fail_msg: "refclock PHC missing from chrony.conf on KVM guest"
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 
     - name: Assert refclock present in chrony.conf on Hyper-V
       ansible.builtin.assert:
         that:
-          - "'refclock PHC /dev/ptp_hyperv' in _verify_chrony_conf_text"
+          - "'refclock PHC /dev/ptp_hyperv' in ntp_verify_chrony_conf_text"
         fail_msg: "refclock PHC /dev/ptp_hyperv missing from chrony.conf on Hyper-V guest"
       when: ansible_facts['virtualization_type'] | default('') == 'hyperv'
 

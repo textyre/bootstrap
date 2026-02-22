@@ -11,23 +11,23 @@
     - name: "Assert config exists with correct permissions"
       ansible.builtin.assert:
         that:
-          - _verify_config.stat.exists
-          - _verify_config.stat.mode == '0600'
-          - _verify_config.stat.pw_name == 'root'
+          - verify_config.stat.exists
+          - verify_config.stat.mode == '0600'
+          - verify_config.stat.pw_name == 'root'
 
     - name: "Verify config contains auth server"
       ansible.builtin.command:
         cmd: "grep 'auth_server: localhost:3025' /etc/teleport.yaml"
       register: verify_auth_server
       changed_when: false
-      failed_when: _verify_auth_server.rc != 0
+      failed_when: verify_auth_server.rc != 0
 
     - name: "Verify config contains node name"
       ansible.builtin.command:
         cmd: "grep 'nodename: molecule-test' /etc/teleport.yaml"
       register: verify_node_name
       changed_when: false
-      failed_when: _verify_node_name.rc != 0
+      failed_when: verify_node_name.rc != 0
 
     - name: "Verify data directory exists"
       ansible.builtin.stat:
@@ -37,5 +37,5 @@
     - name: "Assert data directory exists"
       ansible.builtin.assert:
         that:
-          - _verify_datadir.stat.exists
-          - _verify_datadir.stat.isdir
+          - verify_datadir.stat.exists
+          - verify_datadir.stat.isdir

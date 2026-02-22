@@ -6,7 +6,7 @@
     cmd: "teleport version"
   register: teleport_verify_version
   changed_when: false
-  failed_when: _teleport_verify_version.rc != 0
+  failed_when: teleport_verify_version.rc != 0
   tags: [teleport]
 
 - name: "Verify teleport configuration exists"
@@ -18,8 +18,8 @@
 - name: "Assert teleport configuration exists"
   ansible.builtin.assert:
     that:
-      - _teleport_verify_config.stat.exists
-      - _teleport_verify_config.stat.mode == '0600'
+      - teleport_verify_config.stat.exists
+      - teleport_verify_config.stat.mode == '0600'
     fail_msg: "Teleport configuration missing or wrong permissions"
   tags: [teleport]
 

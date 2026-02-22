@@ -4,7 +4,7 @@
 
 - name: Assert OS family is supported
   ansible.builtin.assert:
-    that: ansible_facts['os_family'] in _gpu_drivers_supported_os
+    that: ansible_facts['os_family'] in gpu_drivers_supported_os
     fail_msg: >-
       Unsupported OS family: {{ ansible_facts['os_family'] }}.
       Supported: {{ gpu_drivers_supported_os | join(', ') }}

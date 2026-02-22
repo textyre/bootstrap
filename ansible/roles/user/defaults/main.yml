@@ -2,7 +2,7 @@
 # === user role — defaults ===
 
 # --- ROLE-003: Supported operating systems ---
-_user_supported_os:
+user_supported_os:
   - Archlinux
   - Debian
   - RedHat

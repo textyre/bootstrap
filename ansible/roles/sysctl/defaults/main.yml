@@ -3,7 +3,7 @@
 # Управление параметрами ядра через /etc/sysctl.d/99-ansible.conf
 
 # Supported OS families
-_sysctl_supported_os:
+sysctl_supported_os:
   - Archlinux
   - Debian
 

@@ -11,37 +11,37 @@
     - name: "Verify fail2ban package is installed"
       ansible.builtin.command:
         cmd: "fail2ban-client --version"
-      register: verify_version
+      register: fail2ban_verify_version
       changed_when: false
-      failed_when: _verify_version.rc != 0
+      failed_when: fail2ban_verify_version.rc != 0
 
     # ---- jail configuration ----
 
     - name: "Verify jail.d/sshd.conf exists"
       ansible.builtin.stat:
         path: /etc/fail2ban/jail.d/sshd.conf
-      register: verify_jail_config
+      register: fail2ban_verify_jail_config
 
     - name: "Assert jail config exists with correct permissions"
       ansible.builtin.assert:
         that:
-          - _verify_jail_config.stat.exists
-          - _verify_jail_config.stat.mode == '0644'
+          - fail2ban_verify_jail_config.stat.exists
+          - fail2ban_verify_jail_config.stat.mode == '0644'
         fail_msg: "/etc/fail2ban/jail.d/sshd.conf missing or wrong permissions"
 
     - name: "Verify jail config contains correct maxretry"
       ansible.builtin.command:
         cmd: "grep 'maxretry = 3' /etc/fail2ban/jail.d/sshd.conf"
-      register: verify_maxretry
+      register: fail2ban_verify_maxretry
       changed_when: false
-      failed_when: _verify_maxretry.rc != 0
+      failed_when: fail2ban_verify_maxretry.rc != 0
 
     - name: "Verify jail config contains correct bantime"
       ansible.builtin.command:
         cmd: "grep 'bantime = 600' /etc/fail2ban/jail.d/sshd.conf"
-      register: verify_bantime
+      register: fail2ban_verify_bantime
       changed_when: false
-      failed_when: _verify_bantime.rc != 0
+      failed_when: fail2ban_verify_bantime.rc != 0
 
     # ---- service is running ----
 

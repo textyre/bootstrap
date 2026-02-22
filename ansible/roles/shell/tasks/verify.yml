@@ -54,7 +54,7 @@
 - name: Assert /etc/profile.d/dev-paths.sh exists
   ansible.builtin.assert:
     that:
-      - _shell_verify_profiled.stat.exists
+      - shell_verify_profiled.stat.exists
     fail_msg: "/etc/profile.d/dev-paths.sh not found"
     quiet: true
   when: shell_type in ['bash', 'zsh']
@@ -72,7 +72,7 @@
 - name: Assert /etc/zsh/zshenv exists
   ansible.builtin.assert:
     that:
-      - _shell_verify_zshenv.stat.exists
+      - shell_verify_zshenv.stat.exists
     fail_msg: "/etc/zsh/zshenv not found"
     quiet: true
   when: shell_type == 'zsh'
@@ -90,7 +90,7 @@
 - name: Assert /etc/fish/conf.d/dev-paths.fish exists
   ansible.builtin.assert:
     that:
-      - _shell_verify_fish.stat.exists
+      - shell_verify_fish.stat.exists
     fail_msg: "/etc/fish/conf.d/dev-paths.fish not found"
     quiet: true
   when: shell_type == 'fish'

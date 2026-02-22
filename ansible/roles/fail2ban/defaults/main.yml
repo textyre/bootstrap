@@ -2,7 +2,7 @@
 # === fail2ban — защита от brute-force атак ===
 
 # ROLE-003: Поддерживаемые ОС
-_fail2ban_supported_os:
+fail2ban_supported_os:
   - Archlinux
   - Debian
   - RedHat

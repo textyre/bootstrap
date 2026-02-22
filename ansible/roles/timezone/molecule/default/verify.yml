@@ -25,14 +25,14 @@
     - name: Assert timezone matches (systemd)
       ansible.builtin.assert:
         that:
-          - _verify_timezone.stdout == _test_timezone
+          - verify_timezone.stdout == _test_timezone
         fail_msg: "Expected '{{ test_timezone }}', got '{{ verify_timezone.stdout }}'"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert timezone matches (non-systemd)
       ansible.builtin.assert:
         that:
-          - _test_timezone in _verify_timezone_generic.stdout
+          - _test_timezone in verify_timezone_generic.stdout
         fail_msg: "Expected '{{ test_timezone }}' in '{{ verify_timezone_generic.stdout }}'"
       when: ansible_facts['service_mgr'] != 'systemd'
 

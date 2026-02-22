@@ -11,28 +11,28 @@
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/10-config.conf
       register: lightdm_verify_lightdm_conf
-      failed_when: not _lightdm_verify_lightdm_conf.stat.exists
+      failed_when: not lightdm_verify_lightdm_conf.stat.exists
 
     - name: Check LightDM config ownership (root:root, 0644)
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/10-config.conf
       register: lightdm_verify_lightdm_perms
       failed_when: >
-        _lightdm_verify_lightdm_perms.stat.pw_name != 'root' or
-        _lightdm_verify_lightdm_perms.stat.gr_name != 'root' or
-        _lightdm_verify_lightdm_perms.stat.mode != '0644'
+        lightdm_verify_lightdm_perms.stat.pw_name != 'root' or
+        lightdm_verify_lightdm_perms.stat.gr_name != 'root' or
+        lightdm_verify_lightdm_perms.stat.mode != '0644'
 
     - name: Check resolution script exists
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
       register: lightdm_verify_lightdm_script
-      failed_when: not _lightdm_verify_lightdm_script.stat.exists
+      failed_when: not lightdm_verify_lightdm_script.stat.exists
 
     - name: Check resolution script is executable (0755)
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
-      register: lightdm_lightdm_verify_lightdm_script_perms
-      failed_when: _lightdm_lightdm_verify_lightdm_script_perms.stat.mode != '0755'
+      register: lightdmlightdm_verify_lightdm_script_perms
+      failed_when: lightdmlightdm_verify_lightdm_script_perms.stat.mode != '0755'
 
     - name: Check LightDM service is enabled
       ansible.builtin.service:
@@ -40,7 +40,7 @@
         enabled: true
       check_mode: true
       register: lightdm_verify_service
-      failed_when: _lightdm_verify_service is changed
+      failed_when: lightdm_verify_service is changed
 
     - name: Show test results
       ansible.builtin.debug:

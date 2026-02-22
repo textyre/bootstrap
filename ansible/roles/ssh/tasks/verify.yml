@@ -6,7 +6,7 @@
     cmd: "sshd -t"
   register: ssh_verify_config
   changed_when: false
-  failed_when: _ssh_verify_config.rc != 0
+  failed_when: ssh_verify_config.rc != 0
   tags: [ssh]
 
 - name: "Verify sshd service is running"
@@ -14,5 +14,5 @@
     cmd: "pgrep sshd"
   register: ssh_verify_running
   changed_when: false
-  failed_when: _ssh_verify_running.rc != 0
+  failed_when: ssh_verify_running.rc != 0
   tags: [ssh]

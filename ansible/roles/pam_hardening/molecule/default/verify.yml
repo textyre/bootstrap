@@ -12,45 +12,45 @@
     - name: Check faillock.conf exists
       ansible.builtin.stat:
         path: /etc/security/faillock.conf
-      register: verify_faillock_conf
-      failed_when: not _verify_faillock_conf.stat.exists
+      register: pam_hardeningpam_hardening_verify_faillock_conf
+      failed_when: not pam_hardeningpam_hardening_verify_faillock_conf.stat.exists
 
     - name: Slurp faillock.conf
       ansible.builtin.slurp:
         src: /etc/security/faillock.conf
-      register: verify_faillock_content
+      register: pam_hardeningpam_hardening_verify_faillock_content
 
     - name: Verify faillock deny setting
       ansible.builtin.assert:
         that:
-          - "'deny =' in (_verify_faillock_content.content | b64decode)"
+          - "'deny =' in (pam_hardeningpam_hardening_verify_faillock_content.content | b64decode)"
         fail_msg: "faillock.conf does not contain deny setting"
 
     - name: Verify faillock unlock_time setting
       ansible.builtin.assert:
         that:
-          - "'unlock_time =' in (_verify_faillock_content.content | b64decode)"
+          - "'unlock_time =' in (pam_hardeningpam_hardening_verify_faillock_content.content | b64decode)"
         fail_msg: "faillock.conf does not contain unlock_time setting"
 
     - name: Verify faillock even_deny_root setting
       ansible.builtin.assert:
         that:
-          - "(_verify_faillock_content.content | b64decode) is search('(?m)^even_deny_root$')"
+          - "(pam_hardeningpam_hardening_verify_faillock_content.content | b64decode) is search('(?m)^even_deny_root$')"
         fail_msg: "faillock.conf does not contain even_deny_root (root would be exempt from lockout)"
 
     # Debian-specific: pam-auth-update profiles должны существовать
     - name: Check pam-auth-update faillock profile exists (Debian)
       ansible.builtin.stat:
         path: /usr/share/pam-configs/faillock
-      register: verify_pam_profile
-      failed_when: not _verify_pam_profile.stat.exists
+      register: pam_hardeningpam_hardening_verify_pam_profile
+      failed_when: not pam_hardeningpam_hardening_verify_pam_profile.stat.exists
       when: ansible_facts['os_family'] == 'Debian'
 
     - name: Check pam-auth-update faillock-authfail profile exists (Debian)
       ansible.builtin.stat:
         path: /usr/share/pam-configs/faillock-authfail
-      register: verify_pam_authfail_profile
-      failed_when: not _verify_pam_authfail_profile.stat.exists
+      register: pam_hardeningpam_hardening_verify_pam_authfail_profile
+      failed_when: not pam_hardeningpam_hardening_verify_pam_authfail_profile.stat.exists
       when: ansible_facts['os_family'] == 'Debian'
 
     - name: Show test results

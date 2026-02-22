@@ -13,14 +13,14 @@
 
 - name: Set skip flag if pinned version already installed
   ansible.builtin.set_fact:
-    _hostctl_skip_install: "{{ hostctl_installed_ver.rc == 0
+    hostctl_skip_install: "{{ hostctl_installed_ver.rc == 0
       and hostctl_version != 'latest'
-      and hostctl_version in (_hostctl_installed_ver.stdout | default('')) }}"
+      and hostctl_version in (hostctl_installed_ver.stdout | default('')) }}"
 
 - name: "Report: hostctl already at requested version"
   ansible.builtin.debug:
     msg: "hostctl {{ hostctl_version }} already installed — skipping"
-  when: _hostctl_skip_install | bool
+  when: hostctl_skip_install | bool
 
 # ---- Package manager install (non-Arch) ----
 
@@ -29,7 +29,7 @@
     name: hostctl
     state: present
   when:
-    - not (_hostctl_skip_install | bool)
+    - not (hostctl_skip_install | bool)
     - ansible_facts['os_family'] not in ['Archlinux']
   register: hostctl_pkg
   failed_when: false
@@ -37,10 +37,10 @@
 - name: "Report: hostctl package install result"
   ansible.builtin.debug:
     msg: >-
-      hostctl package install {{ 'succeeded' if (_hostctl_pkg is not failed) else 'failed — will try GitHub fallback.' }}
+      hostctl package install {{ 'succeeded' if (hostctl_pkg is not failed) else 'failed — will try GitHub fallback.' }}
   when:
-    - _hostctl_pkg is defined
-    - not (_hostctl_pkg is skipped)
+    - hostctl_pkg is defined
+    - not (hostctl_pkg is skipped)
 
 # ---- AUR install (Arch Linux) ----
 
@@ -53,7 +53,7 @@
   become_user: "{{ yay_build_user | default('aur_builder') }}"
   failed_when: false
   when:
-    - not (_hostctl_skip_install | bool)
+    - not (hostctl_skip_install | bool)
     - ansible_facts['os_family'] == 'Archlinux'
 
 # ---- GitHub fallback ----
@@ -63,21 +63,21 @@
   register: hostctl_which
   changed_when: false
   failed_when: false
-  when: not (_hostctl_skip_install | bool)
+  when: not (hostctl_skip_install | bool)
 
 - name: Install hostctl from GitHub releases (fallback)
   ansible.builtin.include_tasks: download.yml
   when:
-    - not (_hostctl_skip_install | bool)
-    - _hostctl_which.rc | default(1) != 0
+    - not (hostctl_skip_install | bool)
+    - hostctl_which.rc | default(1) != 0
     - not ansible_check_mode
 
 - name: "Note: hostctl GitHub download skipped in check mode"
   ansible.builtin.debug:
     msg: "hostctl GitHub download skipped — running in check mode"
   when:
-    - not (_hostctl_skip_install | bool)
-    - _hostctl_which.rc | default(1) != 0
+    - not (hostctl_skip_install | bool)
+    - hostctl_which.rc | default(1) != 0
     - ansible_check_mode
 
 # ---- Final verification ----
@@ -86,4 +86,4 @@
   ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
   register: hostctl_version_check
   changed_when: false
-  failed_when: _hostctl_version_check.rc != 0
+  failed_when: hostctl_version_check.rc != 0

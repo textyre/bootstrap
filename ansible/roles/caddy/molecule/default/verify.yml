@@ -11,25 +11,25 @@
       ansible.builtin.stat:
         path: /opt/caddy
       register: caddy_verify_base_dir
-      failed_when: not _caddy_verify_base_dir.stat.exists
+      failed_when: not caddy_verify_base_dir.stat.exists
 
     - name: Check Caddyfile exists
       ansible.builtin.stat:
         path: /opt/caddy/Caddyfile
       register: caddy_verify_caddyfile
-      failed_when: not _caddy_verify_caddyfile.stat.exists
+      failed_when: not caddy_verify_caddyfile.stat.exists
 
     - name: Check docker-compose.yml exists
       ansible.builtin.stat:
         path: /opt/caddy/docker-compose.yml
       register: caddy_verify_compose
-      failed_when: not _caddy_verify_compose.stat.exists
+      failed_when: not caddy_verify_compose.stat.exists
 
     - name: Check sites directory exists
       ansible.builtin.stat:
         path: /opt/caddy/sites
       register: caddy_verify_sites
-      failed_when: not _caddy_verify_sites.stat.exists
+      failed_when: not caddy_verify_sites.stat.exists
 
     - name: Show test results
       ansible.builtin.debug:

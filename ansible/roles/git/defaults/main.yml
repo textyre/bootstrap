@@ -2,7 +2,7 @@
 # === git role — defaults ===
 
 # --- ROLE-003: Supported operating systems ---
-_git_supported_os:
+git_supported_os:
   - Archlinux
   - Debian
   - RedHat

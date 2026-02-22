@@ -14,10 +14,10 @@
 #       common_rpt_detail: "en_US.UTF-8"
 #
 # Parameters:
-#   _rpt_fact   (string) - Fact name to accumulate rows into (REQUIRED)
-#   _rpt_phase  (string) - Phase name (max 26 chars)
-#   _rpt_status (string) - done / skip / fail (default: done)
-#   _rpt_detail (string) - Payload info (default: '')
+#   common_rpt_fact   (string) - Fact name to accumulate rows into (REQUIRED)
+#   common_rpt_phase  (string) - Phase name (max 26 chars)
+#   common_rpt_status (string) - done / skip / fail (default: done)
+#   common_rpt_detail (string) - Payload info (default: '')
 #
 # Table format: | Phase(26) | Status(10) | Details(24) |
 # Total width: 70 chars (fits 80-col terminal)
@@ -33,8 +33,8 @@
 
 - name: "Report: {{ common_rpt_phase }}"
   ansible.builtin.set_fact:
-    "{{ common_rpt_fact }}": "{{ (lookup('vars', _rpt_fact, default=[]) | list) + [_row] }}"
+    "{{ common_rpt_fact }}": "{{ (lookup('vars', common_rpt_fact, default=[]) | list) + [common_rpt_row] }}"
   vars:
-    _common_rpt_status_mark: "{{ rpt_status | default('done') }}"
-    _common_rpt_mark: "{{ '+' if _st == 'done' else ('-' if _st == 'skip' else '!') }}"
-    _row: "| {{ '%-26s' | format(_rpt_phase) }} | {{ '%-10s' | format(_mk ~ ' ' ~ _st) }} | {{ '%-24s' | format(_rpt_detail | default('') | truncate(24, True)) }} |"
+    common_rpt_status_mark: "{{ common_rpt_status | default('done') }}"
+    common_rpt_mark: "{{ '+' if common_rpt_status_mark == 'done' else ('-' if common_rpt_status_mark == 'skip' else '!') }}"
+    common_rpt_row: "| {{ '%-26s' | format(common_rpt_phase) }} | {{ '%-10s' | format(common_rpt_mark ~ ' ' ~ common_rpt_status_mark) }} | {{ '%-24s' | format(common_rpt_detail | default('') | truncate(24, True)) }} |"

@@ -14,7 +14,7 @@
         cmd: git --version
       register: git_verify_installed
       changed_when: false
-      failed_when: _git_verify_installed.rc != 0
+      failed_when: git_verify_installed.rc != 0
 
     # ---- base config ----
 
@@ -24,7 +24,7 @@
       ansible.builtin.command: git config --global --get user.name
       register: git_verify_username
       changed_when: false
-      failed_when: _git_verify_username.stdout != git_owner.user_name
+      failed_when: git_verify_username.stdout != git_owner.user_name
 
     - name: Check git user.email  # noqa: command-instead-of-module
       become: true
@@ -32,7 +32,7 @@
       ansible.builtin.command: git config --global --get user.email
       register: git_verify_email
       changed_when: false
-      failed_when: _git_verify_email.stdout != git_owner.user_email
+      failed_when: git_verify_email.stdout != git_owner.user_email
 
     - name: Check git init.defaultBranch  # noqa: command-instead-of-module
       become: true
@@ -40,7 +40,7 @@
       ansible.builtin.command: git config --global --get init.defaultBranch
       register: git_verify_branch
       changed_when: false
-      failed_when: _git_verify_branch.stdout != 'main'
+      failed_when: git_verify_branch.stdout != 'main'
 
     - name: Check git core.editor  # noqa: command-instead-of-module
       become: true
@@ -48,7 +48,7 @@
       ansible.builtin.command: git config --global --get core.editor
       register: git_verify_editor
       changed_when: false
-      failed_when: _git_verify_editor.stdout != 'vim'
+      failed_when: git_verify_editor.stdout != 'vim'
 
     - name: Check git pull.rebase  # noqa: command-instead-of-module
       become: true
@@ -56,7 +56,7 @@
       ansible.builtin.command: git config --global --get pull.rebase
       register: git_verify_rebase
       changed_when: false
-      failed_when: _git_verify_rebase.stdout != 'true'
+      failed_when: git_verify_rebase.stdout != 'true'
 
     - name: Check git push.autoSetupRemote  # noqa: command-instead-of-module
       become: true
@@ -64,7 +64,7 @@
       ansible.builtin.command: git config --global --get push.autoSetupRemote
       register: git_verify_autosetup
       changed_when: false
-      failed_when: _git_verify_autosetup.stdout != 'true'
+      failed_when: git_verify_autosetup.stdout != 'true'
 
     - name: Check git core.autocrlf  # noqa: command-instead-of-module
       become: true
@@ -72,7 +72,7 @@
       ansible.builtin.command: git config --global --get core.autocrlf
       register: git_verify_autocrlf
       changed_when: false
-      failed_when: _git_verify_autocrlf.stdout != 'input'
+      failed_when: git_verify_autocrlf.stdout != 'input'
 
     # ---- extra config ----
 
@@ -82,7 +82,7 @@
       ansible.builtin.command: git config --global --get color.ui
       register: git_verify_color_ui
       changed_when: false
-      failed_when: _git_verify_color_ui.stdout != 'auto'
+      failed_when: git_verify_color_ui.stdout != 'auto'
 
     - name: Check diff.colorMoved  # noqa: command-instead-of-module
       become: true
@@ -90,7 +90,7 @@
       ansible.builtin.command: git config --global --get diff.colorMoved
       register: git_verify_colormoved
       changed_when: false
-      failed_when: _git_verify_colormoved.stdout != 'zebra'
+      failed_when: git_verify_colormoved.stdout != 'zebra'
 
     # ---- safe.directory ----
 
@@ -100,7 +100,7 @@
       ansible.builtin.command: git config --global --get-all safe.directory
       register: git_verify_safe_dirs
       changed_when: false
-      failed_when: "'/tmp/test-safe-dir' not in _git_verify_safe_dirs.stdout_lines"
+      failed_when: "'/tmp/test-safe-dir' not in git_verify_safe_dirs.stdout_lines"
 
     # ---- aliases ----
 
@@ -110,7 +110,7 @@
       ansible.builtin.command: git config --global --get alias.st
       register: git_verify_alias_st
       changed_when: false
-      failed_when: _git_verify_alias_st.stdout != 'status'
+      failed_when: git_verify_alias_st.stdout != 'status'
 
     - name: Check alias.lg exists  # noqa: command-instead-of-module
       become: true
@@ -118,7 +118,7 @@
       ansible.builtin.command: git config --global --get alias.lg
       register: git_verify_alias_lg
       changed_when: false
-      failed_when: _git_verify_alias_lg.rc != 0
+      failed_when: git_verify_alias_lg.rc != 0
 
     # ---- credential helper ----
 
@@ -128,7 +128,7 @@
       ansible.builtin.command: git config --global --get credential.helper
       register: git_verify_credential
       changed_when: false
-      failed_when: "'cache' not in _git_verify_credential.stdout"
+      failed_when: "'cache' not in git_verify_credential.stdout"
 
     # ---- git-lfs ----
 
@@ -137,7 +137,7 @@
         cmd: git lfs version
       register: git_verify_lfs
       changed_when: false
-      failed_when: _git_verify_lfs.rc != 0
+      failed_when: git_verify_lfs.rc != 0
 
     # ---- hooks directory ----
 
@@ -149,8 +149,8 @@
     - name: Assert hooks directory exists
       ansible.builtin.assert:
         that:
-          - _git_verify_hooks.stat.exists
-          - _git_verify_hooks.stat.isdir
+          - git_verify_hooks.stat.exists
+          - git_verify_hooks.stat.isdir
         fail_msg: "Global hooks directory /tmp/test-git-hooks does not exist"
 
     # ---- report ----

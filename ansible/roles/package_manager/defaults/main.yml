@@ -2,7 +2,7 @@
 # === Конфигурация пакетного менеджера ===
 
 # Поддерживаемые дистрибутивы (ansible_distribution)
-_pkgmgr_supported_distributions:
+pkgmgr_supported_distributions:
   - Archlinux
   - Debian
   - Ubuntu

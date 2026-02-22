@@ -2,7 +2,7 @@
 # === teleport role defaults ===
 
 # ROLE-003: Supported operating systems
-_teleport_supported_os:
+teleport_supported_os:
   - Archlinux
   - Debian
   - RedHat

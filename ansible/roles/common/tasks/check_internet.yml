@@ -9,10 +9,10 @@
 - name: Assert required variables are provided
   ansible.builtin.assert:
     that:
-      - _check_internet_host is defined
-      - _check_internet_port is defined
-    fail_msg: >-
-      check_internet.yml requires _check_internet_host and _check_internet_port.
+      - common_check_internet_host is defined
+      - common_check_internet_port is defined
+    fail_msg: >
+      check_internet.yml requires common_check_internet_host and common_check_internet_port.
       Pass them via vars: when calling include_role.
 
 - name: "Check internet connectivity ({{ common_check_internet_host }}:{{ common_check_internet_port }})"
@@ -29,4 +29,4 @@
       Internet connectivity required but unavailable.
       Cannot reach {{ common_check_internet_host }}:{{ common_check_internet_port }}.
       Fix network access before running this role.
-  when: _common_internet_check is failed
+  when: common_internet_check is failed

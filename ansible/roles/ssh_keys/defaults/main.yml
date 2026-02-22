@@ -25,7 +25,7 @@ ssh_keys_exclusive: false
 
 # Backward compatibility with user role data model
 # If `accounts` is not defined, falls back to user_owner + user_additional_users
-_ssh_keys_users: >-
+ssh_keys_users: >-
   {{ accounts | default(
        [user_owner | default({})] +
        (user_additional_users | default([]))

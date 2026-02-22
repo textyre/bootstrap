@@ -4,7 +4,7 @@
     cmd: "fail2ban-client status"
   register: fail2ban_verify_status
   changed_when: false
-  failed_when: _fail2ban_verify_status.rc != 0
+  failed_when: fail2ban_verify_status.rc != 0
   tags: [fail2ban]
 
 - name: "Verify SSH jail is active"
@@ -12,14 +12,14 @@
     cmd: "fail2ban-client status sshd"
   register: fail2ban_verify_sshd
   changed_when: false
-  failed_when: _fail2ban_verify_sshd.rc != 0
+  failed_when: fail2ban_verify_sshd.rc != 0
   when: fail2ban_sshd_enabled | bool
   tags: [fail2ban]
 
 - name: "Assert SSH jail reports correctly"
   ansible.builtin.assert:
     that:
-      - "'sshd' in _fail2ban_verify_sshd.stdout"
+      - "'sshd' in fail2ban_verify_sshd.stdout"
     fail_msg: "fail2ban sshd jail is not active"
   when: fail2ban_sshd_enabled | bool
   tags: [fail2ban]

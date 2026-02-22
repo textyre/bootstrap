@@ -12,8 +12,8 @@
     - name: "Assert .ssh directory has 0700 permissions"
       ansible.builtin.assert:
         that:
-          - _verify_ssh_dir.stat.exists
-          - _verify_ssh_dir.stat.mode == '0700'
+          - verify_ssh_dir.stat.exists
+          - verify_ssh_dir.stat.mode == '0700'
 
     - name: "Verify authorized_keys exists"
       ansible.builtin.stat:
@@ -23,12 +23,12 @@
     - name: "Assert authorized_keys exists and has correct permissions"
       ansible.builtin.assert:
         that:
-          - _verify_authkeys.stat.exists
-          - _verify_authkeys.stat.mode == '0600'
+          - verify_authkeys.stat.exists
+          - verify_authkeys.stat.mode == '0600'
 
     - name: "Check authorized_keys contains test key"
       ansible.builtin.command:
         cmd: "grep -c 'test@molecule' /home/{{ ansible_user_id }}/.ssh/authorized_keys"
       register: verify_key_content
       changed_when: false
-      failed_when: _verify_key_content.rc != 0
+      failed_when: ssh_keysssh_keysssh_keysverify_key_content.rc != 0

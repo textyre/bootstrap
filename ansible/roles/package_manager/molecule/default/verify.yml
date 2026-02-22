@@ -7,67 +7,67 @@
   tasks:
     - name: Check pacman.conf is managed by Ansible
       ansible.builtin.command: grep -q 'Managed by Ansible' /etc/pacman.conf
-      register: verify_pacman_marker
+      register: pkgmgr_verify_pacman_marker
       changed_when: false
-      failed_when: _verify_pacman_marker.rc != 0
+      failed_when: pkgmgr_verify_pacman_marker.rc != 0
 
     - name: Check pacman.conf has ParallelDownloads
       ansible.builtin.command: grep -q '^ParallelDownloads' /etc/pacman.conf
-      register: verify_pacman_parallel
+      register: pkgmgr_verify_pacman_parallel
       changed_when: false
-      failed_when: _verify_pacman_parallel.rc != 0
+      failed_when: pkgmgr_verify_pacman_parallel.rc != 0
 
     - name: Check pacman.conf has Color
       ansible.builtin.command: grep -q '^Color' /etc/pacman.conf
-      register: verify_pacman_color
+      register: pkgmgr_verify_pacman_color
       changed_when: false
-      failed_when: _verify_pacman_color.rc != 0
+      failed_when: pkgmgr_verify_pacman_color.rc != 0
 
     - name: Check pacman.conf has VerbosePkgLists
       ansible.builtin.command: grep -q '^VerbosePkgLists' /etc/pacman.conf
-      register: verify_pacman_verbose
+      register: pkgmgr_verify_pacman_verbose
       changed_when: false
-      failed_when: _verify_pacman_verbose.rc != 0
+      failed_when: pkgmgr_verify_pacman_verbose.rc != 0
 
     - name: Check paccache.timer is enabled
       ansible.builtin.command: systemctl is-enabled paccache.timer
-      register: verify_paccache_timer
+      register: pkgmgr_verify_paccache_timer
       changed_when: false
-      failed_when: _verify_paccache_timer.rc != 0
+      failed_when: pkgmgr_verify_paccache_timer.rc != 0
 
     - name: Check makepkg.conf.d/ansible.conf exists
       ansible.builtin.stat:
         path: /etc/makepkg.conf.d/ansible.conf
-      register: verify_makepkg
-      failed_when: not _verify_makepkg.stat.exists
+      register: pkgmgr_verify_makepkg
+      failed_when: not pkgmgr_verify_makepkg.stat.exists
 
     # --- reflector ---
 
     - name: Check reflector config exists
       ansible.builtin.stat:
         path: /etc/xdg/reflector/reflector.conf
-      register: verify_reflector_conf
-      failed_when: not _verify_reflector_conf.stat.exists
+      register: pkgmgr_verify_reflector_conf
+      failed_when: not pkgmgr_verify_reflector_conf.stat.exists
 
     - name: Check reflector.timer is enabled
       ansible.builtin.command: systemctl is-enabled reflector.timer
-      register: verify_reflector_timer
+      register: pkgmgr_verify_reflector_timer
       changed_when: false
-      failed_when: _verify_reflector_timer.rc != 0
+      failed_when: pkgmgr_verify_reflector_timer.rc != 0
 
     # --- yay ---
 
     - name: Check yay binary exists
       ansible.builtin.command: which yay
-      register: verify_yay_binary
+      register: pkgmgr_verify_yay_binary
       changed_when: false
-      failed_when: _verify_yay_binary.rc != 0
+      failed_when: pkgmgr_verify_yay_binary.rc != 0
 
     - name: Check yay sudoers file exists
       ansible.builtin.stat:
         path: /etc/sudoers.d/yay-pacman
-      register: verify_yay_sudoers
-      failed_when: not _verify_yay_sudoers.stat.exists
+      register: pkgmgr_verify_yay_sudoers
+      failed_when: not pkgmgr_verify_yay_sudoers.stat.exists
 
     - name: Show verify results
       ansible.builtin.debug:

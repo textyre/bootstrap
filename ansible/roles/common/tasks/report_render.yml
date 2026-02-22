@@ -12,19 +12,19 @@
 #       common_rpt_footer_rows: []   # optional extra footer rows
 #
 # Parameters:
-#   _rpt_fact        (string) - Fact name with accumulated rows (REQUIRED)
-#   _rpt_title       (string) - Role name for the report header (REQUIRED)
-#   _rpt_footer_rows (list)   - Extra pre-formatted rows before closing line
+#   common_rpt_fact        (string) - Fact name with accumulated rows (REQUIRED)
+#   common_rpt_title       (string) - Role name for the report header (REQUIRED)
+#   common_rpt_footer_rows (list)   - Extra pre-formatted rows before closing line
 # =========================================================================
 
 - name: "{{ common_rpt_title }} — Execution Report"
   ansible.builtin.debug:
-    msg: "{{ header + (lookup('vars', _rpt_fact, default=[]) | list) + _extra + _footer }}"
+    msg: "{{ common_rpt_header + (lookup('vars', common_rpt_fact, default=[]) | list) + common_rpt_extra + common_rpt_footer }}"
   vars:
-    _header:
+    common_rpt_header:
       - "+----------------------------+------------+--------------------------+"
       - "| Phase                      | Status     | Details                  |"
       - "+----------------------------+------------+--------------------------+"
-    _extra: "{{ rpt_footer_rows | default([]) }}"
-    _footer:
+    common_rpt_extra: "{{ common_rpt_footer_rows | default([]) }}"
+    common_rpt_footer:
       - "+----------------------------+------------+--------------------------+"

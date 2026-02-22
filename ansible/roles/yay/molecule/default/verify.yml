@@ -20,7 +20,7 @@
 
     - name: Check that aur_builder has nologin shell
       ansible.builtin.assert:
-        that: _verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
+        that: verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
         fail_msg: "aur_builder shell is not /usr/bin/nologin"
 
     # --- sudoers ---
@@ -28,11 +28,11 @@
       ansible.builtin.stat:
         path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
       register: verify_sudoers
-      failed_when: not _verify_sudoers.stat.exists
+      failed_when: not verify_sudoers.stat.exists
 
     - name: Check sudoers file mode is 0440
       ansible.builtin.assert:
-        that: _verify_sudoers.stat.mode == '0440'
+        that: verify_sudoers.stat.mode == '0440'
         fail_msg: "sudoers file mode is {{ verify_sudoers.stat.mode }}, expected 0440"
 
     - name: Validate sudoers syntax
@@ -46,7 +46,7 @@
         state: present
       check_mode: true
       register: verify_dep_check
-      failed_when: _verify_dep_check is changed
+      failed_when: verify_dep_check is changed
       loop: "{{ yay_build_deps }}"
 
     - name: Check that yay binary exists
@@ -63,7 +63,7 @@
       ansible.builtin.command: ldd /usr/bin/yay
       changed_when: false
       register: verify_yay_ldd
-      failed_when: "'not found' in _verify_yay_ldd.stdout"
+      failed_when: "'not found' in pkgmgrverify_yay_ldd.stdout"
 
     # --- cleanup ---
     - name: Check that temp build directory was cleaned up
@@ -72,7 +72,7 @@
         patterns: "yay_build_*"
         file_type: directory
       register: verify_build_dirs
-      failed_when: _verify_build_dirs.matched > 0
+      failed_when: verify_build_dirs.matched > 0
 
     # --- AUR packages ---
     - name: Check that AUR packages are installed

@@ -9,8 +9,8 @@
     name: common
     tasks_from: check_internet.yml
   vars:
-    _check_internet_host: "time.cloudflare.com"
-    _check_internet_port: 123
+    common_check_internet_host: "time.cloudflare.com"
+    common_check_internet_port: 123
   tags: ['ntp']
 
 # ---- Functional checks ----
@@ -20,14 +20,14 @@
     cmd: chronyc tracking
   register: ntp_check
   changed_when: false
-  failed_when: _ntp_check.rc != 0
+  failed_when: ntp_check.rc != 0
   tags: ['ntp']
 
 - name: Assert chrony daemon is functional
   ansible.builtin.assert:
     that:
-      - "'Stratum' in _ntp_check.stdout"
-      - "'System time' in _ntp_check.stdout"
+      - "'Stratum' in ntp_check.stdout"
+      - "'System time' in ntp_check.stdout"
     fail_msg: "chronyc tracking output invalid — chrony may not be configured correctly"
     quiet: true
   tags: ['ntp']
@@ -43,7 +43,7 @@
 - name: Assert chrony has at least one source configured
   ansible.builtin.assert:
     that:
-      - _ntp_sources.stdout_lines | length > 2
+      - ntp_sources.stdout_lines | length > 2
     fail_msg: "chrony has no NTP sources configured"
     quiet: true
   tags: ['ntp']
@@ -59,7 +59,7 @@
 - name: Assert at least one source is synced (^* marker)
   ansible.builtin.assert:
     that:
-      - _ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
+      - ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
     fail_msg: >-
       No synchronized NTP source (no '^*' marker in chronyc -n sources).
       Chrony is running but not synced — check internet connectivity and NTP server reachability.
