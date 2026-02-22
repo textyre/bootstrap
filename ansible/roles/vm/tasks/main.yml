@@ -48,19 +48,19 @@
 
 - name: Detect virtualization environment
   ansible.builtin.set_fact:
-    _vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
-    _vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+    vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+    vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
   tags: ['vm']
 
 - name: Check for container/WSL2 environment
   ansible.builtin.set_fact:
-    vm_is_container: "{{ vm_virt_role == 'guest' and _vm_virt_type in ['container', 'wsl'] }}"
+    vm_is_container: "{{ vm_virt_role == 'guest' and vm_virt_type in ['container', 'wsl'] }}"
   tags: ['vm']
 
 - name: Determine if running as guest in supported hypervisor
   ansible.builtin.set_fact:
-    vm_is_guest: "{{ vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors }}"
-    vm_hypervisor: "{{ vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
+    vm_is_guest: "{{ vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors }}"
+    vm_hypervisor: "{{ vm_virt_type if (vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
 - name: "Report: Detect virtualization"

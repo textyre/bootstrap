@@ -86,7 +86,7 @@
   ansible.builtin.include_tasks:
     file: _check_x11.yml
   vars:
-    _vm_x11_label: "VMware"
+    vm_x11_label: "VMware"
     vm_x11_paths:
       - path: /etc/xdg/autostart/vmware-user.desktop
         description: "VMware user agent autostart"
