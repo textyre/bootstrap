@@ -1,9 +1,14 @@
 ---
-# === Управление сервисом sshd ===
+# === ROLE-002: Init-system agnostic service management ===
 
-- name: Enable and start sshd
+- name: "Determine sshd service name"
+  ansible.builtin.set_fact:
+    _ssh_svc: "{{ _ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+  tags: [ssh, service]
+
+- name: "Enable and start sshd"
   ansible.builtin.service:
-    name: sshd
+    name: "{{ _ssh_svc }}"
     enabled: true
     state: started
-  tags: ['ssh', 'service']
+  tags: [ssh, service]
