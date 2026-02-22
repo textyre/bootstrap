@@ -1,67 +1,125 @@
 ---
-# === Глобальная конфигурация Git ===
+# === git role — main orchestration ===
+# Two-level architecture:
+#   System layer (root): preflight, install, hooks directory
+#   Per-user layer (become_user): config, signing, aliases, credential, LFS
 
-- name: Set git user.name
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: user.name
-    value: "{{ git_user_name }}"
-    scope: global
-  when: git_user_name | length > 0
-  tags: ['git', 'configure']
+# ======================================================================
+# ---- ROLE-003: Preflight ----
+# ======================================================================
 
-- name: Set git user.email
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: user.email
-    value: "{{ git_user_email }}"
-    scope: global
-  when: git_user_email | length > 0
-  tags: ['git', 'configure']
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _git_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _git_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: [git]
 
-- name: Set git init.defaultBranch
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: init.defaultBranch
-    value: "{{ git_default_branch }}"
-    scope: global
-  tags: ['git', 'configure']
+# ======================================================================
+# ---- ROLE-001: Load OS-specific variables ----
+# ======================================================================
 
-- name: Set git core.editor
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: core.editor
-    value: "{{ git_editor }}"
-    scope: global
-  tags: ['git', 'configure']
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: [git]
 
-- name: Set git pull.rebase
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: pull.rebase
-    value: "{{ git_pull_rebase | string | lower }}"
-    scope: global
-  tags: ['git', 'configure']
+# ROLE-008: Report preflight
+- name: "Report: preflight"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_git_phases"
+    _rpt_phase: "Preflight"
+    _rpt_detail: "os={{ ansible_facts['os_family'] }}"
+  tags: [git, report]
 
-- name: Set git push.autoSetupRemote
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: push.autoSetupRemote
-    value: "{{ git_push_autosetup_remote | string | lower }}"
-    scope: global
-  tags: ['git', 'configure']
+# ======================================================================
+# ---- System layer: install packages ----
+# ======================================================================
 
-- name: Set git core.autocrlf
-  become: true
-  become_user: "{{ git_target_user }}"
-  community.general.git_config:
-    name: core.autocrlf
-    value: "{{ git_core_autocrlf }}"
-    scope: global
-  tags: ['git', 'configure']
+- name: Install git packages
+  ansible.builtin.include_tasks: install.yml
+  tags: [git, install]
+
+# ROLE-008: Report install
+- name: "Report: install"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_git_phases"
+    _rpt_phase: "Install"
+    _rpt_detail: >-
+      packages={{ _git_packages | join(', ') }}
+      lfs={{ git_lfs_enabled }}
+  tags: [git, report]
+
+# ======================================================================
+# ---- System layer: global hooks directory ----
+# ======================================================================
+
+- name: Create global hooks directories
+  ansible.builtin.include_tasks: hooks_global.yml
+  when: git_manage_hooks | bool
+  tags: [git, hooks]
+
+# ======================================================================
+# ---- Per-user layer: configure each user ----
+# ======================================================================
+
+- name: Configure git for each user
+  ansible.builtin.include_tasks: configure_user.yml
+  loop: "{{ [git_owner] + git_additional_users }}"
+  loop_control:
+    loop_var: _git_current_user
+    label: "{{ _git_current_user.name }}"
+  tags: [git, configure]
+
+# ROLE-008: Report user configuration
+- name: "Report: user configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_git_phases"
+    _rpt_phase: "Configure users"
+    _rpt_detail: >-
+      owner={{ git_owner.name }}
+      additional={{ git_additional_users | length }}
+  tags: [git, report]
+
+# ======================================================================
+# ---- ROLE-005: Verification ----
+# ======================================================================
+
+- name: Verify git configuration
+  ansible.builtin.include_tasks: verify.yml
+  tags: [git]
+
+# ROLE-008: Report verification
+- name: "Report: verification"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    _rpt_fact: "_git_phases"
+    _rpt_phase: "Verify"
+    _rpt_detail: "all checks passed"
+  tags: [git, report]
+
+# ======================================================================
+# ---- ROLE-008: Final report ----
+# ======================================================================
+
+- name: "git -- Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    _rpt_fact: "_git_phases"
+    _rpt_title: "git"
+  tags: [git, report]
