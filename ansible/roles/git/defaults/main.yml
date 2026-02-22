@@ -1,18 +1,74 @@
 ---
-# === Глобальная конфигурация Git ===
+# === git role — defaults ===
 
-# Целевой пользователь
-git_target_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+# --- ROLE-003: Supported operating systems ---
+_git_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
-# Основные настройки (пустые = не устанавливать)
-git_user_name: ""
-git_user_email: ""
+# --- Primary owner ---
+git_owner:
+  name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+  user_name: ""
+  user_email: ""
+  signing_method: none
+  signing_key: ""
+  credential_helper: ""
 
-# Настройки по умолчанию
-git_default_branch: "main"
-git_editor: "vim"
+# --- Additional users ---
+git_additional_users: []
+# - name: alice
+#   user_name: "Alice"
+#   user_email: "alice@example.com"
+#   signing_method: none
+#   signing_key: ""
+#   credential_helper: ""
 
-# Дополнительные настройки
+# --- Shared defaults (applied to all users) ---
+git_default_branch: main
+git_editor: vim
 git_pull_rebase: true
 git_push_autosetup_remote: true
-git_core_autocrlf: "input"
+git_core_autocrlf: input
+git_commit_sign: >-
+  {{ true if 'security' in (workstation_profiles | default([]))
+     else false }}
+
+# --- Per-subsystem toggles (ROLE-010) ---
+git_manage_signing: >-
+  {{ true if 'developer' in (workstation_profiles | default([]))
+     or 'security' in (workstation_profiles | default([]))
+     else false }}
+git_manage_aliases: true
+git_manage_credential: true
+git_manage_hooks: false
+git_lfs_enabled: true
+
+# --- Aliases ---
+git_aliases_preset:
+  st: status
+  co: checkout
+  br: branch
+  ci: commit
+  lg: "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
+  unstage: "reset HEAD --"
+  last: "log -1 HEAD"
+  amend: "commit --amend --no-edit"
+git_aliases_extra: {}
+git_aliases_overwrite: {}
+
+# --- Credential helper ---
+git_credential_helper: "cache --timeout=3600"
+
+# --- Global hooks ---
+git_hooks_path: "~/.config/git/hooks"
+
+# --- Extra git config (ROLE-010 dict pattern) ---
+git_config_extra: {}
+git_config_overwrite: {}
+
+# --- Safe directory (CVE-2022-24765) ---
+git_safe_directories: []
