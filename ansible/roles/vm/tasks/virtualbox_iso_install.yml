@@ -156,9 +156,12 @@
 
     - name: "VirtualBox: Collect failure diagnostics"
       ansible.builtin.shell: |
+        set -o pipefail
         echo "=== Kernel ===" && uname -r
         echo "=== VBoxGuestAdditions ISOs ===" && ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'
         echo "=== Loaded vbox modules ===" && lsmod | grep vbox || echo 'No vbox modules'
+      args:
+        executable: /bin/bash
       register: vm_vbox_iso_diag
       changed_when: false
       failed_when: false
