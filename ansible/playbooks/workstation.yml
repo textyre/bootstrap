@@ -116,4 +116,3 @@
     # --- Phase 7: User dotfiles ---
     - role: chezmoi
       tags: [chezmoi, dotfiles]
-

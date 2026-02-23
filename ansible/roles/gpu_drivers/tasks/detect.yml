@@ -11,8 +11,8 @@
 - name: Apply manual vendor override
   ansible.builtin.set_fact:
     _gpu_drivers_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
-    _gpu_drivers_has_amd:    "{{ gpu_drivers_vendor == 'amd' }}"
-    _gpu_drivers_has_intel:  "{{ gpu_drivers_vendor == 'intel' }}"
+    _gpu_drivers_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
+    _gpu_drivers_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
   when: gpu_drivers_vendor != 'auto'
   tags: ['gpu', 'drivers']
 
@@ -48,8 +48,8 @@
 - name: Set no-GPU facts when vendor is 'none'
   ansible.builtin.set_fact:
     _gpu_drivers_has_nvidia: false
-    _gpu_drivers_has_amd:    false
-    _gpu_drivers_has_intel:  false
+    _gpu_drivers_has_amd: false
+    _gpu_drivers_has_intel: false
   when: gpu_drivers_vendor == 'none'
   tags: ['gpu', 'drivers']
 

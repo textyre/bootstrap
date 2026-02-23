@@ -7,10 +7,10 @@ ntp_enabled: true
 # NTP-серверы — список объектов {host, nts, iburst}
 # Три независимых провайдера с поддержкой NTS (RFC 8915)
 ntp_servers:
-  - { host: "time.cloudflare.com",  nts: true, iburst: true }
-  - { host: "time.nist.gov",        nts: true, iburst: true }
-  - { host: "ptbtime1.ptb.de",      nts: true, iburst: true }
-  - { host: "ptbtime2.ptb.de",      nts: true, iburst: true }
+  - { host: "time.cloudflare.com", nts: true, iburst: true }
+  - { host: "time.nist.gov", nts: true, iburst: true }
+  - { host: "ptbtime1.ptb.de", nts: true, iburst: true }
+  - { host: "ptbtime2.ptb.de", nts: true, iburst: true }
 
 # Коррекция часов при запуске chrony
 # Прыжок если расхождение > threshold сек, только в первые limit обновлений

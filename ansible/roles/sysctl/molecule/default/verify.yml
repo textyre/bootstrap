@@ -43,15 +43,15 @@
       # Реальные ошибки (permission denied, sysctl not found) имеют другие rc
       failed_when: item.rc is defined and item.rc not in [0, 255]
       loop:
-        - { param: "kernel.randomize_va_space",       expected: "2" }
-        - { param: "kernel.kptr_restrict",             expected: "2" }
-        - { param: "fs.protected_hardlinks",           expected: "1" }
-        - { param: "fs.protected_symlinks",            expected: "1" }
-        - { param: "fs.suid_dumpable",                 expected: "0" }
-        - { param: "net.ipv4.tcp_syncookies",          expected: "1" }
-        - { param: "net.ipv4.tcp_timestamps",          expected: "0" }
-        - { param: "net.ipv4.tcp_tw_reuse",            expected: "0" }
-        - { param: "net.core.bpf_jit_harden",         expected: "2" }
+        - { param: "kernel.randomize_va_space", expected: "2" }
+        - { param: "kernel.kptr_restrict", expected: "2" }
+        - { param: "fs.protected_hardlinks", expected: "1" }
+        - { param: "fs.protected_symlinks", expected: "1" }
+        - { param: "fs.suid_dumpable", expected: "0" }
+        - { param: "net.ipv4.tcp_syncookies", expected: "1" }
+        - { param: "net.ipv4.tcp_timestamps", expected: "0" }
+        - { param: "net.ipv4.tcp_tw_reuse", expected: "0" }
+        - { param: "net.core.bpf_jit_harden", expected: "2" }
 
     - name: Assert security parameters match expected values
       ansible.builtin.assert:
