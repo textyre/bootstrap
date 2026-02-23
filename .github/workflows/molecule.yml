@@ -1,0 +1,101 @@
+---
+name: "Molecule"
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'ansible/roles/**'
+      - 'ansible/molecule/Dockerfile.*'
+      - 'ansible/requirements.txt'
+      - '.github/workflows/molecule.yml'
+      - '.github/workflows/_molecule.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'ansible/roles/**'
+      - 'ansible/molecule/Dockerfile.*'
+      - 'ansible/requirements.txt'
+      - '.github/workflows/molecule.yml'
+      - '.github/workflows/_molecule.yml'
+  workflow_dispatch:
+    inputs:
+      role_filter:
+        description: 'Role to test, or "all" for all CI-ready roles'
+        required: false
+        default: 'all'
+
+concurrency:
+  group: molecule-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect changed roles
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      empty: ${{ steps.build.outputs.empty }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        if: github.event_name != 'workflow_dispatch'
+        uses: tj-actions/changed-files@v46
+        with:
+          files: 'ansible/**'
+
+      - name: Build role matrix
+        id: build
+        run: |
+          # CI-ready roles = those with molecule/docker/molecule.yml
+          ALL_ROLES=$(find ansible/roles -name molecule.yml -path "*/docker/molecule.yml" \
+            | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FILTER="${{ inputs.role_filter }}"
+            if [ "$FILTER" = "all" ] || [ -z "$FILTER" ]; then
+              ROLES="$ALL_ROLES"
+            else
+              ROLES="$FILTER"
+            fi
+          else
+            CHANGED="${{ steps.changed.outputs.all_changed_files }}"
+            # Infrastructure or common changed → run all CI-ready roles
+            if echo "$CHANGED" | tr ' ' '\n' | grep -qE \
+              "^ansible/roles/common/|^ansible/molecule/|^ansible/requirements\.txt"; then
+              ROLES="$ALL_ROLES"
+            else
+              # Only changed roles that are CI-ready
+              ROLES=$(echo "$CHANGED" | tr ' ' '\n' \
+                | grep "^ansible/roles/" \
+                | sed 's|ansible/roles/||;s|/.*||' \
+                | sort -u \
+                | while IFS= read -r role; do
+                    [ -f "ansible/roles/$role/molecule/docker/molecule.yml" ] && echo "$role"
+                  done)
+            fi
+          fi
+
+          MATRIX=$(printf '%s\n' $ROLES | grep -v '^$' \
+            | jq -Rsc '[split("\n")[] | select(length > 0)]')
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$MATRIX" = "[]" ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: detect
+    if: needs.detect.outputs.empty == 'false'
+    strategy:
+      matrix:
+        role: ${{ fromJSON(needs.detect.outputs.matrix) }}
+      fail-fast: false
+    uses: ./.github/workflows/_molecule.yml
+    with:
+      role_name: ${{ matrix.role }}
