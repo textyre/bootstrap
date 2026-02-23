@@ -5,6 +5,12 @@ ENV container=docker
 RUN pacman -Syu --noconfirm python sudo && \
     rm -rf /var/cache/pacman/pkg/*
 
+# Restore glibc locale data stripped by NoExtract in the base image,
+# so roles that test locale generation have the definition files available.
+RUN sed -i '/^NoExtract/d' /etc/pacman.conf && \
+    pacman -S --noconfirm --overwrite='*' glibc && \
+    rm -rf /var/cache/pacman/pkg/*
+
 RUN (for i in /lib/systemd/system/sysinit.target.wants/*; do \
       [ "$i" = "/lib/systemd/system/sysinit.target.wants/systemd-tmpfiles-setup.service" ] || rm -f "$i"; \
     done); \
