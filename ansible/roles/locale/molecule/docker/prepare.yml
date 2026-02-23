@@ -5,6 +5,15 @@
   gather_facts: false
 
   tasks:
+    - name: Ensure locale entries exist in /usr/share/i18n/SUPPORTED
+      ansible.builtin.lineinfile:
+        path: /usr/share/i18n/SUPPORTED
+        line: "{{ item }}"
+        create: true
+      loop:
+        - "en_US.UTF-8 UTF-8"
+        - "ru_RU.UTF-8 UTF-8"
+
     - name: Ensure locale entries exist in /etc/locale.gen
       ansible.builtin.lineinfile:
         path: /etc/locale.gen
