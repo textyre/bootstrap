@@ -9,5 +9,3 @@
       vars:
         hostname_name: "archbox"
         hostname_domain: "example.com"
-        hostname_strategy:
-          Archlinux: generic
