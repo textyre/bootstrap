@@ -12,7 +12,7 @@ The image MUST provide these capabilities:
 | sudo | `sudo --version` | `become: true` in playbooks |
 | locale definition files | `/usr/share/i18n/locales/ru_RU`, `en_US` | `locale` role (`community.general.locale_gen`) |
 | SUPPORTED list | `/usr/share/i18n/SUPPORTED` | `locale` role (availability check) |
-| locale-gen | `which locale-gen` | `locale` role (compilation) |
+| locale-gen | `command -v locale-gen` | `locale` role (compilation) |
 
 ### Why locale data needs explicit restoration
 

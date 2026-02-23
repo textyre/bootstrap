@@ -143,7 +143,7 @@ jobs:
             echo -n "SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo OK
             echo -n "en_US: "     && test -f /usr/share/i18n/locales/en_US && echo OK
             echo -n "ru_RU: "     && test -f /usr/share/i18n/locales/ru_RU && echo OK
-            echo -n "locale-gen: " && which locale-gen
+            echo -n "locale-gen: " && command -v locale-gen
             echo "=== Image contract: PASS ==="
           '
 
