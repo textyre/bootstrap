@@ -31,4 +31,4 @@
         cmd: "grep -c 'test@molecule' /home/{{ ansible_user_id }}/.ssh/authorized_keys"
       register: verify_key_content
       changed_when: false
-      failed_when: ssh_keysssh_keysssh_keysverify_key_content.rc != 0
+      failed_when: verify_key_content.rc != 0

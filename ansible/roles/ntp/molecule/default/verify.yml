@@ -125,42 +125,42 @@
 
     - name: Decode chrony.conf content
       ansible.builtin.set_fact:
-        ntpntp_verify_chrony_conf_text: "{{ ntp_verify_chrony_conf_content.content | b64decode }}"
+        ntp_verify_chrony_conf_text: "{{ ntp_verify_chrony_conf_content.content | b64decode }}"
 
     - name: Assert NTS flag present in at least one server line
       ansible.builtin.assert:
         that:
-          - "'nts' in ntpntp_verify_chrony_conf_text"
+          - "'nts' in ntp_verify_chrony_conf_text"
         fail_msg: "No NTS servers found in /etc/chrony.conf"
 
     - name: Assert minsources directive present
       ansible.builtin.assert:
         that:
-          - "'minsources' in ntpntp_verify_chrony_conf_text"
+          - "'minsources' in ntp_verify_chrony_conf_text"
         fail_msg: "minsources directive missing from /etc/chrony.conf"
 
     - name: Assert driftfile directive present
       ansible.builtin.assert:
         that:
-          - "'driftfile' in ntpntp_verify_chrony_conf_text"
+          - "'driftfile' in ntp_verify_chrony_conf_text"
         fail_msg: "driftfile directive missing from /etc/chrony.conf"
 
     - name: Assert dumpdir directive present
       ansible.builtin.assert:
         that:
-          - "'dumpdir' in ntpntp_verify_chrony_conf_text"
+          - "'dumpdir' in ntp_verify_chrony_conf_text"
         fail_msg: "dumpdir directive missing from /etc/chrony.conf"
 
     - name: Assert ntsdumpdir directive present
       ansible.builtin.assert:
         that:
-          - "'ntsdumpdir' in ntpntp_verify_chrony_conf_text"
+          - "'ntsdumpdir' in ntp_verify_chrony_conf_text"
         fail_msg: "ntsdumpdir directive missing from /etc/chrony.conf"
 
     - name: Assert log tracking directive present
       ansible.builtin.assert:
         that:
-          - "'log measurements statistics tracking' in ntpntp_verify_chrony_conf_text"
+          - "'log measurements statistics tracking' in ntp_verify_chrony_conf_text"
         fail_msg: "log tracking directive missing from /etc/chrony.conf"
 
     # ---- directories ----
@@ -196,7 +196,7 @@
     - name: Assert environment comment present in chrony.conf
       ansible.builtin.assert:
         that:
-          - "'# Environment:' in ntpntp_verify_chrony_conf_text"
+          - "'# Environment:' in ntp_verify_chrony_conf_text"
         fail_msg: "chrony.conf missing environment detection comment — template not updated"
 
     # ---- competitor services ----
@@ -222,7 +222,7 @@
     - name: Assert ptp_kvm loaded on KVM
       ansible.builtin.assert:
         that:
-          - "'ptp_kvm' in ntpntpntpverify_lsmod.stdout"
+          - "'ptp_kvm' in verify_lsmod.stdout"
         fail_msg: "ptp_kvm module not loaded on KVM guest"
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 

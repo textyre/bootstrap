@@ -1,6 +1,7 @@
 # ansible/roles/ssh_keys/meta/main.yml
 ---
 galaxy_info:
+  role_name: ssh_keys
   author: textyre
   description: SSH authorized_keys and key generation management
   license: MIT

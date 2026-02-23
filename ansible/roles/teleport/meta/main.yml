@@ -1,5 +1,6 @@
 ---
 galaxy_info:
+  role_name: teleport
   author: textyre
   description: Teleport SSH access platform agent deployment
   license: MIT

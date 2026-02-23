@@ -63,7 +63,7 @@
       ansible.builtin.command: ldd /usr/bin/yay
       changed_when: false
       register: verify_yay_ldd
-      failed_when: "'not found' in pkgmgrverify_yay_ldd.stdout"
+      failed_when: "'not found' in verify_yay_ldd.stdout"
 
     # --- cleanup ---
     - name: Check that temp build directory was cleaned up
