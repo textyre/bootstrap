@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: locale
+      vars:
+        locale_list:
+          - "en_US.UTF-8"
+          - "ru_RU.UTF-8"
+        locale_lc_overrides:
+          LC_TIME: "ru_RU.UTF-8"
