@@ -10,6 +10,7 @@
         path: /usr/share/i18n/SUPPORTED
         line: "{{ item }}"
         create: true
+        mode: '0644'
       loop:
         - "en_US.UTF-8 UTF-8"
         - "ru_RU.UTF-8 UTF-8"
@@ -19,6 +20,7 @@
         path: /etc/locale.gen
         line: "{{ item }}"
         create: true
+        mode: '0644'
       loop:
         - "#en_US.UTF-8 UTF-8"
         - "#ru_RU.UTF-8 UTF-8"
