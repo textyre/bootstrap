@@ -39,3 +39,25 @@ jobs:
           tags: ghcr.io/${{ github.repository }}/arch-systemd:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  verify:
+    name: Verify image contract
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify image contract
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/arch-systemd:latest
+        run: |
+          docker run --rm "$IMAGE" sh -c '
+            set -e
+            echo "=== Image Contract Verification ==="
+            echo -n "systemd: "   && test -x /usr/lib/systemd/systemd && echo OK
+            echo -n "python: "    && python --version
+            echo -n "sudo: "      && sudo --version | head -1
+            echo -n "SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo OK
+            echo -n "en_US: "     && test -f /usr/share/i18n/locales/en_US && echo OK
+            echo -n "ru_RU: "     && test -f /usr/share/i18n/locales/ru_RU && echo OK
+            echo -n "locale-gen: " && which locale-gen
+            echo "=== Image contract: PASS ==="
+          '
