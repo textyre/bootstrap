@@ -5,6 +5,25 @@
   gather_facts: false
 
   tasks:
+    - name: Debug - show locale -a before prepare
+      ansible.builtin.command: locale -a
+      register: _debug_locale_before
+      changed_when: false
+      failed_when: false
+
+    - name: Debug - print locale -a output
+      ansible.builtin.debug:
+        msg: "{{ _debug_locale_before.stdout_lines }}"
+
+    - name: Debug - check /usr/share/i18n/SUPPORTED
+      ansible.builtin.stat:
+        path: /usr/share/i18n/SUPPORTED
+      register: _debug_supported
+
+    - name: Debug - print SUPPORTED stat
+      ansible.builtin.debug:
+        msg: "SUPPORTED exists={{ _debug_supported.stat.exists }}, size={{ _debug_supported.stat.size | default('N/A') }}"
+
     - name: Ensure locale entries exist in /usr/share/i18n/SUPPORTED
       ansible.builtin.lineinfile:
         path: /usr/share/i18n/SUPPORTED
