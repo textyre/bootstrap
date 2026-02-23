@@ -37,7 +37,7 @@
 - name: Assert hostname matches expected value
   ansible.builtin.assert:
     that:
-      - _hostname_check.stdout == hostname_name
+      - hostname_check.stdout == hostname_name
     fail_msg: "Hostname mismatch: got '{{ hostname_check.stdout }}', expected '{{ hostname_name }}'"
     quiet: true
   tags: ['hostname']
