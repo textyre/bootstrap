@@ -1,0 +1,69 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    test_hostname: "archbox"
+    test_domain: "example.com"
+
+  tasks:
+
+    # ---- hostname exact match ----
+
+    - name: Get current hostname
+      ansible.builtin.command: hostname
+      register: hostname_verify_hostname
+      changed_when: false
+
+    - name: Assert hostname matches expected value
+      ansible.builtin.assert:
+        that:
+          - hostname_verify_hostname.stdout | trim == test_hostname
+        fail_msg: >-
+          Hostname mismatch: got '{{ hostname_verify_hostname.stdout | trim }}',
+          expected '{{ test_hostname }}'
+
+    # ---- /etc/hosts FQDN entry ----
+
+    - name: Read /etc/hosts
+      ansible.builtin.slurp:
+        src: /etc/hosts
+      register: hostname_verify_hosts_raw
+
+    - name: Decode /etc/hosts content
+      ansible.builtin.set_fact:
+        hostname_verify_hosts_text: "{{ hostname_verify_hosts_raw.content | b64decode }}"
+
+    - name: Assert FQDN entry is present in /etc/hosts
+      ansible.builtin.assert:
+        that:
+          - "'127.0.1.1' in hostname_verify_hosts_text"
+          - "test_hostname ~ '.' ~ test_domain in hostname_verify_hosts_text"
+          - "test_hostname in hostname_verify_hosts_text"
+        fail_msg: >-
+          /etc/hosts is missing expected FQDN entry.
+          Expected line containing '127.0.1.1', '{{ test_hostname }}.{{ test_domain }}',
+          and '{{ test_hostname }}'.
+          Actual content:
+          {{ hostname_verify_hosts_text }}
+
+    # ---- no duplicate 127.0.1.1 entries ----
+
+    - name: Assert exactly one 127.0.1.1 line in /etc/hosts
+      ansible.builtin.assert:
+        that:
+          - hostname_verify_hosts_text | regex_findall('^127\\.0\\.1\\.1', multiline=True) | length == 1
+        fail_msg: >-
+          Expected exactly one '127.0.1.1' line in /etc/hosts, found:
+          {{ hostname_verify_hosts_text | regex_findall('^127\\.0\\.1\\.1', multiline=True) | length }}
+
+    # ---- summary ----
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg:
+          - "Hostname check passed!"
+          - "Hostname: {{ hostname_verify_hostname.stdout | trim }}"
+          - "/etc/hosts: 127.0.1.1 {{ test_hostname }}.{{ test_domain }} {{ test_hostname }}"
