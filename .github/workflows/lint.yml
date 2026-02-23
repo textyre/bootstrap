@@ -12,6 +12,7 @@ on:
     paths:
       - 'ansible/**'
       - '.github/workflows/lint.yml'
+  workflow_dispatch:
 
 jobs:
   lint:
