@@ -13,18 +13,18 @@ on:
         type: string
         default: docker
         description: "Molecule scenario name"
-      python_version:
-        required: false
-        type: string
-        default: "3.12"
 
 jobs:
   test:
     name: "${{ inputs.role_name }} (Arch/systemd)"
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/ci-env:latest
+      options: --volume /var/run/docker.sock:/var/run/docker.sock
     env:
       PY_COLORS: "1"
       ANSIBLE_FORCE_COLOR: "1"
+      MOLECULE_ARCH_IMAGE: ghcr.io/${{ github.repository }}/arch-systemd:latest
 
     concurrency:
       group: "molecule-${{ inputs.role_name }}-${{ github.event.pull_request.number || github.sha }}"
@@ -33,19 +33,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "${{ inputs.python_version }}"
-          cache: pip
-          cache-dependency-path: ansible/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r ansible/requirements.txt
-
-      - name: Install Ansible collections
-        run: ansible-galaxy collection install community.general
 
       - name: Run Molecule
         run: molecule test -s "${{ inputs.molecule_scenario }}"
