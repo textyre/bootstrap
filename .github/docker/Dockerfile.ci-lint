@@ -1,0 +1,12 @@
+FROM python:3.12-slim
+
+# Install uv for fast Python package installs
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install lint-only Python dependencies (no molecule, docker SDK, ARA)
+COPY ansible/requirements-lint.txt /tmp/requirements-lint.txt
+RUN uv pip install --system --no-cache -r /tmp/requirements-lint.txt
+
+# Install Ansible Galaxy collections (needed by ansible-lint for module resolution)
+COPY ansible/requirements.yml /tmp/requirements.yml
+RUN ansible-galaxy collection install -r /tmp/requirements.yml

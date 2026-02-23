@@ -1,0 +1,13 @@
+# Lint-only dependencies — used by ci-env-lint Docker image
+# No molecule, docker SDK, or ARA — keeps the image small and pull fast
+
+# Core Ansible
+ansible==13.2.0
+ansible-core==2.20.1
+
+# Linting and validation
+ansible-lint==26.1.1
+yamllint==1.38.0
+
+# Required by ansible for Jinja2 filter support
+jmespath==1.1.0
