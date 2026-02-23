@@ -1,7 +1,7 @@
 ---
 # === git — in-role verification (ROLE-005) ===
 
-- name: Verify git is installed
+- name: Verify git is installed  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: git --version
   register: git_verify_installed

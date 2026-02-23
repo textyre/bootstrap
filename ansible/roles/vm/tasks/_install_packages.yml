@@ -32,7 +32,7 @@
 #   - Failure: Package installation failed after 3 retries
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Install guest packages"
+- name: "Install guest packages ({{ vm_pkg_label }})"
   ansible.builtin.package:
     name: "{{ vm_pkg_list }}"
     state: present

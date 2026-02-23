@@ -12,12 +12,12 @@
 #   vm_rpt_pkg_rows (list) - Formatted table rows
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Initialize package report"
+- name: "Initialize package report ({{ vm_pkg_label }})"
   ansible.builtin.set_fact:
     vm_rpt_pkg_rows: []
   tags: ['vm', 'vm:report']
 
-- name: "{{ vm_pkg_label }}: Collect package results"
+- name: "Collect package results ({{ vm_pkg_label }})"
   ansible.builtin.set_fact:
     vm_rpt_pkg_rows: "{{ vm_rpt_pkg_rows + [row] }}"
   vars:

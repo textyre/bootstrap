@@ -38,7 +38,7 @@
 #   - Failure: Any required module is missing from the system
 # =========================================================================
 
-- name: "{{ vm_mod_label }}: Check module availability"
+- name: "Check module availability ({{ vm_mod_label }})"
   ansible.builtin.command: "modinfo {{ item.name }}"
   register: vm_modinfo_results
   loop: "{{ vm_mod_list }}"
@@ -48,7 +48,7 @@
   failed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_mod_label }}: Verify required modules available"
+- name: "Verify required modules available ({{ vm_mod_label }})"
   ansible.builtin.assert:
     that: "item.rc == 0"
     fail_msg: "{{ item.item.name }} kernel module ({{ item.item.description }}) not installed. Guest additions may need reinstalling."
@@ -58,13 +58,13 @@
     label: "{{ item.item.name }}"
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_mod_label }}: Check loaded status"
+- name: "Check loaded status ({{ vm_mod_label }})"
   ansible.builtin.command: lsmod
   register: vm_lsmod_output
   changed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_mod_label }}: Report module status"
+- name: "Report module status ({{ vm_mod_label }})"
   ansible.builtin.debug:
     msg: "{{ item.name }} ({{ item.description }}): {{ 'loaded' if item.name in _vm_lsmod_output.stdout else 'available (not loaded)' }}"
   loop: "{{ vm_mod_list }}"

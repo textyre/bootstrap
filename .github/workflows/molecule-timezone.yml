@@ -22,6 +22,10 @@ on:
       - '.github/workflows/_molecule.yml'
   workflow_dispatch:
 
+concurrency:
+  group: molecule-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     uses: ./.github/workflows/_molecule.yml

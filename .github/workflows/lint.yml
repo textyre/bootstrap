@@ -23,7 +23,7 @@ jobs:
     name: YAML Lint & Syntax
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository }}/ci-env:latest
+      image: ghcr.io/${{ github.repository }}/ci-env-lint:latest
 
     steps:
       - name: Checkout code
@@ -45,7 +45,7 @@ jobs:
     name: Ansible Lint
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/${{ github.repository }}/ci-env:latest
+      image: ghcr.io/${{ github.repository }}/ci-env-lint:latest
 
     steps:
       - name: Checkout code

@@ -43,7 +43,7 @@
 #   - Always succeeds (informational only, no failures)
 # =========================================================================
 
-- name: "{{ vm_ver_label }}: Get version information"
+- name: "Get version information ({{ vm_ver_label }})"
   ansible.builtin.command:
     cmd: "{{ vm_ver_command }}"
   register: vm_ver_main_result
@@ -51,7 +51,7 @@
   failed_when: false
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_ver_label }}: Get additional version information"
+- name: "Get additional version information ({{ vm_ver_label }})"
   ansible.builtin.command:
     cmd: "{{ item.cmd }}"
   loop: "{{ vm_ver_extra_commands | default([]) }}"
@@ -63,7 +63,7 @@
   when: vm_ver_extra_commands is defined
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_ver_label }}: Report version information"
+- name: "Report version information ({{ vm_ver_label }})"
   ansible.builtin.debug:
     msg: >-
       {{ vm_ver_label }} guest tools version: {{ vm_ver_main_result.stdout | default('not available') }}
@@ -75,7 +75,7 @@
   when: vm_ver_main_result.rc | default(1) == 0
   tags: ['vm', 'vm:verify', 'vm:report']
 
-- name: "{{ vm_ver_label }}: Version info not available"
+- name: "Version info not available ({{ vm_ver_label }})"
   ansible.builtin.debug:
     msg: "{{ vm_ver_label }} guest tools version information not available"
   when: vm_ver_main_result.rc | default(1) != 0

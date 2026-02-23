@@ -39,7 +39,7 @@
 #   - Failure: Any required service failed to start
 # =========================================================================
 
-- name: "{{ vm_svc_label }}: Enable and start services"
+- name: "Enable and start services ({{ vm_svc_label }})"
   ansible.builtin.service:
     name: "{{ item.name }}"
     enabled: true
@@ -53,7 +53,7 @@
     - item.required
   tags: ['vm', 'vm:service']
 
-- name: "{{ vm_svc_label }}: Check journald for service errors"
+- name: "Check journald for service errors ({{ vm_svc_label }})"
   ansible.builtin.command:
     cmd: journalctl -u {{ item.name }} -n 20 --no-pager
   loop: "{{ vm_svc_list | selectattr('required', 'equalto', true) | list }}"
@@ -65,7 +65,7 @@
   when: vm_service_manager | default('systemd') == 'systemd'
   tags: ['vm', 'vm:service']
 
-- name: "{{ vm_svc_label }}: Report service status"
+- name: "Report service status ({{ vm_svc_label }})"
   ansible.builtin.debug:
     msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if (_vm_svc_result.results[idx].state | default('unknown')) == 'started' else 'unavailable' }}"
   loop: "{{ vm_svc_list }}"

@@ -49,7 +49,7 @@
           keygen={{ ssh_keys_generate_user_keys }}
       tags: [ssh_keys, report]
 
-    - name: "ssh_keys — Execution Report"
+    - name: "SSH Keys — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml

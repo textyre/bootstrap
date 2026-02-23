@@ -56,7 +56,7 @@
     common_rpt_detail: "{{ timezone_name }}"
   tags: ['timezone', 'report']
 
-- name: "timezone — Execution Report"
+- name: "Timezone — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

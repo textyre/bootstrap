@@ -29,7 +29,7 @@
       changed_when: false
       failed_when: package_manager_verify_pacman_verbose.rc != 0
 
-    - name: Check paccache.timer is enabled
+    - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-enabled paccache.timer
       register: package_manager_verify_paccache_timer
       changed_when: false
@@ -49,7 +49,7 @@
       register: package_manager_verify_reflector_conf
       failed_when: not package_manager_verify_reflector_conf.stat.exists
 
-    - name: Check reflector.timer is enabled
+    - name: Check reflector.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-enabled reflector.timer
       register: package_manager_verify_reflector_timer
       changed_when: false

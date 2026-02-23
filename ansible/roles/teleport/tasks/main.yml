@@ -76,7 +76,7 @@
           recording={{ teleport_session_recording }}
       tags: [teleport, report]
 
-    - name: "teleport — Execution Report"
+    - name: "Teleport — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml

@@ -36,7 +36,7 @@
 #   - Always succeeds (informational only, no failures)
 # =========================================================================
 
-- name: "{{ vm_x11_label }}: Check X11 integration files"
+- name: "Check X11 integration files ({{ vm_x11_label }})"
   ansible.builtin.stat:
     path: "{{ item.path }}"
   loop: "{{ vm_x11_paths }}"
@@ -45,7 +45,7 @@
   register: vm_x11_stat_result
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_x11_label }}: Create missing X11 autostart files"
+- name: "Create missing X11 autostart files ({{ vm_x11_label }})"
   ansible.builtin.copy:
     dest: "{{ item.item.path }}"
     content: "{{ item.item.content }}"
@@ -59,7 +59,7 @@
     - item.item.content | length > 0
   tags: ['vm', 'vm:verify']
 
-- name: "{{ vm_x11_label }}: Report X11 integration status"
+- name: "Report X11 integration status ({{ vm_x11_label }})"
   ansible.builtin.debug:
     msg: "{{ item.item.description }}: {{ 'configured' if item.stat.exists else 'not found (headless OK)' }}"
   loop: "{{ vm_x11_stat_result.results }}"

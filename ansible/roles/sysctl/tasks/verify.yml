@@ -28,6 +28,6 @@
 
 - name: Report live sysctl parameter status
   ansible.builtin.debug:
-    msg: "[sysctl verify] {{ item.item.label }}: {% if item.rc == 255 %}NOT SUPPORTED on this kernel (skipped){%- elif item.rc != 0 %}ERROR (rc={{ item.rc }}){%- elif item.stdout | string == item.item.expected | string %}OK ({{ item.stdout }}){%- else %}MISMATCH — expected={{ item.item.expected }} got={{ item.stdout }}{% endif %}"
+    msg: "[sysctl verify] {{ item.item.label }}: {% if item.rc == 255 %}NOT SUPPORTED on this kernel (skipped){%- elif item.rc != 0 %}ERROR (rc={{ item.rc }}){%- elif item.stdout | string == item.item.expected | string %}OK ({{ item.stdout }}){%- else %}MISMATCH — expected={{ item.item.expected }} got={{ item.stdout }}{% endif %}"  # yamllint disable-line rule:line-length
   loop: "{{ sysctl_verify_security.results }}"
   tags: ['sysctl', 'verify']

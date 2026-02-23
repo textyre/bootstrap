@@ -33,13 +33,13 @@
 #   - Check vm_reboot_required in calling playbook to decide on reboot action
 # =========================================================================
 
-- name: "{{ vm_reboot_label }}: Set reboot required flag"
+- name: "Set reboot required flag ({{ vm_reboot_label }})"
   ansible.builtin.set_fact:
     vm_reboot_required: true
   when: vm_reboot_condition | bool
   tags: ['vm']
 
-- name: "{{ vm_reboot_label }}: Notify reboot required"
+- name: "Notify reboot required ({{ vm_reboot_label }})"
   ansible.builtin.debug:
     msg: "NOTICE: Reboot required for {{ vm_reboot_label }} kernel modules to load properly"
   when:

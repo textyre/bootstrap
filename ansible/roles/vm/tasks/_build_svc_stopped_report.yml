@@ -12,12 +12,12 @@
 #   vm_rpt_svc_rows (list) - Formatted table rows
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Initialize service report"
+- name: "Initialize service report ({{ vm_pkg_label }})"
   ansible.builtin.set_fact:
     vm_rpt_svc_rows: []
   tags: ['vm', 'vm:report']
 
-- name: "{{ vm_pkg_label }}: Collect service results"
+- name: "Collect service results ({{ vm_pkg_label }})"
   ansible.builtin.set_fact:
     vm_rpt_svc_rows: "{{ vm_rpt_svc_rows + [row] }}"
   vars:

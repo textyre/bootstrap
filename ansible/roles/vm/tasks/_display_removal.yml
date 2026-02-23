@@ -10,7 +10,7 @@
 #   vm_rpt_pkg_rows   (list)  - Package table rows (from _build_pkg_report.yml)
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Removal report — Services"
+- name: "Removal report — Services ({{ vm_pkg_label }})"
   ansible.builtin.debug:
     msg: "{{ header + vm_rpt_svc_rows + [border] }}"
   vars:
@@ -23,7 +23,7 @@
   when: vm_rpt_svc_rows | length > 0
   tags: ['vm', 'vm:report']
 
-- name: "{{ vm_pkg_label }}: Removal report — Packages"
+- name: "Removal report — Packages ({{ vm_pkg_label }})"
   ansible.builtin.debug:
     msg: "{{ header + vm_rpt_pkg_rows + [border] }}"
   vars:

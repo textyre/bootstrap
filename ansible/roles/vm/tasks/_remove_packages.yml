@@ -12,7 +12,7 @@
 #   _vm_pkg_remove_result (register) - Per-package results
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Remove guest packages"
+- name: "Remove guest packages ({{ vm_pkg_label }})"
   ansible.builtin.package:
     name: "{{ item }}"
     state: absent

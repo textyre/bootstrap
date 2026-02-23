@@ -12,7 +12,7 @@
 #   _vm_svc_stop_result (register) - Per-service results
 # =========================================================================
 
-- name: "{{ vm_pkg_label }}: Stop and disable services"
+- name: "Stop and disable services ({{ vm_pkg_label }})"
   ansible.builtin.service:
     name: "{{ item }}"
     enabled: false

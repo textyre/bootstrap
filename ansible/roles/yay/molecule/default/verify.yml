@@ -16,24 +16,24 @@
       ansible.builtin.getent:
         database: passwd
         key: "{{ yay_builder_user }}"
-      register: verify_aur_builder
+      register: yay_verify_aur_builder
 
     - name: Check that aur_builder has nologin shell
       ansible.builtin.assert:
-        that: verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
+        that: yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
         fail_msg: "aur_builder shell is not /usr/bin/nologin"
 
     # --- sudoers ---
     - name: Check that sudoers file exists
       ansible.builtin.stat:
         path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
-      register: verify_sudoers
-      failed_when: not verify_sudoers.stat.exists
+      register: yay_verify_sudoers
+      failed_when: not yay_verify_sudoers.stat.exists
 
     - name: Check sudoers file mode is 0440
       ansible.builtin.assert:
-        that: verify_sudoers.stat.mode == '0440'
-        fail_msg: "sudoers file mode is {{ verify_sudoers.stat.mode }}, expected 0440"
+        that: yay_verify_sudoers.stat.mode == '0440'
+        fail_msg: "sudoers file mode is {{ yay_verify_sudoers.stat.mode }}, expected 0440"
 
     - name: Validate sudoers syntax
       ansible.builtin.command: /usr/sbin/visudo -cf "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
@@ -45,25 +45,25 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: verify_dep_check
-      failed_when: verify_dep_check is changed
+      register: yay_verify_dep_check
+      failed_when: yay_verify_dep_check is changed
       loop: "{{ yay_build_deps }}"
 
     - name: Check that yay binary exists
       ansible.builtin.command: which yay
       changed_when: false
-      register: verify_yay_path
+      register: yay_verify_path
 
     - name: Check that yay is executable
       ansible.builtin.command: yay --version
       changed_when: false
-      register: verify_yay_version
+      register: yay_verify_version
 
     - name: Check that yay has no broken shared libs
       ansible.builtin.command: ldd /usr/bin/yay
       changed_when: false
-      register: verify_yay_ldd
-      failed_when: "'not found' in verify_yay_ldd.stdout"
+      register: yay_verify_ldd
+      failed_when: "'not found' in yay_verify_ldd.stdout"
 
     # --- cleanup ---
     - name: Check that temp build directory was cleaned up
@@ -71,8 +71,8 @@
         paths: /tmp
         patterns: "yay_build_*"
         file_type: directory
-      register: verify_build_dirs
-      failed_when: verify_build_dirs.matched > 0
+      register: yay_verify_build_dirs
+      failed_when: yay_verify_build_dirs.matched > 0
 
     # --- AUR packages ---
     - name: Check that AUR packages are installed
@@ -87,8 +87,8 @@
           - "All checks passed!"
           - "aur_builder user: exists, shell=/usr/bin/nologin"
           - "sudoers: /etc/sudoers.d/{{ yay_builder_sudoers_file }} (mode 0440)"
-          - "yay binary: {{ verify_yay_path.stdout }}"
-          - "yay version: {{ verify_yay_version.stdout }}"
+          - "yay binary: {{ yay_verify_path.stdout }}"
+          - "yay version: {{ yay_verify_version.stdout }}"
           - "yay ldd: OK (no broken shared libs)"
           - "Build deps: installed"
           - "Temp build dirs: cleaned up"
