@@ -1,0 +1,41 @@
+---
+name: Build Arch Molecule Image
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'ansible/molecule/Dockerfile.archlinux'
+      - '.github/workflows/build-arch-image.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and push arch-systemd
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ansible/molecule
+          file: ansible/molecule/Dockerfile.archlinux
+          push: true
+          tags: ghcr.io/${{ github.repository }}/arch-systemd:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

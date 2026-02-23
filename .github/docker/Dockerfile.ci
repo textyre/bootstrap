@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+# Install Docker CLI so molecule-plugins[docker] can talk to the host daemon
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (ansible, molecule, ansible-lint, yamllint, ...)
+COPY ansible/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Install Ansible Galaxy collections (community.general, community.crypto, ansible.posix, kewlfft.aur)
+COPY ansible/requirements.yml /tmp/requirements.yml
+RUN ansible-galaxy collection install -r /tmp/requirements.yml
