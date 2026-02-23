@@ -18,7 +18,7 @@
     mode: "0644"
   tags: [teleport, security]
 
-- name: "Set ssh_teleport_integration fact"
+- name: "Set teleport_ca_deployed fact"
   ansible.builtin.set_fact:
-    ssh_teleport_integration: true
+    teleport_ca_deployed: true
   tags: [teleport, security]

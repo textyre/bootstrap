@@ -199,7 +199,7 @@ ssh_moduli_minimum_bits: 3072
 
 # ---- Teleport SSH CA integration ----
 
-# Enable Teleport certificate trust (set by teleport role)
-ssh_teleport_integration: false
+# Enable Teleport certificate trust (auto-detected from teleport role via teleport_ca_deployed fact)
+ssh_teleport_integration: "{{ teleport_ca_deployed | default(false) }}"
 # Path to Teleport user CA public key
 ssh_teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub

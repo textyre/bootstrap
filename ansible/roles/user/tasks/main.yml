@@ -131,7 +131,7 @@
   tags: [user]
 
 # ROLE-008: Final report render
-- name: "user -- Execution Report"
+- name: "User -- Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

@@ -3,27 +3,27 @@
 # Конфигурация PAM-модулей безопасности
 
 # PAM faillock (защита от brute-force)
-pam_faillock_enabled: true
-pam_faillock_deny: 3              # Блокировка после N попыток
-pam_faillock_fail_interval: 900   # Окно отслеживания (секунды)
-pam_faillock_unlock_time: 900     # Время блокировки (секунды)
+pam_hardening_faillock_enabled: true
+pam_hardening_faillock_deny: 3              # Блокировка после N попыток
+pam_hardening_faillock_fail_interval: 900   # Окно отслеживания (секунды)
+pam_hardening_faillock_unlock_time: 900     # Время блокировки (секунды)
 # root_unlock_time: 900 = автоматическая разблокировка через 15 мин
 # -1 = перманентная блокировка (требует другой admin аккаунт)
-pam_faillock_root_unlock_time: 900
-pam_faillock_audit: true          # Логировать попытки в audit log
-pam_faillock_silent: false        # Не показывать сообщение при блокировке
+pam_hardening_faillock_root_unlock_time: 900
+pam_hardening_faillock_audit: true          # Логировать попытки в audit log
+pam_hardening_faillock_silent: false        # Не показывать сообщение при блокировке
 
 # even_deny_root: root аккаунт тоже подпадает под блокировку
 # Стандарт: dev-sec (5223★), Kicksecure (576★), vmware/photon (3166★)
-pam_faillock_even_deny_root: true
+pam_hardening_faillock_even_deny_root: true
 
 # local_users_only: faillock применяется только к локальным пользователям
 # Установить true при наличии LDAP/SSO, чтобы избежать ложных блокировок
-pam_faillock_local_users_only: false
+pam_hardening_faillock_local_users_only: false
 
 # nodelay: убрать задержку после неудачного входа (pam >= 1.5.1)
-pam_faillock_nodelay: false
+pam_hardening_faillock_nodelay: false
 
 # x11_skip: не учитывать попытки входа из X11-сессий (screensaver)
 # Важно при deny=3 и GUI (lightdm/xorg) — иначе screensaver заблокирует аккаунт
-pam_faillock_x11_skip: false
+pam_hardening_faillock_x11_skip: false

@@ -16,7 +16,7 @@
   ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    vm_pkg_list: "{{ packages_vmware_guest }}"
+    vm_pkg_list: "{{ vm_packages_vmware_guest }}"
     vm_pkg_label: "VMware"
     vm_notify_handler: "Restart vmware services"
   tags: ['vm', 'vmware']

@@ -12,28 +12,28 @@
   tasks:
     - name: Check timezone is set (systemd)
       ansible.builtin.command: timedatectl show --property=Timezone --value
-      register: verify_timezone
+      register: timezone_verify_timezone
       changed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Check timezone is set (non-systemd)
       ansible.builtin.command: readlink -f /etc/localtime
-      register: verify_timezone_generic
+      register: timezone_verify_timezone_generic
       changed_when: false
       when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Assert timezone matches (systemd)
       ansible.builtin.assert:
         that:
-          - verify_timezone.stdout == test_timezone
-        fail_msg: "Expected '{{ test_timezone }}', got '{{ verify_timezone.stdout }}'"
+          - timezone_verify_timezone.stdout == test_timezone
+        fail_msg: "Expected '{{ test_timezone }}', got '{{ timezone_verify_timezone.stdout }}'"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert timezone matches (non-systemd)
       ansible.builtin.assert:
         that:
-          - test_timezone in verify_timezone_generic.stdout
-        fail_msg: "Expected '{{ test_timezone }}' in '{{ verify_timezone_generic.stdout }}'"
+          - test_timezone in timezone_verify_timezone_generic.stdout
+        fail_msg: "Expected '{{ test_timezone }}' in '{{ timezone_verify_timezone_generic.stdout }}'"
       when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Show result

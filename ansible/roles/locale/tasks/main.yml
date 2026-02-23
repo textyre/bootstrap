@@ -104,7 +104,7 @@
 # ---- Итоговый отчёт ----
 # ======================================================================
 
-- name: "locale — Execution Report"
+- name: "Locale — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

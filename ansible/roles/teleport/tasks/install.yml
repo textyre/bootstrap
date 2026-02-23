@@ -10,6 +10,7 @@
 
 - name: "Install Teleport via official repository (Debian/RedHat)"
   when: teleport_install_method == 'repo'
+  tags: [teleport, install]
   block:
     - name: "Set Teleport major version for repository URL"
       ansible.builtin.set_fact:
@@ -44,10 +45,10 @@
       ansible.builtin.package:
         name: teleport
         state: present
-  tags: [teleport, install]
 
 - name: "Install Teleport via binary download (Void/Gentoo)"
   when: teleport_install_method == 'binary'
+  tags: [teleport, install]
   block:
     - name: "Set architecture mapping for Teleport download"
       ansible.builtin.set_fact:
@@ -67,4 +68,3 @@
         dest: /usr/local/bin/
         remote_src: true
         extra_opts: [--strip-components=1]
-  tags: [teleport, install]

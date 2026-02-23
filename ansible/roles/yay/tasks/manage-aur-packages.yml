@@ -2,28 +2,28 @@
 # === manage-aur-packages: установка AUR пакетов через yay ===
 # Использует yay backend из kewlfft.aur.
 # Требует NOPASSWD sudoers для pacman (настраивается в setup-aur-builder.yml).
-# Контракт: caller передаёт packages_official и packages_aur из group_vars.
+# Контракт: caller передаёт yay_packages_official и yay_packages_aur из group_vars.
 
 - name: Remove packages conflicting with AUR replacements
   community.general.pacman:
-    name: "{{ packages_aur_remove_conflicts }}"
+    name: "{{ yay_packages_aur_remove_conflicts }}"
     state: absent
-  when: packages_aur_remove_conflicts | length > 0
+  when: yay_packages_aur_remove_conflicts | length > 0
   tags: ['install', 'aur']
 
 - name: Validate AUR packages don't conflict with official packages
   ansible.builtin.script:
     cmd: validate-aur-conflicts.sh
   environment:
-    AUR_PACKAGES: "{{ packages_aur | join('\n') }}"
-    OFFICIAL_PACKAGES: "{{ packages_official | join('\n') }}"
-    CONFLICT_EXCEPTIONS: "{{ packages_aur_remove_conflicts | join('\n') }}"
+    AUR_PACKAGES: "{{ yay_packages_aur | join('\n') }}"
+    OFFICIAL_PACKAGES: "{{ yay_packages_official | join('\n') }}"
+    CONFLICT_EXCEPTIONS: "{{ yay_packages_aur_remove_conflicts | join('\n') }}"
   changed_when: false
   tags: ['install', 'aur']
 
 - name: Install AUR packages
   kewlfft.aur.aur:
-    name: "{{ packages_aur }}"
+    name: "{{ yay_packages_aur }}"
     use: yay
     state: present
   become: true

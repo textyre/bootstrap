@@ -4,5 +4,5 @@
 
 - name: Include distribution-specific package manager configuration
   ansible.builtin.include_tasks: "{{ ansible_distribution | lower }}.yml"
-  when: ansible_distribution in _pkgmgr_supported_distributions
+  when: ansible_distribution in package_manager_supported_distributions
   tags: ['packages', 'package-manager']

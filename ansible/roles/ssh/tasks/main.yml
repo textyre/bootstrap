@@ -93,7 +93,7 @@
   tags: [ssh]
 
 # ROLE-008: Final report render
-- name: "ssh — Execution Report"
+- name: "Ssh — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

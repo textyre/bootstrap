@@ -37,11 +37,11 @@ provisioner:
           - git
           - go
         # AUR package management
-        packages_aur:
+        yay_packages_aur:
           - rofi-greenclip
-        packages_aur_remove_conflicts: []
+        yay_packages_aur_remove_conflicts: []
         # Single aggregated list for conflict validation (replaces per-category lists)
-        packages_official:
+        yay_packages_official:
           - git
   playbooks:
     converge: converge.yml

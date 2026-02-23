@@ -5,7 +5,7 @@
   community.general.pacman:
     name: pacman-contrib
     state: present
-  when: pkgmgr_paccache_enabled
+  when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']
 
 - name: Create paccache drop-in directory
@@ -15,7 +15,7 @@
     owner: root
     group: root
     mode: '0755'
-  when: pkgmgr_paccache_enabled
+  when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']
 
 - name: Configure paccache keep count via systemd drop-in
@@ -27,8 +27,8 @@
     content: |
       [Service]
       ExecStart=
-      ExecStart=/usr/bin/paccache -r -k {{ pkgmgr_paccache_keep }}
-  when: pkgmgr_paccache_enabled
+      ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
+  when: package_manager_paccache_enabled
   notify: daemon-reload
   tags: ['packages', 'paccache']
 
@@ -38,5 +38,5 @@
     enabled: true
     state: started
     daemon_reload: false
-  when: pkgmgr_paccache_enabled
+  when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']

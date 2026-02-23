@@ -20,6 +20,6 @@ yay_build_deps:
   - go
 
 # AUR package management — заполняются в group_vars/all/packages.yml
-packages_aur: []                   # noqa: var-naming[no-role-prefix]
-packages_aur_remove_conflicts: []  # noqa: var-naming[no-role-prefix]
-packages_official: []              # noqa: var-naming[no-role-prefix]
+yay_packages_aur: []
+yay_packages_aur_remove_conflicts: []
+yay_packages_official: []

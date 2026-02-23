@@ -11,7 +11,7 @@
 
 - name: Restart cron if present
   ansible.builtin.service:
-    name: "{{ tz_cron_service[ansible_facts['os_family']] | default('crond') }}"
+    name: "{{ timezone_cron_service[ansible_facts['os_family']] | default('crond') }}"
     state: restarted
-  when: (tz_cron_service[ansible_facts['os_family']] | default('crond')) in ansible_facts.services
+  when: (timezone_cron_service[ansible_facts['os_family']] | default('crond')) in ansible_facts.services
   listen: restart cron

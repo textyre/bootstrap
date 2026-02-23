@@ -215,14 +215,14 @@
     - name: Check ptp_kvm module loaded (KVM only)
       ansible.builtin.command:
         cmd: lsmod
-      register: verify_lsmod
+      register: ntp_verify_lsmod
       changed_when: false
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 
     - name: Assert ptp_kvm loaded on KVM
       ansible.builtin.assert:
         that:
-          - "'ptp_kvm' in verify_lsmod.stdout"
+          - "'ptp_kvm' in ntp_verify_lsmod.stdout"
         fail_msg: "ptp_kvm module not loaded on KVM guest"
       when: ansible_facts['virtualization_type'] | default('') == 'kvm'
 

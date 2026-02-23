@@ -4,11 +4,16 @@
 
 # ---- TLP active (laptop + systemd) ----
 
-- name: Assert TLP service is active
-  ansible.builtin.command: systemctl is-active tlp
-  register: pm_assert_tlp
-  changed_when: false
-  failed_when: false
+- name: Gather service facts for TLP assert
+  ansible.builtin.service_facts:
+  when:
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
+  tags: ['power', 'assert']
+
+- name: Set TLP assert result fact
+  ansible.builtin.set_fact:
+    power_management_assert_tlp: "{{ ansible_facts.services['tlp.service'] | default({}) }}"
   when:
     - power_management_is_laptop
     - power_management_init == 'systemd'
@@ -17,7 +22,7 @@
 - name: Verify TLP is running
   ansible.builtin.assert:
     that:
-      - _pm_assert_tlp.rc == 0
+      - power_management_assert_tlp.state | default('') == 'running'
     fail_msg: >-
       TLP service is NOT active. Run 'systemctl status tlp' and
       'journalctl -u tlp' to diagnose. Check package installation
@@ -31,11 +36,9 @@
 
 # ---- power-profiles-daemon masked (laptop + systemd) ----
 
-- name: Check power-profiles-daemon is masked
-  ansible.builtin.command: systemctl is-enabled power-profiles-daemon
-  register: pm_assert_ppd
-  changed_when: false
-  failed_when: false
+- name: Set PPD assert result fact
+  ansible.builtin.set_fact:
+    power_management_assert_ppd: "{{ ansible_facts.services['power-profiles-daemon.service'] | default({}) }}"
   when:
     - power_management_is_laptop
     - power_management_init == 'systemd'
@@ -44,10 +47,10 @@
 - name: Verify power-profiles-daemon is masked or absent
   ansible.builtin.assert:
     that:
-      - _pm_assert_ppd.stdout | default('') in ['masked', '']
-        or _pm_assert_ppd.rc != 0
+      - power_management_assert_ppd.status | default('not-found') in ['masked', 'not-found']
     fail_msg: >-
-      power-profiles-daemon is NOT masked (status: {{ pm_assert_ppd.stdout | default('unknown') }}).
+      power-profiles-daemon is NOT masked
+      (status: {{ power_management_assert_ppd.status | default('unknown') }}).
       It conflicts with TLP. Run 'systemctl mask power-profiles-daemon'.
     success_msg: "power-profiles-daemon is masked or absent"
   when:
@@ -91,10 +94,10 @@
 
 # ---- sleep.conf HibernateMode ----
 
-- name: Check sleep.conf HibernateMode
-  ansible.builtin.command: grep -E '^HibernateMode=' /etc/systemd/sleep.conf
-  register: pm_assert_hibernate
-  changed_when: false
+- name: Read sleep.conf for HibernateMode assert
+  ansible.builtin.slurp:
+    src: /etc/systemd/sleep.conf
+  register: power_management_assert_hibernate
   failed_when: false
   when: power_management_init == 'systemd'
   tags: ['power', 'assert']
@@ -102,14 +105,16 @@
 - name: Verify HibernateMode in sleep.conf
   ansible.builtin.assert:
     that:
-      - _pm_assert_hibernate.stdout == 'HibernateMode=' + power_management_hibernate_mode
+      - power_management_assert_hibernate.content | b64decode | regex_search('^HibernateMode=.+', multiline=True)
+        == 'HibernateMode=' + power_management_hibernate_mode
     fail_msg: >-
-      sleep.conf HibernateMode does not match. Expected 'HibernateMode={{ power_management_hibernate_mode }}'
-      but found '{{ pm_assert_hibernate.stdout | default('not found') }}'.
+      sleep.conf HibernateMode does not match.
+      Expected 'HibernateMode={{ power_management_hibernate_mode }}'.
     success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
   when:
     - power_management_assert_strict
     - power_management_init == 'systemd'
+    - power_management_assert_hibernate is succeeded
   tags: ['power', 'assert']
 
 # ---- Validate sleep.conf via systemd-analyze ----
@@ -118,22 +123,22 @@
   ansible.builtin.command: systemd-analyze cat-config systemd/sleep.conf
   changed_when: false
   failed_when: false
-  register: pm_assert_sleep_analyze
+  register: power_management_assert_sleep_analyze
   when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 - name: Log sleep.conf validation result
   ansible.builtin.debug:
-    msg: "sleep.conf validation: {{ 'OK' if _pm_assert_sleep_analyze.rc == 0 else 'WARNING: ' + _pm_assert_sleep_analyze.stderr }}"
+    msg: "sleep.conf validation: {{ 'OK' if power_management_assert_sleep_analyze.rc == 0 else 'WARNING: ' + power_management_assert_sleep_analyze.stderr }}"
   when: power_management_init == 'systemd'
   tags: ['power', 'assert']
 
 # ---- logind.conf HandleLidSwitch ----
 
-- name: Check logind.conf HandleLidSwitch
-  ansible.builtin.command: grep -E '^HandleLidSwitch=' /etc/systemd/logind.conf
-  register: pm_assert_lid
-  changed_when: false
+- name: Read logind.conf for HandleLidSwitch assert
+  ansible.builtin.slurp:
+    src: /etc/systemd/logind.conf
+  register: power_management_assert_lid
   failed_when: false
   when: power_management_init == 'systemd'
   tags: ['power', 'assert']
@@ -141,15 +146,17 @@
 - name: Verify HandleLidSwitch in logind.conf
   ansible.builtin.assert:
     that:
-      - _pm_assert_lid.stdout == 'HandleLidSwitch=' + power_management_lid_switch_action
+      - power_management_assert_lid.content | b64decode | regex_search('^HandleLidSwitch=.+', multiline=True)
+        == 'HandleLidSwitch=' + power_management_lid_switch_action
     fail_msg: >-
-      logind.conf HandleLidSwitch does not match. Expected 'HandleLidSwitch={{ power_management_lid_switch_action }}'
-      but found '{{ pm_assert_lid.stdout | default('not found') }}'.
+      logind.conf HandleLidSwitch does not match.
+      Expected 'HandleLidSwitch={{ power_management_lid_switch_action }}'.
       Check /etc/systemd/logind.conf for manual edits.
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
   when:
     - power_management_assert_strict
     - power_management_init == 'systemd'
+    - power_management_assert_lid is succeeded
   tags: ['power', 'assert']
 
 # ---- Charge thresholds applied ----

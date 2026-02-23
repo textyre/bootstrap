@@ -13,7 +13,7 @@
 # Expected variables:
 #   - vm_vbox_host_ver: target version to install (from version check)
 #   - vm_vbox_iso_dirs_pre: find result for existing ISO dirs
-#   - packages_virtualbox_guest: package list from group_vars
+#   - vm_packages_virtualbox_guest: package list from group_vars
 #
 # Sets facts:
 #   - vm_vbox_iso_installed: true (on success)
@@ -62,9 +62,9 @@
 
     - name: "VirtualBox: Remove pacman GA packages"
       ansible.builtin.package:
-        name: "{{ packages_virtualbox_guest }}"
+        name: "{{ vm_packages_virtualbox_guest }}"
         state: absent
-      when: packages_virtualbox_guest | length > 0
+      when: vm_packages_virtualbox_guest | length > 0
 
     - name: "VirtualBox: Remove existing ISO Guest Additions"
       ansible.builtin.command:
@@ -141,7 +141,7 @@
   rescue:
     - name: "VirtualBox: RECOVERY - Re-install pacman GA packages"
       ansible.builtin.package:
-        name: "{{ packages_virtualbox_guest }}"
+        name: "{{ vm_packages_virtualbox_guest }}"
         state: present
       register: vm_vbox_recovery
       failed_when: false

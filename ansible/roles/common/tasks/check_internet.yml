@@ -15,7 +15,7 @@
       check_internet.yml requires common_check_internet_host and common_check_internet_port.
       Pass them via vars: when calling include_role.
 
-- name: "Check internet connectivity ({{ common_check_internet_host }}:{{ common_check_internet_port }})"
+- name: "Check internet connectivity to: {{ common_check_internet_host }}:{{ common_check_internet_port }}"
   ansible.builtin.wait_for:
     host: "{{ common_check_internet_host }}"
     port: "{{ common_check_internet_port }}"

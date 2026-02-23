@@ -7,13 +7,13 @@
 - name: Read current CPU governor
   ansible.builtin.slurp:
     src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-  register: pm_governor_raw
+  register: power_management_governor_raw
   failed_when: false
   tags: ['power', 'cpu']
 
 - name: Set current governor fact
   ansible.builtin.set_fact:
-    pm_current_governor: "{{ (_pm_governor_raw.content | b64decode | trim) if _pm_governor_raw is succeeded else 'unknown' }}"
+    power_management_current_governor: "{{ (power_management_governor_raw.content | b64decode | trim) if power_management_governor_raw is succeeded else 'unknown' }}"
   tags: ['power', 'cpu']
 
 # ---- Validate governor value ----
@@ -34,12 +34,12 @@
 
 - name: Set CPU governor via cpupower
   ansible.builtin.command: cpupower frequency-set -g {{ power_management_cpu_governor }}
-  register: pm_governor_set
-  changed_when: pm_current_governor != power_management_cpu_governor
+  register: power_management_governor_set
+  changed_when: power_management_current_governor != power_management_cpu_governor
   when:
     - not power_management_is_laptop
-    - pm_current_governor != power_management_cpu_governor
-  failed_when: pm_governor_set.rc != 0
+    - power_management_current_governor != power_management_cpu_governor
+  failed_when: power_management_governor_set.rc != 0
   tags: ['power', 'cpu']
 
 # ---- Persist governor ----

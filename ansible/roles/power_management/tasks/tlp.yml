@@ -11,7 +11,7 @@
     - name: Check if existing TLP config exists
       ansible.builtin.stat:
         path: /etc/tlp.conf
-      register: pm_tlp_existing
+      register: power_management_tlp_existing
       tags: ['power', 'tlp']
 
     - name: Backup existing TLP config
@@ -20,8 +20,8 @@
         dest: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: '0644'
-      register: pm_tlp_backup
-      when: pm_tlp_existing.stat.exists
+      register: power_management_tlp_backup
+      when: power_management_tlp_existing.stat.exists
       tags: ['power', 'tlp']
 
     - name: Deploy TLP configuration
@@ -40,7 +40,7 @@
     - name: Verify TLP binary can read config
       ansible.builtin.command: tlp-stat -c
       changed_when: false
-      register: pm_tlp_config_check
+      register: power_management_tlp_config_check
       tags: ['power', 'tlp']
 
   rescue:
@@ -50,7 +50,7 @@
         dest: /etc/tlp.conf
         remote_src: true
         mode: '0644'
-      when: pm_tlp_backup is defined and pm_tlp_backup is not failed
+      when: power_management_tlp_backup is defined and power_management_tlp_backup is not failed
       failed_when: false
       tags: ['power', 'tlp']
 
@@ -58,7 +58,7 @@
       ansible.builtin.fail:
         msg: >-
           TLP configuration deployment failed.
-          {% if pm_tlp_backup is defined and pm_tlp_backup is not failed %}
+          {% if power_management_tlp_backup is defined and power_management_tlp_backup is not failed %}
           Previous config restored from /etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}.
           {% else %}
           No previous config existed (first run) — nothing to restore.

@@ -106,7 +106,7 @@
 # ---- ROLE-008: Final report ----
 # ======================================================================
 
-- name: "git -- Execution Report"
+- name: "Git -- Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

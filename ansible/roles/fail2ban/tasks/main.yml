@@ -75,7 +75,7 @@
           bantime={{ fail2ban_sshd_bantime }}
       tags: [fail2ban, report]
 
-    - name: "fail2ban — Execution Report"
+    - name: "Fail2ban — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml

@@ -17,7 +17,7 @@
 #   common_rpt_footer_rows (list)   - Extra pre-formatted rows before closing line
 # =========================================================================
 
-- name: "{{ common_rpt_title }} — Execution Report"
+- name: "Execution Report — {{ common_rpt_title }}"
   ansible.builtin.debug:
     msg: "{{ common_rpt_header + (lookup('vars', common_rpt_fact, default=[]) | list) + common_rpt_extra + common_rpt_footer }}"
   vars:

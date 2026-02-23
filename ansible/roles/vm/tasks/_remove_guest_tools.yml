@@ -37,9 +37,9 @@
   vars:
     vm_pkg_label: "All hypervisors"
     vm_pkg_list: >-
-      {{ packages_virtualbox_guest + packages_vmware_guest
-         + (vm_hyperv_packages | default(packages_hyperv_guest))
-         + (vm_kvm_packages | default(packages_kvm_guest)) }}
+      {{ vm_packages_virtualbox_guest + vm_packages_vmware_guest
+         + (vm_hyperv_packages | default(vm_packages_hyperv_guest))
+         + (vm_kvm_packages | default(vm_packages_kvm_guest)) }}
   tags: ['vm', 'vm:install']
 
 - name: "Report: Remove guest tools"

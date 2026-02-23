@@ -8,5 +8,5 @@
     - role: timezone
       vars:
         timezone_name: "Asia/Almaty"
-        packages_tzdata:
+        timezone_packages_tzdata:
           default: "tzdata"

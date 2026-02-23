@@ -37,4 +37,7 @@
   vars:
     common_rpt_status_mark: "{{ common_rpt_status | default('done') }}"
     common_rpt_mark: "{{ '+' if common_rpt_status_mark == 'done' else ('-' if common_rpt_status_mark == 'skip' else '!') }}"
-    common_rpt_row: "| {{ '%-26s' | format(common_rpt_phase) }} | {{ '%-10s' | format(common_rpt_mark ~ ' ' ~ common_rpt_status_mark) }} | {{ '%-24s' | format(common_rpt_detail | default('') | truncate(24, True)) }} |"  # noqa: line-too-long
+    common_rpt_row: >-
+      | {{ '%-26s' | format(common_rpt_phase) }}
+      | {{ '%-10s' | format(common_rpt_mark ~ ' ' ~ common_rpt_status_mark) }}
+      | {{ '%-24s' | format(common_rpt_detail | default('') | truncate(24, True)) }} |

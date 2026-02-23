@@ -27,58 +27,58 @@ Dispatches by `ansible_distribution`, so Debian and Ubuntu get independent confi
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_pacman_parallel_downloads` | `5` | Number of parallel downloads |
-| `pkgmgr_pacman_color` | `true` | Enable color output |
-| `pkgmgr_pacman_verbose_pkg_lists` | `true` | Verbose package lists |
-| `pkgmgr_pacman_check_space` | `true` | Check available disk space before install |
-| `pkgmgr_pacman_siglevel` | `"Required DatabaseOptional"` | Signature verification level |
-| `pkgmgr_pacman_multilib` | `false` | Enable [multilib] repository |
-| `pkgmgr_pacman_external_cache` | `false` | Use external shared cache |
-| `pkgmgr_pacman_cache_root` | `""` | Path to external cache root (requires `pkgmgr_pacman_external_cache: true`) |
+| `package_manager_pacman_parallel_downloads` | `5` | Number of parallel downloads |
+| `package_manager_pacman_color` | `true` | Enable color output |
+| `package_manager_pacman_verbose_pkg_lists` | `true` | Verbose package lists |
+| `package_manager_pacman_check_space` | `true` | Check available disk space before install |
+| `package_manager_pacman_siglevel` | `"Required DatabaseOptional"` | Signature verification level |
+| `package_manager_pacman_multilib` | `false` | Enable [multilib] repository |
+| `package_manager_pacman_external_cache` | `false` | Use external shared cache |
+| `package_manager_pacman_cache_root` | `""` | Path to external cache root (requires `package_manager_pacman_external_cache: true`) |
 
 ### Arch Linux / paccache (cache cleanup)
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_paccache_enabled` | `true` | Enable paccache.timer (weekly cache cleanup) |
-| `pkgmgr_paccache_keep` | `3` | Number of package versions to keep in cache |
+| `package_manager_paccache_enabled` | `true` | Enable paccache.timer (weekly cache cleanup) |
+| `package_manager_paccache_keep` | `3` | Number of package versions to keep in cache |
 
 ### Arch Linux / makepkg (AUR build optimization)
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_makepkg_enabled` | `true` | Deploy makepkg drop-in config |
-| `pkgmgr_makepkg_makeflags` | `"-j<nproc>"` | Parallel make jobs (defaults to CPU count) |
-| `pkgmgr_makepkg_pkgext` | `".pkg.tar.zst"` | Package archive format |
+| `package_manager_makepkg_enabled` | `true` | Deploy makepkg drop-in config |
+| `package_manager_makepkg_makeflags` | `"-j<nproc>"` | Parallel make jobs (defaults to CPU count) |
+| `package_manager_makepkg_pkgext` | `".pkg.tar.zst"` | Package archive format |
 
 ### Debian / Ubuntu / apt
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_apt_parallel_queue_mode` | `"host"` | Parallel download queue mode |
-| `pkgmgr_apt_retries` | `3` | Number of download retries |
-| `pkgmgr_apt_dpkg_force_confdef` | `true` | Use default on config file conflict |
-| `pkgmgr_apt_dpkg_force_confold` | `true` | Keep old config file on conflict |
+| `package_manager_apt_parallel_queue_mode` | `"host"` | Parallel download queue mode |
+| `package_manager_apt_retries` | `3` | Number of download retries |
+| `package_manager_apt_dpkg_force_confdef` | `true` | Use default on config file conflict |
+| `package_manager_apt_dpkg_force_confold` | `true` | Keep old config file on conflict |
 
 ### Fedora / dnf
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_dnf_parallel_downloads` | `5` | Number of parallel downloads |
-| `pkgmgr_dnf_fastestmirror` | `true` | Enable fastest mirror plugin |
-| `pkgmgr_dnf_color` | `"always"` | Color output mode |
-| `pkgmgr_dnf_defaultyes` | `true` | Default yes to prompts |
-| `pkgmgr_dnf_keepcache` | `false` | Keep downloaded packages in cache |
-| `pkgmgr_dnf_installonly_limit` | `3` | Number of kernel versions to keep |
+| `package_manager_dnf_parallel_downloads` | `5` | Number of parallel downloads |
+| `package_manager_dnf_fastestmirror` | `true` | Enable fastest mirror plugin |
+| `package_manager_dnf_color` | `"always"` | Color output mode |
+| `package_manager_dnf_defaultyes` | `true` | Default yes to prompts |
+| `package_manager_dnf_keepcache` | `false` | Keep downloaded packages in cache |
+| `package_manager_dnf_installonly_limit` | `3` | Number of kernel versions to keep |
 
 ### Void Linux / xbps
 
 | Variable | Default | Description |
 |---|---|---|
-| `pkgmgr_xbps_cache_cleanup_enabled` | `true` | Schedule weekly cache cleanup via cron |
-| `pkgmgr_xbps_cache_cron_minute` | `"0"` | Cron minute for cache cleanup |
-| `pkgmgr_xbps_cache_cron_hour` | `"3"` | Cron hour for cache cleanup |
-| `pkgmgr_xbps_cache_cron_weekday` | `"0"` | Cron weekday for cache cleanup (0 = Sunday) |
+| `package_manager_xbps_cache_cleanup_enabled` | `true` | Schedule weekly cache cleanup via cron |
+| `package_manager_xbps_cache_cron_minute` | `"0"` | Cron minute for cache cleanup |
+| `package_manager_xbps_cache_cron_hour` | `"3"` | Cron hour for cache cleanup |
+| `package_manager_xbps_cache_cron_weekday` | `"0"` | Cron weekday for cache cleanup (0 = Sunday) |
 
 ## Dependencies
 
@@ -103,9 +103,9 @@ With custom variables:
   roles:
     - role: package_manager
       vars:
-        pkgmgr_pacman_parallel_downloads: 10
-        pkgmgr_pacman_multilib: true
-        pkgmgr_paccache_keep: 2
+        package_manager_pacman_parallel_downloads: 10
+        package_manager_pacman_multilib: true
+        package_manager_paccache_keep: 2
 ```
 
 ## License

@@ -25,11 +25,19 @@
       register: power_management_verify_sleep_conf
       failed_when: not power_management_verify_sleep_conf.stat.exists
 
+    - name: Read sleep.conf content for HibernateMode check
+      ansible.builtin.slurp:
+        src: /etc/systemd/sleep.conf
+      register: power_management_verify_sleep_conf_content
+      failed_when: false
+
     - name: Check sleep.conf contains HibernateMode
-      ansible.builtin.command: grep 'HibernateMode' /etc/systemd/sleep.conf
-      register: power_management_verify_hibernate_mode
-      changed_when: false
-      failed_when: power_management_verify_hibernate_mode.rc != 0
+      ansible.builtin.assert:
+        that:
+          - "'HibernateMode' in (power_management_verify_sleep_conf_content.content | b64decode)"
+        fail_msg: "sleep.conf does not contain HibernateMode"
+        success_msg: "sleep.conf contains HibernateMode"
+      when: power_management_verify_sleep_conf_content is succeeded
 
     # ---- Device detection ----
 
@@ -91,12 +99,22 @@
 
     # ---- logind.conf check ----
 
-    - name: Check logind.conf contains HandleLidSwitch
-      ansible.builtin.command: grep 'HandleLidSwitch=' /etc/systemd/logind.conf
+    - name: Read logind.conf content for HandleLidSwitch check
+      ansible.builtin.slurp:
+        src: /etc/systemd/logind.conf
       register: power_management_verify_logind
-      changed_when: false
-      failed_when: power_management_verify_logind.rc != 0
+      failed_when: false
       when: ansible_service_mgr == 'systemd'
+
+    - name: Check logind.conf contains HandleLidSwitch
+      ansible.builtin.assert:
+        that:
+          - "'HandleLidSwitch=' in (power_management_verify_logind.content | b64decode)"
+        fail_msg: "logind.conf does not contain HandleLidSwitch="
+        success_msg: "logind.conf contains HandleLidSwitch"
+      when:
+        - ansible_service_mgr == 'systemd'
+        - power_management_verify_logind is succeeded
 
     # ---- Audit checks ----
 
@@ -113,11 +131,17 @@
         fail_msg: "power-audit.sh mode is {{ power_management_verify_audit_script.stat.mode }}, expected 0755"
         success_msg: "power-audit.sh has correct permissions"
 
+    - name: Gather service facts for audit timer check
+      ansible.builtin.service_facts:
+      when: ansible_service_mgr == 'systemd'
+
     - name: Check power-audit timer is enabled
-      ansible.builtin.command: systemctl is-enabled power-audit.timer
-      register: power_management_verify_audit_timer
-      changed_when: false
-      failed_when: power_management_verify_audit_timer.stdout != 'enabled'
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['power-audit.timer'] is defined
+          - ansible_facts.services['power-audit.timer'].status == 'enabled'
+        fail_msg: "power-audit.timer is not enabled"
+        success_msg: "power-audit.timer is enabled"
       when: ansible_service_mgr == 'systemd'
 
     # ---- Drift detection state directory ----

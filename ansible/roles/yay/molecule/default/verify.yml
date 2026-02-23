@@ -77,7 +77,7 @@
     # --- AUR packages ---
     - name: Check that AUR packages are installed
       ansible.builtin.command: "pacman -Q {{ item }}"
-      loop: "{{ packages_aur }}"
+      loop: "{{ yay_packages_aur }}"
       changed_when: false
 
     # --- результаты ---
@@ -92,4 +92,4 @@
           - "yay ldd: OK (no broken shared libs)"
           - "Build deps: installed"
           - "Temp build dirs: cleaned up"
-          - "AUR packages: {{ packages_aur | join(', ') }}"
+          - "AUR packages: {{ yay_packages_aur | join(', ') }}"

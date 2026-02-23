@@ -39,11 +39,11 @@
 
 - name: "VirtualBox: Install pacman GA for version detection"
   ansible.builtin.package:
-    name: "{{ packages_virtualbox_guest }}"
+    name: "{{ vm_packages_virtualbox_guest }}"
     state: present
   when:
     - _vm_vbox_control_check.rc != 0
-    - packages_virtualbox_guest | length > 0
+    - vm_packages_virtualbox_guest | length > 0
   register: vm_vbox_initial_install
   retries: 3
   delay: 5
@@ -62,10 +62,10 @@
 
 - name: "VirtualBox: Ensure pacman GA packages (versions match)"
   ansible.builtin.package:
-    name: "{{ packages_virtualbox_guest }}"
+    name: "{{ vm_packages_virtualbox_guest }}"
     state: present
   when:
-    - packages_virtualbox_guest | length > 0
+    - vm_packages_virtualbox_guest | length > 0
     - not (vm_vbox_iso_installed | default(false))
     - vm_vbox_iso_dirs_pre.matched | default(0) == 0
     - >-

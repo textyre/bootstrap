@@ -5,10 +5,10 @@
 vm_service_manager: systemd
 
 # Hyper-V package names (Arch uses 'hyperv' meta-package)
-vm_hyperv_packages: "{{ packages_hyperv_guest }}"
+vm_hyperv_packages: "{{ vm_packages_hyperv_guest }}"
 
 # KVM package names
-vm_kvm_packages: "{{ packages_kvm_guest }}"
+vm_kvm_packages: "{{ vm_packages_kvm_guest }}"
 
 # VirtualBox LTS kernel support available
 vm_vbox_lts_kernel_support: true

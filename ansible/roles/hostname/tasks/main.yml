@@ -65,7 +65,7 @@
 # ---- Итоговый отчёт ----
 # ======================================================================
 
-- name: "hostname — Execution Report"
+- name: "Hostname — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
@@ -73,5 +73,8 @@
     common_rpt_fact: "_hostname_phases"
     common_rpt_title: "hostname"
     common_rpt_footer_rows:
-      - "| {{ '%-26s' | format('OS') }} | {{ '%-10s' | format(ansible_facts['os_family']) }} | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |"  # noqa: line-too-long
+      - >-
+        | {{ '%-26s' | format('OS') }}
+        | {{ '%-10s' | format(ansible_facts['os_family']) }}
+        | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |
   tags: ['hostname', 'report']

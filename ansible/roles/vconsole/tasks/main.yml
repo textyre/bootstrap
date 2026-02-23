@@ -70,7 +70,7 @@
     common_rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
   tags: ['vconsole', 'report']
 
-- name: "vconsole — Execution Report"
+- name: "Vconsole — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml

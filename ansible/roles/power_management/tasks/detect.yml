@@ -17,7 +17,7 @@
       {{
         (power_management_device_type == 'laptop') or
         (power_management_device_type == 'auto' and
-         _power_management_chassis_raw is succeeded and
+         power_management_chassis_raw is succeeded and
          (power_management_chassis_raw.content | b64decode | trim) in power_management_laptop_chassis_types)
       }}
   tags: ['power', 'detect']
@@ -32,16 +32,16 @@
 # ---- CPU vendor detection ----
 
 - name: Read CPU vendor from /proc/cpuinfo
-  ansible.builtin.command: grep -m1 'vendor_id' /proc/cpuinfo
+  ansible.builtin.slurp:
+    src: /proc/cpuinfo
   register: power_management_cpuinfo_raw
-  changed_when: false
   failed_when: false
   tags: ['power', 'detect']
 
 - name: Set CPU vendor facts
   ansible.builtin.set_fact:
-    power_management_cpu_is_intel: "{{ 'GenuineIntel' in (_power_management_cpuinfo_raw.stdout | default('')) }}"
-    power_management_cpu_is_amd: "{{ 'AuthenticAMD' in (_power_management_cpuinfo_raw.stdout | default('')) }}"
+    power_management_cpu_is_intel: "{{ 'GenuineIntel' in (power_management_cpuinfo_raw.content | b64decode | default('')) }}"
+    power_management_cpu_is_amd: "{{ 'AuthenticAMD' in (power_management_cpuinfo_raw.content | b64decode | default('')) }}"
   tags: ['power', 'detect']
 
 # ---- Report ----

@@ -14,18 +14,14 @@
   tags: ['power', 'install']
 
 # ---- cpupower (kernel-versioned) ----
-
-- name: Get running kernel version
-  ansible.builtin.command: uname -r
-  register: pm_kernel_version
-  changed_when: false
-  tags: ['power', 'install']
+# ansible_kernel is gathered by setup/gather_facts and contains the running
+# kernel version string (e.g. "6.1.0-21-amd64"), avoiding a command: uname -r.
 
 - name: Install linux-tools for cpupower (kernel-versioned)
   ansible.builtin.apt:
-    name: "linux-tools-{{ pm_kernel_version.stdout }}"
+    name: "linux-tools-{{ ansible_kernel }}"
     state: present
-  register: pm_linux_tools_result
+  register: power_management_linux_tools_result
   failed_when: false
   tags: ['power', 'install']
 
@@ -35,12 +31,12 @@
       - linux-tools-common
       - linux-cpupower
     state: present
-  when: pm_linux_tools_result is failed or pm_linux_tools_result.rc | default(0) != 0
+  when: power_management_linux_tools_result is failed or power_management_linux_tools_result.rc | default(0) != 0
   tags: ['power', 'install']
 
 - name: Install linux-tools-common (cpupower helpers)
   ansible.builtin.apt:
     name: linux-tools-common
     state: present
-  when: pm_linux_tools_result is not failed
+  when: power_management_linux_tools_result is not failed
   tags: ['power', 'install']

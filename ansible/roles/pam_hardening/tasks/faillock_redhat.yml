@@ -6,8 +6,8 @@
 
 - name: Enable faillock feature via authselect (RedHat)
   ansible.builtin.command: authselect enable-feature with-faillock
-  register: pam_authselect_result
+  register: pam_hardening_authselect_result
   changed_when: >
-    'already' not in (_pam_authselect_result.stdout | default(''))
+    'already' not in (pam_hardening_authselect_result.stdout | default(''))
   notify: Apply authselect (RedHat)
   tags: ['pam', 'security', 'faillock']

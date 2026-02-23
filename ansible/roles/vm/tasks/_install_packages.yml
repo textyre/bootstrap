@@ -11,7 +11,7 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _install_packages.yml
 #     vars:
-#       vm_pkg_list: "{{ packages_hyperv_guest }}"
+#       vm_pkg_list: "{{ vm_packages_hyperv_guest }}"
 #       vm_pkg_label: "Hyper-V"
 #
 # Required parameters:

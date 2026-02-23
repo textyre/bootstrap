@@ -13,7 +13,7 @@
   register: ssh_moduli_file
   tags: [ssh, security, moduli]
 
-- name: "Count weak DH moduli (< {{ ssh_moduli_minimum_bits }} bits)"
+- name: "Count weak DH moduli below threshold: {{ ssh_moduli_minimum_bits }}"
   ansible.builtin.command:
     cmd: "awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
   register: ssh_weak_moduli
@@ -21,7 +21,7 @@
   when: ssh_moduli_file.stat.exists
   tags: [ssh, security, moduli]
 
-- name: "Filter strong DH moduli (>= {{ ssh_moduli_minimum_bits }} bits)"
+- name: "Filter strong DH moduli at or above threshold: {{ ssh_moduli_minimum_bits }}"
   ansible.builtin.command:
     cmd: "awk '$5 >= {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
   register: ssh_strong_moduli

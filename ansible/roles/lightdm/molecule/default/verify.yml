@@ -31,8 +31,8 @@
     - name: Check resolution script is executable (0755)
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
-      register: lightdmlightdm_verify_lightdm_script_perms
-      failed_when: lightdmlightdm_verify_lightdm_script_perms.stat.mode != '0755'
+      register: lightdm_verify_lightdm_script_perms
+      failed_when: lightdm_verify_lightdm_script_perms.stat.mode != '0755'
 
     - name: Check LightDM service is enabled
       ansible.builtin.service:
