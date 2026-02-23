@@ -77,7 +77,9 @@
   tags: ['greeter', 'display']
 
 - name: Get systemd version
-  ansible.builtin.shell: set -o pipefail; systemctl --version 2>/dev/null | head -1 | cut -d' ' -f2
+  ansible.builtin.shell: |
+    set -o pipefail;
+    systemctl --version 2>/dev/null | head -1 | cut -d' ' -f2
   register: greeter_systemd_ver
   changed_when: false
   failed_when: false
