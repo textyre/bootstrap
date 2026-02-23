@@ -14,9 +14,13 @@ on:
       - '.github/workflows/lint.yml'
   workflow_dispatch:
 
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
-    name: Ansible Lint
+  fast-checks:
+    name: YAML Lint & Syntax
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository }}/ci-env:latest
@@ -29,10 +33,6 @@ jobs:
         working-directory: ansible
         run: yamllint -c .yamllint playbooks/ roles/
 
-      - name: Run ansible-lint
-        working-directory: ansible
-        run: ansible-lint playbooks/ roles/
-
       - name: Syntax check - workstation playbook
         working-directory: ansible
         run: ansible-playbook playbooks/workstation.yml --syntax-check
@@ -40,3 +40,17 @@ jobs:
       - name: Syntax check - mirrors playbook
         working-directory: ansible
         run: ansible-playbook playbooks/mirrors-update.yml --syntax-check
+
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/ci-env:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ansible-lint
+        working-directory: ansible
+        run: ansible-lint playbooks/ roles/
