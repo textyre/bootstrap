@@ -14,7 +14,8 @@
 
 # ---- Install packages ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Install guest packages"
+  ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
     vm_pkg_list: "{{ vm_hyperv_packages }}"
@@ -24,7 +25,8 @@
 
 # ---- Check time sync ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Check time sync"
+  ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
     vm_timesync_label: "Hyper-V"
@@ -33,7 +35,8 @@
 
 # ---- Manage services ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Manage integration services"
+  ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
     vm_svc_list:
@@ -51,7 +54,8 @@
 
 # ---- Verify kernel modules ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Verify kernel modules"
+  ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
     vm_mod_list:
@@ -72,7 +76,8 @@
 
 # ---- Version report ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Generate version report"
+  ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
     vm_ver_label: "Hyper-V"
@@ -84,7 +89,8 @@
 
 # ---- Check X11 integration ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Check X11 integration"
+  ansible.builtin.include_tasks:
     file: _check_x11.yml
   vars:
     vm_x11_label: "Hyper-V"
@@ -95,7 +101,8 @@
 
 # ---- Check reboot requirement ----
 
-- ansible.builtin.include_tasks:
+- name: "Hyper-V: Check reboot requirement"
+  ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
     vm_reboot_label: "Hyper-V"

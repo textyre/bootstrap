@@ -155,12 +155,10 @@
       failed_when: false
 
     - name: "VirtualBox: Collect failure diagnostics"
-      ansible.builtin.shell:
-        cmd: "{{ item }}"
-      loop:
-        - "uname -r"
-        - "ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'"
-        - "lsmod | grep vbox || echo 'No vbox modules'"
+      ansible.builtin.shell: |
+        echo "=== Kernel ===" && uname -r
+        echo "=== VBoxGuestAdditions ISOs ===" && ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'
+        echo "=== Loaded vbox modules ===" && lsmod | grep vbox || echo 'No vbox modules'
       register: vm_vbox_iso_diag
       changed_when: false
       failed_when: false
@@ -169,7 +167,7 @@
       ansible.builtin.fail:
         msg: >-
           Failed to install VBoxGuestAdditions {{ vm_vbox_host_ver }} from ISO, and pacman recovery also failed.
-          Diagnostics: {{ vm_vbox_iso_diag.results | map(attribute='stdout') | list }}
+          Diagnostics: {{ vm_vbox_iso_diag.stdout }}
       when: vm_vbox_recovery is failed
 
     - name: "VirtualBox: ISO install failed, reverted to pacman"
