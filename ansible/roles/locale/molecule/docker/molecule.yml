@@ -34,6 +34,7 @@ scenario:
   test_sequence:
     - syntax
     - create
+    - prepare
     - converge
     - idempotence
     - verify
