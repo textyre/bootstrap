@@ -13,7 +13,7 @@
     # ---- hostname exact match ----
 
     - name: Get current hostname
-      ansible.builtin.command: hostname
+      ansible.builtin.command: python3 -c "import socket; print(socket.gethostname())"
       register: hostname_verify_hostname
       changed_when: false
 
