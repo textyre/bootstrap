@@ -55,6 +55,7 @@ jobs:
           # CI-ready roles = those with molecule/docker/molecule.yml
           ALL_ROLES=$(find ansible/roles -name molecule.yml -path "*/docker/molecule.yml" \
             | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
+          CHANGED=""  # empty on workflow_dispatch; populated on push/PR
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             FILTER="${{ inputs.role_filter }}"
