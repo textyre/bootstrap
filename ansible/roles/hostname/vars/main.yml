@@ -2,7 +2,7 @@
 # === Внутренние маппинги (не для пользователя) ===
 
 # Стратегия hostname модуля по OS family
-_hostname_strategy:
+hostname_strategy:
   Archlinux: systemd
   Debian: debian
   RedHat: redhat

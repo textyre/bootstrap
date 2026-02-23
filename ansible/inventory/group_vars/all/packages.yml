@@ -109,7 +109,7 @@ packages_graphics:
 # --- Сессия / грифтер ---
 packages_session:
   - lightdm             # display manager
-  # nody-greeter (AUR) — устанавливается через packages_aur
+  # nody-greeter (AUR) — устанавливается через yay_packages_aur
 
 # --- Терминал ---
 packages_terminal:
@@ -153,28 +153,28 @@ packages_distro:
 
 # --- VirtualBox Guest Additions (only if running in VirtualBox VM) ---
 # Used by role: vm
-packages_virtualbox_guest:
+vm_packages_virtualbox_guest:
   - virtualbox-guest-utils   # Guest Additions (shared folders, clipboard, vboxvideo)
 
 # --- VMware Guest Tools (only if running in VMware VM) ---
 # Used by role: vm
-packages_vmware_guest:
+vm_packages_vmware_guest:
   - open-vm-tools            # VMware guest tools (vmtoolsd, vgauthd)
 
 # --- Hyper-V Guest Daemons (only if running in Hyper-V VM) ---
 # Used by role: vm
-packages_hyperv_guest:
+vm_packages_hyperv_guest:
   - hyperv                   # hv_fcopy, hv_kvp, hv_vss daemons
 
 # --- QEMU/KVM Guest Agent (only if running in KVM/QEMU VM) ---
 # Used by role: vm
-packages_kvm_guest:
+vm_packages_kvm_guest:
   - qemu-guest-agent         # Guest Agent (filesystem freeze, shutdown, exec)
 
 # --- Агрегированный список официальных пакетов (для conflict validation в роли yay) ---
 # Роль yay не знает о внутренней структуре packages_*; она получает один список.
 # ВАЖНО: использует ansible_facts['os_family'] → плей должен иметь gather_facts: true.
-packages_official: >-
+yay_packages_official: >-
   {{ packages_base
      + packages_editors
      + packages_docker
@@ -195,14 +195,14 @@ packages_official: >-
 
 # --- Пакеты конфликтующие с AUR заменами ---
 # Удаляются перед установкой AUR пакетов
-packages_aur_remove_conflicts:
+yay_packages_aur_remove_conflicts:
   - i3lock            # заменяется на i3lock-color из AUR
   - i3-wm             # заменяется на i3-rounded-border-patch-git из AUR
   - lightdm-gtk-greeter # заменяется на nody-greeter из AUR
 
 # --- AUR пакеты (только Arch Linux, через yay) ---
 # yay устанавливается отдельной ролью (roles/yay)
-packages_aur:
+yay_packages_aur:
   - i3-rounded-border-patch-git   # i3 с патчем для скруглённых углов
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi

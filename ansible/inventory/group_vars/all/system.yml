@@ -81,9 +81,14 @@ git_editor: "vim"
 # ============================================================
 
 shell_user: "{{ target_user }}"
-shell_type: bash
-# chezmoi управляет .bashrc и .zshrc — shell role не деплоит конфиг
-shell_deploy_config: false
+shell_type: zsh
+shell_set_login: true
+
+# System-wide PATH additions → /etc/profile.d/
+shell_global_path:
+  - "$HOME/.local/bin"
+  - "$HOME/.cargo/bin"
+  - "/usr/local/go/bin"
 
 # ============================================================
 #  docker — роль roles/docker

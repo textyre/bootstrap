@@ -1,0 +1,6 @@
+---
+- name: "Install OpenSSH packages (Gentoo)"
+  ansible.builtin.package:
+    name: "{{ ssh_packages }}"
+    state: present
+  tags: [ssh, install]

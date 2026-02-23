@@ -72,29 +72,29 @@
 
     - name: Remove VirtualBox guest packages
       ansible.builtin.package:
-        name: "{{ packages_virtualbox_guest }}"
+        name: "{{ vm_packages_virtualbox_guest }}"
         state: absent
       when:
         - vm_prepare_virt_type == 'virtualbox'
-        - packages_virtualbox_guest | length > 0
+        - vm_packages_virtualbox_guest | length > 0
       failed_when: false
 
     - name: Remove VMware guest packages
       ansible.builtin.package:
-        name: "{{ packages_vmware_guest }}"
+        name: "{{ vm_packages_vmware_guest }}"
         state: absent
       when:
         - vm_prepare_virt_type == 'VMware'
-        - packages_vmware_guest | length > 0
+        - vm_packages_vmware_guest | length > 0
       failed_when: false
 
     - name: Remove Hyper-V guest packages
       ansible.builtin.package:
-        name: "{{ packages_hyperv_guest }}"
+        name: "{{ vm_packages_hyperv_guest }}"
         state: absent
       when:
         - vm_prepare_virt_type == 'hyperv'
-        - packages_hyperv_guest | length > 0
+        - vm_packages_hyperv_guest | length > 0
       failed_when: false
 
     - name: Remove stale custom fact (removed in refactor)

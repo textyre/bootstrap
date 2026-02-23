@@ -1,0 +1,20 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Ensure we're running on Arch Linux
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Archlinux'
+        fail_msg: "This test requires Arch Linux"
+
+  roles:
+    - role: fail2ban
+      vars:
+        fail2ban_enabled: true
+        fail2ban_sshd_enabled: true
+        fail2ban_sshd_maxretry: 3
+        fail2ban_sshd_bantime: 600

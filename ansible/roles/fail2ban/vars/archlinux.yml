@@ -1,0 +1,10 @@
+---
+fail2ban_packages:
+  - fail2ban
+
+fail2ban_service_name:
+  systemd: fail2ban
+  runit: fail2ban
+  openrc: fail2ban
+  s6: fail2ban
+  dinit: fail2ban

@@ -4,9 +4,9 @@
 - name: Assert external cache config is valid
   ansible.builtin.assert:
     that:
-      - pkgmgr_pacman_cache_root | length > 0
-    msg: "pkgmgr_pacman_cache_root must be set when pkgmgr_pacman_external_cache is true"
-  when: pkgmgr_pacman_external_cache
+      - package_manager_pacman_cache_root | length > 0
+    msg: "package_manager_pacman_cache_root must be set when package_manager_pacman_external_cache is true"
+  when: package_manager_pacman_external_cache
   tags: ['packages', 'pacman']
 
 - name: Deploy pacman.conf from template
@@ -20,7 +20,7 @@
   tags: ['packages', 'pacman']
 
 - name: Setup external pacman cache
-  when: pkgmgr_pacman_external_cache and pkgmgr_pacman_cache_root | length > 0
+  when: package_manager_pacman_external_cache and package_manager_pacman_cache_root | length > 0
   tags: ['packages', 'pacman-cache']
   block:
     - name: Create pacman cache directories
@@ -31,15 +31,15 @@
         group: root
         mode: '0755'
       loop:
-        - "{{ pkgmgr_pacman_cache_root }}/var/lib/pacman/sync"
-        - "{{ pkgmgr_pacman_cache_root }}/var/cache/pacman/pkg"
-        - "{{ pkgmgr_pacman_cache_root }}/etc/pacman.d"
+        - "{{ package_manager_pacman_cache_root }}/var/lib/pacman/sync"
+        - "{{ package_manager_pacman_cache_root }}/var/cache/pacman/pkg"
+        - "{{ package_manager_pacman_cache_root }}/etc/pacman.d"
 
     - name: Check if alpm user exists
       ansible.builtin.getent:
         database: passwd
         key: alpm
-      register: _pkgmgr_alpm_user
+      register: package_manager_alpm_user
       failed_when: false
 
     - name: Set alpm ownership on pacman cache dirs
@@ -50,9 +50,9 @@
         state: directory
         mode: '2775'
       loop:
-        - "{{ pkgmgr_pacman_cache_root }}/var/lib/pacman/sync"
-        - "{{ pkgmgr_pacman_cache_root }}/var/cache/pacman/pkg"
-        - "{{ pkgmgr_pacman_cache_root }}/etc/pacman.d"
+        - "{{ package_manager_pacman_cache_root }}/var/lib/pacman/sync"
+        - "{{ package_manager_pacman_cache_root }}/var/cache/pacman/pkg"
+        - "{{ package_manager_pacman_cache_root }}/etc/pacman.d"
       when: >
-        _pkgmgr_alpm_user.ansible_facts.getent_passwd is defined
-        and 'alpm' in _pkgmgr_alpm_user.ansible_facts.getent_passwd
+        package_manager_alpm_user.ansible_facts.getent_passwd is defined
+        and 'alpm' in package_manager_alpm_user.ansible_facts.getent_passwd

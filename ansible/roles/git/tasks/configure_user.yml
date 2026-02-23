@@ -1,0 +1,48 @@
+---
+# === git — per-user configuration dispatcher ===
+# Called from main.yml with _git_current_user set by loop_var.
+# Each include_tasks runs as become_user: _git_current_user.name.
+
+- name: "Configure git for {{ git_current_user.name }}"
+  become: true
+  become_user: "{{ git_current_user.name }}"
+  tags: [git, configure]
+  block:
+    - name: Apply base git config
+      ansible.builtin.include_tasks: config_base.yml
+
+    - name: Apply extra git config
+      ansible.builtin.include_tasks: config_extra.yml
+      when: (git_config_extra | combine(git_config_overwrite)) | length > 0
+
+    - name: Configure commit signing
+      ansible.builtin.include_tasks: signing.yml
+      when: git_manage_signing | bool
+
+    - name: Configure git aliases
+      ansible.builtin.include_tasks: aliases.yml
+      when: git_manage_aliases | bool
+
+    - name: Configure credential helper
+      ansible.builtin.include_tasks: credential.yml
+      when: git_manage_credential | bool
+
+    - name: Initialize git-lfs
+      ansible.builtin.include_tasks: lfs_user.yml
+      when: git_lfs_enabled | bool
+
+    - name: Ensure global hooks directory exists
+      ansible.builtin.file:
+        path: "{{ git_hooks_path }}"
+        state: directory
+        mode: "0755"
+      when: git_manage_hooks | bool
+      tags: [git, hooks]
+
+    - name: Set core.hooksPath
+      community.general.git_config:
+        name: core.hooksPath
+        value: "{{ git_hooks_path }}"
+        scope: global
+      when: git_manage_hooks | bool
+      tags: [git, hooks]

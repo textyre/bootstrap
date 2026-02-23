@@ -11,15 +11,15 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _reboot_flag.yml
 #     vars:
-#       _vm_reboot_label: "VirtualBox"
-#       _vm_reboot_condition: "{{ (_vm_pkg_install is changed) and ('vboxguest' not in _vm_lsmod.stdout) }}"
+#       vm_reboot_label: "VirtualBox"
+#       vm_reboot_condition: "{{ (_vm_pkg_install is changed) and ('vboxguest' not in _vm_lsmod.stdout) }}"
 #
 # Required parameters:
-#   _vm_reboot_label (string)    - Hypervisor name for notification messages
-#   _vm_reboot_condition (bool)  - Condition that determines if reboot is needed
+#   vm_reboot_label (string)    - Hypervisor name for notification messages
+#   vm_reboot_condition (bool)  - Condition that determines if reboot is needed
 #
 # Behavior:
-#   - Sets global fact _vm_reboot_required=true when condition is met
+#   - Sets global fact vm_reboot_required=true when condition is met
 #   - Displays a notice message if reboot is required
 #   - Can be called multiple times; flag is cumulative (once set, stays set)
 #   - Caller is responsible for actually performing the reboot
@@ -28,21 +28,21 @@
 #   - Always succeeds (informational only, no failures)
 #
 # Notes:
-#   - The _vm_reboot_required fact persists across all tasks in the play
+#   - The vm_reboot_required fact persists across all tasks in the play
 #   - This file only sets the flag; it does NOT perform the actual reboot
-#   - Check _vm_reboot_required in calling playbook to decide on reboot action
+#   - Check vm_reboot_required in calling playbook to decide on reboot action
 # =========================================================================
 
-- name: "{{ _vm_reboot_label }}: Set reboot required flag"
+- name: "{{ vm_reboot_label }}: Set reboot required flag"
   ansible.builtin.set_fact:
-    _vm_reboot_required: true
-  when: _vm_reboot_condition | bool
+    vm_reboot_required: true
+  when: vm_reboot_condition | bool
   tags: ['vm']
 
-- name: "{{ _vm_reboot_label }}: Notify reboot required"
+- name: "{{ vm_reboot_label }}: Notify reboot required"
   ansible.builtin.debug:
-    msg: "NOTICE: Reboot required for {{ _vm_reboot_label }} kernel modules to load properly"
+    msg: "NOTICE: Reboot required for {{ vm_reboot_label }} kernel modules to load properly"
   when:
-    - _vm_reboot_required | default(false)
-    - _vm_reboot_condition | bool
+    - vm_reboot_required | default(false)
+    - vm_reboot_condition | bool
   tags: ['vm', 'vm:report']

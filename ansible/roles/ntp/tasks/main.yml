@@ -32,9 +32,9 @@
     # Set defaults when auto-detect is disabled
     - name: Set default environment facts (auto-detect disabled)
       ansible.builtin.set_fact:
-        _ntp_virt_type: "none"
-        _ntp_env: "{{ _ntp_env_defaults }}"
-        _ntp_active_refclocks: "{{ ntp_refclocks }}"
+        ntp_virt_type: "none"
+        ntp_env: "{{ ntp_env_defaults }}"
+        ntp_active_refclocks: "{{ ntp_refclocks }}"
       when: not (ntp_auto_detect | bool)
       tags: ['ntp']
 
@@ -44,7 +44,7 @@
 
     - name: Load ptp_kvm module (KVM only)
       ansible.builtin.include_tasks: load_ptp_kvm.yml
-      when: _ntp_virt_type == 'kvm'
+      when: ntp_virt_type == 'kvm'
       tags: ['ntp']
 
     # ======================================================================
@@ -72,7 +72,7 @@
     - name: Disable VMware periodic time sync
       ansible.builtin.include_tasks: vmware_disable_timesync.yml
       when:
-        - _ntp_virt_type == 'vmware'
+        - ntp_virt_type == 'vmware'
         - ntp_vmware_disable_periodic_sync | bool
       tags: ['ntp']
 
@@ -82,7 +82,7 @@
 
     - name: Install NTP daemon (chrony)
       ansible.builtin.package:
-        name: "{{ _ntp_package[ansible_facts['os_family']] | default('chrony') }}"
+        name: "{{ ntp_package[ansible_facts['os_family']] | default('chrony') }}"
         state: present
       tags: ['ntp']
 
@@ -94,8 +94,8 @@
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
-        group: "{{ _ntp_user[ansible_facts['os_family']] | default('chrony') }}"
+        owner: "{{ ntp_user[ansible_facts['os_family']] | default('chrony') }}"
+        group: "{{ ntp_user[ansible_facts['os_family']] | default('chrony') }}"
         mode: "{{ item.mode }}"
       loop:
         - { path: "{{ ntp_logdir }}", mode: "0755" }
@@ -123,7 +123,7 @@
 
     - name: Enable and start chronyd
       ansible.builtin.service:
-        name: "{{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+        name: "{{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
         enabled: true
         state: started
       tags: ['ntp', 'ntp:state']
@@ -145,19 +145,19 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_ntp_phases"
-        _rpt_phase: "Configure NTP"
-        _rpt_detail: >-
-          chrony ({{ _ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
-          env={{ _ntp_virt_type | default('unknown') }}
-          refclocks={{ _ntp_active_refclocks | default([]) | length }}
+        common_rpt_fact: "_ntp_phases"
+        common_rpt_phase: "Configure NTP"
+        common_rpt_detail: >-
+          chrony ({{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
+          env={{ ntp_virt_type | default('unknown') }}
+          refclocks={{ ntp_active_refclocks | default([]) | length }}
       tags: ['ntp', 'report']
 
-    - name: "ntp — Execution Report"
+    - name: "Ntp — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml
       vars:
-        _rpt_fact: "_ntp_phases"
-        _rpt_title: "ntp"
+        common_rpt_fact: "_ntp_phases"
+        common_rpt_title: "ntp"
       tags: ['ntp', 'report']

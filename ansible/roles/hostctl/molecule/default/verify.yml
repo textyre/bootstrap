@@ -7,47 +7,47 @@
   tasks:
     - name: Verify hostctl binary is installed
       ansible.builtin.command: hostctl --version
-      register: _verify_version
+      register: hostctl_verify_version
       changed_when: false
-      failed_when: _verify_version.rc != 0
+      failed_when: hostctl_verify_version.rc != 0
 
     - name: Assert hostctl responds to --version
       ansible.builtin.assert:
-        that: _verify_version.stdout | length > 0
+        that: hostctl_verify_version.stdout | length > 0
         fail_msg: "hostctl --version returned empty output"
 
     - name: Check test profile file exists
       ansible.builtin.stat:
         path: /etc/hostctl/test.hosts
-      register: _verify_profile
+      register: hostctl_verify_profile
 
     - name: Assert test profile was deployed
       ansible.builtin.assert:
-        that: _verify_profile.stat.exists
+        that: hostctl_verify_profile.stat.exists
         fail_msg: "/etc/hostctl/test.hosts was not deployed"
 
     - name: Verify profile contains expected entry
       ansible.builtin.command: grep -q "molecule.local" /etc/hostctl/test.hosts
-      register: _verify_entry
+      register: hostctl_verify_entry
       changed_when: false
-      failed_when: _verify_entry.rc != 0
+      failed_when: hostctl_verify_entry.rc != 0
 
     - name: Verify profile is applied to /etc/hosts
       ansible.builtin.command: grep -q "molecule.local" /etc/hosts
-      register: _verify_applied
+      register: hostctl_verify_applied
       changed_when: false
-      failed_when: _verify_applied.rc != 0
+      failed_when: hostctl_verify_applied.rc != 0
 
     - name: Verify base /etc/hosts entries were not overwritten by hostctl
       ansible.builtin.command: grep -q "127.0.0.1" /etc/hosts
-      register: _verify_base
+      register: hostctl_verify_base
       changed_when: false
-      failed_when: _verify_base.rc != 0
+      failed_when: hostctl_verify_base.rc != 0
 
     - name: Show result
       ansible.builtin.debug:
         msg:
-          - "hostctl version: {{ _verify_version.stdout }}"
+          - "hostctl version: {{ hostctl_verify_version.stdout }}"
           - "Profile /etc/hostctl/test.hosts: present"
           - "Entry molecule.local in /etc/hostctl/test.hosts: found"
           - "Entry molecule.local applied to /etc/hosts: found"

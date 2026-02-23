@@ -2,10 +2,10 @@
 // Role: package_manager
 
 Dpkg::Options {
-{% if pkgmgr_apt_dpkg_force_confdef %}
+{% if package_manager_apt_dpkg_force_confdef %}
    "--force-confdef";
 {% endif %}
-{% if pkgmgr_apt_dpkg_force_confold %}
+{% if package_manager_apt_dpkg_force_confold %}
    "--force-confold";
 {% endif %}
 };

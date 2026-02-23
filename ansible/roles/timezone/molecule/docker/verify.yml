@@ -1,0 +1,30 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    test_timezone: "Asia/Almaty"
+
+  tasks:
+    - name: Check /etc/localtime symlink
+      ansible.builtin.command: readlink -f /etc/localtime
+      register: timezone_verify_localtime
+      changed_when: false
+
+    - name: Assert timezone matches
+      ansible.builtin.assert:
+        that:
+          - test_timezone in timezone_verify_localtime.stdout
+        fail_msg: "Expected '{{ test_timezone }}' in '{{ timezone_verify_localtime.stdout }}'"
+
+    - name: Check tzdata is installed
+      ansible.builtin.command: pacman -Q tzdata
+      register: timezone_verify_tzdata
+      changed_when: false
+      failed_when: timezone_verify_tzdata.rc != 0
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "Timezone verification passed: {{ test_timezone }}, tzdata installed"

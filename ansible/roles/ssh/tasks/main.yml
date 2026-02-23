@@ -1,64 +1,103 @@
 ---
-# === Настройка SSH ===
-# Полный hardening sshd: ключи, конфиг, модули, баннер, сервис
+# === ssh role — hardened sshd configuration ===
 
-# ---- Установка openssh (OS-specific) ----
+# ROLE-003: Validate supported OS
+- name: "Assert supported operating system"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ssh_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ ssh_supported_os | join(', ') }}
+  tags: [ssh]
 
-- name: Install openssh (OS-specific)
+# ROLE-001: OS-specific variables
+- name: "Include OS-specific variables"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: [ssh]
+
+# Install openssh (OS-specific)
+- name: "Install openssh (OS-specific)"
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['ssh', 'install']
+  tags: [ssh, install]
 
-# ---- Генерация SSH-ключа ----
+# ROLE-008: Report install phase
+- name: "Report: sshd install"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "Install"
+    common_rpt_detail: "packages={{ ssh_packages | join(',') }}"
+  tags: [ssh, report]
 
-- name: Generate SSH key pair
-  ansible.builtin.include_tasks: keygen.yml
-  when: ssh_generate_key
-  tags: ['ssh', 'keygen']
-
-# ---- Pre-flight: защита от блокировки ----
-
-- name: Pre-flight lockout protection
+# Pre-flight: lockout protection
+- name: "Pre-flight lockout protection"
   ansible.builtin.include_tasks: preflight.yml
   when: ssh_harden_sshd
-  tags: ['ssh', 'security']
+  tags: [ssh, security]
 
-# ---- Hardening sshd ----
-
-- name: Harden sshd configuration
+# Hardening sshd
+- name: "Harden sshd configuration"
   ansible.builtin.include_tasks: harden.yml
   when: ssh_harden_sshd
-  tags: ['ssh', 'security']
+  tags: [ssh, security]
 
-# ---- Очистка DH-модулей (опционально) ----
+# ROLE-008: Report harden phase
+- name: "Report: sshd hardening"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "Harden"
+    common_rpt_detail: >-
+      port={{ ssh_port }}
+      root_login={{ ssh_permit_root_login }}
+      password_auth={{ ssh_password_authentication }}
+    common_rpt_status: "{{ 'done' if ssh_harden_sshd else 'skip' }}"
+  tags: [ssh, report]
 
-- name: Clean up weak DH moduli
+# DH moduli cleanup (optional)
+- name: "Clean up weak DH moduli"
   ansible.builtin.include_tasks: moduli.yml
   when: ssh_moduli_cleanup
-  tags: ['ssh', 'security', 'moduli']
+  tags: [ssh, security, moduli]
 
-# ---- SSH баннер (опционально) ----
-
-- name: Deploy SSH banner
+# SSH banner (optional)
+- name: "Deploy SSH banner"
   ansible.builtin.include_tasks: banner.yml
   when: ssh_banner_enabled
-  tags: ['ssh', 'banner']
+  tags: [ssh, banner]
 
-# ---- Управление сервисом ----
-
-- name: Manage sshd service
+# Service management
+- name: "Manage sshd service"
   ansible.builtin.include_tasks: service.yml
-  tags: ['ssh', 'service']
+  tags: [ssh, service]
 
-# ---- Отчёт ----
+# ROLE-008: Report service phase
+- name: "Report: sshd service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "Service"
+    common_rpt_detail: "svc={{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+  tags: [ssh, report]
 
-- name: Report SSH configuration
-  ansible.builtin.debug:
-    msg:
-      - "SSH hardening: {{ 'включён' if ssh_harden_sshd else 'выключен' }}"
-      - "Порт: {{ ssh_port }}"
-      - "PermitRootLogin: {{ ssh_permit_root_login }}"
-      - "PasswordAuthentication: {{ ssh_password_authentication }}"
-      - "AllowGroups: {{ ssh_allow_groups | join(', ') if ssh_allow_groups | length > 0 else 'все' }}"
-      - "Модули DH: {{ 'очищены (<' ~ ssh_moduli_minimum_bits ~ ' бит)' if ssh_moduli_cleanup else 'не изменены' }}"
-      - "Баннер: {{ 'включён' if ssh_banner_enabled else 'выключен' }}"
-  tags: ['ssh']
+# ROLE-005: In-role verification
+- name: "Verify sshd configuration"
+  ansible.builtin.include_tasks: verify.yml
+  tags: [ssh]
+
+# ROLE-008: Final report render
+- name: "Ssh — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_title: "ssh"
+  tags: [ssh, report]

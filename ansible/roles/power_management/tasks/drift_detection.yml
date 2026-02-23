@@ -18,7 +18,7 @@
 - name: Read previous power state
   ansible.builtin.slurp:
     src: "{{ power_management_drift_state_dir }}/last_state.json"
-  register: _pm_drift_previous_raw
+  register: power_management_drift_previous_raw
   failed_when: false
   tags: ['power', 'drift']
 
@@ -26,31 +26,31 @@
 
 - name: Parse previous state
   ansible.builtin.set_fact:
-    _pm_drift_previous: "{{ (_pm_drift_previous_raw.content | b64decode | from_json) if _pm_drift_previous_raw is succeeded else {} }}"
+    power_management_drift_previous: "{{ (power_management_drift_previous_raw.content | b64decode | from_json) if power_management_drift_previous_raw is succeeded else {} }}"
   tags: ['power', 'drift']
 
 - name: Warn about governor drift
   ansible.builtin.debug:
     msg: >-
       DRIFT DETECTED: CPU governor changed from
-      '{{ _pm_drift_previous.governor | default('unknown') }}' to
+      '{{ power_management_drift_previous.governor | default('unknown') }}' to
       '{{ power_management_status.governor }}'.
       This may indicate manual changes or conflicting services.
   when:
-    - _pm_drift_previous.governor is defined
-    - _pm_drift_previous.governor != power_management_status.governor
+    - power_management_drift_previous.governor is defined
+    - power_management_drift_previous.governor != power_management_status.governor
   tags: ['power', 'drift']
 
 - name: Warn about TLP status drift
   ansible.builtin.debug:
     msg: >-
       DRIFT DETECTED: TLP status changed from
-      '{{ _pm_drift_previous.tlp_active | default('unknown') }}' to
+      '{{ power_management_drift_previous.tlp_active | default('unknown') }}' to
       '{{ power_management_status.tlp_active }}'.
   when:
-    - _power_management_is_laptop
-    - _pm_drift_previous.tlp_active is defined
-    - _pm_drift_previous.tlp_active | string != power_management_status.tlp_active | string
+    - power_management_is_laptop
+    - power_management_drift_previous.tlp_active is defined
+    - power_management_drift_previous.tlp_active | string != power_management_status.tlp_active | string
   tags: ['power', 'drift']
 
 # ---- Save current state ----

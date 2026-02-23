@@ -1,0 +1,23 @@
+---
+# === Shell — XDG Base Directory creation ===
+# https://specifications.freedesktop.org/basedir-spec/latest/
+
+- name: Create XDG directories
+  ansible.builtin.file:
+    path: "{{ shell_user_home }}/{{ item }}"
+    state: directory
+    owner: "{{ shell_user }}"
+    group: "{{ shell_user }}"
+    mode: '0755'
+  loop: "{{ shell_xdg_dirs }}"
+  tags: ['shell', 'configure']
+
+- name: "Report: XDG directories"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_shell_phases"
+    common_rpt_phase: "Create XDG directories"
+    common_rpt_detail: "{{ shell_xdg_dirs | length }} dirs"
+  tags: ['shell', 'report']

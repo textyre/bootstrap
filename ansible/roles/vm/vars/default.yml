@@ -2,13 +2,13 @@
 # === Default/fallback variables for unsupported OS families ===
 
 # Service manager: assume systemd
-_vm_service_manager: systemd
+vm_service_manager: systemd
 
 # Hyper-V package names: use role defaults
-_vm_hyperv_packages: "{{ packages_hyperv_guest }}"
+vm_hyperv_packages: "{{ vm_packages_hyperv_guest }}"
 
 # KVM package names: use role defaults
-_vm_kvm_packages: "{{ packages_kvm_guest }}"
+vm_kvm_packages: "{{ vm_packages_kvm_guest }}"
 
 # VirtualBox LTS kernel support: disabled by default
-_vm_vbox_lts_kernel_support: false
+vm_vbox_lts_kernel_support: false

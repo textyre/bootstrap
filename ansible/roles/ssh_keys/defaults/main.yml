@@ -1,0 +1,32 @@
+# ansible/roles/ssh_keys/defaults/main.yml
+---
+# === ssh_keys role defaults ===
+
+# ROLE-003: Supported operating systems
+ssh_keys_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Feature toggles (ROLE-010)
+ssh_keys_manage_authorized_keys: true
+ssh_keys_generate_user_keys: false
+ssh_keys_key_type: ed25519
+ssh_keys_exclusive: false
+
+# Data source: reads from `accounts` variable (shared with users role)
+# accounts:
+#   - name: alice
+#     state: present
+#     ssh_keys:
+#       - "ssh-ed25519 AAAA... alice@laptop"
+
+# Backward compatibility with user role data model
+# If `accounts` is not defined, falls back to user_owner + user_additional_users
+ssh_keys_users: >-
+  {{ accounts | default(
+       [user_owner | default({})] +
+       (user_additional_users | default([]))
+     ) }}

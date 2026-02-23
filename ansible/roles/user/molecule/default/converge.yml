@@ -7,11 +7,36 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   pre_tasks:
-    - name: Ensure we're running on Arch Linux
+    - name: Assert test environment is Arch Linux
       ansible.builtin.assert:
         that:
           - ansible_facts['os_family'] == 'Archlinux'
         fail_msg: "This test requires Arch Linux"
+
+  vars:
+    user_owner:
+      name: testuser_owner
+      shell: /bin/bash
+      groups:
+        - "{{ user_sudo_group }}"
+      password_hash: ""
+      update_password: on_create
+      umask: "027"
+      password_max_age: 365
+      password_min_age: 1
+      password_warn_age: 7
+    user_additional_users:
+      - name: Testuser_extra
+        shell: /bin/bash
+        groups:
+          - video
+        sudo: false
+        password_hash: ""
+        update_password: on_create
+        umask: "077"
+    user_manage_password_aging: false   # skip: may not be supported in container
+    user_manage_umask: true
+    user_verify_root_lock: false        # root may not be locked in test container
 
   roles:
     - role: user

@@ -4,21 +4,21 @@
 [options]
 HoldPkg     = pacman glibc
 Architecture = auto
-{% if pkgmgr_pacman_color %}
+{% if package_manager_pacman_color %}
 Color
 {% endif %}
-{% if pkgmgr_pacman_check_space %}
+{% if package_manager_pacman_check_space %}
 CheckSpace
 {% endif %}
-{% if pkgmgr_pacman_verbose_pkg_lists %}
+{% if package_manager_pacman_verbose_pkg_lists %}
 VerbosePkgLists
 {% endif %}
-ParallelDownloads = {{ pkgmgr_pacman_parallel_downloads }}
-SigLevel    = {{ pkgmgr_pacman_siglevel }}
+ParallelDownloads = {{ package_manager_pacman_parallel_downloads }}
+SigLevel    = {{ package_manager_pacman_siglevel }}
 LocalFileSigLevel = Optional
-{% if pkgmgr_pacman_external_cache and pkgmgr_pacman_cache_root %}
-CacheDir    = {{ pkgmgr_pacman_cache_root }}/var/cache/pacman/pkg/
-DBPath      = {{ pkgmgr_pacman_cache_root }}/var/lib/pacman/
+{% if package_manager_pacman_external_cache and package_manager_pacman_cache_root %}
+CacheDir    = {{ package_manager_pacman_cache_root }}/var/cache/pacman/pkg/
+DBPath      = {{ package_manager_pacman_cache_root }}/var/lib/pacman/
 LogFile     = /var/log/pacman.log
 GPGDir      = /etc/pacman.d/gnupg/
 HookDir     = /etc/pacman.d/hooks/
@@ -29,7 +29,7 @@ Include = /etc/pacman.d/mirrorlist
 
 [extra]
 Include = /etc/pacman.d/mirrorlist
-{% if pkgmgr_pacman_multilib %}
+{% if package_manager_pacman_multilib %}
 
 [multilib]
 Include = /etc/pacman.d/mirrorlist

@@ -1,0 +1,21 @@
+---
+# === Shell — set login shell ===
+# Uses ansible.builtin.user to change the user's default shell
+
+- name: Set login shell for {{ shell_user }}
+  ansible.builtin.user:
+    name: "{{ shell_user }}"
+    shell: "{{ shell_bin[shell_type] }}"
+  when: shell_set_login | bool
+  tags: ['shell', 'configure']
+
+- name: "Report: Set login shell"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_shell_phases"
+    common_rpt_phase: "Set login shell"
+    common_rpt_status: "{{ 'done' if (shell_set_login | bool) else 'skip' }}"
+    common_rpt_detail: "{{ shell_bin[shell_type] }}"
+  tags: ['shell', 'report']

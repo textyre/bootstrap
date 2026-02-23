@@ -1,8 +1,6 @@
 ---
-# === Arch Linux: установка openssh ===
-
-- name: Ensure openssh is installed (pacman)
-  community.general.pacman:
-    name: openssh
+- name: "Install OpenSSH packages (Archlinux)"
+  ansible.builtin.package:
+    name: "{{ ssh_packages }}"
     state: present
-  tags: ['ssh', 'install']
+  tags: [ssh, install]

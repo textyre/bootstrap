@@ -1,0 +1,49 @@
+---
+# === Create and configure additional (non-owner) users ===
+
+- name: "Ensure additional users exist"
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    groups: "{{ item.groups | default([]) }}"
+    append: true
+    create_home: true
+    password: "{{ (item.password_hash | length > 0) | ternary(item.password_hash, omit) }}"
+    update_password: "{{ item.update_password | default('on_create') }}"
+    password_expire_max: >-
+      {{ item.password_max_age | default(omit)
+         if user_manage_password_aging | bool else omit }}
+    password_expire_min: >-
+      {{ item.password_min_age | default(omit)
+         if user_manage_password_aging | bool else omit }}
+  loop: "{{ user_additional_users }}"
+  no_log: true
+  when: user_additional_users | length > 0
+  tags: [user, cis_5.5.1, cis_5.5.2]
+
+- name: "Add additional users to sudo group when sudo: true"
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups: "{{ user_sudo_group }}"
+    append: true
+  loop: "{{ user_additional_users }}"
+  when:
+    - user_additional_users | length > 0
+    - item.sudo | default(false) | bool
+  tags: [user, sudo]
+
+- name: "CIS 5.4.2 | Deploy umask profile for additional users"
+  ansible.builtin.template:
+    src: user_umask.sh.j2
+    dest: "/etc/profile.d/umask-{{ item.name }}.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    umask_user: "{{ item.name }}"
+    umask_value: "{{ item.umask | default('077') }}"
+  loop: "{{ user_additional_users }}"
+  when:
+    - user_manage_umask | bool
+    - user_additional_users | length > 0
+  tags: [user, cis_5.4.2]

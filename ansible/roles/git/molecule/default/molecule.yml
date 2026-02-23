@@ -1,33 +1,37 @@
 ---
 driver:
   name: default
-  options:
-    managed: false
-
 platforms:
-  - name: localhost
-
+  - name: Instance
+    managed: false
 provisioner:
   name: ansible
-  config_options:
-    defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
-      callbacks_enabled: profile_tasks
   inventory:
     host_vars:
-      localhost:
+      instance:
         ansible_connection: local
-        git_user_name: "Test User"
-        git_user_email: "test@example.com"
-  playbooks:
-    converge: converge.yml
-    verify: verify.yml
+        git_owner:
+          name: "{{ lookup('env', 'USER') }}"
+          user_name: "Test User"
+          user_email: "test@example.com"
+          signing_method: none
+          signing_key: ""
+          credential_helper: ""
+        git_manage_hooks: true
+        git_hooks_path: "/tmp/test-git-hooks"
+        git_config_extra:
+          color.ui: auto
+          diff.colorMoved: zebra
+        git_safe_directories:
+          - /tmp/test-safe-dir
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
-
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 verifier:
   name: ansible
-
 scenario:
   test_sequence:
     - syntax

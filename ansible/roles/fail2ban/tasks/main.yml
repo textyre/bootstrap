@@ -1,0 +1,85 @@
+---
+# === fail2ban — защита от brute-force атак ===
+# Установка → Конфигурация → Запуск → Проверка → Логирование
+
+- name: Fail2ban role
+  when: fail2ban_enabled | bool
+  tags: ['fail2ban']
+  block:
+
+    # ======================================================================
+    # ---- Валидация ----
+    # ======================================================================
+
+    - name: "Assert supported operating system"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in _fail2ban_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ fail2ban_supported_os | join(', ') }}
+      tags: [fail2ban]
+
+    - name: "Include OS-specific variables"
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: [fail2ban]
+
+    # ======================================================================
+    # ---- Установка ----
+    # ======================================================================
+
+    - name: "Install fail2ban"
+      ansible.builtin.include_tasks: install.yml
+      tags: [fail2ban, install]
+
+    # ======================================================================
+    # ---- Конфигурация ----
+    # ======================================================================
+
+    - name: "Configure fail2ban"
+      ansible.builtin.include_tasks: configure.yml
+      tags: [fail2ban]
+
+    # ======================================================================
+    # ---- Запуск ----
+    # ======================================================================
+
+    - name: "Enable and start fail2ban"
+      ansible.builtin.service:
+        name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
+        enabled: true
+        state: started
+      tags: [fail2ban, service]
+
+    # ======================================================================
+    # ---- Проверка ----
+    # ======================================================================
+
+    - name: "Verify fail2ban"
+      ansible.builtin.include_tasks: verify.yml
+      tags: [fail2ban]
+
+    # ======================================================================
+    # ---- Логирование ----
+    # ======================================================================
+
+    - name: "Report: fail2ban"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_fail2ban_phases"
+        common_rpt_phase: "Fail2ban SSH jail"
+        common_rpt_detail: >-
+          maxretry={{ fail2ban_sshd_maxretry }}
+          bantime={{ fail2ban_sshd_bantime }}
+      tags: [fail2ban, report]
+
+    - name: "Fail2ban — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_fail2ban_phases"
+        common_rpt_title: "fail2ban"
+      tags: [fail2ban, report]

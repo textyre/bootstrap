@@ -5,7 +5,7 @@
 - name: Resolve dotfiles source directory
   ansible.builtin.stat:
     path: "{{ xorg_source_dir }}"
-  register: _xorg_source_stat
+  register: xorg_source_stat
   tags: ['xorg', 'display']
 
 - name: Assert dotfiles source directory exists

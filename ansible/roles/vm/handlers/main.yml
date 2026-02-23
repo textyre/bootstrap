@@ -4,7 +4,7 @@
 
 - name: Restart VirtualBox services
   ansible.builtin.service:
-    name: "{{ _vm_vbox_service_name | default('vboxservice') }}"
+    name: "{{ vm_vbox_service_name | default('vboxservice') }}"
     state: restarted
   failed_when: false
   listen: "Restart virtualbox services"
@@ -47,5 +47,5 @@
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
-  when: _vm_service_manager | default('systemd') == 'systemd'
+  when: vm_service_manager | default('systemd') == 'systemd'
   listen: "Reload systemd daemon"

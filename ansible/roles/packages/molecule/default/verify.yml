@@ -11,7 +11,7 @@
   tasks:
     - name: Build combined package list
       ansible.builtin.set_fact:
-        _packages_all: >-
+        packages_all: >-
           {{ packages_base
              + packages_editors
              + packages_docker
@@ -32,16 +32,16 @@
 
     - name: Verify all packages are installed (Arch)
       ansible.builtin.command: "pacman -Q {{ item }}"
-      loop: "{{ _packages_all }}"
+      loop: "{{ packages_all }}"
       changed_when: false
       when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Verify all packages are installed (Debian)
       ansible.builtin.command: "dpkg -l {{ item }}"
-      loop: "{{ _packages_all }}"
+      loop: "{{ packages_all }}"
       changed_when: false
       when: ansible_facts['os_family'] == 'Debian'
 
     - name: Show verification results
       ansible.builtin.debug:
-        msg: "All {{ _packages_all | length }} packages verified as installed"
+        msg: "All {{ packages_all | length }} packages verified as installed"

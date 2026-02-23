@@ -21,7 +21,7 @@
 - name: Check cron entry exists (non-systemd)
   ansible.builtin.command:
     cmd: crontab -l -u root
-  register: _cron_list
+  register: ntp_audit_cron_list
   changed_when: false
   failed_when: false
   when: ansible_facts['service_mgr'] != 'systemd'
@@ -30,7 +30,7 @@
 - name: Assert cron entry present (non-systemd)
   ansible.builtin.assert:
     that:
-      - "'ntp-audit' in _cron_list.stdout"
+      - "'ntp-audit' in ntp_audit_cron_list.stdout"
     fail_msg: >-
       ntp-audit cron job not found in root's crontab.
       Non-systemd host detected but cron deploy failed.

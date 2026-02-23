@@ -11,8 +11,8 @@
 #   virtualbox.yml (only for pacman path, not ISO path)
 #
 # Expected variables:
-#   - _vm_vbox_iso_installed: should be false or undefined
-#   - _vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
+#   - vm_vbox_iso_installed: should be false or undefined
+#   - vm_vbox_iso_dirs_pre.matched: should be 0 (no existing ISO)
 #
 # Behavior:
 #   - Detects kernel version via uname -r
@@ -25,11 +25,11 @@
 - name: "VirtualBox: Check if running linux-lts kernel"
   ansible.builtin.command:
     cmd: uname -r
-  register: _vm_vbox_kernel
+  register: vm_vbox_kernel
   changed_when: false
   when:
-    - not (_vm_vbox_iso_installed | default(false))
-    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - not (vm_vbox_iso_installed | default(false))
+    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
   tags: ['vm', 'vbox', 'vm:install']
 
 - name: "VirtualBox: Install LTS kernel headers and DKMS"
@@ -39,12 +39,12 @@
       - linux-lts-headers
     state: present
   when:
-    - not (_vm_vbox_iso_installed | default(false))
-    - _vm_vbox_iso_dirs_pre.matched | default(0) == 0
-    - _vm_vbox_lts_kernel_support | default(false)
+    - not (vm_vbox_iso_installed | default(false))
+    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
+    - vm_vbox_lts_kernel_support | default(false)
     - _vm_vbox_kernel.stdout is defined
     - "'lts' in _vm_vbox_kernel.stdout"
-  register: _vm_vbox_lts_install
+  register: vm_vbox_lts_install
   retries: 3
   delay: 5
   until: _vm_vbox_lts_install is succeeded

@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# SSH jail configuration for fail2ban
+
+[sshd]
+enabled = {{ fail2ban_sshd_enabled | lower }}
+port = {{ fail2ban_sshd_port }}
+maxretry = {{ fail2ban_sshd_maxretry }}
+findtime = {{ fail2ban_sshd_findtime }}
+bantime = {{ fail2ban_sshd_bantime }}
+{% if fail2ban_sshd_bantime_increment %}
+bantime.increment = true
+bantime.maxtime = {{ fail2ban_sshd_bantime_maxtime }}
+{% endif %}
+backend = {{ fail2ban_sshd_backend }}
+{% if fail2ban_ignoreip %}
+ignoreip = {{ fail2ban_ignoreip | join(' ') }}
+{% endif %}

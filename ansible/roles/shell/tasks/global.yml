@@ -1,0 +1,74 @@
+---
+# === Shell — global system-wide configuration ===
+# /etc/profile.d/ for bash/zsh, /etc/fish/conf.d/ for fish
+
+# ---- /etc/profile.d/ (bash + zsh) ----
+
+- name: Deploy /etc/profile.d/dev-paths.sh
+  ansible.builtin.template:
+    src: profile.d-dev-paths.sh.j2
+    dest: /etc/profile.d/dev-paths.sh
+    owner: root
+    group: root
+    mode: '0644'
+  when: shell_type in ['bash', 'zsh']
+  tags: ['shell', 'configure']
+
+# ---- /etc/zsh/zshenv (zsh only) ----
+
+- name: Ensure /etc/zsh directory exists
+  ansible.builtin.file:
+    path: /etc/zsh
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: shell_type == 'zsh'
+  tags: ['shell', 'configure']
+
+- name: Deploy /etc/zsh/zshenv
+  ansible.builtin.template:
+    src: zshenv.j2
+    dest: /etc/zsh/zshenv
+    owner: root
+    group: root
+    mode: '0644'
+  when: shell_type == 'zsh'
+  tags: ['shell', 'configure']
+
+# ---- /etc/fish/conf.d/ (fish only) ----
+
+- name: Ensure /etc/fish/conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/fish/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: shell_type == 'fish'
+  tags: ['shell', 'configure']
+
+- name: Deploy /etc/fish/conf.d/dev-paths.fish
+  ansible.builtin.template:
+    src: fish-dev-paths.fish.j2
+    dest: /etc/fish/conf.d/dev-paths.fish
+    owner: root
+    group: root
+    mode: '0644'
+  when: shell_type == 'fish'
+  tags: ['shell', 'configure']
+
+# ---- Report ----
+
+- name: "Report: Global config"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_shell_phases"
+    common_rpt_phase: "Deploy global config"
+    common_rpt_detail: >-
+      {{ shell_type }}
+      paths={{ shell_global_path | length }}
+      env={{ shell_global_env | length }}
+  tags: ['shell', 'report']

@@ -16,7 +16,7 @@
 
 - name: Build Docker daemon configuration
   ansible.builtin.set_fact:
-    _docker_daemon_config: >-
+    docker_daemon_config: >-
       {{
         {
           "log-driver": docker_log_driver,

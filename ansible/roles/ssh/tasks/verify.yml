@@ -1,0 +1,18 @@
+---
+# ROLE-005: In-role verification
+
+- name: "Verify sshd_config syntax"
+  ansible.builtin.command:
+    cmd: "sshd -t"
+  register: ssh_verify_config
+  changed_when: false
+  failed_when: ssh_verify_config.rc != 0
+  tags: [ssh]
+
+- name: "Verify sshd service is running"
+  ansible.builtin.command:
+    cmd: "pgrep sshd"
+  register: ssh_verify_running
+  changed_when: false
+  failed_when: ssh_verify_running.rc != 0
+  tags: [ssh]

@@ -21,8 +21,12 @@ skip_list:
 
 # Set warning level for some rules
 warn_list:
-  - name[casing]  # Warn but don't fail on task name casing
-  - experimental  # Warn on experimental features
+  - name[casing]              # Warn but don't fail on task name casing
+  - experimental              # Warn on experimental features
+  - var-naming                # Cross-role shared vars (_rpt_*) used via include_role/tasks_from
+  - name[template]            # vm role uses {{ label }}: prefix pattern for task grouping (~25 tasks)
+  - command-instead-of-module # verify tasks use `systemctl is-enabled/is-active` for queries only
+  - key-order[task]           # purely stylistic ordering preference
 
 # Use offline mode to avoid external calls
 offline: false

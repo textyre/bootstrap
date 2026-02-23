@@ -2,13 +2,13 @@
 # === Внутренние маппинги (не для пользователя) ===
 
 # Имя сервиса NTP по init-системе
-_ntp_service:
+ntp_service:
   systemd: chronyd
   openrc: chronyd
   runit: chronyd
 
 # Имя пакета NTP по OS family
-_ntp_package:
+ntp_package:
   Archlinux: chrony
   Debian: chrony
   RedHat: chrony
@@ -17,7 +17,7 @@ _ntp_package:
 
 # Имя системного пользователя chrony по OS family
 # На Debian/Ubuntu пакет создаёт _chrony, на остальных — chrony
-_ntp_user:
+ntp_user:
   Archlinux: chrony
   Debian: _chrony
   RedHat: chrony

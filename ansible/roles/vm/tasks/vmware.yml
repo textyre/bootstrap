@@ -12,64 +12,69 @@
 
 # ---- Install packages ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Install packages"
+  ansible.builtin.include_tasks:
     file: _install_packages.yml
   vars:
-    _vm_pkg_list: "{{ packages_vmware_guest }}"
-    _vm_pkg_label: "VMware"
-    _vm_notify_handler: "Restart vmware services"
+    vm_pkg_list: "{{ vm_packages_vmware_guest }}"
+    vm_pkg_label: "VMware"
+    vm_notify_handler: "Restart vmware services"
   tags: ['vm', 'vmware']
 
 # ---- Check time sync ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check time sync"
+  ansible.builtin.include_tasks:
     file: _check_timesync.yml
   vars:
-    _vm_timesync_label: "VMware"
-    _vm_timesync_service: "vmtoolsd"
+    vm_timesync_label: "VMware"
+    vm_timesync_service: "vmtoolsd"
   tags: ['vm', 'vmware']
 
 # ---- Manage services ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Manage services"
+  ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
-    _vm_svc_list:
-      - name: vgauthd
+    vm_svc_list:
+      - name: Vgauthd
         description: "guest authentication for vSphere operations"
         required: true
-      - name: vmtoolsd
+      - name: Vmtoolsd
         description: "core VMware Tools daemon (status, time sync, display resize)"
         required: true
-      - name: vmware-vmblock-fuse
+      - name: Vmware-vmblock-fuse
         description: "drag-and-drop via FUSE (optional, desktop only)"
         required: false
-    _vm_svc_label: "VMware"
+    vm_svc_label: "VMware"
   tags: ['vm', 'vmware']
 
 # ---- Verify kernel modules ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Verify kernel modules"
+  ansible.builtin.include_tasks:
     file: _verify_modules.yml
   vars:
-    _vm_mod_list:
-      - name: vmw_balloon
+    vm_mod_list:
+      - name: Vmw_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: true
-      - name: vmxnet3
+      - name: Vmxnet3
         description: "paravirtual high-performance network adapter (optional, depends on VM NIC config)"
         required: false
-    _vm_mod_label: "VMware"
+    vm_mod_label: "VMware"
   tags: ['vm', 'vmware']
 
 # ---- Version report ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Version report"
+  ansible.builtin.include_tasks:
     file: _version_report.yml
   vars:
-    _vm_ver_label: "VMware"
-    _vm_ver_command: "vmware-toolbox-cmd -v"
-    _vm_ver_extra_commands:
+    vm_ver_label: "VMware"
+    vm_ver_command: "vmware-toolbox-cmd -v"
+    vm_ver_extra_commands:
       - cmd: "vmware-toolbox-cmd stat raw text vmprovider"
         label: "Host platform"
   when: vm_vmware_version_report
@@ -77,11 +82,12 @@
 
 # ---- Check X11 integration ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check X11 integration"
+  ansible.builtin.include_tasks:
     file: _check_x11.yml
   vars:
-    _vm_x11_label: "VMware"
-    _vm_x11_paths:
+    vm_x11_label: "VMware"
+    vm_x11_paths:
       - path: /etc/xdg/autostart/vmware-user.desktop
         description: "VMware user agent autostart"
         content: |
@@ -94,9 +100,10 @@
 
 # ---- Check reboot requirement ----
 
-- ansible.builtin.include_tasks:
+- name: "VMware: Check reboot requirement"
+  ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
-    _vm_reboot_label: "VMware"
-    _vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('vmw_balloon' not in _vm_lsmod_output.stdout) }}"
+    vm_reboot_label: "VMware"
+    vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('vmw_balloon' not in _vm_lsmod_output.stdout) }}"
   tags: ['vm', 'vmware']

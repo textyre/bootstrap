@@ -16,10 +16,10 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_locale_phases"
-    _rpt_phase: "Validate config"
-    _rpt_status: "{{ 'fail' if (_locale_skip | default(false)) else 'done' }}"
-    _rpt_detail: "{{ (_locale_skip_reason | default('')) | truncate(24, True) }}"
+    common_rpt_fact: "_locale_phases"
+    common_rpt_phase: "Validate config"
+    common_rpt_status: "{{ 'fail' if (locale_skip | default(false)) else 'done' }}"
+    common_rpt_detail: "{{ (locale_skip_reason | default('')) | truncate(24, True) }}"
   tags: ['locale', 'report']
 
 # ======================================================================
@@ -27,7 +27,7 @@
 # ======================================================================
 
 - name: Generate, verify and configure locale
-  when: not (_locale_skip | default(false))
+  when: not (locale_skip | default(false))
   block:
 
     # ---- Генерация локалей (дистро-специфик) ----
@@ -45,8 +45,8 @@
         msg: >-
           WARNING: locale generation skipped —
           '{{ ansible_facts['os_family'] }}' not supported.
-          Supported: {{ _locale_supported_os_families | join(', ') }}.
-      when: ansible_facts['os_family'] | lower not in _locale_supported_os_families
+          Supported: {{ locale_supported_os_families | join(', ') }}.
+      when: ansible_facts['os_family'] | lower not in locale_supported_os_families
       tags: ['locale']
 
     - name: "Report: Generate locales"
@@ -54,10 +54,10 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_locale_phases"
-        _rpt_phase: "Generate locales"
-        _rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in _locale_supported_os_families else 'done' }}"
-        _rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Generate locales"
+        common_rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in locale_supported_os_families else 'done' }}"
+        common_rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
       tags: ['locale', 'report']
 
     # ---- Проверка (до configure, чтобы не писать сломанный locale.conf) ----
@@ -71,14 +71,14 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_locale_phases"
-        _rpt_phase: "Verify locales"
-        _rpt_status: "{{ 'fail' if not (_locale_verify_ok | default(true)) else 'done' }}"
-        _rpt_detail: >-
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Verify locales"
+        common_rpt_status: "{{ 'fail' if not (locale_verify_ok | default(true)) else 'done' }}"
+        common_rpt_detail: >-
           {{
             (locale_list | length | string) + ' locales OK'
-            if (_locale_verify_ok | default(true))
-            else (_locale_verify_missing | default([]) | join(', ') | truncate(24, True))
+            if (locale_verify_ok | default(true))
+            else (locale_verify_missing | default([]) | join(', ') | truncate(24, True))
           }}
       tags: ['locale', 'report']
 
@@ -86,7 +86,7 @@
 
     - name: Configure system locale
       ansible.builtin.include_tasks: configure/glibc.yml
-      when: _locale_verify_ok | default(true)
+      when: locale_verify_ok | default(true)
       tags: ['locale']
 
     - name: "Report: Configure locale.conf"
@@ -94,21 +94,21 @@
         name: common
         tasks_from: report_phase.yml
       vars:
-        _rpt_fact: "_locale_phases"
-        _rpt_phase: "Configure locale.conf"
-        _rpt_status: "{{ 'skip' if not (_locale_verify_ok | default(true)) else 'done' }}"
-        _rpt_detail: "{{ locale_default if (_locale_verify_ok | default(true)) else '' }}"
+        common_rpt_fact: "_locale_phases"
+        common_rpt_phase: "Configure locale.conf"
+        common_rpt_status: "{{ 'skip' if not (locale_verify_ok | default(true)) else 'done' }}"
+        common_rpt_detail: "{{ locale_default if (locale_verify_ok | default(true)) else '' }}"
       tags: ['locale', 'report']
 
 # ======================================================================
 # ---- Итоговый отчёт ----
 # ======================================================================
 
-- name: "locale — Execution Report"
+- name: "Locale — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_locale_phases"
-    _rpt_title: "locale"
+    common_rpt_fact: "_locale_phases"
+    common_rpt_title: "locale"
   tags: ['locale', 'report']

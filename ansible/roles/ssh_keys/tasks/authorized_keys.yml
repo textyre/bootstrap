@@ -1,0 +1,53 @@
+# ansible/roles/ssh_keys/tasks/authorized_keys.yml
+---
+# === Deploy SSH authorized_keys from accounts[].ssh_keys ===
+
+- name: "Ensure .ssh directory exists for users with SSH keys"
+  ansible.builtin.file:
+    path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh"
+    state: directory
+    owner: "{{ item.name }}"
+    mode: "0700"
+  loop: >-
+    {{ ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'present')
+       | selectattr('ssh_keys', 'defined')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [ssh_keys, security]
+
+# ROLE-011 exception: ansible.posix.authorized_key — no ansible.builtin equivalent
+- name: "Add SSH authorized keys"
+  ansible.posix.authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ item.1 }}"
+    manage_dir: true
+    exclusive: "{{ ssh_keys_exclusive }}"
+    state: present
+  with_subelements:
+    - >-
+      {{ ssh_keys_users
+         | selectattr('state', 'defined')
+         | selectattr('state', 'equalto', 'present')
+         | list }}
+    - ssh_keys
+    - skip_missing: true
+  loop_control:
+    label: "{{ item.0.name }}"
+  no_log: true
+  tags: [ssh_keys, security]
+
+- name: "Remove authorized_keys for absent users"
+  ansible.builtin.file:
+    path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh/authorized_keys"
+    state: absent
+  loop: >-
+    {{ ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'absent')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [ssh_keys, security]

@@ -10,7 +10,7 @@
       - tlp
       - tlp-rdw
     state: present
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'install']
 
 # NOTE: If cpupower from [community] has issues, consider cpupower-git from AUR
@@ -23,7 +23,7 @@
   loop:
     - systemd-rfkill.service
     - systemd-rfkill.socket
-  when: _power_management_is_laptop
+  when: power_management_is_laptop
   tags: ['power', 'install']
 
 # ---- cpupower ----

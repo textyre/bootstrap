@@ -6,7 +6,7 @@
 
 - name: Read live sysctl security parameter values
   ansible.builtin.command: "sysctl -n {{ item.param }}"
-  register: _sysctl_verify_security
+  register: sysctl_verify_security
   changed_when: false
   failed_when: item.rc is defined and item.rc not in [0, 255]
   loop:
@@ -34,5 +34,5 @@
       {%- elif item.rc != 0 %}ERROR (rc={{ item.rc }})
       {%- elif item.stdout | string == item.item.expected | string %}OK ({{ item.stdout }})
       {%- else %}MISMATCH — expected={{ item.item.expected }} got={{ item.stdout }}{% endif %}
-  loop: "{{ _sysctl_verify_security.results }}"
+  loop: "{{ sysctl_verify_security.results }}"
   tags: ['sysctl', 'verify']

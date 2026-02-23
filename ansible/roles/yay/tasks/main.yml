@@ -18,5 +18,5 @@
 
 - name: Manage AUR packages
   ansible.builtin.include_tasks: manage-aur-packages.yml
-  when: packages_aur | default([]) | length > 0
+  when: yay_packages_aur | default([]) | length > 0
   tags: ['aur', 'install']

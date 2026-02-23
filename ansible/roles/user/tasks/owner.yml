@@ -1,0 +1,33 @@
+---
+# === Create and configure the primary owner user ===
+
+- name: "CIS 5.x | Ensure owner user exists"
+  ansible.builtin.user:
+    name: "{{ user_owner.name }}"
+    shell: "{{ user_owner.shell | default('/bin/bash') }}"
+    groups: "{{ user_owner.groups | default([user_sudo_group]) }}"
+    append: true
+    create_home: true
+    password: "{{ (user_owner.password_hash | length > 0) | ternary(user_owner.password_hash, omit) }}"
+    update_password: "{{ user_owner.update_password | default('on_create') }}"
+    password_expire_max: >-
+      {{ user_owner.password_max_age | default(omit)
+         if user_manage_password_aging | bool else omit }}
+    password_expire_min: >-
+      {{ user_owner.password_min_age | default(omit)
+         if user_manage_password_aging | bool else omit }}
+  no_log: true
+  tags: [user, cis_5.5.1, cis_5.5.2]
+
+- name: "CIS 5.4.2 | Deploy umask profile for owner"
+  ansible.builtin.template:
+    src: user_umask.sh.j2
+    dest: "/etc/profile.d/umask-{{ user_owner.name }}.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    umask_user: "{{ user_owner.name }}"
+    umask_value: "{{ user_owner.umask | default('027') }}"
+  when: user_manage_umask | bool
+  tags: [user, cis_5.4.2]

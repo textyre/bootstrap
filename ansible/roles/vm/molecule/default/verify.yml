@@ -289,11 +289,11 @@
 
     # === Common checks for all guest VMs ===
 
-    - name: Verify _vm_reboot_required fact exists
+    - name: Verify vm_reboot_required fact exists
       ansible.builtin.assert:
         that:
-          - _vm_reboot_required is defined
-        fail_msg: "_vm_reboot_required fact not set by role"
+          - vm_reboot_required is defined
+        fail_msg: "vm_reboot_required fact not set by role"
       when: vm_verify_virt_role == 'guest'
 
     - name: Check systemd-timesyncd status
@@ -315,5 +315,5 @@
         msg:
           - "Virtualization: {{ vm_verify_virt_type }} ({{ vm_verify_virt_role }})"
           - "VM guest verification passed"
-          - "Reboot required: {{ _vm_reboot_required | default('unknown') }}"
+          - "Reboot required: {{ vm_reboot_required | default('unknown') }}"
       when: vm_verify_virt_role == 'guest'

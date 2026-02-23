@@ -1,9 +1,0 @@
----
-# === Debian/Ubuntu: установка shell ===
-
-- name: Install shell package (apt)
-  ansible.builtin.apt:
-    name: "{{ shell_type }}"
-    state: present
-  when: shell_type != 'bash'
-  tags: ['shell', 'install']

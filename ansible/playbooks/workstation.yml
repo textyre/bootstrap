@@ -75,8 +75,19 @@
     - role: user
       tags: [user]
 
+    - role: ssh_keys
+      tags: [ssh_keys, security]
+
     - role: ssh
       tags: [ssh, security]
+
+    - role: teleport
+      tags: [teleport, security]
+      when: teleport_enabled | default(false)
+
+    - role: fail2ban
+      tags: [fail2ban, security]
+      when: fail2ban_enabled | default(true)
 
     # --- Phase 4: Development tools ---
     - role: git

@@ -1,64 +1,91 @@
 ---
-# === Конфигурация shell-окружения ===
-# Установка шелла, деплой конфига, алиасы, PATH
+# === System-level shell environment ===
+# validate → install → chsh → xdg → global → verify → report
 
-- name: Get user home directory
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ shell_user }}"
+- name: Shell role
   tags: ['shell']
+  block:
 
-- name: Set user home fact
-  ansible.builtin.set_fact:
-    _shell_user_home: "{{ getent_passwd[shell_user][4] }}"
-  tags: ['shell']
+    # ======================================================================
+    # ---- Resolve user home ----
+    # ======================================================================
 
-# ---- Установка шелла (OS-specific) ----
+    - name: Get user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ shell_user }}"
+      tags: ['shell']
 
-- name: Install shell package (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['shell', 'install']
+    - name: Set user home fact
+      ansible.builtin.set_fact:
+        shell_user_home: "{{ getent_passwd[shell_user][4] }}"
+      tags: ['shell']
 
-# ---- Создание ~/.local/bin ----
+    # ======================================================================
+    # ---- Load OS-specific vars ----
+    # ======================================================================
 
-- name: Ensure ~/.local/bin exists
-  ansible.builtin.file:
-    path: "{{ _shell_user_home }}/.local/bin"
-    state: directory
-    owner: "{{ shell_user }}"
-    group: "{{ shell_user }}"
-    mode: '0755'
-  tags: ['shell', 'configure']
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['shell']
 
-# ---- Деплой конфига шелла ----
+    # ======================================================================
+    # ---- Validation ----
+    # ======================================================================
 
-- name: Deploy shell configuration (bash)
-  ansible.builtin.template:
-    src: bashrc.j2
-    dest: "{{ _shell_user_home }}/.bashrc"
-    owner: "{{ shell_user }}"
-    group: "{{ shell_user }}"
-    mode: '0644'
-    backup: true
-  when: shell_type == 'bash' and shell_deploy_config
-  tags: ['shell', 'configure']
+    - name: Validate shell configuration
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['shell']
 
-- name: Deploy shell configuration (zsh)
-  ansible.builtin.template:
-    src: zshrc.j2
-    dest: "{{ _shell_user_home }}/.zshrc"
-    owner: "{{ shell_user }}"
-    group: "{{ shell_user }}"
-    mode: '0644'
-    backup: true
-  when: shell_type == 'zsh' and shell_deploy_config
-  tags: ['shell', 'configure']
+    # ======================================================================
+    # ---- Install ----
+    # ======================================================================
 
-- name: Report shell configuration
-  ansible.builtin.debug:
-    msg:
-      - "Shell: {{ shell_type }}"
-      - "User: {{ shell_user }}"
-      - "Aliases: {{ shell_aliases | length }}"
-      - "PATH additions: {{ shell_path_additions | join(':') }}"
-  tags: ['shell']
+    - name: Install shell package
+      ansible.builtin.include_tasks: install.yml
+      tags: ['shell']
+
+    # ======================================================================
+    # ---- Login shell ----
+    # ======================================================================
+
+    - name: Set login shell
+      ansible.builtin.include_tasks: chsh.yml
+      tags: ['shell']
+
+    # ======================================================================
+    # ---- XDG directories ----
+    # ======================================================================
+
+    - name: Create XDG directories
+      ansible.builtin.include_tasks: xdg.yml
+      tags: ['shell']
+
+    # ======================================================================
+    # ---- Global config ----
+    # ======================================================================
+
+    - name: Deploy global shell configuration
+      ansible.builtin.include_tasks: global.yml
+      tags: ['shell']
+
+    # ======================================================================
+    # ---- Verification ----
+    # ======================================================================
+
+    - name: Verify shell configuration
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['shell']
+
+    # ======================================================================
+    # ---- Report ----
+    # ======================================================================
+
+    - name: "Shell — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_shell_phases"
+        common_rpt_title: "shell"
+      tags: ['shell', 'report']

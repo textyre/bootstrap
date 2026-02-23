@@ -3,7 +3,7 @@
 # Auto-detect GPU via lspci, install appropriate drivers + Vulkan + VA-API
 
 # Supported OS families
-_gpu_drivers_supported_os:
+gpu_drivers_supported_os:
   - Archlinux
   - Debian
 
@@ -36,53 +36,53 @@ gpu_drivers_headless: false       # reserved: skip display components (not yet i
 
 # ---- Package lists (Arch Linux) ----
 
-_gpu_drivers_nvidia_proprietary_packages:
+gpu_drivers_nvidia_proprietary_packages:
   - nvidia
   - nvidia-utils
   - nvidia-settings
 
-_gpu_drivers_nvidia_proprietary_multilib:
+gpu_drivers_nvidia_proprietary_multilib:
   - lib32-nvidia-utils
 
-_gpu_drivers_nvidia_open_packages:
+gpu_drivers_nvidia_open_packages:
   - nvidia-open
   - nvidia-utils
   - nvidia-settings
 
-_gpu_drivers_nvidia_vaapi_packages:
+gpu_drivers_nvidia_vaapi_packages:
   - nvidia-vaapi-driver
 
-_gpu_drivers_nvidia_nouveau_packages:
+gpu_drivers_nvidia_nouveau_packages:
   - mesa
   - xf86-video-nouveau
 
-_gpu_drivers_nvidia_nouveau_multilib:
+gpu_drivers_nvidia_nouveau_multilib:
   - lib32-mesa
 
-_gpu_drivers_amd_packages:
+gpu_drivers_amd_packages:
   - mesa
   - vulkan-radeon
   - libva-mesa-driver
 
-_gpu_drivers_amd_multilib:
+gpu_drivers_amd_multilib:
   - lib32-mesa
   - lib32-vulkan-radeon
   - lib32-libva-mesa-driver
 
-_gpu_drivers_intel_packages:
+gpu_drivers_intel_packages:
   - mesa
   - vulkan-intel
   - intel-media-driver
 
-_gpu_drivers_intel_multilib:
+gpu_drivers_intel_multilib:
   - lib32-mesa
   - lib32-vulkan-intel
 
-_gpu_drivers_vulkan_common:
+gpu_drivers_vulkan_common:
   - vulkan-icd-loader
 
-_gpu_drivers_vulkan_common_multilib:
+gpu_drivers_vulkan_common_multilib:
   - lib32-vulkan-icd-loader
 
-_gpu_drivers_vulkan_tools_packages:
+gpu_drivers_vulkan_tools_packages:
   - vulkan-tools

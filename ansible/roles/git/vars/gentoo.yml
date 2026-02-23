@@ -1,0 +1,4 @@
+---
+git_packages:
+  - dev-vcs/git
+git_lfs_package: dev-vcs/git-lfs

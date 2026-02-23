@@ -1,0 +1,70 @@
+---
+# === Install Teleport agent ===
+
+- name: "Install Teleport via package manager"
+  ansible.builtin.package:
+    name: "{{ teleport_packages }}"
+    state: present
+  when: teleport_install_method == 'package'
+  tags: [teleport, install]
+
+- name: "Install Teleport via official repository (Debian/RedHat)"
+  when: teleport_install_method == 'repo'
+  tags: [teleport, install]
+  block:
+    - name: "Set Teleport major version for repository URL"
+      ansible.builtin.set_fact:
+        teleport_major_version: "{{ teleport_version.split('.')[0] }}"
+
+    - name: "Add Teleport GPG key"
+      ansible.builtin.get_url:
+        url: "https://apt.releases.teleport.dev/gpg"
+        dest: /usr/share/keyrings/teleport-archive-keyring.asc
+        mode: "0644"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: "Add Teleport APT repository"
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/usr/share/keyrings/teleport-archive-keyring.asc]
+          https://apt.releases.teleport.dev/{{ ansible_distribution | lower }}
+          {{ ansible_distribution_release }} stable/v{{ teleport_major_version }}
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: "Add Teleport YUM repository"
+      ansible.builtin.yum_repository:
+        name: teleport
+        description: Teleport
+        baseurl: "https://yum.releases.teleport.dev/$basearch/stable/v{{ teleport_major_version }}"
+        gpgcheck: true
+        gpgkey: "https://yum.releases.teleport.dev/gpg"
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: "Install Teleport from repository"
+      ansible.builtin.package:
+        name: teleport
+        state: present
+
+- name: "Install Teleport via binary download (Void/Gentoo)"
+  when: teleport_install_method == 'binary'
+  tags: [teleport, install]
+  block:
+    - name: "Set architecture mapping for Teleport download"
+      ansible.builtin.set_fact:
+        teleport_arch: >-
+          {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture]
+             | default(ansible_architecture) }}
+
+    - name: "Download Teleport binary"
+      ansible.builtin.get_url:
+        url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ teleport_arch }}-bin.tar.gz"
+        dest: "/tmp/teleport.tar.gz"
+        mode: "0644"
+
+    - name: "Extract Teleport binary"
+      ansible.builtin.unarchive:
+        src: "/tmp/teleport.tar.gz"
+        dest: /usr/local/bin/
+        remote_src: true
+        extra_opts: [--strip-components=1]

@@ -16,27 +16,27 @@
     - name: Check vconsole.conf exists and has KEYMAP (systemd)
       ansible.builtin.slurp:
         src: /etc/vconsole.conf
-      register: _verify_vconsole
-      failed_when: "'KEYMAP=' not in (_verify_vconsole.content | b64decode)"
+      register: vconsole_verify_vconsole
+      failed_when: "'KEYMAP=' not in (vconsole_verify_vconsole.content | b64decode)"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Verify keymap via localectl (systemd)
       ansible.builtin.command: localectl status
-      register: _verify_localectl
+      register: vconsole_verify_localectl
       changed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert keymap is set (systemd)
       ansible.builtin.assert:
         that:
-          - "vconsole_console in _verify_localectl.stdout"
+          - "vconsole_console in vconsole_verify_localectl.stdout"
         fail_msg: "Keymap '{{ vconsole_console }}' not found in localectl status"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert font is set in vconsole.conf (systemd)
       ansible.builtin.assert:
         that:
-          - "'FONT=' + vconsole_console_font in (_verify_vconsole.content | b64decode)"
+          - "'FONT=' + vconsole_console_font in (vconsole_verify_vconsole.content | b64decode)"
         fail_msg: "FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
@@ -58,16 +58,16 @@
 
     - name: Check keymap config (openrc)
       ansible.builtin.command: grep -i 'keymap=' /etc/conf.d/keymaps
-      register: _verify_keymap_openrc
+      register: vconsole_verify_keymap_openrc
       changed_when: false
-      failed_when: _verify_keymap_openrc.rc != 0
+      failed_when: vconsole_verify_keymap_openrc.rc != 0
       when: ansible_facts['service_mgr'] == 'openrc'
 
     - name: Check keymap config (runit)
       ansible.builtin.command: grep -i 'KEYMAP=' /etc/rc.conf
-      register: _verify_keymap_runit
+      register: vconsole_verify_keymap_runit
       changed_when: false
-      failed_when: _verify_keymap_runit.rc != 0
+      failed_when: vconsole_verify_keymap_runit.rc != 0
       when: ansible_facts['service_mgr'] == 'runit'
 
     - name: Gather service facts

@@ -12,7 +12,7 @@
 #   - ansible.builtin.include_tasks: _check_x11.yml
 #     vars:
 #       _vm_x11_label: "VirtualBox"
-#       _vm_x11_paths:
+#       vm_x11_paths:
 #         - path: /etc/xdg/autostart/vboxclient.desktop
 #           description: "VBoxClient X11 autostart"
 #         - path: /usr/bin/VBoxClient
@@ -20,7 +20,7 @@
 #
 # Required parameters:
 #   _vm_x11_label (string)       - Hypervisor name for task names
-#   _vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
+#   vm_x11_paths (list of dicts) - Paths to check. Each dict must have:
 #     - path (string)        - Absolute path to file or directory
 #     - description (string) - Human-readable description for reporting
 #     - content (string, optional) - Content to write if file is missing
@@ -36,21 +36,21 @@
 #   - Always succeeds (informational only, no failures)
 # =========================================================================
 
-- name: "{{ _vm_x11_label }}: Check X11 integration files"
+- name: "{{ vm_x11_label }}: Check X11 integration files"
   ansible.builtin.stat:
     path: "{{ item.path }}"
-  loop: "{{ _vm_x11_paths }}"
+  loop: "{{ vm_x11_paths }}"
   loop_control:
     label: "{{ item.path }}"
-  register: _vm_x11_stat_result
+  register: vm_x11_stat_result
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_x11_label }}: Create missing X11 autostart files"
+- name: "{{ vm_x11_label }}: Create missing X11 autostart files"
   ansible.builtin.copy:
     dest: "{{ item.item.path }}"
     content: "{{ item.item.content }}"
     mode: '0644'
-  loop: "{{ _vm_x11_stat_result.results }}"
+  loop: "{{ vm_x11_stat_result.results }}"
   loop_control:
     label: "{{ item.item.path }}"
   when:
@@ -59,10 +59,10 @@
     - item.item.content | length > 0
   tags: ['vm', 'vm:verify']
 
-- name: "{{ _vm_x11_label }}: Report X11 integration status"
+- name: "{{ vm_x11_label }}: Report X11 integration status"
   ansible.builtin.debug:
     msg: "{{ item.item.description }}: {{ 'configured' if item.stat.exists else 'not found (headless OK)' }}"
-  loop: "{{ _vm_x11_stat_result.results }}"
+  loop: "{{ vm_x11_stat_result.results }}"
   loop_control:
     label: "{{ item.item.description }}"
   tags: ['vm', 'vm:verify', 'vm:report']

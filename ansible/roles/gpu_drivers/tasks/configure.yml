@@ -13,7 +13,7 @@
     mode: '0644'
   notify: regenerate initramfs
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']
@@ -23,7 +23,7 @@
     path: /etc/modprobe.d/nvidia.conf
     state: absent
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']
@@ -38,7 +38,7 @@
     group: root
     mode: '0644'
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_blacklist_nouveau
   tags: ['gpu', 'nvidia']
@@ -48,7 +48,7 @@
     path: /etc/modprobe.d/nvidia-blacklist.conf
     state: absent
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_blacklist_nouveau
   tags: ['gpu', 'nvidia']
@@ -65,7 +65,7 @@
     - nvidia-hibernate.service
     - nvidia-resume.service
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_suspend
     - ansible_facts['service_mgr'] == 'systemd'
@@ -81,7 +81,7 @@
     - nvidia-hibernate.service
     - nvidia-resume.service
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_suspend
     or ansible_facts['service_mgr'] != 'systemd'
@@ -99,7 +99,7 @@
     mode: '0755'
   when:
     - gpu_drivers_vaapi
-    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
   tags: ['gpu', 'drivers']
 
 - name: Deploy GPU VA-API environment configuration
@@ -111,7 +111,7 @@
     mode: '0644'
   when:
     - gpu_drivers_vaapi
-    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
   tags: ['gpu', 'drivers']
 
 - name: Remove GPU environment config when VA-API disabled or no GPU
@@ -120,5 +120,5 @@
     state: absent
   when: >-
     not gpu_drivers_vaapi
-    or not (_gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel)
+    or not (gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel)
   tags: ['gpu', 'drivers']

@@ -1,8 +1,7 @@
 ---
-# === Arch Linux: установка sudo ===
-
-- name: Ensure sudo is installed (pacman)
-  community.general.pacman:
-    name: sudo
+# === Arch Linux: install sudo ===
+- name: Ensure sudo is installed
+  ansible.builtin.package:
+    name: "{{ user_packages }}"
     state: present
-  tags: ['user', 'sudo', 'install']
+  tags: [user, sudo, install]

@@ -7,11 +7,11 @@
 power_management_enabled: true
 
 # ---- Internal ----
-_power_management_supported_os:
+power_management_supported_os:
   - Archlinux
   - Debian
 
-_power_management_laptop_chassis_types:
+power_management_laptop_chassis_types:
   - "8"   # Portable
   - "9"   # Laptop
   - "10"  # Notebook
@@ -22,10 +22,10 @@ _power_management_laptop_chassis_types:
 
 # ---- Internal facts (overridden by detect.yml) ----
 # Explicit defaults ensure safe behaviour when power_management_enabled: false
-_power_management_is_laptop: false
-_power_management_init: "unknown"
-_power_management_cpu_is_intel: false
-_power_management_cpu_is_amd: false
+power_management_is_laptop: false
+power_management_init: "unknown"
+power_management_cpu_is_intel: false
+power_management_cpu_is_amd: false
 
 # ---- Device detection ----
 # auto = detect via DMI chassis_type

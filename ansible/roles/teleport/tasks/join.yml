@@ -1,0 +1,11 @@
+---
+# === Validate Teleport join configuration ===
+
+- name: "Assert join token is configured"
+  ansible.builtin.assert:
+    that:
+      - teleport_join_token | length > 0
+    fail_msg: >-
+      teleport_join_token must be set for node to join the cluster.
+      Use a static token or configure IAM-based joining.
+  tags: [teleport, security]

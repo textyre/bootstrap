@@ -21,8 +21,8 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Validate prerequisites"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Validate prerequisites"
   tags: ['vm']
 
 # ---- Load OS-specific variables ----
@@ -39,28 +39,28 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Load OS variables"
-    _rpt_detail: "{{ ansible_facts['os_family'] }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Load OS variables"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"
   tags: ['vm']
 
 # ---- Detection ----
 
 - name: Detect virtualization environment
   ansible.builtin.set_fact:
-    _vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
-    _vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+    vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+    vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
   tags: ['vm']
 
 - name: Check for container/WSL2 environment
   ansible.builtin.set_fact:
-    _vm_is_container: "{{ _vm_virt_role == 'guest' and _vm_virt_type in ['container', 'wsl'] }}"
+    vm_is_container: "{{ vm_virt_role == 'guest' and vm_virt_type in ['container', 'wsl'] }}"
   tags: ['vm']
 
 - name: Determine if running as guest in supported hypervisor
   ansible.builtin.set_fact:
-    _vm_is_guest: "{{ _vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors }}"
-    _vm_hypervisor: "{{ _vm_virt_type if (_vm_virt_role == 'guest' and _vm_virt_type in _vm_supported_hypervisors) else 'none' }}"
+    vm_is_guest: "{{ vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors }}"
+    vm_hypervisor: "{{ vm_virt_type if (vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors) else 'none' }}"
   tags: ['vm']
 
 - name: "Report: Detect virtualization"
@@ -68,9 +68,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Detect virtualization"
-    _rpt_detail: "{{ _vm_virt_type }} / {{ _vm_virt_role }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Detect virtualization"
+    common_rpt_detail: "{{ vm_virt_type }} / {{ vm_virt_role }}"
   tags: ['vm']
 
 - name: "Report: Container/WSL2 check"
@@ -78,9 +78,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Container/WSL2 check"
-    _rpt_detail: "{{ 'container detected' if (_vm_is_container | bool) else 'not a container' }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Container/WSL2 check"
+    common_rpt_detail: "{{ 'container detected' if (vm_is_container | bool) else 'not a container' }}"
   tags: ['vm']
 
 - name: "Report: Guest determination"
@@ -88,16 +88,16 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Guest determination"
-    _rpt_detail: "hypervisor={{ _vm_hypervisor }}"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Guest determination"
+    common_rpt_detail: "hypervisor={{ vm_hypervisor }}"
   tags: ['vm']
 
 # ---- Initialize reboot flag ----
 
 - name: Initialize reboot required flag
   ansible.builtin.set_fact:
-    _vm_reboot_required: false
+    vm_reboot_required: false
   tags: ['vm']
 
 # ---- Dispatch ----
@@ -113,7 +113,7 @@
     file: _remove_guest_tools.yml
   when:
     - vm_state == 'absent'
-    - _vm_is_guest | bool
+    - vm_is_guest | bool
   tags: ['vm']
 
 # ---- Execution report ----
@@ -123,8 +123,8 @@
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_title: "vm"
-    _rpt_footer_rows:
-      - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((_vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_title: "vm"
+    common_rpt_footer_rows:
+      - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
   tags: ['vm', 'vm:report']

@@ -1,0 +1,14 @@
+---
+# === Shell packages — RedHat/Fedora ===
+
+shell_packages:
+  bash: []
+  zsh:
+    - zsh
+  fish:
+    - fish
+
+shell_bin:
+  bash: /bin/bash
+  zsh: /usr/bin/zsh
+  fish: /usr/bin/fish

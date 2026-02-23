@@ -1,0 +1,59 @@
+# ansible/roles/ssh_keys/tasks/main.yml
+---
+# === ssh_keys: SSH authorized_keys & key generation ===
+#
+# Reads user list from `accounts` variable (shared data source).
+# Depends on users existing (user role must run first).
+
+- name: Ssh_keys role
+  tags: ['ssh_keys']
+  block:
+    # ROLE-003: Validate supported OS
+    - name: "Assert supported operating system"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in ssh_keys_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ ssh_keys_supported_os | join(', ') }}
+      tags: [ssh_keys]
+
+    # Deploy authorized_keys for present users
+    - name: Manage SSH authorized keys
+      ansible.builtin.include_tasks: authorized_keys.yml
+      when: ssh_keys_manage_authorized_keys | bool
+      tags: [ssh_keys, security]
+
+    # Optional: generate SSH keypairs on target machines
+    - name: Generate user SSH keypairs
+      ansible.builtin.include_tasks: keygen.yml
+      when: ssh_keys_generate_user_keys | bool
+      tags: [ssh_keys]
+
+    # ROLE-005: In-role verification
+    - name: Verify SSH key configuration
+      ansible.builtin.include_tasks: verify.yml
+      tags: [ssh_keys]
+
+    # ROLE-008: Report phases
+    - name: "Report: SSH keys"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_ssh_keys_phases"
+        common_rpt_phase: "Authorized keys"
+        common_rpt_detail: >-
+          users={{ ssh_keys_users | selectattr('state', 'defined') |
+                   selectattr('state', 'equalto', 'present') | list | length }}
+          keygen={{ ssh_keys_generate_user_keys }}
+      tags: [ssh_keys, report]
+
+    - name: "ssh_keys — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_ssh_keys_phases"
+        common_rpt_title: "ssh_keys"
+      tags: [ssh_keys, report]

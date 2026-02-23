@@ -1,0 +1,22 @@
+---
+# === Configure Teleport agent ===
+
+- name: "Ensure teleport data directory exists"
+  ansible.builtin.file:
+    path: /var/lib/teleport
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags: [teleport]
+
+- name: "Deploy teleport configuration"
+  ansible.builtin.template:
+    src: teleport.yaml.j2
+    dest: /etc/teleport.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: "Restart teleport"
+  no_log: true
+  tags: [teleport]

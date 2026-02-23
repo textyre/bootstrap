@@ -11,78 +11,78 @@
     - name: Assert ntp-audit zipapp exists and is executable
       ansible.builtin.stat:
         path: /usr/local/bin/ntp-audit
-      register: _v_script
+      register: ntp_audit_verify_script
 
     - name: Verify ntp-audit zipapp
       ansible.builtin.assert:
         that:
-          - _v_script.stat.exists
-          - _v_script.stat.executable
+          - ntp_audit_verify_script.stat.exists
+          - ntp_audit_verify_script.stat.executable
         fail_msg: "/usr/local/bin/ntp-audit missing or not executable"
 
     - name: Assert Python source staging directory exists
       ansible.builtin.stat:
         path: /usr/local/src/ntp-audit
-      register: _v_src
+      register: ntp_audit_verify_src
 
     - name: Verify staging directory
       ansible.builtin.assert:
         that:
-          - _v_src.stat.exists
-          - _v_src.stat.isdir
+          - ntp_audit_verify_src.stat.exists
+          - ntp_audit_verify_src.stat.isdir
         fail_msg: "/usr/local/src/ntp-audit staging directory missing"
 
     - name: Assert audit log directory exists
       ansible.builtin.stat:
         path: /var/log/ntp-audit
-      register: _v_logdir
+      register: ntp_audit_verify_logdir
 
     - name: Verify log directory
       ansible.builtin.assert:
         that:
-          - _v_logdir.stat.exists
-          - _v_logdir.stat.isdir
+          - ntp_audit_verify_logdir.stat.exists
+          - ntp_audit_verify_logdir.stat.isdir
         fail_msg: "/var/log/ntp-audit directory missing"
 
     - name: Assert audit log file written after first run
       ansible.builtin.stat:
         path: /var/log/ntp-audit/audit.log
-      register: _v_logfile
+      register: ntp_audit_verify_logfile
 
     - name: Verify audit log not empty
       ansible.builtin.assert:
         that:
-          - _v_logfile.stat.exists
-          - _v_logfile.stat.size > 0
+          - ntp_audit_verify_logfile.stat.exists
+          - ntp_audit_verify_logfile.stat.size > 0
         fail_msg: "audit.log missing or empty — first run failed"
 
     - name: Read last line of audit log
       ansible.builtin.command:
         cmd: tail -1 /var/log/ntp-audit/audit.log
-      register: _v_last_line
+      register: ntp_audit_verify_last_line
       changed_when: false
 
     - name: Assert audit log contains valid JSON with required keys
       ansible.builtin.assert:
         that:
-          - (_v_last_line.stdout | from_json).timestamp is defined
-          - (_v_last_line.stdout | from_json).sync_status is defined
-          - (_v_last_line.stdout | from_json).stratum is defined
-          - (_v_last_line.stdout | from_json).current_correction is defined
-          - (_v_last_line.stdout | from_json).ntp_conflict is defined
-          - (_v_last_line.stdout | from_json).ntp_phc_status is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).timestamp is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).sync_status is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).stratum is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).current_correction is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).ntp_conflict is defined
+          - (ntp_audit_verify_last_line.stdout | from_json).ntp_phc_status is defined
         fail_msg: "audit.log missing required JSON keys"
 
     - name: Assert logrotate config deployed
       ansible.builtin.stat:
         path: /etc/logrotate.d/ntp-audit
-      register: _v_logrotate
+      register: ntp_audit_verify_logrotate
 
     - name: Verify logrotate config
       ansible.builtin.assert:
         that:
-          - _v_logrotate.stat.exists
-          - _v_logrotate.stat.size > 0
+          - ntp_audit_verify_logrotate.stat.exists
+          - ntp_audit_verify_logrotate.stat.size > 0
         fail_msg: "/etc/logrotate.d/ntp-audit missing"
 
     - name: Collect service facts (systemd)
@@ -101,25 +101,25 @@
     - name: Assert Alloy config fragment deployed
       ansible.builtin.stat:
         path: /etc/alloy/conf.d/ntp-audit.alloy
-      register: _v_alloy
+      register: ntp_audit_verify_alloy
 
     - name: Verify Alloy fragment
       ansible.builtin.assert:
         that:
-          - _v_alloy.stat.exists
-          - _v_alloy.stat.size > 0
+          - ntp_audit_verify_alloy.stat.exists
+          - ntp_audit_verify_alloy.stat.size > 0
         fail_msg: "Alloy config fragment missing"
 
     - name: Assert Loki rules deployed
       ansible.builtin.stat:
         path: /etc/loki/rules/fake/ntp-audit-rules.yaml
-      register: _v_loki
+      register: ntp_audit_verify_loki
 
     - name: Verify Loki rules
       ansible.builtin.assert:
         that:
-          - _v_loki.stat.exists
-          - _v_loki.stat.size > 0
+          - ntp_audit_verify_loki.stat.exists
+          - ntp_audit_verify_loki.stat.size > 0
         fail_msg: "Loki alert rules missing"
 
     - name: Show result

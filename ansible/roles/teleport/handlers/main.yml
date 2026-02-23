@@ -1,0 +1,5 @@
+---
+- name: "Restart teleport"
+  ansible.builtin.service:
+    name: "{{ teleport_service_name[ansible_facts['service_mgr']] | default('teleport') }}"
+    state: restarted

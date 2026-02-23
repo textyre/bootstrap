@@ -6,20 +6,23 @@
 - name: Regenerate initramfs (mkinitcpio)
   ansible.builtin.command: mkinitcpio -P
   listen: "regenerate initramfs"
+  changed_when: true
   when:
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'mkinitcpio'
 
 - name: Regenerate initramfs (dracut)
   ansible.builtin.command: dracut --force
   listen: "regenerate initramfs"
+  changed_when: true
   when:
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'dracut'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'dracut'
 
 - name: Regenerate initramfs (initramfs-tools)
   ansible.builtin.command: update-initramfs -u -k all
   listen: "regenerate initramfs"
+  changed_when: true
   when:
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'initramfs-tools'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'initramfs-tools'

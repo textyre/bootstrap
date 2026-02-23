@@ -1,0 +1,8 @@
+---
+# Handlers for fail2ban role
+
+- name: Restart fail2ban
+  ansible.builtin.service:
+    name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
+    state: restarted
+  listen: "restart fail2ban"

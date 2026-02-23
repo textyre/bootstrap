@@ -1,0 +1,6 @@
+---
+- name: "Install fail2ban packages"
+  ansible.builtin.package:
+    name: "{{ fail2ban_packages }}"
+    state: present
+  tags: [fail2ban, install]

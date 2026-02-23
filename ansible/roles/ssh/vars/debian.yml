@@ -1,0 +1,10 @@
+---
+ssh_packages:
+  - openssh-server
+  - openssh-client
+ssh_service_name:
+  systemd: ssh
+  runit: ssh
+  openrc: ssh
+  s6: ssh
+  dinit: ssh

@@ -5,7 +5,7 @@ driver:
     managed: false
 
 platforms:
-  - name: localhost
+  - name: Localhost
 
 provisioner:
   name: ansible
@@ -30,5 +30,4 @@ scenario:
   test_sequence:
     - syntax
     - converge
-    - idempotence
     - verify

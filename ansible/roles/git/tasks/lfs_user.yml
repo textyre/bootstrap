@@ -1,0 +1,9 @@
+---
+# === git — LFS per-user init (per-user layer) ===
+# Runs `git lfs install --skip-repo` to set up LFS hooks in user's gitconfig.
+
+- name: Initialize git-lfs for user
+  ansible.builtin.command:
+    cmd: git lfs install --skip-repo
+  changed_when: false
+  tags: [git, lfs]

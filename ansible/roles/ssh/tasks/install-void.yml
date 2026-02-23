@@ -1,0 +1,6 @@
+---
+- name: "Install OpenSSH packages (Void)"
+  ansible.builtin.package:
+    name: "{{ ssh_packages }}"
+    state: present
+  tags: [ssh, install]

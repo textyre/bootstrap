@@ -1,40 +1,40 @@
 ---
 # === Валидация входных переменных ===
 # Только проверка Ansible-переменных (без SSH, без системных вызовов).
-# При любой ошибке: выставляет _locale_skip=true + _locale_skip_reason,
-# НЕ падает — оборачивающий блок в main.yml проверяет _locale_skip.
+# При любой ошибке: выставляет locale_skip=true + locale_skip_reason,
+# НЕ падает — оборачивающий блок в main.yml проверяет locale_skip.
 
 - name: Check locale_list is not empty
   ansible.builtin.set_fact:
-    _locale_skip: true
-    _locale_skip_reason: "locale_list is empty"
+    locale_skip: true
+    locale_skip_reason: "locale_list is empty"
   when: locale_list | length == 0
   tags: ['locale']
 
 - name: Check locale_default is in locale_list
   ansible.builtin.set_fact:
-    _locale_skip: true
-    _locale_skip_reason: >-
+    locale_skip: true
+    locale_skip_reason: >-
       locale_default '{{ locale_default }}' not in
       locale_list {{ locale_list }}
   when:
-    - not (_locale_skip | default(false))
+    - not (locale_skip | default(false))
     - locale_default not in locale_list
   tags: ['locale']
 
 - name: Check LC_* override values are in locale_list
   ansible.builtin.set_fact:
-    _locale_skip: true
-    _locale_skip_reason: >-
+    locale_skip: true
+    locale_skip_reason: >-
       {{ item.key }}={{ item.value }} not in locale_list {{ locale_list }}
   loop: "{{ locale_lc_overrides | dict2items }}"
   when:
-    - not (_locale_skip | default(false))
+    - not (locale_skip | default(false))
     - item.value not in locale_list
   tags: ['locale']
 
 - name: Warn if locale config is invalid
   ansible.builtin.debug:
-    msg: "WARNING: locale role skipped — {{ _locale_skip_reason }}"
-  when: _locale_skip | default(false)
+    msg: "WARNING: locale role skipped — {{ locale_skip_reason }}"
+  when: locale_skip | default(false)
   tags: ['locale']

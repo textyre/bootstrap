@@ -1,0 +1,22 @@
+---
+# === Security checks — CIS 5.4.3: root account ===
+
+- name: "CIS 5.4.3 | Get root shadow entry"
+  ansible.builtin.getent:
+    database: shadow
+    key: root
+  register: user_root_shadow
+  changed_when: false
+  no_log: true
+  tags: [user, security, cis_5.4.3]
+
+- name: "CIS 5.4.3 | Assert root password is locked"
+  ansible.builtin.assert:
+    that:
+      - _user_root_shadow.ansible_facts.getent_shadow['root'][0] | regex_search('^[!*]')
+    fail_msg: >-
+      CIS 5.4.3 FAIL: root account has a usable password.
+      Direct root login must be disabled. Use sudo for privilege escalation.
+    success_msg: "CIS 5.4.3 PASS: root account is locked"
+  when: user_verify_root_lock | bool
+  tags: [user, security, cis_5.4.3]

@@ -10,42 +10,42 @@
     - name: Check Vaultwarden base directory exists
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}"
-      register: _vaultwarden_verify_base_dir
-      failed_when: not _vaultwarden_verify_base_dir.stat.exists
+      register: vaultwarden_verify_base_dir
+      failed_when: not vaultwarden_verify_base_dir.stat.exists
 
     - name: Check Vaultwarden data directory exists with mode 0700
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/data"
-      register: _vaultwarden_verify_data_dir
+      register: vaultwarden_verify_data_dir
       failed_when: >
-        not _vaultwarden_verify_data_dir.stat.exists or
-        _vaultwarden_verify_data_dir.stat.mode != '0700'
+        not vaultwarden_verify_data_dir.stat.exists or
+        vaultwarden_verify_data_dir.stat.mode != '0700'
 
     - name: Check docker-compose.yml exists
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/docker-compose.yml"
-      register: _vaultwarden_verify_compose
-      failed_when: not _vaultwarden_verify_compose.stat.exists
+      register: vaultwarden_verify_compose
+      failed_when: not vaultwarden_verify_compose.stat.exists
 
     - name: Check Caddy site config exists
       ansible.builtin.stat:
         path: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
-      register: _vaultwarden_verify_caddy
-      failed_when: not _vaultwarden_verify_caddy.stat.exists
+      register: vaultwarden_verify_caddy
+      failed_when: not vaultwarden_verify_caddy.stat.exists
 
     - name: Check backup script exists and is executable
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/backup.sh"
-      register: _vaultwarden_verify_backup
+      register: vaultwarden_verify_backup
       failed_when: >
-        not _vaultwarden_verify_backup.stat.exists or
-        not _vaultwarden_verify_backup.stat.executable
+        not vaultwarden_verify_backup.stat.exists or
+        not vaultwarden_verify_backup.stat.executable
 
     - name: Check Vaultwarden backup cron job exists
       ansible.builtin.command: crontab -l
-      register: _vaultwarden_verify_cron
+      register: vaultwarden_verify_cron
       changed_when: false
-      failed_when: "'Vaultwarden backup' not in _vaultwarden_verify_cron.stdout"
+      failed_when: "'Vaultwarden backup' not in vaultwarden_verify_cron.stdout"
 
     - name: Show test results
       ansible.builtin.debug:

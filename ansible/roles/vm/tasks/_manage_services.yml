@@ -10,22 +10,22 @@
 # Usage:
 #   - ansible.builtin.include_tasks: _manage_services.yml
 #     vars:
-#       _vm_svc_list:
+#       vm_svc_list:
 #         - name: vgauthd
 #           description: "VMware Guest Authentication Service"
 #           required: true
 #         - name: vmware-vmblock-fuse
 #           description: "VMware Shared Folders FUSE Service"
 #           required: false
-#       _vm_svc_label: "VMware"
+#       vm_svc_label: "VMware"
 #
 # Required parameters:
-#   _vm_svc_list (list of dicts) - Services to manage. Each dict must have:
+#   vm_svc_list (list of dicts) - Services to manage. Each dict must have:
 #     - name (string)        - systemd service name
 #     - description (string) - Human-readable description for reporting
 #     - required (bool)      - If true, failure will abort playbook.
 #                              If false, failure is logged but ignored.
-#   _vm_svc_label (string)   - Hypervisor name for task names
+#   vm_svc_label (string)   - Hypervisor name for task names
 #
 # Behavior:
 #   - Loops over all services and enables + starts each
@@ -39,36 +39,36 @@
 #   - Failure: Any required service failed to start
 # =========================================================================
 
-- name: "{{ _vm_svc_label }}: Enable and start services"
+- name: "{{ vm_svc_label }}: Enable and start services"
   ansible.builtin.service:
     name: "{{ item.name }}"
     enabled: true
     state: started
-  loop: "{{ _vm_svc_list }}"
+  loop: "{{ vm_svc_list }}"
   loop_control:
     label: "{{ item.name }} ({{ 'required' if item.required else 'optional' }})"
-  register: _vm_svc_result
+  register: vm_svc_result
   failed_when:
     - _vm_svc_result is failed
     - item.required
   tags: ['vm', 'vm:service']
 
-- name: "{{ _vm_svc_label }}: Check journald for service errors"
+- name: "{{ vm_svc_label }}: Check journald for service errors"
   ansible.builtin.command:
     cmd: journalctl -u {{ item.name }} -n 20 --no-pager
-  loop: "{{ _vm_svc_list | selectattr('required', 'equalto', true) | list }}"
+  loop: "{{ vm_svc_list | selectattr('required', 'equalto', true) | list }}"
   loop_control:
     label: "{{ item.name }}"
-  register: _vm_svc_journal
+  register: vm_svc_journal
   changed_when: false
   failed_when: false
-  when: _vm_service_manager | default('systemd') == 'systemd'
+  when: vm_service_manager | default('systemd') == 'systemd'
   tags: ['vm', 'vm:service']
 
-- name: "{{ _vm_svc_label }}: Report service status"
+- name: "{{ vm_svc_label }}: Report service status"
   ansible.builtin.debug:
     msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if (_vm_svc_result.results[idx].state | default('unknown')) == 'started' else 'unavailable' }}"
-  loop: "{{ _vm_svc_list }}"
+  loop: "{{ vm_svc_list }}"
   loop_control:
     label: "{{ item.name }}"
     index_var: idx

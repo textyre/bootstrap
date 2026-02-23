@@ -1,0 +1,89 @@
+---
+# === git — in-role verification (ROLE-005) ===
+
+- name: Verify git is installed
+  ansible.builtin.command:
+    cmd: git --version
+  register: git_verify_installed
+  changed_when: false
+  failed_when: git_verify_installed.rc != 0
+  tags: [git]
+
+- name: Verify git config for owner  # noqa: command-instead-of-module
+  become: true
+  become_user: "{{ git_owner.name }}"
+  ansible.builtin.command:
+    cmd: git config --global --get user.name
+  register: git_verify_username
+  changed_when: false
+  failed_when: git_verify_username.rc != 0
+  when: (git_owner.user_name | default('')) | length > 0
+  tags: [git]
+
+- name: Assert owner user.name matches expected
+  ansible.builtin.assert:
+    that:
+      - git_verify_username.stdout == git_owner.user_name
+    fail_msg: >-
+      git user.name mismatch: expected '{{ git_owner.user_name }}',
+      got '{{ git_verify_username.stdout }}'
+    quiet: true
+  when:
+    - (git_owner.user_name | default('')) | length > 0
+    - git_verify_username is not skipped
+  tags: [git]
+
+- name: Verify commit signing is configured  # noqa: command-instead-of-module
+  become: true
+  become_user: "{{ git_owner.name }}"
+  ansible.builtin.command:
+    cmd: git config --global --get commit.gpgSign
+  register: git_verify_signing
+  changed_when: false
+  failed_when: false
+  when:
+    - git_manage_signing | bool
+    - (git_owner.signing_method | default('none')) != 'none'
+  tags: [git]
+
+- name: Assert commit signing is enabled
+  ansible.builtin.assert:
+    that:
+      - git_verify_signing.stdout == (git_commit_sign | string | lower)
+    fail_msg: "commit.gpgSign expected '{{ git_commit_sign | string | lower }}', got '{{ git_verify_signing.stdout }}'"
+    quiet: true
+  when:
+    - git_manage_signing | bool
+    - (git_owner.signing_method | default('none')) != 'none'
+    - git_verify_signing is not skipped
+  tags: [git]
+
+- name: Verify git-lfs is installed
+  ansible.builtin.command:
+    cmd: git lfs version
+  register: git_verify_lfs
+  changed_when: false
+  failed_when: git_verify_lfs.rc != 0
+  when: git_lfs_enabled | bool
+  tags: [git, lfs]
+
+- name: Verify hooks directory exists
+  become: true
+  become_user: "{{ git_owner.name }}"
+  ansible.builtin.stat:
+    path: "{{ git_hooks_path }}"
+  register: git_verify_hooks_dir
+  when: git_manage_hooks | bool
+  tags: [git, hooks]
+
+- name: Assert hooks directory exists
+  ansible.builtin.assert:
+    that:
+      - git_verify_hooks_dir.stat.exists
+      - git_verify_hooks_dir.stat.isdir
+    fail_msg: "Global hooks directory {{ git_hooks_path }} does not exist"
+    quiet: true
+  when:
+    - git_manage_hooks | bool
+    - git_verify_hooks_dir is not skipped
+  tags: [git, hooks]

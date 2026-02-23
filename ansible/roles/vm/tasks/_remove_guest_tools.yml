@@ -5,7 +5,7 @@
 # Orchestrator: stop services, remove packages, remove facts, display report.
 #
 # Expected variables (set by main.yml detection phase):
-#   _vm_is_guest    (bool)   - Whether running as guest
+#   vm_is_guest    (bool)   - Whether running as guest
 #   _vm_virt_type   (string) - Virtualization type
 #   _vm_virt_role   (string) - Virtualization role
 # =========================================================================
@@ -15,8 +15,8 @@
 - name: "Stop services: All hypervisors"
   ansible.builtin.include_tasks: _stop_services.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
-    _vm_svc_list:
+    vm_pkg_label: "All hypervisors"
+    vm_svc_list:
       # VirtualBox
       - vboxservice        # guest service from package manager (time sync, clipboard, seamless)
       - vboxadd-service    # guest service from ISO install (same role as vboxservice)
@@ -35,11 +35,11 @@
 - name: "Remove packages: All hypervisors"
   ansible.builtin.include_tasks: _remove_packages.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
-    _vm_pkg_list: >-
-      {{ packages_virtualbox_guest + packages_vmware_guest
-         + (_vm_hyperv_packages | default(packages_hyperv_guest))
-         + (_vm_kvm_packages | default(packages_kvm_guest)) }}
+    vm_pkg_label: "All hypervisors"
+    vm_pkg_list: >-
+      {{ vm_packages_virtualbox_guest + vm_packages_vmware_guest
+         + (vm_hyperv_packages | default(vm_packages_hyperv_guest))
+         + (vm_kvm_packages | default(vm_packages_kvm_guest)) }}
   tags: ['vm', 'vm:install']
 
 - name: "Report: Remove guest tools"
@@ -47,9 +47,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Remove guest tools"
-    _rpt_detail: "state=absent"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Remove guest tools"
+    common_rpt_detail: "state=absent"
   tags: ['vm']
 
 # ---- Remove persisted facts ----
@@ -65,9 +65,9 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vm_phases"
-    _rpt_phase: "Remove custom facts"
-    _rpt_detail: "vm_guest.fact"
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Remove custom facts"
+    common_rpt_detail: "vm_guest.fact"
   tags: ['vm']
 
 # ---- Removal report ----
@@ -75,17 +75,17 @@
 - name: "Build service stopped report: All hypervisors"
   ansible.builtin.include_tasks: _build_svc_stopped_report.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
 - name: "Build package removed report: All hypervisors"
   ansible.builtin.include_tasks: _build_pkg_removed_report.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']
 
 - name: "Display removal report: All hypervisors"
   ansible.builtin.include_tasks: _display_removal.yml
   vars:
-    _vm_pkg_label: "All hypervisors"
+    vm_pkg_label: "All hypervisors"
   tags: ['vm', 'vm:report']

@@ -2,13 +2,13 @@
 # === Virtualization guest tools (VirtualBox, VMware, Hyper-V, KVM) ===
 # Packages defined in group_vars/all/packages.yml
 
-packages_virtualbox_guest:  # noqa: var-naming[no-role-prefix]
+vm_packages_virtualbox_guest:
   - virtualbox-guest-utils
-packages_vmware_guest:  # noqa: var-naming[no-role-prefix]
+vm_packages_vmware_guest:
   - open-vm-tools
-packages_hyperv_guest:  # noqa: var-naming[no-role-prefix]
+vm_packages_hyperv_guest:
   - hyperv
-packages_kvm_guest:  # noqa: var-naming[no-role-prefix]
+vm_packages_kvm_guest:
   - qemu-guest-agent
 
 # VBox version mismatch: warn (not fail) when guest != host
@@ -24,13 +24,13 @@ vm_kvm_version_report: true
 vm_state: present
 
 # Internal: map virtualization_type fact value → task file
-_vm_hypervisor_map:
+vm_hypervisor_map:
   virtualbox: virtualbox.yml
   VMware: vmware.yml
   hyperv: hyperv.yml
   kvm: kvm.yml
 
-_vm_supported_hypervisors:
+vm_supported_hypervisors:
   - virtualbox
   - VMware
   - hyperv

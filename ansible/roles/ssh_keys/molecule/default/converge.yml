@@ -1,0 +1,16 @@
+# ansible/roles/ssh_keys/molecule/default/converge.yml
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    # Test accounts (using shared data model)
+    accounts:
+      - name: "{{ ansible_user_id }}"
+        state: present
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
+    ssh_keys_generate_user_keys: false
+    ssh_keys_exclusive: false
+  roles:
+    - role: ssh_keys

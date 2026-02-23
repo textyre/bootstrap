@@ -7,35 +7,35 @@
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
 
   vars:
-    _test_timezone: "Asia/Almaty"
+    test_timezone: "Asia/Almaty"
 
   tasks:
     - name: Check timezone is set (systemd)
       ansible.builtin.command: timedatectl show --property=Timezone --value
-      register: _verify_timezone
+      register: timezone_verify_timezone
       changed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Check timezone is set (non-systemd)
       ansible.builtin.command: readlink -f /etc/localtime
-      register: _verify_timezone_generic
+      register: timezone_verify_timezone_generic
       changed_when: false
       when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Assert timezone matches (systemd)
       ansible.builtin.assert:
         that:
-          - _verify_timezone.stdout == _test_timezone
-        fail_msg: "Expected '{{ _test_timezone }}', got '{{ _verify_timezone.stdout }}'"
+          - timezone_verify_timezone.stdout == test_timezone
+        fail_msg: "Expected '{{ test_timezone }}', got '{{ timezone_verify_timezone.stdout }}'"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert timezone matches (non-systemd)
       ansible.builtin.assert:
         that:
-          - _test_timezone in _verify_timezone_generic.stdout
-        fail_msg: "Expected '{{ _test_timezone }}' in '{{ _verify_timezone_generic.stdout }}'"
+          - test_timezone in timezone_verify_timezone_generic.stdout
+        fail_msg: "Expected '{{ test_timezone }}' in '{{ timezone_verify_timezone_generic.stdout }}'"
       when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "Timezone check passed: {{ _test_timezone }}"
+        msg: "Timezone check passed: {{ test_timezone }}"

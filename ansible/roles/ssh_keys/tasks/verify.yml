@@ -1,0 +1,72 @@
+# ansible/roles/ssh_keys/tasks/verify.yml
+---
+# ROLE-005: In-role verification
+
+- name: "Look up home directories for present users"
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item.name }}"
+  loop: >-
+    {{ ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'present')
+       | selectattr('ssh_keys', 'defined')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [ssh_keys]
+
+- name: "Verify .ssh directory permissions for present users"
+  ansible.builtin.stat:
+    path: "{{ getent_passwd[item.name][4] }}/.ssh"
+  register: ssh_keys_verify_dir
+  loop: >-
+    {{ ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'present')
+       | selectattr('ssh_keys', 'defined')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [ssh_keys]
+
+- name: "Assert .ssh directories have correct permissions"
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.mode == '0700'
+    fail_msg: >-
+      .ssh directory for {{ item.item.name }} has incorrect permissions:
+      exists={{ item.stat.exists }} mode={{ item.stat.mode | default('n/a') }}
+  loop: "{{ ssh_keys_verify_dir.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  tags: [ssh_keys]
+
+- name: "Verify authorized_keys exists for present users with keys"
+  ansible.builtin.stat:
+    path: "{{ getent_passwd[item.name][4] }}/.ssh/authorized_keys"
+  register: ssh_keys_verify_authkeys
+  loop: >-
+    {{ ssh_keys_users
+       | selectattr('state', 'defined')
+       | selectattr('state', 'equalto', 'present')
+       | selectattr('ssh_keys', 'defined')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  when: ssh_keys_manage_authorized_keys | bool
+  tags: [ssh_keys]
+
+- name: "Assert authorized_keys files exist"
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "authorized_keys missing for {{ item.item.name }}"
+  loop: "{{ ssh_keys_verify_authkeys.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - ssh_keys_manage_authorized_keys | bool
+    - item.stat is defined
+  tags: [ssh_keys]

@@ -4,5 +4,5 @@
 
 - name: Configure PAM faillock
   ansible.builtin.include_tasks: faillock.yml
-  when: pam_faillock_enabled
+  when: pam_hardening_faillock_enabled
   tags: ['pam', 'security', 'faillock']

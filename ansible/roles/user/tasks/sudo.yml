@@ -1,0 +1,24 @@
+---
+# === Deploy sudo policy ===
+
+- name: "CIS 5.3.4/5.3.5/5.3.7 | Deploy sudoers hardening"
+  ansible.builtin.template:
+    src: sudoers_hardening.j2
+    dest: "/etc/sudoers.d/{{ user_sudo_group }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"
+  tags: [user, sudo, security, cis_5.3.4, cis_5.3.5, cis_5.3.7]
+
+- name: "Configure logrotate for sudo.log"
+  ansible.builtin.template:
+    src: sudo_logrotate.j2
+    dest: /etc/logrotate.d/sudo
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - user_sudo_logrotate_enabled | bool
+    - user_sudo_logfile | length > 0
+  tags: [user, sudo, security]

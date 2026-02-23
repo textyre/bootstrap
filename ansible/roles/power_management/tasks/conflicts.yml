@@ -11,8 +11,8 @@
     masked: true
   failed_when: false
   when:
-    - _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - power_management_is_laptop
+    - power_management_init == 'systemd'
   tags: ['power', 'conflicts']
 
 - name: Stop and mask power-profiles-daemon (desktop — conflicts with manual governor)
@@ -22,8 +22,8 @@
     masked: true
   failed_when: false
   when:
-    - not _power_management_is_laptop
-    - _power_management_init == 'systemd'
+    - not power_management_is_laptop
+    - power_management_init == 'systemd'
     - power_management_governor_persist != 'oneshot'
   tags: ['power', 'conflicts']
 
@@ -36,5 +36,5 @@
     masked: true
   failed_when: false
   when:
-    - _power_management_init == 'systemd'
+    - power_management_init == 'systemd'
   tags: ['power', 'conflicts']

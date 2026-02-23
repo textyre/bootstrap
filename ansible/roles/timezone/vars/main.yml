@@ -2,7 +2,7 @@
 # === Таймзона — внутренние переменные ===
 # Имя cron-сервиса по os_family
 # Используется в handlers/main.yml для перезапуска cron после смены таймзоны
-_tz_cron_service:
+timezone_cron_service:
   Archlinux: crond
   Debian: cron
   Ubuntu: cron

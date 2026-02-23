@@ -11,7 +11,7 @@
     state: present
     update_cache: true
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant == 'proprietary'
   tags: ['gpu', 'nvidia']
 
@@ -23,7 +23,7 @@
     state: present
     update_cache: true
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant == 'open-kernel'
   tags: ['gpu', 'nvidia']
 
@@ -34,7 +34,7 @@
     name: nvidia-vaapi-driver
     state: present
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_vaapi
   tags: ['gpu', 'nvidia']
@@ -46,7 +46,7 @@
       - libgl1-mesa-dri
     state: present
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant == 'nouveau'
   tags: ['gpu', 'nvidia']
 
@@ -60,7 +60,7 @@
       - libgl1-mesa-dri
     state: present
     update_cache: true
-  when: _gpu_drivers_has_amd
+  when: gpu_drivers_has_amd
   tags: ['gpu', 'amd']
 
 - name: Install AMD VA-API driver (Debian)
@@ -68,7 +68,7 @@
     name: mesa-va-drivers
     state: present
   when:
-    - _gpu_drivers_has_amd
+    - gpu_drivers_has_amd
     - gpu_drivers_vaapi
   tags: ['gpu', 'amd']
 
@@ -82,7 +82,7 @@
       - libgl1-mesa-dri
     state: present
     update_cache: true
-  when: _gpu_drivers_has_intel
+  when: gpu_drivers_has_intel
   tags: ['gpu', 'intel']
 
 # ---- Vulkan tools ----
@@ -92,6 +92,6 @@
     name: vulkan-tools
     state: present
   when:
-    - _gpu_drivers_has_nvidia or _gpu_drivers_has_amd or _gpu_drivers_has_intel
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
     - gpu_drivers_vulkan_tools
   tags: ['gpu', 'vulkan']

@@ -1,0 +1,13 @@
+---
+# === git — aliases (per-user layer) ===
+# Three-layer merge: preset -> extra -> overwrite.
+
+- name: Set git aliases
+  community.general.git_config:
+    name: "alias.{{ item.key }}"
+    value: "{{ item.value }}"
+    scope: global
+  loop: "{{ git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  tags: [git, aliases]

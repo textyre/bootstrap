@@ -1,22 +1,22 @@
 # {{ ansible_managed }}
 # PAM faillock configuration — brute-force protection
 dir = /run/faillock
-deny = {{ pam_faillock_deny }}
-fail_interval = {{ pam_faillock_fail_interval }}
-unlock_time = {{ pam_faillock_unlock_time }}
-root_unlock_time = {{ pam_faillock_root_unlock_time }}
-{% if pam_faillock_even_deny_root %}
+deny = {{ pam_hardening_faillock_deny }}
+fail_interval = {{ pam_hardening_faillock_fail_interval }}
+unlock_time = {{ pam_hardening_faillock_unlock_time }}
+root_unlock_time = {{ pam_hardening_faillock_root_unlock_time }}
+{% if pam_hardening_faillock_even_deny_root %}
 even_deny_root
 {% endif %}
-{% if pam_faillock_audit %}
+{% if pam_hardening_faillock_audit %}
 audit
 {% endif %}
-{% if pam_faillock_silent %}
+{% if pam_hardening_faillock_silent %}
 silent
 {% endif %}
-{% if pam_faillock_local_users_only %}
+{% if pam_hardening_faillock_local_users_only %}
 local_users_only
 {% endif %}
-{% if pam_faillock_nodelay %}
+{% if pam_hardening_faillock_nodelay %}
 nodelay
 {% endif %}

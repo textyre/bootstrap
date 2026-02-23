@@ -1,8 +1,6 @@
 ---
-# === Debian/Ubuntu: установка openssh ===
-
-- name: Ensure openssh is installed (apt)
-  ansible.builtin.apt:
-    name: openssh-server
+- name: "Install OpenSSH packages (Debian)"
+  ansible.builtin.package:
+    name: "{{ ssh_packages }}"
     state: present
-  tags: ['ssh', 'install']
+  tags: [ssh, install]

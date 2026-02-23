@@ -1,18 +1,12 @@
 ---
-# ---- Обработчики SSH ----
+# === SSH handlers (init-system agnostic) ===
 
-# Полный перезапуск sshd — применяет ВСЕ изменения конфигурации
-# Используется при изменении sshd_config, host-ключей, модулей
-- name: Restart sshd
+- name: "Restart sshd"
   ansible.builtin.service:
-    name: sshd
+    name: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
     state: restarted
-  listen: "restart sshd"
 
-# Мягкая перезагрузка — повторное чтение конфигурации без разрыва сессий
-# Используется для изменений баннера и других не-критичных параметров
-- name: Reload sshd
+- name: "Reload sshd"
   ansible.builtin.service:
-    name: sshd
+    name: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
     state: reloaded
-  listen: "reload sshd"

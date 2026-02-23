@@ -15,7 +15,7 @@
 
 - name: Build combined package list
   ansible.builtin.set_fact:
-    _packages_all: >-
+    packages_all: >-
       {{ packages_base
          + packages_editors
          + packages_docker
@@ -45,5 +45,5 @@
 
 - name: Report installed packages
   ansible.builtin.debug:
-    msg: "Official packages installed: {{ _packages_all | length }}"
+    msg: "Official packages installed: {{ packages_all | length }}"
   tags: ['install']

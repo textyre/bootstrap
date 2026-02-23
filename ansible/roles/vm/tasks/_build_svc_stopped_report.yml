@@ -5,27 +5,27 @@
 # Build service report rows from _vm_svc_stop_result.
 #
 # Expected variables:
-#   _vm_pkg_label        (string)   - Hypervisor label
+#   vm_pkg_label        (string)   - Hypervisor label
 #   _vm_svc_stop_result  (register) - Per-service stop results
 #
 # Output:
-#   _vm_rpt_svc_rows (list) - Formatted table rows
+#   vm_rpt_svc_rows (list) - Formatted table rows
 # =========================================================================
 
-- name: "{{ _vm_pkg_label }}: Initialize service report"
+- name: "{{ vm_pkg_label }}: Initialize service report"
   ansible.builtin.set_fact:
-    _vm_rpt_svc_rows: []
+    vm_rpt_svc_rows: []
   tags: ['vm', 'vm:report']
 
-- name: "{{ _vm_pkg_label }}: Collect service results"
+- name: "{{ vm_pkg_label }}: Collect service results"
   ansible.builtin.set_fact:
-    _vm_rpt_svc_rows: "{{ _vm_rpt_svc_rows + [_row] }}"
+    vm_rpt_svc_rows: "{{ vm_rpt_svc_rows + [row] }}"
   vars:
-    _failed: "{{ item.failed | default(false) | bool }}"
-    _st: "{{ '- skipped' if _failed else '+ stopped' }}"
-    _detail: "{{ (item.msg | default('not found')) | truncate(28, true, '..') if _failed else 'disabled' }}"
-    _row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(_detail) }} |"
-  loop: "{{ _vm_svc_stop_result.results | default([]) }}"
+    failed: "{{ item.failed | default(false) | bool }}"
+    common_rpt_status_mark: "{{ '- skipped' if failed else '+ stopped' }}"
+    detail: "{{ (item.msg | default('not found')) | truncate(28, true, '..') if failed else 'disabled' }}"
+    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(detail) }} |"
+  loop: "{{ vm_svc_stop_result.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
   tags: ['vm', 'vm:report']

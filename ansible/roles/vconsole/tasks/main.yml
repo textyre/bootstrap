@@ -36,8 +36,8 @@
     msg: >-
       WARNING: Console keymap skipped — init system
       '{{ ansible_facts['service_mgr'] }}' not supported.
-      Supported: {{ _vconsole_supported_inits | join(', ') }}.
-  when: ansible_facts['service_mgr'] not in _vconsole_supported_inits
+      Supported: {{ vconsole_supported_inits | join(', ') }}.
+  when: ansible_facts['service_mgr'] not in vconsole_supported_inits
   tags: ['vconsole']
 
 # ---- GPM ----
@@ -64,17 +64,17 @@
     name: common
     tasks_from: report_phase.yml
   vars:
-    _rpt_fact: "_vconsole_phases"
-    _rpt_phase: "Console keymap"
-    _rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in _vconsole_supported_inits else 'skip' }}"
-    _rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_phase: "Console keymap"
+    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in vconsole_supported_inits else 'skip' }}"
+    common_rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
   tags: ['vconsole', 'report']
 
-- name: "vconsole — Execution Report"
+- name: "Vconsole — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
-    _rpt_fact: "_vconsole_phases"
-    _rpt_title: "vconsole"
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_title: "vconsole"
   tags: ['vconsole', 'report']

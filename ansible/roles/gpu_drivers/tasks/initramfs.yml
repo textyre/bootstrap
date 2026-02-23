@@ -8,7 +8,7 @@
 
 - name: Check if dracut is available (non-Arch systems)
   ansible.builtin.command: which dracut
-  register: _gpu_drivers_dracut_check
+  register: gpu_drivers_dracut_check
   changed_when: false
   failed_when: false
   when:
@@ -18,7 +18,7 @@
 
 - name: Set initramfs tool fact
   ansible.builtin.set_fact:
-    _gpu_drivers_initramfs_tool: >-
+    gpu_drivers_initramfs_tool: >-
       {{ 'mkinitcpio' if ansible_facts['os_family'] == 'Archlinux'
          else ('dracut' if (_gpu_drivers_dracut_check is not skipped
                            and _gpu_drivers_dracut_check.rc == 0)
@@ -36,11 +36,11 @@
     group: root
     mode: '0755'
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_manage_initramfs
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'mkinitcpio'
   tags: ['gpu', 'nvidia']
 
 - name: Deploy mkinitcpio NVIDIA drop-in (Arch)
@@ -52,11 +52,11 @@
     mode: '0644'
   notify: regenerate initramfs
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_manage_initramfs
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'mkinitcpio'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'mkinitcpio'
   tags: ['gpu', 'nvidia']
 
 # ---- dracut (runtime-detected) ----
@@ -69,11 +69,11 @@
     group: root
     mode: '0755'
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_manage_initramfs
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'dracut'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'dracut'
   tags: ['gpu', 'nvidia']
 
 - name: Deploy dracut NVIDIA drop-in
@@ -85,11 +85,11 @@
     mode: '0644'
   notify: regenerate initramfs
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_manage_initramfs
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'dracut'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'dracut'
   tags: ['gpu', 'nvidia']
 
 # ---- initramfs-tools (Debian/Ubuntu fallback) ----
@@ -103,11 +103,11 @@
     mode: '0755'
   notify: regenerate initramfs
   when:
-    - _gpu_drivers_has_nvidia
+    - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_manage_initramfs
-    - _gpu_drivers_initramfs_tool is defined
-    - _gpu_drivers_initramfs_tool == 'initramfs-tools'
+    - gpu_drivers_initramfs_tool is defined
+    - gpu_drivers_initramfs_tool == 'initramfs-tools'
   tags: ['gpu', 'nvidia']
 
 # ---- Cleanup: remove drop-ins when NVIDIA is not in use ----
@@ -117,7 +117,7 @@
     path: /etc/mkinitcpio.conf.d/nvidia.conf
     state: absent
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_manage_initramfs
   tags: ['gpu', 'nvidia']
@@ -127,7 +127,7 @@
     path: /etc/dracut.conf.d/nvidia.conf
     state: absent
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_manage_initramfs
   tags: ['gpu', 'nvidia']
@@ -137,7 +137,7 @@
     path: /etc/initramfs-tools/hooks/nvidia-ansible
     state: absent
   when: >-
-    not _gpu_drivers_has_nvidia
+    not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_manage_initramfs
   tags: ['gpu', 'nvidia']

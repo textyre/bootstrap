@@ -1,0 +1,29 @@
+# ansible/roles/ssh_keys/meta/main.yml
+---
+galaxy_info:
+  role_name: ssh_keys
+  author: textyre
+  description: SSH authorized_keys and key generation management
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: GenericLinux
+      versions: [all]
+  galaxy_tags:
+    - ssh
+    - security
+    - authorizedkeys
+    - keys
+
+dependencies: []
+# Collection dependencies (declared in ansible/requirements.yml):
+#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair in keygen.yml)
+#   - ansible.posix >=1.0.0     (ansible.posix.authorized_key in authorized_keys.yml)

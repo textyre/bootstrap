@@ -3,7 +3,7 @@
 # Each import_tasks is one business requirement.
 # To run a single module: ansible-playbook ... --tags ntp_audit_script
 
-- name: ntp_audit role
+- name: Ntp_audit role
   when: ntp_audit_enabled | bool
   tags: ['ntp_audit']
   block:

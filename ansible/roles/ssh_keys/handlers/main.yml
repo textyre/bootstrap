@@ -1,0 +1,4 @@
+# ansible/roles/ssh_keys/handlers/main.yml
+---
+# ssh_keys role does not restart services
+# sshd restart is handled by the ssh role
