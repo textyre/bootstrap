@@ -37,7 +37,7 @@
 
 - name: Assert timezone matches expected value
   ansible.builtin.assert:
-    that: timezone_name in _timezone_check.stdout
+    that: timezone_name in timezone_check.stdout
     fail_msg: "Timezone mismatch: got '{{ timezone_check.stdout }}', expected '{{ timezone_name }}'"
     quiet: true
   tags: ['timezone']
