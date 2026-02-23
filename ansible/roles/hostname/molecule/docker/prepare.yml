@@ -1,0 +1,15 @@
+---
+# Docker containers restrict hostname changes via systemd (EBUSY).
+# Pre-configure the container hostname so ansible.builtin.hostname sees
+# no change needed. This tests our /etc/hosts custom logic, not the OS call.
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Pre-set /etc/hostname to match test hostname
+      ansible.builtin.copy:
+        content: "archbox\n"
+        dest: /etc/hostname
+        mode: '0644'
