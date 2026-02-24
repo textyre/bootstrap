@@ -7,3 +7,15 @@
     - name: Install kewlfft.aur collection
       ansible.builtin.command: ansible-galaxy collection install kewlfft.aur
       changed_when: true
+
+- name: Prepare — set up target container for hostctl testing
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Create aur_builder user for AUR privilege escalation
+      ansible.builtin.user:
+        name: aur_builder
+        system: true
+        create_home: false

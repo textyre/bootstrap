@@ -24,6 +24,7 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+      allow_world_readable_tmpfiles: true
   playbooks:
     prepare: prepare.yml
 
