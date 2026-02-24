@@ -1,0 +1,17 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: hostctl
+      vars:
+        hostctl_version: "1.1.4"
+        hostctl_verify_checksum: true
+        hostctl_profiles:
+          dev:
+            - { ip: "127.0.0.1", host: "app.local" }
+            - { ip: "127.0.0.1", host: "api.local" }
+          docker:
+            - { ip: "172.17.0.1", host: "registry.local" }

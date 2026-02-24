@@ -2,53 +2,15 @@
 - name: Verify
   hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false
+
+  vars:
+    verify_binary: /usr/local/bin/hostctl
+    verify_profiles:
+      - name: test
+        entries:
+          - molecule.local
 
   tasks:
-    - name: Verify hostctl binary is installed
-      ansible.builtin.command: hostctl --version
-      register: hostctl_verify_version
-      changed_when: false
-      failed_when: hostctl_verify_version.rc != 0
-
-    - name: Assert hostctl responds to --version
-      ansible.builtin.assert:
-        that: hostctl_verify_version.stdout | length > 0
-        fail_msg: "hostctl --version returned empty output"
-
-    - name: Check test profile file exists
-      ansible.builtin.stat:
-        path: /etc/hostctl/test.hosts
-      register: hostctl_verify_profile
-
-    - name: Assert test profile was deployed
-      ansible.builtin.assert:
-        that: hostctl_verify_profile.stat.exists
-        fail_msg: "/etc/hostctl/test.hosts was not deployed"
-
-    - name: Verify profile contains expected entry
-      ansible.builtin.command: grep -q "molecule.local" /etc/hostctl/test.hosts
-      register: hostctl_verify_entry
-      changed_when: false
-      failed_when: hostctl_verify_entry.rc != 0
-
-    - name: Verify profile is applied to /etc/hosts
-      ansible.builtin.command: grep -q "molecule.local" /etc/hosts
-      register: hostctl_verify_applied
-      changed_when: false
-      failed_when: hostctl_verify_applied.rc != 0
-
-    - name: Verify base /etc/hosts entries were not overwritten by hostctl
-      ansible.builtin.command: grep -q "127.0.0.1" /etc/hosts
-      register: hostctl_verify_base
-      changed_when: false
-      failed_when: hostctl_verify_base.rc != 0
-
-    - name: Show result
-      ansible.builtin.debug:
-        msg:
-          - "hostctl version: {{ hostctl_verify_version.stdout }}"
-          - "Profile /etc/hostctl/test.hosts: present"
-          - "Entry molecule.local in /etc/hostctl/test.hosts: found"
-          - "Entry molecule.local applied to /etc/hosts: found"
-          - "Base 127.0.0.1 entry in /etc/hosts: intact"
+    - name: Run shared hostctl verification
+      ansible.builtin.include_tasks: ../resource/verify_tasks.yml
