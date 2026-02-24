@@ -17,25 +17,6 @@
           - registry.local
 
   tasks:
-    # ---- Diagnostics (shown before assertions) ----
-
-    - name: Show /etc/hosts content
-      ansible.builtin.command: cat /etc/hosts
-      register: diag_etc_hosts
-      changed_when: false
-
-    - name: Show hostctl list output
-      ansible.builtin.command: hostctl list
-      register: diag_hostctl_list
-      changed_when: false
-      failed_when: false
-
-    - name: Debug diagnostics
-      ansible.builtin.debug:
-        msg:
-          - "/etc/hosts: {{ diag_etc_hosts.stdout_lines }}"
-          - "hostctl list: {{ diag_hostctl_list.stdout_lines }}"
-
     # ---- Docker-specific: binary permissions ----
 
     - name: Verify hostctl binary exists at install path

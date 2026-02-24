@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-# hostctl profile: {{ item.key }}
+# Profile: {{ item.key }}
 {% for entry in item.value %}
-{{ entry.ip }}  {{ entry.host }}
+{{ entry.ip }} {{ entry.host }}
 {% endfor %}
