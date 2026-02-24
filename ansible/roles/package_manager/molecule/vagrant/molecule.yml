@@ -6,11 +6,11 @@ driver:
 
 platforms:
   - name: arch-vm
-    box: archlinux/archlinux
+    box: generic/arch
     memory: 2048
     cpus: 2
   - name: ubuntu-noble
-    box: generic/ubuntu2404
+    box: bento/ubuntu-24.04
     memory: 2048
     cpus: 2
 
