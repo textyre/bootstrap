@@ -1,0 +1,9 @@
+---
+- name: Prepare — install required Ansible collections on controller
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Install kewlfft.aur collection
+      ansible.builtin.command: ansible-galaxy collection install kewlfft.aur
+      changed_when: true
