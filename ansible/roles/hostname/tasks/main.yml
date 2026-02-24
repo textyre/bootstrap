@@ -29,7 +29,7 @@
 
 # Проверка
 - name: Verify hostname is set
-  ansible.builtin.command: python3 -c "import socket; print(socket.gethostname())"
+  ansible.builtin.command: hostnamectl status --static
   register: hostname_check
   changed_when: false
   tags: ['hostname']
@@ -37,8 +37,8 @@
 - name: Assert hostname matches expected value
   ansible.builtin.assert:
     that:
-      - hostname_check.stdout == hostname_name
-    fail_msg: "Hostname mismatch: got '{{ hostname_check.stdout }}', expected '{{ hostname_name }}'"
+      - hostname_check.stdout | trim == hostname_name
+    fail_msg: "Hostname mismatch: got '{{ hostname_check.stdout | trim }}', expected '{{ hostname_name }}'"
     quiet: true
   tags: ['hostname']
 

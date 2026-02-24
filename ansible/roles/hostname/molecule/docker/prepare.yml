@@ -1,15 +1,18 @@
 ---
-# Docker containers restrict hostname changes via systemd (EBUSY).
-# Pre-configure the container hostname so ansible.builtin.hostname sees
-# no change needed. This tests our /etc/hosts custom logic, not the OS call.
+# Docker bind-mounts /etc/hostname and /etc/hosts from Docker-managed host paths.
+# Atomic rename (used by systemd-hostnamed via hostnamectl and by Ansible's lineinfile)
+# fails across mount point boundaries with EXDEV. Unmounting restores them as regular
+# overlay files, so hostnamectl and lineinfile work without workarounds.
 - name: Prepare
   hosts: all
   become: true
   gather_facts: false
 
   tasks:
-    - name: Pre-set /etc/hostname to match test hostname
-      ansible.builtin.copy:
-        content: "archbox\n"
-        dest: /etc/hostname
-        mode: '0644'
+    - name: Unmount Docker bind mounts for hostname files
+      ansible.builtin.command: umount {{ item }}
+      loop:
+        - /etc/hostname
+        - /etc/hosts
+      changed_when: true
+      failed_when: false
