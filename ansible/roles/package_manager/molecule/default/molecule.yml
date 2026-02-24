@@ -17,8 +17,6 @@ provisioner:
     host_vars:
       localhost:
         ansible_connection: local
-        pm_verify_aur: true
-        pm_verify_mirrors: true
   playbooks:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
