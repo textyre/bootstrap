@@ -18,19 +18,19 @@
             - { ip: "172.17.0.1", host: "registry.local" }
 
   post_tasks:
-    - name: DEBUG - test direct echo write to /etc/hosts
-      ansible.builtin.shell: echo "127.0.0.1 echotest.local" >> /etc/hosts
-      changed_when: true
-      failed_when: false
-      register: dbg_echo
-
-    - name: DEBUG - try hostctl add with explicit --ip
-      ansible.builtin.command: hostctl add dev --ip 127.0.0.1 app.local api.local
-      register: dbg_add_ip
+    - name: DEBUG - try hostctl add domains from file
+      ansible.builtin.command: hostctl add domains dev --from /etc/hostctl/dev.hosts
+      register: dbg_domains
       changed_when: false
       failed_when: false
 
-    - name: DEBUG - show /etc/hosts after both tests
+    - name: DEBUG - hostctl add domains --help
+      ansible.builtin.command: hostctl add domains --help
+      register: dbg_domains_help
+      changed_when: false
+      failed_when: false
+
+    - name: DEBUG - show /etc/hosts after domains
       ansible.builtin.command: cat /etc/hosts
       register: dbg_hosts
       changed_when: false
@@ -40,17 +40,10 @@
       register: dbg_list
       changed_when: false
 
-    - name: DEBUG - hostctl help for add
-      ansible.builtin.command: hostctl add --help
-      register: dbg_help
-      changed_when: false
-      failed_when: false
-
     - name: DEBUG output
       ansible.builtin.debug:
         msg:
-          - "echo rc={{ dbg_echo.rc }}"
-          - "add --ip rc={{ dbg_add_ip.rc }} stdout={{ dbg_add_ip.stdout_lines }} stderr={{ dbg_add_ip.stderr_lines }}"
+          - "add domains rc={{ dbg_domains.rc }} stdout={{ dbg_domains.stdout_lines }} stderr={{ dbg_domains.stderr_lines }}"
+          - "add domains help: {{ dbg_domains_help.stdout_lines }}"
           - "/etc/hosts: {{ dbg_hosts.stdout_lines }}"
           - "hostctl list: {{ dbg_list.stdout_lines }}"
-          - "add help: {{ dbg_help.stdout_lines }}"
