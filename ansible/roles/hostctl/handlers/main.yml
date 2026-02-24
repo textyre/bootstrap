@@ -4,7 +4,7 @@
 # updated on subsequent runs without overwriting base /etc/hosts entries.
 
 - name: Apply hostctl profiles
-  ansible.builtin.shell: "hostctl sync {{ item.key }} < /etc/hostctl/{{ item.key }}.hosts"
+  ansible.builtin.command: "hostctl add {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
   loop: "{{ hostctl_profiles | dict2items }}"
   listen: "apply hostctl profiles"
   changed_when: true
