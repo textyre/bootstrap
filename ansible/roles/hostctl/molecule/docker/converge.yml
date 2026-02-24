@@ -16,3 +16,33 @@
             - { ip: "127.0.0.1", host: "api.local" }
           registry:
             - { ip: "172.17.0.1", host: "registry.local" }
+
+  post_tasks:
+    - name: DEBUG - show profile file content
+      ansible.builtin.command: cat /etc/hostctl/dev.hosts
+      register: dbg_profile
+      changed_when: false
+
+    - name: DEBUG - show hostctl replace output
+      ansible.builtin.command: hostctl replace dev --from /etc/hostctl/dev.hosts
+      register: dbg_replace
+      changed_when: false
+      failed_when: false
+
+    - name: DEBUG - show hostctl list after replace
+      ansible.builtin.command: hostctl list
+      register: dbg_list
+      changed_when: false
+
+    - name: DEBUG - show /etc/hosts after replace
+      ansible.builtin.command: cat /etc/hosts
+      register: dbg_hosts
+      changed_when: false
+
+    - name: DEBUG output
+      ansible.builtin.debug:
+        msg:
+          - "profile file: {{ dbg_profile.stdout_lines }}"
+          - "replace rc={{ dbg_replace.rc }} stdout={{ dbg_replace.stdout_lines }} stderr={{ dbg_replace.stderr_lines }}"
+          - "hostctl list: {{ dbg_list.stdout_lines }}"
+          - "/etc/hosts: {{ dbg_hosts.stdout_lines }}"
