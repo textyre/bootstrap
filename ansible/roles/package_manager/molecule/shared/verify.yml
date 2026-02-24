@@ -95,16 +95,19 @@
               paccache keep count not set to {{ package_manager_paccache_keep }}
               in paccache.service.d/keep.conf
 
-        - name: Gather service facts (systemd)
-          ansible.builtin.service_facts:
+        - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            cmd: systemctl is-enabled paccache.timer
+          register: pm_verify_paccache_timer
+          changed_when: false
           when: ansible_facts['service_mgr'] == 'systemd'
 
         - name: Assert paccache.timer is enabled (systemd)
           ansible.builtin.assert:
-            that:
-              - "'paccache.timer' in ansible_facts.services"
-              - "ansible_facts.services['paccache.timer'].status == 'enabled'"
-            fail_msg: "paccache.timer not enabled"
+            that: pm_verify_paccache_timer.stdout | trim == 'enabled'
+            fail_msg: >-
+              paccache.timer is not enabled
+              (got: {{ pm_verify_paccache_timer.stdout | trim }})
           when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Verify Arch Linux — makepkg
@@ -189,12 +192,19 @@
             that: pm_verify_reflector_conf.stat.exists
             fail_msg: "/etc/xdg/reflector/reflector.conf missing"
 
+        - name: Check reflector.timer is enabled  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            cmd: systemctl is-enabled reflector.timer
+          register: pm_verify_reflector_timer
+          changed_when: false
+          when: ansible_facts['service_mgr'] == 'systemd'
+
         - name: Assert reflector.timer is enabled (systemd)
           ansible.builtin.assert:
-            that:
-              - "'reflector.timer' in ansible_facts.services"
-              - "ansible_facts.services['reflector.timer'].status == 'enabled'"
-            fail_msg: "reflector.timer not enabled"
+            that: pm_verify_reflector_timer.stdout | trim == 'enabled'
+            fail_msg: >-
+              reflector.timer is not enabled
+              (got: {{ pm_verify_reflector_timer.stdout | trim }})
           when: ansible_facts['service_mgr'] == 'systemd'
 
     # ==========================================================
