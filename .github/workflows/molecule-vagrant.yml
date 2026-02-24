@@ -58,9 +58,11 @@ jobs:
             "molecule-plugins[vagrant]==25.8.12" \
             "python-vagrant" \
             "jmespath" "rich"
-          # Ansible uses system Python for localhost modules, not the venv.
-          # Install python-vagrant to user site-packages so system Python finds it.
-          pip3 install --user python-vagrant
+          # Ansible discovers system Python (/usr/bin/python3) for localhost module
+          # execution. The vagrant Ansible module needs python-vagrant importable from
+          # that Python. Install system-wide so it's always in sys.path.
+          sudo python3 -m pip install --break-system-packages python-vagrant
+          python3 -c "import vagrant; print('python-vagrant OK:', vagrant.__file__)"
 
       - name: Install Ansible Galaxy collections
         run: .venv/bin/ansible-galaxy collection install -r ansible/requirements.yml
