@@ -76,3 +76,71 @@
     fail_msg: "ntp-audit.timer not enabled or not active"
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert logrotate config deployed
+  ansible.builtin.stat:
+    path: /etc/logrotate.d/ntp-audit
+  register: ntp_audit_verify_logrotate
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify logrotate config
+  ansible.builtin.assert:
+    that:
+      - ntp_audit_verify_logrotate.stat.exists
+      - ntp_audit_verify_logrotate.stat.size > 0
+    fail_msg: "/etc/logrotate.d/ntp-audit missing"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert Python source staging directory exists
+  ansible.builtin.stat:
+    path: /usr/local/src/ntp-audit
+  register: ntp_audit_verify_src
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify staging directory
+  ansible.builtin.assert:
+    that:
+      - ntp_audit_verify_src.stat.exists
+      - ntp_audit_verify_src.stat.isdir
+    fail_msg: "/usr/local/src/ntp-audit staging directory missing"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert Alloy config fragment deployed
+  ansible.builtin.stat:
+    path: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
+  register: ntp_audit_verify_alloy
+  when:
+    - ntp_audit_alloy_enabled | bool
+    - ntp_audit_alloy_config_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify Alloy fragment
+  ansible.builtin.assert:
+    that:
+      - ntp_audit_verify_alloy.stat.exists
+      - ntp_audit_verify_alloy.stat.size > 0
+    fail_msg: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy missing"
+  when:
+    - ntp_audit_alloy_enabled | bool
+    - ntp_audit_alloy_config_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert Loki rules deployed
+  ansible.builtin.stat:
+    path: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
+  register: ntp_audit_verify_loki
+  when:
+    - ntp_audit_loki_enabled | bool
+    - ntp_audit_loki_rules_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Verify Loki rules
+  ansible.builtin.assert:
+    that:
+      - ntp_audit_verify_loki.stat.exists
+      - ntp_audit_verify_loki.stat.size > 0
+    fail_msg: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml missing"
+  when:
+    - ntp_audit_loki_enabled | bool
+    - ntp_audit_loki_rules_dir | length > 0
+  tags: ['ntp_audit', 'ntp_audit_verify']

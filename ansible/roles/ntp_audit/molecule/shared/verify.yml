@@ -1,0 +1,106 @@
+---
+- name: Verify ntp_audit
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    ntp_audit_log_dir: "/var/log/ntp-audit"
+    ntp_audit_log_file: "/var/log/ntp-audit/audit.log"
+    ntp_audit_alloy_enabled: true
+    ntp_audit_alloy_config_dir: "/etc/alloy/conf.d"
+    ntp_audit_loki_enabled: true
+    ntp_audit_loki_rules_dir: "/etc/loki/rules/fake"
+
+  tasks:
+
+    # ---- Reuse role verify tasks (single source of truth) ----
+    # Path is relative to this playbook's location: molecule/shared/
+    # ../../tasks/verify.yml → tasks/verify.yml (role root)
+
+    - name: Run role verify tasks
+      ansible.builtin.include_tasks:
+        file: "../../tasks/verify.yml"
+
+    # ---- Extended checks (molecule-only) ----
+
+    - name: Run ntp-audit and verify it exits cleanly
+      ansible.builtin.command:
+        cmd: /usr/local/bin/ntp-audit
+      register: ntp_audit_molecule_run
+      changed_when: false
+
+    - name: Assert ntp-audit exits with rc 0
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_molecule_run.rc == 0
+        fail_msg: >-
+          ntp-audit exited {{ ntp_audit_molecule_run.rc }}.
+          stderr: {{ ntp_audit_molecule_run.stderr }}
+
+    - name: Assert zipapp has correct permissions
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_verify_script.stat.mode == '0755'
+          - ntp_audit_verify_script.stat.pw_name == 'root'
+        fail_msg: "ntp-audit zipapp has wrong permissions or owner"
+
+    - name: Assert logrotate config has correct permissions
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_verify_logrotate.stat.mode == '0644'
+          - ntp_audit_verify_logrotate.stat.pw_name == 'root'
+        fail_msg: "logrotate config has wrong permissions or owner"
+
+    - name: Check if logrotate binary is present
+      ansible.builtin.command:
+        cmd: command -v logrotate
+      register: ntp_audit_molecule_logrotate_binary
+      changed_when: false
+      failed_when: false
+
+    - name: Validate logrotate config syntax
+      ansible.builtin.command:
+        cmd: logrotate --debug /etc/logrotate.d/ntp-audit
+      register: ntp_audit_molecule_logrotate_syntax
+      changed_when: false
+      failed_when: ntp_audit_molecule_logrotate_syntax.rc != 0
+      when: ntp_audit_molecule_logrotate_binary.rc == 0
+
+    - name: Parse last audit log line as JSON
+      ansible.builtin.set_fact:
+        ntp_audit_molecule_log_json: "{{ ntp_audit_verify_last_line.stdout | from_json }}"
+
+    - name: Assert JSON field types are valid
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_molecule_log_json.timestamp is match('^\d{4}-\d{2}-\d{2}T')
+          - ntp_audit_molecule_log_json.stratum | string | int >= 0
+          - ntp_audit_molecule_log_json.ntp_conflict | type_debug in ['bool', 'AnsibleUnsafeText']
+        fail_msg: >-
+          JSON field type validation failed.
+          timestamp={{ ntp_audit_molecule_log_json.timestamp }},
+          stratum={{ ntp_audit_molecule_log_json.stratum }},
+          ntp_conflict={{ ntp_audit_molecule_log_json.ntp_conflict }}
+
+    - name: Read Alloy config fragment content
+      ansible.builtin.slurp:
+        src: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
+      register: ntp_audit_molecule_alloy_content
+      when: ntp_audit_alloy_enabled | bool
+
+    - name: Assert Alloy config references the correct audit log path
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_log_file in (ntp_audit_molecule_alloy_content.content | b64decode)
+        fail_msg: >-
+          Alloy config does not reference {{ ntp_audit_log_file }}.
+          Content: {{ ntp_audit_molecule_alloy_content.content | b64decode | truncate(200) }}
+      when: ntp_audit_alloy_enabled | bool
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: >-
+          ntp_audit molecule verify passed: all role checks, exit code clean,
+          permissions correct, logrotate syntax valid, JSON types valid,
+          alloy config references correct path.

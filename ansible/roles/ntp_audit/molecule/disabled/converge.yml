@@ -1,0 +1,10 @@
+---
+- name: Converge (disabled)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: ntp_audit
+      vars:
+        ntp_audit_enabled: false

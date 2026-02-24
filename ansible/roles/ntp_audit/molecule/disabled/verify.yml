@@ -1,0 +1,44 @@
+---
+- name: Verify ntp_audit disabled
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Assert ntp-audit zipapp NOT deployed when disabled
+      ansible.builtin.stat:
+        path: /usr/local/bin/ntp-audit
+      register: ntp_audit_disabled_zipapp
+
+    - name: Verify zipapp absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_zipapp.stat.exists
+        fail_msg: "/usr/local/bin/ntp-audit was deployed despite ntp_audit_enabled: false"
+
+    - name: Assert audit log directory NOT created
+      ansible.builtin.stat:
+        path: /var/log/ntp-audit
+      register: ntp_audit_disabled_logdir
+
+    - name: Verify log dir absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_logdir.stat.exists
+        fail_msg: "/var/log/ntp-audit was created despite ntp_audit_enabled: false"
+
+    - name: Collect service facts (systemd)
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert ntp-audit.timer NOT deployed when disabled
+      ansible.builtin.assert:
+        that:
+          - "'ntp-audit.timer' not in ansible_facts.services"
+        fail_msg: "ntp-audit.timer was deployed despite ntp_audit_enabled: false"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "ntp_audit disabled verify passed: no zipapp, no log dir, no timer"
