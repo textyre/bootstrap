@@ -3,6 +3,8 @@
   hosts: all
   become: true
   gather_facts: true
+  vars_files:
+    - "../../defaults/main.yml"
 
   tasks:
 
