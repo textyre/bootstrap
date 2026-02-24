@@ -66,5 +66,5 @@ jobs:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
         run: |
-          .venv/bin/molecule test -s vagrant --platform-name ${{ matrix.platform }}
+          $GITHUB_WORKSPACE/.venv/bin/molecule test -s vagrant --platform-name ${{ matrix.platform }}
         working-directory: "ansible/roles/${{ inputs.role || 'package_manager' }}"
