@@ -1,10 +1,12 @@
 ---
 # Handlers for hostctl role
-# Uses hostctl sync (NOT replace) so profiles are created on first run and
-# updated on subsequent runs without overwriting base /etc/hosts entries.
+# Uses hostctl replace --from so the profile section in /etc/hosts is created
+# on first run and idempotently replaced on subsequent runs.
+# Profile files must use hostctl's own format (# profile.on / # end markers)
+# so that hostctl can locate the section and extract entries.
 
 - name: Apply hostctl profiles
-  ansible.builtin.command: "hostctl add {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
+  ansible.builtin.command: "hostctl replace {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
   loop: "{{ hostctl_profiles | dict2items }}"
   listen: "apply hostctl profiles"
   changed_when: true
