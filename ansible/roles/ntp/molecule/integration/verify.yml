@@ -1,6 +1,5 @@
 ---
-- name: Verify NTP configuration (shared)
-  import_playbook: ../shared/verify.yml
+- import_playbook: ../shared/verify.yml  # noqa: name[play]
 
 - name: Verify NTP synchronization (live)
   hosts: all
