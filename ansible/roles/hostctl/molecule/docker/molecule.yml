@@ -28,6 +28,8 @@ provisioner:
       pipelining: true
   playbooks:
     prepare: prepare.yml
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
 
 verifier:
   name: ansible
