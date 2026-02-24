@@ -1,12 +1,16 @@
 ---
 # Handlers for hostctl role
-# Uses hostctl replace --from so the profile section in /etc/hosts is created
-# on first run and idempotently replaced on subsequent runs.
-# Profile files must use hostctl's own format (# profile.on / # end markers)
-# so that hostctl can locate the section and extract entries.
+# Uses hostctl remove + hostctl add domains to apply profiles idempotently.
+# hostctl add domains [profile] [hosts...] --ip IP is the correct API for
+# adding IP-hostname entries (hostctl replace/add --from file do not work
+# for adding entries — they only create empty section markers).
 
 - name: Apply hostctl profiles
-  ansible.builtin.command: "hostctl replace {{ item.key }} --from /etc/hostctl/{{ item.key }}.hosts"
+  ansible.builtin.shell: |
+    hostctl remove {{ item.key }} 2>/dev/null || true
+    {% for entry in item.value %}
+    hostctl add domains {{ item.key }} {{ entry.host }} --ip {{ entry.ip }}
+    {% endfor %}
   loop: "{{ hostctl_profiles | dict2items }}"
   listen: "apply hostctl profiles"
   changed_when: true
