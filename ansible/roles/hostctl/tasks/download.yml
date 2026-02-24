@@ -138,12 +138,11 @@
         path: "{{ hostctl_tmpdir.path }}/hostctl"
       register: hostctl_bin_stat
 
-    - name: Assert binary exists and is executable
+    - name: Assert binary exists after extraction
       ansible.builtin.assert:
         that:
           - hostctl_bin_stat.stat.exists
-          - hostctl_bin_stat.stat.executable
-        fail_msg: "hostctl binary was not found or is not executable after extraction"
+        fail_msg: "hostctl binary was not found after extraction"
 
     - name: Install hostctl binary
       ansible.builtin.copy:

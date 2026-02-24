@@ -9,6 +9,7 @@
       vars:
         hostctl_version: "1.1.4"
         hostctl_verify_checksum: true
+        yay_build_user: "root"
         hostctl_profiles:
           dev:
             - { ip: "127.0.0.1", host: "app.local" }
