@@ -2,6 +2,6 @@
 # Internal mappings — not for users
 
 hostctl_arch_map:
-  x86_64: amd64
+  x86_64: 64-bit
   aarch64: arm64
   armv7l: armv6
