@@ -76,7 +76,7 @@
         that:
           - ntp_audit_molecule_log_json.timestamp is match('^\d{4}-\d{2}-\d{2}T')
           - ntp_audit_molecule_log_json.stratum | string | int >= 0
-          - ntp_audit_molecule_log_json.ntp_conflict | type_debug in ['bool', 'AnsibleUnsafeText']
+          - ntp_audit_molecule_log_json.ntp_conflict | type_debug in ['bool', 'str', 'AnsibleUnsafeText']
         fail_msg: >-
           JSON field type validation failed.
           timestamp={{ ntp_audit_molecule_log_json.timestamp }},
