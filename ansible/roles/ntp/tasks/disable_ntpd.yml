@@ -8,8 +8,9 @@
     state: stopped
   register: ntp_ntpd_disable
   failed_when:
-    - _ntp_ntpd_disable is failed
+    - ntp_ntpd_disable is failed
     - >-
-      'could not be found' not in (_ntp_ntpd_disable.msg | default(''))
-      and 'No such file' not in (_ntp_ntpd_disable.msg | default(''))
+      'could not be found' not in (ntp_ntpd_disable.msg | default('') | lower)
+      and 'could not find' not in (ntp_ntpd_disable.msg | default('') | lower)
+      and 'no such file' not in (ntp_ntpd_disable.msg | default('') | lower)
   tags: ['ntp']

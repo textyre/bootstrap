@@ -10,7 +10,7 @@
 - name: Assert keymap is set (systemd)
   ansible.builtin.assert:
     that:
-      - "_vconsole_check.stdout | regex_search('VC Keymap:\\s+' + vconsole_value + '(\\s|$)')"
+      - "vconsole_check.stdout is search('VC Keymap:\\s+' + vconsole_value + '(\\s|$)')"
     fail_msg: >-
       Keymap '{{ vconsole_value }}' not found as VC Keymap in localectl status.
       Output: {{ vconsole_check.stdout }}
@@ -27,7 +27,7 @@
 - name: Assert FONT is set in vconsole.conf (systemd)
   ansible.builtin.assert:
     that:
-      - "'FONT=' + vconsole_console_font in (_vconsole_vconsole_content.content | b64decode)"
+      - "'FONT=' + vconsole_console_font in (vconsole_vconsole_content.content | b64decode)"
     fail_msg: >-
       FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf.
       Content: {{ vconsole_vconsole_content.content | b64decode }}

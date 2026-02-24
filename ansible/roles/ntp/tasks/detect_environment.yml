@@ -36,7 +36,7 @@
          }) }}
   when:
     - ntp_virt_type == 'vmware'
-    - _ntp_vmware_ptp_stat.stat.exists | default(false)
+    - ntp_vmware_ptp_stat.stat.exists | default(false)
   tags: ['ntp']
 
 # Final refclock list: user-supplied ntp_refclocks takes priority over auto-detected.

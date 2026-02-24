@@ -1,0 +1,157 @@
+---
+- name: Verify NTP role (offline assertions)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    # ---- Package installed ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert chrony package is installed
+      ansible.builtin.assert:
+        that: "'chrony' in ansible_facts.packages"
+        fail_msg: "chrony package not found"
+
+    # ---- Service running ----
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert chronyd.service is running and enabled
+      ansible.builtin.assert:
+        that:
+          - "'chronyd.service' in ansible_facts.services"
+          - "ansible_facts.services['chronyd.service'].state == 'running'"
+          - "ansible_facts.services['chronyd.service'].status == 'enabled'"
+        fail_msg: "chronyd.service is not running or not enabled"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- chrony.conf permissions ----
+
+    - name: Stat /etc/chrony.conf
+      ansible.builtin.stat:
+        path: /etc/chrony.conf
+      register: ntp_verify_conf
+
+    - name: Assert chrony.conf exists with correct owner and mode
+      ansible.builtin.assert:
+        that:
+          - ntp_verify_conf.stat.exists
+          - ntp_verify_conf.stat.isreg
+          - ntp_verify_conf.stat.pw_name == 'root'
+          - ntp_verify_conf.stat.gr_name == 'root'
+          - ntp_verify_conf.stat.mode == '0644'
+        fail_msg: "/etc/chrony.conf missing or wrong permissions (expected root:root 0644)"
+
+    # ---- chrony.conf content ----
+
+    - name: Read chrony.conf
+      ansible.builtin.slurp:
+        src: /etc/chrony.conf
+      register: ntp_verify_conf_raw
+
+    - name: Set chrony.conf text fact
+      ansible.builtin.set_fact:
+        ntp_verify_conf_text: "{{ ntp_verify_conf_raw.content | b64decode }}"
+
+    - name: Assert NTS directive present in at least one server line
+      ansible.builtin.assert:
+        that: "'nts' in ntp_verify_conf_text"
+        fail_msg: "No 'nts' keyword found in /etc/chrony.conf — NTS not configured"
+
+    - name: Assert minsources directive present
+      ansible.builtin.assert:
+        that: "'minsources' in ntp_verify_conf_text"
+        fail_msg: "'minsources' directive missing from /etc/chrony.conf"
+
+    - name: Assert driftfile directive present
+      ansible.builtin.assert:
+        that: "'driftfile' in ntp_verify_conf_text"
+        fail_msg: "'driftfile' directive missing from /etc/chrony.conf"
+
+    - name: Assert dumpdir directive present
+      ansible.builtin.assert:
+        that: "'dumpdir' in ntp_verify_conf_text"
+        fail_msg: "'dumpdir' directive missing from /etc/chrony.conf"
+
+    - name: Assert ntsdumpdir directive present
+      ansible.builtin.assert:
+        that: "'ntsdumpdir' in ntp_verify_conf_text"
+        fail_msg: "'ntsdumpdir' directive missing from /etc/chrony.conf"
+
+    - name: Assert log tracking directive present
+      ansible.builtin.assert:
+        that: "'log measurements statistics tracking' in ntp_verify_conf_text"
+        fail_msg: "'log measurements statistics tracking' missing from /etc/chrony.conf"
+
+    - name: Assert environment detection comment present
+      ansible.builtin.assert:
+        that: "'# Environment:' in ntp_verify_conf_text"
+        fail_msg: "'# Environment:' comment missing — template not applying environment detection"
+
+    # ---- Directories ----
+
+    - name: Stat /var/log/chrony
+      ansible.builtin.stat:
+        path: /var/log/chrony
+      register: ntp_verify_logdir
+
+    - name: Assert /var/log/chrony exists with correct ownership and mode
+      ansible.builtin.assert:
+        that:
+          - ntp_verify_logdir.stat.exists
+          - ntp_verify_logdir.stat.isdir
+          - ntp_verify_logdir.stat.pw_name == 'chrony'
+          - ntp_verify_logdir.stat.mode == '0755'
+        fail_msg: "/var/log/chrony missing, not owned by chrony, or wrong mode"
+
+    - name: Stat /var/lib/chrony/nts-data
+      ansible.builtin.stat:
+        path: /var/lib/chrony/nts-data
+      register: ntp_verify_ntsdumpdir
+
+    - name: Assert /var/lib/chrony/nts-data exists with correct ownership and mode
+      ansible.builtin.assert:
+        that:
+          - ntp_verify_ntsdumpdir.stat.exists
+          - ntp_verify_ntsdumpdir.stat.isdir
+          - ntp_verify_ntsdumpdir.stat.pw_name == 'chrony'
+          - ntp_verify_ntsdumpdir.stat.mode == '0700'
+        fail_msg: "/var/lib/chrony/nts-data missing, not owned by chrony, or wrong mode (expected 0700)"
+
+    # ---- Competitor services stopped ----
+
+    - name: Assert systemd-timesyncd is not running
+      ansible.builtin.assert:
+        that: >-
+          ansible_facts.services['systemd-timesyncd.service'].state | default('') != 'running'
+        fail_msg: "systemd-timesyncd is still running — should be disabled by ntp role"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - "'systemd-timesyncd.service' in ansible_facts.services"
+
+    # ---- Diagnostic (informational only, no assertions) ----
+
+    - name: Diagnostic — chronyc tracking output
+      ansible.builtin.command:
+        cmd: chronyc tracking
+      register: ntp_verify_tracking_diag
+      changed_when: false
+      failed_when: false
+
+    - name: Show chronyc tracking
+      ansible.builtin.debug:
+        var: ntp_verify_tracking_diag.stdout_lines
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          NTP offline verify passed: chrony installed, chronyd running,
+          /etc/chrony.conf correct (root:root 0644), directives present,
+          directories exist with correct ownership and mode.

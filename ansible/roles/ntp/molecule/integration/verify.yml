@@ -1,0 +1,91 @@
+---
+- import_playbook: ../shared/verify.yml
+
+- name: Verify NTP synchronization (live)
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+
+    # ---- Wait for sync ----
+    # chronyc waitsync: canonical approach per upstream chrony-wait.service.
+    # Args: max-tries=30 max-correction=0 max-skew=0 interval=2 → up to 60s wait.
+
+    - name: Wait for chronyd to synchronize (up to 60s)
+      ansible.builtin.command:
+        cmd: chronyc waitsync 30 0 0 2
+      changed_when: false
+
+    # ---- Sync state ----
+
+    - name: Get NTP sources
+      ansible.builtin.command:
+        cmd: chronyc -n sources
+      register: ntp_int_sources
+      changed_when: false
+
+    - name: Assert at least one source is synced (^* marker)
+      ansible.builtin.assert:
+        that:
+          - ntp_int_sources.stdout_lines | select('match', '^\^\*') | list | length > 0
+        fail_msg: >-
+          No synchronized NTP source (no '^*' marker in chronyc -n sources).
+          Chrony is running but not synced after 60s — check NTP server reachability.
+
+    # ---- NTS authentication ----
+
+    - name: Get NTS sources
+      ansible.builtin.command:
+        cmd: chronyc ntssources
+      register: ntp_int_nts
+      changed_when: false
+
+    - name: Assert at least one NTS source is active
+      ansible.builtin.assert:
+        that:
+          - ntp_int_nts.stdout_lines | length > 1
+        fail_msg: >-
+          No NTS sources active (chronyc ntssources returned no entries).
+          Check NTS server reachability and TLS handshake logs.
+
+    # ---- KVM refclock (KVM guests only) ----
+
+    - name: Check loaded kernel modules (KVM only)
+      ansible.builtin.command:
+        cmd: lsmod
+      register: ntp_int_lsmod
+      changed_when: false
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Assert ptp_kvm module loaded on KVM
+      ansible.builtin.assert:
+        that: "'ptp_kvm' in ntp_int_lsmod.stdout"
+        fail_msg: "ptp_kvm module not loaded on KVM guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Read chrony.conf for refclock assertion
+      ansible.builtin.slurp:
+        src: /etc/chrony.conf
+      register: ntp_int_conf_raw
+      when: ansible_facts['virtualization_type'] | default('') in ['kvm', 'hyperv']
+
+    - name: Assert refclock PHC present on KVM
+      ansible.builtin.assert:
+        that: "'refclock PHC' in (ntp_int_conf_raw.content | b64decode)"
+        fail_msg: "refclock PHC missing from chrony.conf on KVM guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'kvm'
+
+    - name: Assert refclock PHC /dev/ptp_hyperv present on Hyper-V
+      ansible.builtin.assert:
+        that: "'refclock PHC /dev/ptp_hyperv' in (ntp_int_conf_raw.content | b64decode)"
+        fail_msg: "refclock PHC /dev/ptp_hyperv missing from chrony.conf on Hyper-V guest"
+      when: ansible_facts['virtualization_type'] | default('') == 'hyperv'
+
+    # ---- Result ----
+
+    - name: Show integration verify result
+      ansible.builtin.debug:
+        msg: >-
+          NTP integration verify passed: chrony synced (^* source present),
+          NTS authentication active, refclocks correct for environment.

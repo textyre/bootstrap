@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    vconsole_console: "us"
+    vconsole_console_font: "ter-v16n"
+    vconsole_console_font_package: "terminus-font"
+    vconsole_gpm_enabled: false
+
+  roles:
+    - role: vconsole

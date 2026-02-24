@@ -9,8 +9,8 @@
     state: present
   register: ntp_ptp_kvm_load
   failed_when:
-    - _ntp_ptp_kvm_load is failed
-    - "'not found' not in (_ntp_ptp_kvm_load.msg | default(''))"
+    - ntp_ptp_kvm_load is failed
+    - "'not found' not in (ntp_ptp_kvm_load.msg | default(''))"
   tags: ['ntp']
 
 - name: "KVM: Persist ptp_kvm module across reboots"
@@ -34,5 +34,5 @@
       WARNING: ptp_kvm module loaded but /dev/ptp0 not found.
       Kernel may be < 4.11 or module not supported on this CPU.
       chrony will use NTS servers only (no local PHC reference).
-  when: not (_ntp_ptp0_stat.stat.exists | default(false))
+  when: not (ntp_ptp0_stat.stat.exists | default(false))
   tags: ['ntp']

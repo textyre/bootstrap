@@ -26,6 +26,6 @@
     cmd: vmware-toolbox-cmd timesync disable
   when:
     - ntp_vmware_toolbox_check.rc == 0
-    - _ntp_vmware_timesync_status.stdout | default('') != 'Disabled'
+    - ntp_vmware_timesync_status.stdout | default('') != 'Disabled'
   changed_when: true
   tags: ['ntp']

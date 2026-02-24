@@ -1,0 +1,135 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    verify_keymap: "us"
+    verify_font: "ter-v16n"
+    verify_font_package: "terminus-font"
+    verify_gpm_enabled: false
+
+  tasks:
+
+    # ---- systemd: /etc/vconsole.conf ----
+
+    - name: Stat /etc/vconsole.conf
+      ansible.builtin.stat:
+        path: /etc/vconsole.conf
+      register: vconsole_verify_stat
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert /etc/vconsole.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - vconsole_verify_stat.stat.exists
+          - vconsole_verify_stat.stat.isreg
+          - vconsole_verify_stat.stat.pw_name == 'root'
+          - vconsole_verify_stat.stat.gr_name == 'root'
+          - vconsole_verify_stat.stat.mode == '0644'
+        fail_msg: "/etc/vconsole.conf missing or wrong permissions (expected root:root 0644)"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Slurp /etc/vconsole.conf
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: vconsole_verify_slurp
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Set vconsole.conf content fact
+      ansible.builtin.set_fact:
+        vconsole_verify_content: "{{ vconsole_verify_slurp.content | b64decode }}"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert KEYMAP is set correctly
+      ansible.builtin.assert:
+        that: "'KEYMAP=' + verify_keymap in vconsole_verify_content"
+        fail_msg: "KEYMAP={{ verify_keymap }} not found in /etc/vconsole.conf"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert FONT is set correctly
+      ansible.builtin.assert:
+        that: "'FONT=' + verify_font in vconsole_verify_content"
+        fail_msg: "FONT={{ verify_font }} not found in /etc/vconsole.conf"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - verify_font | default('') | length > 0
+
+    # ---- Font package ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_font | default('') | length > 0
+
+    - name: Assert console font package is installed
+      ansible.builtin.assert:
+        that: verify_font_package in ansible_facts.packages
+        fail_msg: "{{ verify_font_package }} package not installed"
+      when: verify_font | default('') | length > 0
+
+    # ---- GPM (systemd) ----
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert GPM service is running (when enabled)
+      ansible.builtin.assert:
+        that:
+          - "'gpm.service' in ansible_facts.services"
+          - "ansible_facts.services['gpm.service'].state == 'running'"
+        fail_msg: "GPM service is not running — expected enabled"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - verify_gpm_enabled | bool
+
+    - name: Assert GPM service is absent or stopped (when disabled)
+      ansible.builtin.assert:
+        that: >-
+          ('gpm.service' not in ansible_facts.services) or
+          (ansible_facts.services['gpm.service'].state != 'running')
+        fail_msg: "GPM service is running but verify_gpm_enabled=false"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - not (verify_gpm_enabled | bool)
+
+    # ---- OpenRC: /etc/conf.d/keymaps ----
+
+    - name: Slurp /etc/conf.d/keymaps
+      ansible.builtin.slurp:
+        src: /etc/conf.d/keymaps
+      register: vconsole_verify_openrc
+      when: ansible_facts['service_mgr'] == 'openrc'
+
+    - name: Assert keymap is set (openrc)
+      ansible.builtin.assert:
+        that: "'keymap=\"' + verify_keymap + '\"' in (vconsole_verify_openrc.content | b64decode)"
+        fail_msg: "keymap=\"{{ verify_keymap }}\" not found in /etc/conf.d/keymaps"
+      when: ansible_facts['service_mgr'] == 'openrc'
+
+    # ---- Runit: /etc/rc.conf ----
+
+    - name: Slurp /etc/rc.conf
+      ansible.builtin.slurp:
+        src: /etc/rc.conf
+      register: vconsole_verify_runit
+      when: ansible_facts['service_mgr'] == 'runit'
+
+    - name: Assert KEYMAP is set (runit)
+      ansible.builtin.assert:
+        that: "'KEYMAP=' + verify_keymap in (vconsole_verify_runit.content | b64decode)"
+        fail_msg: "KEYMAP={{ verify_keymap }} not found in /etc/rc.conf"
+      when: ansible_facts['service_mgr'] == 'runit'
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          vconsole verify passed:
+          keymap={{ verify_keymap }},
+          font={{ verify_font | default('none') }},
+          gpm={{ verify_gpm_enabled }},
+          init={{ ansible_facts['service_mgr'] }}

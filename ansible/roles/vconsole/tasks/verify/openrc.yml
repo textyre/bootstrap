@@ -10,7 +10,7 @@
 - name: Assert keymap is set (openrc)
   ansible.builtin.assert:
     that:
-      - "'keymap=\"' + vconsole_value + '\"' in (_vconsole_slurp_openrc.content | b64decode)"
+      - "'keymap=\"' + vconsole_value + '\"' in (vconsole_slurp_openrc.content | b64decode)"
     fail_msg: >-
       Keymap '{{ vconsole_value }}' not found in /etc/conf.d/keymaps.
       Content: {{ vconsole_slurp_openrc.content | b64decode }}
@@ -27,7 +27,7 @@
 - name: Assert font is set (openrc)
   ansible.builtin.assert:
     that:
-      - "'CONSOLEFONT=\"' + vconsole_console_font + '\"' in (_vconsole_slurp_consolefont.content | b64decode)"
+      - "'CONSOLEFONT=\"' + vconsole_console_font + '\"' in (vconsole_slurp_consolefont.content | b64decode)"
     fail_msg: >-
       Font '{{ vconsole_console_font }}' not found in /etc/conf.d/consolefont.
       Content: {{ vconsole_slurp_consolefont.content | b64decode }}

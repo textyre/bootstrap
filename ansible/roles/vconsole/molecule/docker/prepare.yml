@@ -1,0 +1,11 @@
+---
+- name: Prepare — set up container for vconsole testing
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Ensure kbd package is present (provides loadkeys/setfont)
+      ansible.builtin.package:
+        name: kbd
+        state: present

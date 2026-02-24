@@ -10,7 +10,7 @@
 - name: Assert keymap is set (runit)
   ansible.builtin.assert:
     that:
-      - "'KEYMAP=' + vconsole_value in (_vconsole_slurp_runit.content | b64decode)"
+      - "'KEYMAP=' + vconsole_value in (vconsole_slurp_runit.content | b64decode)"
     fail_msg: >-
       Keymap '{{ vconsole_value }}' not found in /etc/rc.conf.
       Content: {{ vconsole_slurp_runit.content | b64decode }}
@@ -20,7 +20,7 @@
 - name: Assert font is set (runit)
   ansible.builtin.assert:
     that:
-      - "'FONT=' + vconsole_console_font in (_vconsole_slurp_runit.content | b64decode)"
+      - "'FONT=' + vconsole_console_font in (vconsole_slurp_runit.content | b64decode)"
     fail_msg: >-
       Font '{{ vconsole_console_font }}' not found in /etc/rc.conf.
       Content: {{ vconsole_slurp_runit.content | b64decode }}
