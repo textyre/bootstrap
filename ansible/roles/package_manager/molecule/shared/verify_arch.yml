@@ -1,0 +1,188 @@
+---
+# ---- pacman.conf ----
+
+- name: Stat /etc/pacman.conf
+  ansible.builtin.stat:
+    path: /etc/pacman.conf
+  register: pm_verify_pacman_stat
+
+- name: Assert /etc/pacman.conf exists with correct permissions
+  ansible.builtin.assert:
+    that:
+      - pm_verify_pacman_stat.stat.exists
+      - pm_verify_pacman_stat.stat.isreg
+      - pm_verify_pacman_stat.stat.mode == '0644'
+      - pm_verify_pacman_stat.stat.pw_name == 'root'
+    fail_msg: "/etc/pacman.conf missing or wrong permissions (expected root 0644)"
+
+- name: Read /etc/pacman.conf
+  ansible.builtin.slurp:
+    src: /etc/pacman.conf
+  register: pm_verify_pacman_raw
+
+- name: Set pacman.conf text fact
+  ansible.builtin.set_fact:
+    pm_verify_pacman_text: "{{ pm_verify_pacman_raw.content | b64decode }}"
+
+- name: Assert pacman.conf managed by Ansible
+  ansible.builtin.assert:
+    that: "'Managed by Ansible' in pm_verify_pacman_text"
+    fail_msg: "pacman.conf missing Ansible marker — not deployed by role"
+
+- name: Assert ParallelDownloads value matches variable
+  ansible.builtin.assert:
+    that: >-
+      'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads
+      in pm_verify_pacman_text
+    fail_msg: >-
+      ParallelDownloads not set to {{ package_manager_pacman_parallel_downloads }}
+      in /etc/pacman.conf
+
+- name: Assert Color directive present (when enabled)
+  ansible.builtin.assert:
+    that: "'Color' in pm_verify_pacman_text"
+    fail_msg: "Color directive missing from /etc/pacman.conf (package_manager_pacman_color=true)"
+  when: package_manager_pacman_color | bool
+
+- name: Assert VerbosePkgLists directive present (when enabled)
+  ansible.builtin.assert:
+    that: "'VerbosePkgLists' in pm_verify_pacman_text"
+    fail_msg: "VerbosePkgLists directive missing from /etc/pacman.conf"
+  when: package_manager_pacman_verbose_pkg_lists | bool
+
+# ---- paccache ----
+
+- name: Stat paccache.service drop-in
+  ansible.builtin.stat:
+    path: /etc/systemd/system/paccache.service.d/keep.conf
+  register: pm_verify_paccache_dropin
+  when: package_manager_paccache_enabled | bool
+
+- name: Assert paccache drop-in exists
+  ansible.builtin.assert:
+    that: pm_verify_paccache_dropin.stat.exists
+    fail_msg: "/etc/systemd/system/paccache.service.d/keep.conf missing"
+  when: package_manager_paccache_enabled | bool
+
+- name: Read paccache drop-in
+  ansible.builtin.slurp:
+    src: /etc/systemd/system/paccache.service.d/keep.conf
+  register: pm_verify_paccache_raw
+  when: package_manager_paccache_enabled | bool
+
+- name: Assert paccache keep count in drop-in
+  ansible.builtin.assert:
+    that: >-
+      '-k ' ~ package_manager_paccache_keep
+      in (pm_verify_paccache_raw.content | b64decode)
+    fail_msg: >-
+      paccache keep count not set to {{ package_manager_paccache_keep }}
+      in paccache.service.d/keep.conf
+  when: package_manager_paccache_enabled | bool
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+  when: ansible_facts['service_mgr'] == 'systemd'
+
+- name: Assert paccache.timer is enabled (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'paccache.timer' in ansible_facts.services"
+      - "ansible_facts.services['paccache.timer'].status == 'enabled'"
+    fail_msg: "paccache.timer not enabled"
+  when:
+    - package_manager_paccache_enabled | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+
+# ---- makepkg ----
+
+- name: Stat /etc/makepkg.conf.d/ansible.conf
+  ansible.builtin.stat:
+    path: /etc/makepkg.conf.d/ansible.conf
+  register: pm_verify_makepkg_stat
+  when: package_manager_makepkg_enabled | bool
+
+- name: Assert makepkg drop-in exists with correct permissions
+  ansible.builtin.assert:
+    that:
+      - pm_verify_makepkg_stat.stat.exists
+      - pm_verify_makepkg_stat.stat.mode == '0644'
+      - pm_verify_makepkg_stat.stat.pw_name == 'root'
+    fail_msg: "/etc/makepkg.conf.d/ansible.conf missing or wrong permissions"
+  when: package_manager_makepkg_enabled | bool
+
+- name: Read /etc/makepkg.conf.d/ansible.conf
+  ansible.builtin.slurp:
+    src: /etc/makepkg.conf.d/ansible.conf
+  register: pm_verify_makepkg_raw
+  when: package_manager_makepkg_enabled | bool
+
+- name: Set makepkg conf text fact
+  ansible.builtin.set_fact:
+    pm_verify_makepkg_text: "{{ pm_verify_makepkg_raw.content | b64decode }}"
+  when: package_manager_makepkg_enabled | bool
+
+- name: Assert MAKEFLAGS directive present in makepkg conf
+  ansible.builtin.assert:
+    that:
+      - "'MAKEFLAGS=' in pm_verify_makepkg_text"
+      - "'-j' in pm_verify_makepkg_text"
+    fail_msg: "MAKEFLAGS with -j flag not found in /etc/makepkg.conf.d/ansible.conf"
+  when: package_manager_makepkg_enabled | bool
+
+- name: Assert PKGEXT directive present in makepkg conf
+  ansible.builtin.assert:
+    that: "'PKGEXT=' in pm_verify_makepkg_text"
+    fail_msg: "PKGEXT not found in /etc/makepkg.conf.d/ansible.conf"
+  when: package_manager_makepkg_enabled | bool
+
+# ---- yay (optional — skipped in Docker CI) ----
+
+- name: Stat yay binary
+  ansible.builtin.stat:
+    path: /usr/bin/yay
+  register: pm_verify_yay_bin
+  when: pm_verify_aur | default(false) | bool
+
+- name: Assert yay binary exists
+  ansible.builtin.assert:
+    that: pm_verify_yay_bin.stat.exists
+    fail_msg: "yay binary not found at /usr/bin/yay"
+  when: pm_verify_aur | default(false) | bool
+
+- name: Stat yay sudoers file
+  ansible.builtin.stat:
+    path: /etc/sudoers.d/yay-pacman
+  register: pm_verify_yay_sudoers
+  when: pm_verify_aur | default(false) | bool
+
+- name: Assert yay sudoers file exists
+  ansible.builtin.assert:
+    that: pm_verify_yay_sudoers.stat.exists
+    fail_msg: "/etc/sudoers.d/yay-pacman missing"
+  when: pm_verify_aur | default(false) | bool
+
+# ---- reflector (optional — skipped in Docker CI) ----
+
+- name: Stat reflector.conf
+  ansible.builtin.stat:
+    path: /etc/xdg/reflector/reflector.conf
+  register: pm_verify_reflector_conf
+  when: pm_verify_mirrors | default(false) | bool
+
+- name: Assert reflector.conf exists
+  ansible.builtin.assert:
+    that: pm_verify_reflector_conf.stat.exists
+    fail_msg: "/etc/xdg/reflector/reflector.conf missing"
+  when: pm_verify_mirrors | default(false) | bool
+
+- name: Assert reflector.timer is enabled (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'reflector.timer' in ansible_facts.services"
+      - "ansible_facts.services['reflector.timer'].status == 'enabled'"
+    fail_msg: "reflector.timer not enabled"
+  when:
+    - pm_verify_mirrors | default(false) | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+    - ansible_facts.services is defined

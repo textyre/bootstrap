@@ -1,0 +1,26 @@
+---
+- name: Verify package_manager role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Verify Arch Linux configuration
+      ansible.builtin.include_tasks: verify_arch.yml
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Verify Debian/Ubuntu configuration
+      ansible.builtin.include_tasks: verify_apt.yml
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Verify Fedora configuration
+      ansible.builtin.include_tasks: verify_dnf.yml
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Verify Void Linux configuration
+      ansible.builtin.include_tasks: verify_xbps.yml
+      when: ansible_facts['os_family'] == 'Void'
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: "package_manager verify passed on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
