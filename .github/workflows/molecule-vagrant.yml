@@ -66,5 +66,9 @@ jobs:
           PY_COLORS: "1"
           ANSIBLE_FORCE_COLOR: "1"
         run: |
+          # molecule-plugins vagrant driver needs ANSIBLE_LIBRARY pointing to its module directory
+          VAGRANT_PKG=$($GITHUB_WORKSPACE/.venv/bin/python3 -c \
+            "import os, molecule_plugins.vagrant; print(os.path.dirname(molecule_plugins.vagrant.__file__))")
+          export ANSIBLE_LIBRARY="$VAGRANT_PKG"
           $GITHUB_WORKSPACE/.venv/bin/molecule test -s vagrant --platform-name ${{ matrix.platform }}
         working-directory: "ansible/roles/${{ inputs.role || 'package_manager' }}"
