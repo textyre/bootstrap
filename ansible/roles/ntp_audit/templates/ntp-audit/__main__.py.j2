@@ -55,7 +55,38 @@ def run() -> int:
         return 0
 
     except Exception as exc:
-        write_syslog_error(str(exc))
+        # Always write an error record to the log — silent failures hide problems.
+        # All required JSON keys must be present for downstream consumers (Loki rules).
+        error_record = {
+            'timestamp':          datetime.now(timezone.utc).isoformat(),
+            'reference_id':       '',
+            'reference_name':     '',
+            'stratum':            0,
+            'current_correction': 0.0,
+            'last_offset':        0.0,
+            'rms_offset':         0.0,
+            'frequency_ppm':      0.0,
+            'residual_freq':      0.0,
+            'skew':               0.0,
+            'root_delay':         0.0,
+            'root_dispersion':    0.0,
+            'update_interval':    0.0,
+            'leap_status':        3,
+            'sync_status':        'error',
+            'ntp_conflict':       'none',
+            'ntp_phc_status':     'error',
+            'ntp_phc_device':     '',
+            'ntp_modules_status': 'error',
+            'chrony_error':       str(exc),
+        }
+        try:
+            write_log(error_record)
+        except Exception:
+            pass  # best-effort — don't mask the original error
+        try:
+            write_syslog_error(str(exc))
+        except Exception:
+            pass  # syslog may be unavailable in container environments
         # Do NOT raise — audit script must exit 0 to avoid breaking systemd timer
         return 0
 

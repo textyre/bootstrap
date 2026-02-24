@@ -16,5 +16,11 @@
         state: started
         enabled: true
 
+    - name: Wait for chronyd socket to be ready
+      ansible.builtin.wait_for:
+        path: /run/chrony/chronyd.sock
+        state: present
+        timeout: 30
+
   roles:
     - role: ntp_audit
