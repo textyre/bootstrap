@@ -62,17 +62,27 @@
     fail_msg: "audit.log last line missing required JSON keys"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
-- name: Collect service facts (systemd)
-  ansible.builtin.service_facts:
+- name: Check ntp-audit.timer is-enabled (systemd)
+  ansible.builtin.command:
+    cmd: systemctl is-enabled ntp-audit.timer
+  register: ntp_audit_verify_timer_enabled
+  changed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Check ntp-audit.timer is-active (systemd)
+  ansible.builtin.command:
+    cmd: systemctl is-active ntp-audit.timer
+  register: ntp_audit_verify_timer_active
+  changed_when: false
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify ntp-audit.timer is enabled and active
   ansible.builtin.assert:
     that:
-      - "'ntp-audit.timer' in ansible_facts.services"
-      - ansible_facts.services['ntp-audit.timer'].status == 'enabled'
-      - ansible_facts.services['ntp-audit.timer'].state == 'active'
+      - ntp_audit_verify_timer_enabled.stdout | trim == 'enabled'
+      - ntp_audit_verify_timer_active.stdout | trim == 'active'
     fail_msg: "ntp-audit.timer not enabled or not active"
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
