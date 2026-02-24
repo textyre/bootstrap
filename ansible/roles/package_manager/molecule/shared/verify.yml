@@ -5,22 +5,374 @@
   gather_facts: true
 
   tasks:
-    - name: Verify Arch Linux configuration
-      ansible.builtin.include_tasks: verify_arch.yml
+
+    # ==========================================================
+    # Arch Linux
+    # ==========================================================
+
+    - name: Verify Arch Linux — pacman.conf
       when: ansible_facts['os_family'] == 'Archlinux'
+      block:
 
-    - name: Verify Debian/Ubuntu configuration
-      ansible.builtin.include_tasks: verify_apt.yml
+        - name: Stat /etc/pacman.conf
+          ansible.builtin.stat:
+            path: /etc/pacman.conf
+          register: pm_verify_pacman_stat
+
+        - name: Assert /etc/pacman.conf exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_pacman_stat.stat.exists
+              - pm_verify_pacman_stat.stat.isreg
+              - pm_verify_pacman_stat.stat.mode == '0644'
+              - pm_verify_pacman_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/pacman.conf missing or wrong permissions (expected root 0644)"
+
+        - name: Read /etc/pacman.conf
+          ansible.builtin.slurp:
+            src: /etc/pacman.conf
+          register: pm_verify_pacman_raw
+
+        - name: Set pacman.conf text fact
+          ansible.builtin.set_fact:
+            pm_verify_pacman_text: "{{ pm_verify_pacman_raw.content | b64decode }}"
+
+        - name: Assert pacman.conf managed by Ansible
+          ansible.builtin.assert:
+            that: "'Managed by Ansible' in pm_verify_pacman_text"
+            fail_msg: "pacman.conf missing Ansible marker — not deployed by role"
+
+        - name: Assert ParallelDownloads value matches variable
+          ansible.builtin.assert:
+            that: >-
+              'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads
+              in pm_verify_pacman_text
+            fail_msg: >-
+              ParallelDownloads not set to {{ package_manager_pacman_parallel_downloads }}
+              in /etc/pacman.conf
+
+        - name: Assert Color directive present (when enabled)
+          ansible.builtin.assert:
+            that: "'Color' in pm_verify_pacman_text"
+            fail_msg: "Color directive missing from /etc/pacman.conf"
+          when: package_manager_pacman_color | bool
+
+        - name: Assert VerbosePkgLists directive present (when enabled)
+          ansible.builtin.assert:
+            that: "'VerbosePkgLists' in pm_verify_pacman_text"
+            fail_msg: "VerbosePkgLists directive missing from /etc/pacman.conf"
+          when: package_manager_pacman_verbose_pkg_lists | bool
+
+    - name: Verify Arch Linux — paccache
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - package_manager_paccache_enabled | bool
+      block:
+
+        - name: Stat paccache.service drop-in
+          ansible.builtin.stat:
+            path: /etc/systemd/system/paccache.service.d/keep.conf
+          register: pm_verify_paccache_dropin
+
+        - name: Assert paccache drop-in exists
+          ansible.builtin.assert:
+            that: pm_verify_paccache_dropin.stat.exists
+            fail_msg: "/etc/systemd/system/paccache.service.d/keep.conf missing"
+
+        - name: Read paccache drop-in
+          ansible.builtin.slurp:
+            src: /etc/systemd/system/paccache.service.d/keep.conf
+          register: pm_verify_paccache_raw
+
+        - name: Assert paccache keep count in drop-in
+          ansible.builtin.assert:
+            that: >-
+              '-k ' ~ package_manager_paccache_keep
+              in (pm_verify_paccache_raw.content | b64decode)
+            fail_msg: >-
+              paccache keep count not set to {{ package_manager_paccache_keep }}
+              in paccache.service.d/keep.conf
+
+        - name: Gather service facts (systemd)
+          ansible.builtin.service_facts:
+          when: ansible_facts['service_mgr'] == 'systemd'
+
+        - name: Assert paccache.timer is enabled (systemd)
+          ansible.builtin.assert:
+            that:
+              - "'paccache.timer' in ansible_facts.services"
+              - "ansible_facts.services['paccache.timer'].status == 'enabled'"
+            fail_msg: "paccache.timer not enabled"
+          when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify Arch Linux — makepkg
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - package_manager_makepkg_enabled | bool
+      block:
+
+        - name: Stat /etc/makepkg.conf.d/ansible.conf
+          ansible.builtin.stat:
+            path: /etc/makepkg.conf.d/ansible.conf
+          register: pm_verify_makepkg_stat
+
+        - name: Assert makepkg drop-in exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_makepkg_stat.stat.exists
+              - pm_verify_makepkg_stat.stat.mode == '0644'
+              - pm_verify_makepkg_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/makepkg.conf.d/ansible.conf missing or wrong permissions"
+
+        - name: Read /etc/makepkg.conf.d/ansible.conf
+          ansible.builtin.slurp:
+            src: /etc/makepkg.conf.d/ansible.conf
+          register: pm_verify_makepkg_raw
+
+        - name: Set makepkg conf text fact
+          ansible.builtin.set_fact:
+            pm_verify_makepkg_text: "{{ pm_verify_makepkg_raw.content | b64decode }}"
+
+        - name: Assert MAKEFLAGS with -j flag present in makepkg conf
+          ansible.builtin.assert:
+            that:
+              - "'MAKEFLAGS=' in pm_verify_makepkg_text"
+              - "'-j' in pm_verify_makepkg_text"
+            fail_msg: "MAKEFLAGS with -j flag not found in /etc/makepkg.conf.d/ansible.conf"
+
+        - name: Assert PKGEXT directive present in makepkg conf
+          ansible.builtin.assert:
+            that: "'PKGEXT=' in pm_verify_makepkg_text"
+            fail_msg: "PKGEXT not found in /etc/makepkg.conf.d/ansible.conf"
+
+    - name: Verify Arch Linux — yay (skipped in Docker CI)
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - pm_verify_aur | default(false) | bool
+      block:
+
+        - name: Stat yay binary
+          ansible.builtin.stat:
+            path: /usr/bin/yay
+          register: pm_verify_yay_bin
+
+        - name: Assert yay binary exists
+          ansible.builtin.assert:
+            that: pm_verify_yay_bin.stat.exists
+            fail_msg: "yay binary not found at /usr/bin/yay"
+
+        - name: Stat yay sudoers file
+          ansible.builtin.stat:
+            path: /etc/sudoers.d/yay-pacman
+          register: pm_verify_yay_sudoers
+
+        - name: Assert yay sudoers file exists
+          ansible.builtin.assert:
+            that: pm_verify_yay_sudoers.stat.exists
+            fail_msg: "/etc/sudoers.d/yay-pacman missing"
+
+    - name: Verify Arch Linux — reflector (skipped in Docker CI)
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - pm_verify_mirrors | default(false) | bool
+      block:
+
+        - name: Stat reflector.conf
+          ansible.builtin.stat:
+            path: /etc/xdg/reflector/reflector.conf
+          register: pm_verify_reflector_conf
+
+        - name: Assert reflector.conf exists
+          ansible.builtin.assert:
+            that: pm_verify_reflector_conf.stat.exists
+            fail_msg: "/etc/xdg/reflector/reflector.conf missing"
+
+        - name: Assert reflector.timer is enabled (systemd)
+          ansible.builtin.assert:
+            that:
+              - "'reflector.timer' in ansible_facts.services"
+              - "ansible_facts.services['reflector.timer'].status == 'enabled'"
+            fail_msg: "reflector.timer not enabled"
+          when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ==========================================================
+    # Debian / Ubuntu
+    # ==========================================================
+
+    - name: Verify Debian/Ubuntu — apt parallel config
       when: ansible_facts['os_family'] == 'Debian'
+      block:
 
-    - name: Verify Fedora configuration
-      ansible.builtin.include_tasks: verify_dnf.yml
+        - name: Stat /etc/apt/apt.conf.d/10-ansible-parallel.conf
+          ansible.builtin.stat:
+            path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+          register: pm_verify_apt_parallel_stat
+
+        - name: Assert apt parallel config exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_apt_parallel_stat.stat.exists
+              - pm_verify_apt_parallel_stat.stat.mode == '0644'
+              - pm_verify_apt_parallel_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf missing or wrong permissions"
+
+        - name: Read /etc/apt/apt.conf.d/10-ansible-parallel.conf
+          ansible.builtin.slurp:
+            src: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+          register: pm_verify_apt_parallel_raw
+
+        - name: Set apt parallel config text fact
+          ansible.builtin.set_fact:
+            pm_verify_apt_parallel_text: "{{ pm_verify_apt_parallel_raw.content | b64decode }}"
+
+        - name: Assert apt parallel config managed by Ansible
+          ansible.builtin.assert:
+            that: "'Managed by Ansible' in pm_verify_apt_parallel_text"
+            fail_msg: "10-ansible-parallel.conf missing Ansible marker"
+
+        - name: Assert Queue-Mode directive present
+          ansible.builtin.assert:
+            that: "'Queue-Mode' in pm_verify_apt_parallel_text"
+            fail_msg: "Queue-Mode directive missing from 10-ansible-parallel.conf"
+
+        - name: Assert Retries directive present
+          ansible.builtin.assert:
+            that: "'Retries' in pm_verify_apt_parallel_text"
+            fail_msg: "Retries directive missing from 10-ansible-parallel.conf"
+
+    - name: Verify Debian/Ubuntu — dpkg options
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+
+        - name: Stat /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+          ansible.builtin.stat:
+            path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+          register: pm_verify_dpkg_stat
+
+        - name: Assert dpkg config exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_dpkg_stat.stat.exists
+              - pm_verify_dpkg_stat.stat.mode == '0644'
+              - pm_verify_dpkg_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf missing or wrong permissions"
+
+        - name: Read /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+          ansible.builtin.slurp:
+            src: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+          register: pm_verify_dpkg_raw
+
+        - name: Assert dpkg force-confdef option present (when enabled)
+          ansible.builtin.assert:
+            that: "'--force-confdef' in (pm_verify_dpkg_raw.content | b64decode)"
+            fail_msg: "--force-confdef missing from 20-ansible-dpkg.conf"
+          when: package_manager_apt_dpkg_force_confdef | bool
+
+        - name: Assert dpkg force-confold option present (when enabled)
+          ansible.builtin.assert:
+            that: "'--force-confold' in (pm_verify_dpkg_raw.content | b64decode)"
+            fail_msg: "--force-confold missing from 20-ansible-dpkg.conf"
+          when: package_manager_apt_dpkg_force_confold | bool
+
+    # ==========================================================
+    # Fedora
+    # ==========================================================
+
+    - name: Verify Fedora — dnf.conf
       when: ansible_facts['os_family'] == 'RedHat'
+      block:
 
-    - name: Verify Void Linux configuration
-      ansible.builtin.include_tasks: verify_xbps.yml
+        - name: Stat /etc/dnf/dnf.conf
+          ansible.builtin.stat:
+            path: /etc/dnf/dnf.conf
+          register: pm_verify_dnf_stat
+
+        - name: Assert /etc/dnf/dnf.conf exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_dnf_stat.stat.exists
+              - pm_verify_dnf_stat.stat.mode == '0644'
+              - pm_verify_dnf_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/dnf/dnf.conf missing or wrong permissions"
+
+        - name: Read /etc/dnf/dnf.conf
+          ansible.builtin.slurp:
+            src: /etc/dnf/dnf.conf
+          register: pm_verify_dnf_raw
+
+        - name: Set dnf.conf text fact
+          ansible.builtin.set_fact:
+            pm_verify_dnf_text: "{{ pm_verify_dnf_raw.content | b64decode }}"
+
+        - name: Assert dnf.conf managed by Ansible
+          ansible.builtin.assert:
+            that: "'Managed by Ansible' in pm_verify_dnf_text"
+            fail_msg: "/etc/dnf/dnf.conf missing Ansible marker"
+
+        - name: Assert max_parallel_downloads value matches variable
+          ansible.builtin.assert:
+            that: >-
+              'max_parallel_downloads=' ~ package_manager_dnf_parallel_downloads
+              in pm_verify_dnf_text
+            fail_msg: "max_parallel_downloads not set to {{ package_manager_dnf_parallel_downloads }}"
+
+        - name: Assert installonly_limit value matches variable
+          ansible.builtin.assert:
+            that: >-
+              'installonly_limit=' ~ package_manager_dnf_installonly_limit
+              in pm_verify_dnf_text
+            fail_msg: "installonly_limit not set to {{ package_manager_dnf_installonly_limit }}"
+
+        - name: Assert fastestmirror setting present
+          ansible.builtin.assert:
+            that: "'fastestmirror=' in pm_verify_dnf_text"
+            fail_msg: "fastestmirror directive missing from /etc/dnf/dnf.conf"
+
+    # ==========================================================
+    # Void Linux
+    # ==========================================================
+
+    - name: Verify Void Linux — xbps.conf
       when: ansible_facts['os_family'] == 'Void'
+      block:
+
+        - name: Stat /etc/xbps.d/ansible.conf
+          ansible.builtin.stat:
+            path: /etc/xbps.d/ansible.conf
+          register: pm_verify_xbps_stat
+
+        - name: Assert /etc/xbps.d/ansible.conf exists with correct permissions
+          ansible.builtin.assert:
+            that:
+              - pm_verify_xbps_stat.stat.exists
+              - pm_verify_xbps_stat.stat.mode == '0644'
+              - pm_verify_xbps_stat.stat.pw_name == 'root'
+            fail_msg: "/etc/xbps.d/ansible.conf missing or wrong permissions"
+
+    - name: Verify Void Linux — xbps cache cron
+      when:
+        - ansible_facts['os_family'] == 'Void'
+        - package_manager_xbps_cache_cleanup_enabled | bool
+      block:
+
+        - name: Read crontab for root (xbps cache cleanup)
+          ansible.builtin.command:
+            cmd: crontab -l -u root
+          register: pm_verify_xbps_crontab
+          changed_when: false
+          failed_when: false
+
+        - name: Assert xbps cache cleanup cron entry present
+          ansible.builtin.assert:
+            that: "'xbps-remove -O' in pm_verify_xbps_crontab.stdout"
+            fail_msg: "xbps cache cleanup cron job not found in root crontab"
+
+    # ==========================================================
+    # Summary
+    # ==========================================================
 
     - name: Show verify result
       ansible.builtin.debug:
-        msg: "package_manager verify passed on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+        msg: >-
+          package_manager verify passed on
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
