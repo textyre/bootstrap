@@ -189,3 +189,47 @@ Multi-user with extras:
 ## Dependencies
 
 None. Users must exist before this role runs (see `user` role).
+
+## Testing
+
+Three Molecule scenarios share a common `molecule/shared/` directory containing `converge.yml` and `verify.yml`. All scenarios exercise identical assertions (22 checks covering package install, binary, base config, extra config, safe directories, aliases, credential helper, git-lfs, hooks, and gitconfig file existence).
+
+### Scenarios
+
+| Scenario | Driver | Platforms | User |
+|----------|--------|-----------|------|
+| `default` | localhost | Arch Linux (local) | `$USER` |
+| `docker` | Docker | Arch Linux (systemd container) | `root` |
+| `vagrant` | Vagrant/libvirt | Arch Linux + Ubuntu 24.04 | `vagrant` |
+
+### Running tests
+
+```bash
+cd ansible/roles/git
+
+# Default scenario (localhost, current machine)
+molecule test -s default
+
+# Docker scenario (requires Docker + Arch systemd image)
+molecule test -s docker
+
+# Vagrant scenario (requires Vagrant + libvirt)
+molecule test -s vagrant
+```
+
+### Molecule structure
+
+```
+molecule/
+  shared/
+    converge.yml    # Applied by all scenarios (no vault, no OS assertion)
+    verify.yml      # 22 assertions, variable-driven, cross-platform
+  default/
+    molecule.yml    # localhost driver
+  docker/
+    molecule.yml    # Docker driver (Arch systemd)
+    prepare.yml     # pacman cache update
+  vagrant/
+    molecule.yml    # Vagrant driver (Arch + Ubuntu)
+    prepare.yml     # Python bootstrap, keyring refresh, apt cache
+```

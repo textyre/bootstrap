@@ -56,6 +56,29 @@ systemd, runit, openrc, s6, dinit
 | `fail2ban`, `service` | Service enable/start only |
 | `fail2ban`, `report` | Execution report |
 
+## Testing
+
+Three Molecule scenarios are provided. All share `molecule/shared/converge.yml` and `molecule/shared/verify.yml` (20 assertions covering package, config permissions, all template directives, service enabled/active, and `fail2ban-client` runtime checks).
+
+| Scenario | Driver | Platforms | Requirements |
+|----------|--------|-----------|-------------|
+| `default` | localhost | Arch Linux (current host) | None |
+| `docker` | Docker | `arch-systemd` container | Docker, `arch-systemd` image |
+| `vagrant` | Vagrant/libvirt | Arch Linux + Ubuntu 24.04 VMs | Vagrant, libvirt |
+
+```bash
+# Localhost (fast, runs on the Arch workstation)
+molecule test -s default
+
+# Docker (Arch systemd container)
+molecule test -s docker
+
+# Vagrant (cross-platform: Arch + Ubuntu VMs)
+molecule test -s vagrant
+```
+
+All scenarios run: `syntax → create → prepare → converge → idempotence → verify → destroy` (default skips create/prepare/destroy as it runs on localhost).
+
 ## License
 
 MIT

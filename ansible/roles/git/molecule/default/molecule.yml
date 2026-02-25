@@ -1,14 +1,22 @@
 ---
 driver:
   name: default
-platforms:
-  - name: Instance
+  options:
     managed: false
+
+platforms:
+  - name: Localhost
+
 provisioner:
   name: ansible
+  options:
+    skip-tags: report
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
   inventory:
     host_vars:
-      instance:
+      localhost:
         ansible_connection: local
         git_owner:
           name: "{{ lookup('env', 'USER') }}"
@@ -24,14 +32,15 @@ provisioner:
           diff.colorMoved: zebra
         git_safe_directories:
           - /tmp/test-safe-dir
-  config_options:
-    defaults:
-      callbacks_enabled: profile_tasks
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
+  playbooks:
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+
 verifier:
   name: ansible
+
 scenario:
   test_sequence:
     - syntax

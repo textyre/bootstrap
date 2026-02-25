@@ -38,6 +38,7 @@
   changed_when: power_management_current_governor != power_management_cpu_governor
   when:
     - not power_management_is_laptop
+    - power_management_current_governor != 'unknown'
     - power_management_current_governor != power_management_cpu_governor
   failed_when: power_management_governor_set.rc != 0
   tags: ['power', 'cpu']
