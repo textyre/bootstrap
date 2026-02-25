@@ -28,7 +28,7 @@
   changed_when: false
   when:
     - ssh_moduli_file.stat.exists
-    - _ssh_weak_moduli.stdout_lines | length > 0
+    - ssh_weak_moduli.stdout_lines | length > 0
   tags: [ssh, security, moduli]
 
 - name: "Deploy filtered moduli file"
@@ -41,7 +41,7 @@
     backup: true
   when:
     - ssh_moduli_file.stat.exists
-    - _ssh_weak_moduli.stdout_lines | default([]) | length > 0
-    - _ssh_strong_moduli.stdout | default('') | length > 0
+    - ssh_weak_moduli.stdout_lines | default([]) | length > 0
+    - ssh_strong_moduli.stdout | default('') | length > 0
   notify: "Restart sshd"
   tags: [ssh, security, moduli]

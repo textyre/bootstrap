@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 # Per-user umask — set by ansible/roles/user
-# Applied at login for {{ _umask_user }}
-if [ "$(id -nu)" = "{{ _umask_user }}" ]; then
-    umask {{ _umask_value }}
+# Applied at login for {{ umask_user }}
+if [ "$(id -nu)" = "{{ umask_user }}" ]; then
+    umask {{ umask_value }}
 fi

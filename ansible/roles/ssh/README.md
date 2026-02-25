@@ -66,6 +66,7 @@ Hardened OpenSSH server configuration based on dev-sec.io, CIS Benchmark, DISA S
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `ssh_user` | `"{{ ansible_user_id }}"` | User to verify against lockout checks (default: current Ansible user) |
 | `ssh_allow_groups` | `["wheel"]` | Groups permitted SSH access (whitelist; empty = all) |
 | `ssh_allow_users` | `[]` | Users permitted SSH access (whitelist; empty = per groups) |
 | `ssh_deny_groups` | `[]` | Groups denied SSH access (blacklist) |
@@ -167,6 +168,37 @@ systemd, runit, openrc, s6, dinit
 | `ssh`, `banner` | Banner deployment only |
 | `ssh`, `service` | Service enable/start only |
 | `ssh`, `report` | Execution report |
+
+## Testing
+
+Tests use [Molecule](https://molecule.readthedocs.io/) with three scenarios.
+Shared playbooks live in `molecule/shared/` and are reused across all scenarios.
+
+| Scenario | Driver | Platform | Purpose |
+|----------|--------|----------|---------|
+| `default` | localhost | local machine | Fast syntax + functional check (no daemon restart) |
+| `docker` | Docker | `arch-systemd` container (PID 1 = systemd) | Full systemd lifecycle, service running+enabled |
+| `vagrant` | Vagrant (libvirt) | Arch Linux + Ubuntu 24.04 VMs | Cross-distro integration (Arch `sshd.service` / Debian `ssh.service`) |
+
+### Run tests
+
+```bash
+# Default (localhost)
+cd ansible && molecule test -s default
+
+# Docker (requires running Docker daemon and arch-systemd image)
+molecule test -s docker
+
+# Vagrant (requires libvirt/KVM)
+molecule test -s vagrant
+```
+
+### Verify assertions (38 total)
+
+Package install, service enabled+running, `sshd_config` permissions (0600/root),
+32 security directive checks, cryptography suite (positive + negative), host key
+presence (ed25519) and absence (DSA, ECDSA), banner, SFTP subsystem,
+`sshd -t` syntax validation, and Ansible managed comment.
 
 ## License
 

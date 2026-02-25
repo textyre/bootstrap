@@ -1,0 +1,64 @@
+---
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+
+platforms:
+  - name: arch-vm
+    box: generic/arch
+    memory: 2048
+    cpus: 2
+  - name: ubuntu-noble
+    box: bento/ubuntu-24.04
+    memory: 2048
+    cpus: 2
+
+provisioner:
+  name: ansible
+  options:
+    skip-tags: report,upgrade
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+  inventory:
+    group_vars:
+      all:
+        packages_base: [git, curl, htop, tmux, unzip, rsync]
+        packages_editors: [vim]
+        packages_docker: []
+        packages_xorg: []
+        packages_wm: []
+        packages_filemanager: []
+        packages_network: []
+        packages_media: []
+        packages_desktop: []
+        packages_graphics: []
+        packages_session: []
+        packages_terminal: []
+        packages_fonts: []
+        packages_theming: []
+        packages_search: [fzf]
+        packages_viewers: [jq]
+        packages_distro:
+          Archlinux: [base-devel]
+          Debian: [build-essential]
+  playbooks:
+    prepare: prepare.yml
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

@@ -18,10 +18,10 @@ provisioner:
       localhost:
         ansible_connection: local
   playbooks:
-    converge: converge.yml
-    verify: verify.yml
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 
 verifier:
   name: ansible

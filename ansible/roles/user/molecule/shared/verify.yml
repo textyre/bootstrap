@@ -1,0 +1,291 @@
+---
+- name: Verify user role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "../../defaults/main.yml"
+
+  tasks:
+
+    # ==========================================================
+    # Owner user
+    # ==========================================================
+
+    - name: "Owner: check user exists in passwd"
+      ansible.builtin.getent:
+        database: passwd
+        key: testuser_owner
+      register: _user_verify_owner
+      failed_when: _user_verify_owner is failed
+
+    - name: "Owner: check user is in sudo group"
+      ansible.builtin.command:
+        cmd: "groups testuser_owner"
+      register: _user_verify_owner_groups
+      changed_when: false
+      failed_when: "user_sudo_group not in _user_verify_owner_groups.stdout"
+
+    - name: "Owner: check home directory exists"
+      ansible.builtin.stat:
+        path: /home/testuser_owner
+      register: _user_verify_owner_home
+      failed_when: not _user_verify_owner_home.stat.exists
+
+    - name: "Owner: check shell is /bin/bash"
+      ansible.builtin.command:
+        cmd: "getent passwd testuser_owner"
+      register: _user_verify_owner_shell
+      changed_when: false
+      failed_when: "':/bin/bash' not in _user_verify_owner_shell.stdout"
+
+    # ==========================================================
+    # Owner umask
+    # ==========================================================
+
+    - name: "Umask: check profile script deployed for owner"
+      ansible.builtin.stat:
+        path: /etc/profile.d/umask-testuser_owner.sh
+      register: _user_verify_umask_stat
+      failed_when: not _user_verify_umask_stat.stat.exists
+
+    - name: "Umask: read profile script content"
+      ansible.builtin.slurp:
+        src: /etc/profile.d/umask-testuser_owner.sh
+      register: _user_verify_umask_raw
+
+    - name: "Umask: set text fact"
+      ansible.builtin.set_fact:
+        _user_verify_umask_text: "{{ _user_verify_umask_raw.content | b64decode }}"
+
+    - name: "Umask: assert value is 027"
+      ansible.builtin.assert:
+        that:
+          - "'umask 027' in _user_verify_umask_text"
+        fail_msg: "Owner umask profile does not contain 'umask 027'"
+
+    - name: "Umask: assert Ansible managed marker"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible' in _user_verify_umask_text"
+        fail_msg: "Owner umask profile missing Ansible managed marker"
+
+    # ==========================================================
+    # Additional user
+    # ==========================================================
+
+    - name: "Extra: check user exists"
+      ansible.builtin.getent:
+        database: passwd
+        key: testuser_extra
+      register: _user_verify_extra
+      failed_when: _user_verify_extra is failed
+
+    - name: "Extra: check user is NOT in sudo group"
+      ansible.builtin.command:
+        cmd: "groups testuser_extra"
+      register: _user_verify_extra_groups
+      changed_when: false
+      failed_when: "user_sudo_group in _user_verify_extra_groups.stdout"
+
+    - name: "Extra: check user is in video group"
+      ansible.builtin.assert:
+        that:
+          - "'video' in _user_verify_extra_groups.stdout"
+        fail_msg: "Extra user testuser_extra is not in video group"
+
+    - name: "Extra: check umask profile deployed"
+      ansible.builtin.stat:
+        path: /etc/profile.d/umask-testuser_extra.sh
+      register: _user_verify_extra_umask
+      failed_when: not _user_verify_extra_umask.stat.exists
+
+    - name: "Extra: read umask profile"
+      ansible.builtin.slurp:
+        src: /etc/profile.d/umask-testuser_extra.sh
+      register: _user_verify_extra_umask_raw
+
+    - name: "Extra: assert umask is 077"
+      ansible.builtin.assert:
+        that:
+          - "'umask 077' in (_user_verify_extra_umask_raw.content | b64decode)"
+        fail_msg: "Extra user umask profile does not contain 'umask 077'"
+
+    # ==========================================================
+    # Sudoers policy
+    # ==========================================================
+
+    - name: "Sudoers: check file exists"
+      ansible.builtin.stat:
+        path: "/etc/sudoers.d/{{ user_sudo_group }}"
+      register: _user_verify_sudoers_stat
+
+    - name: "Sudoers: assert file exists with correct permissions"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudoers_stat.stat.exists
+          - _user_verify_sudoers_stat.stat.mode == '0440'
+          - _user_verify_sudoers_stat.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/sudoers.d/{{ user_sudo_group }} missing or wrong permissions
+          (expected root 0440)
+
+    - name: "Sudoers: validate syntax with visudo"
+      ansible.builtin.command:
+        cmd: "/usr/sbin/visudo -cf /etc/sudoers.d/{{ user_sudo_group }}"
+      register: _user_verify_sudoers_syntax
+      changed_when: false
+      failed_when: _user_verify_sudoers_syntax.rc != 0
+
+    - name: "Sudoers: read file content"
+      ansible.builtin.slurp:
+        src: "/etc/sudoers.d/{{ user_sudo_group }}"
+      register: _user_verify_sudoers_raw
+
+    - name: "Sudoers: set text fact"
+      ansible.builtin.set_fact:
+        _user_verify_sudoers_text: "{{ _user_verify_sudoers_raw.content | b64decode }}"
+
+    - name: "Sudoers: assert group ALL rule present"
+      ansible.builtin.assert:
+        that:
+          - "'%' ~ user_sudo_group ~ ' ALL=(ALL:ALL) ALL' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing group ALL rule for %{{ user_sudo_group }}"
+
+    - name: "Sudoers: assert timestamp_timeout present"
+      ansible.builtin.assert:
+        that:
+          - "'timestamp_timeout=' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing timestamp_timeout directive"
+
+    - name: "Sudoers: assert use_pty present"
+      ansible.builtin.assert:
+        that:
+          - "'use_pty' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing use_pty directive"
+
+    - name: "Sudoers: assert logfile present"
+      ansible.builtin.assert:
+        that:
+          - "'logfile=\"/var/log/sudo.log\"' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing logfile directive"
+
+    - name: "Sudoers: assert passwd_timeout present"
+      ansible.builtin.assert:
+        that:
+          - "'passwd_timeout=' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing passwd_timeout directive"
+
+    - name: "Sudoers: assert Ansible managed marker"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible' in _user_verify_sudoers_text"
+        fail_msg: "Sudoers file missing Ansible managed marker"
+
+    # ==========================================================
+    # Logrotate for sudo.log
+    # ==========================================================
+
+    - name: "Logrotate: check config exists"
+      ansible.builtin.stat:
+        path: /etc/logrotate.d/sudo
+      register: _user_verify_logrotate_stat
+
+    - name: "Logrotate: assert config exists with correct permissions"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_logrotate_stat.stat.exists
+          - _user_verify_logrotate_stat.stat.mode == '0644'
+          - _user_verify_logrotate_stat.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/logrotate.d/sudo missing or wrong permissions
+          (expected root 0644)
+
+    - name: "Logrotate: read config content"
+      ansible.builtin.slurp:
+        src: /etc/logrotate.d/sudo
+      register: _user_verify_logrotate_raw
+
+    - name: "Logrotate: set text fact"
+      ansible.builtin.set_fact:
+        _user_verify_logrotate_text: "{{ _user_verify_logrotate_raw.content | b64decode }}"
+
+    - name: "Logrotate: assert sudo.log path in config"
+      ansible.builtin.assert:
+        that:
+          - "'/var/log/sudo.log' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing /var/log/sudo.log path"
+
+    - name: "Logrotate: assert weekly rotation"
+      ansible.builtin.assert:
+        that:
+          - "'weekly' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'weekly' directive"
+
+    - name: "Logrotate: assert rotate count"
+      ansible.builtin.assert:
+        that:
+          - "'rotate 13' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'rotate 13' directive"
+
+    - name: "Logrotate: assert compress enabled"
+      ansible.builtin.assert:
+        that:
+          - "'compress' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'compress' directive"
+
+    - name: "Logrotate: assert Ansible managed marker"
+      ansible.builtin.assert:
+        that:
+          - "'Ansible' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing Ansible managed marker"
+
+    # ==========================================================
+    # Sudo package installed
+    # ==========================================================
+
+    - name: "Package: gather package facts"
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "Package: assert sudo is installed"
+      ansible.builtin.assert:
+        that:
+          - "'sudo' in ansible_facts.packages"
+        fail_msg: "sudo package not found in installed packages"
+
+    # ==========================================================
+    # Cross-platform: Arch-specific checks
+    # ==========================================================
+
+    - name: "Arch-only: verify sudoers file contains %wheel"
+      ansible.builtin.assert:
+        that:
+          - "'%wheel' in _user_verify_sudoers_text"
+        fail_msg: "Arch sudoers file does not contain %wheel rule"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    # ==========================================================
+    # Cross-platform: Debian-specific checks
+    # ==========================================================
+
+    - name: "Debian-only: verify sudoers file contains %sudo"
+      ansible.builtin.assert:
+        that:
+          - "'%sudo' in _user_verify_sudoers_text"
+        fail_msg: "Debian sudoers file does not contain %sudo rule"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # ==========================================================
+    # Summary
+    # ==========================================================
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          user role verify passed on
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
+          owner user exists, correct groups, umask deployed,
+          extra user exists with correct groups,
+          sudoers policy valid ({{ user_sudo_group }}),
+          logrotate config deployed, sudo package installed.

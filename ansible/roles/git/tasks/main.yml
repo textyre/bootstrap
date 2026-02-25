@@ -67,7 +67,7 @@
   loop: "{{ [git_owner] + git_additional_users }}"
   loop_control:
     loop_var: _git_current_user
-    label: "{{ git_current_user.name }}"
+    label: "{{ _git_current_user.name }}"
   tags: [git, configure]
 
 # ROLE-008: Report user configuration

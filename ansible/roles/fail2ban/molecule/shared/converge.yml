@@ -1,0 +1,11 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: fail2ban
+      vars:
+        fail2ban_sshd_maxretry: 3
+        fail2ban_sshd_bantime: 600

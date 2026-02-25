@@ -1,0 +1,40 @@
+---
+# ansible/roles/ssh_keys/molecule/default/prepare.yml
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Create test user for ssh_keys converge
+      ansible.builtin.user:
+        name: testuser
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create absent_user with pre-existing authorized_keys
+      ansible.builtin.user:
+        name: absent_user
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create .ssh directory for absent_user
+      ansible.builtin.file:
+        path: /home/absent_user/.ssh
+        state: directory
+        owner: absent_user
+        mode: "0700"
+
+    - name: Plant authorized_keys for absent_user (role should remove this)
+      ansible.builtin.copy:
+        content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOldKey oldkey@shouldberemoved\n"
+        dest: /home/absent_user/.ssh/authorized_keys
+        owner: absent_user
+        mode: "0600"
+
+    - name: Set molecule_test_user fact
+      ansible.builtin.set_fact:
+        molecule_test_user: testuser
+        cacheable: true

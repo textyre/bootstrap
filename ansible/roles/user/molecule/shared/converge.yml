@@ -3,17 +3,9 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
-
-  pre_tasks:
-    - name: Assert test environment is Arch Linux
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] == 'Archlinux'
-        fail_msg: "This test requires Arch Linux"
 
   vars:
+    # Override owner to a test user (don't modify real running user)
     user_owner:
       name: testuser_owner
       shell: /bin/bash
@@ -26,7 +18,7 @@
       password_min_age: 1
       password_warn_age: 7
     user_additional_users:
-      - name: Testuser_extra
+      - name: testuser_extra
         shell: /bin/bash
         groups:
           - video
@@ -34,9 +26,12 @@
         password_hash: ""
         update_password: on_create
         umask: "077"
-    user_manage_password_aging: false   # skip: may not be supported in container
+    user_manage_password_aging: false   # may not work in containers
     user_manage_umask: true
-    user_verify_root_lock: false        # root may not be locked in test container
+    user_verify_root_lock: false        # root may not be locked in test environments
+    user_sudo_logrotate_enabled: true
+    user_sudo_log_input: false
+    user_sudo_log_output: false
 
   roles:
     - role: user

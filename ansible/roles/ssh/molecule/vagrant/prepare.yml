@@ -1,0 +1,22 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
+      when: ansible_os_family == 'Archlinux'
+
+    - name: Update apt package cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure privilege separation directory exists
+      ansible.builtin.file:
+        path: /run/sshd
+        state: directory
+        mode: "0755"

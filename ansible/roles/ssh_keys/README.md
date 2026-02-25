@@ -49,6 +49,46 @@ The `user` role must run before `ssh_keys` to ensure user home directories exist
 
 Arch Linux, Debian/Ubuntu, RedHat/EL, Void Linux, Gentoo
 
+## Testing
+
+The role has three molecule scenarios sharing a common `converge.yml` and `verify.yml` in `molecule/shared/`.
+
+### Scenarios
+
+| Scenario | Driver | Platforms | Purpose |
+|----------|--------|-----------|---------|
+| `default` | localhost | macOS/Linux (local) | Fast local syntax and idempotency check |
+| `docker` | Docker | `arch-systemd` container | CI integration, Arch Linux |
+| `vagrant` | Vagrant (libvirt) | Arch + Ubuntu 24.04 VMs | Multi-distro validation |
+
+### What is tested
+
+| Check | Assertion |
+|-------|-----------|
+| `.ssh` directory exists | `stat.exists == true`, `isdir == true` |
+| `.ssh` directory mode | `mode == '0700'` |
+| `.ssh` directory owner | `pw_name == testuser` |
+| `authorized_keys` exists | `stat.exists == true`, `isreg == true` |
+| `authorized_keys` mode | `mode == '0600'` |
+| `authorized_keys` owner | `pw_name == testuser` |
+| First key content | `'test@molecule' in file` |
+| Second key content | `'test2@molecule' in file` |
+| Absent user cleanup | `authorized_keys` removed for `state: absent` user |
+
+### Running
+
+```bash
+# Local (no containers required)
+cd ansible/roles/ssh_keys
+molecule test
+
+# Docker (Arch Linux container)
+molecule test -s docker
+
+# Vagrant (Arch + Ubuntu VMs, requires KVM/libvirt)
+molecule test -s vagrant
+```
+
 ## Tags
 
 | Tag | Purpose |

@@ -1,0 +1,71 @@
+---
+# ansible/roles/ssh_keys/molecule/vagrant/prepare.yml
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Bootstrap Python on Arch (raw — no Python required)
+      ansible.builtin.raw: >
+        test -e /etc/arch-release && pacman -Sy --noconfirm python || true
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.gather_facts:
+
+    - name: Refresh pacman keyring on Arch (generic/arch box has stale keys)
+      ansible.builtin.shell: |
+        sed -i 's/^SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+        pacman -Sy --noconfirm archlinux-keyring
+        sed -i 's/^SigLevel.*/SigLevel = Required DatabaseOptional/' /etc/pacman.conf
+        pacman-key --populate archlinux
+      args:
+        executable: /bin/bash
+      when: ansible_facts['os_family'] == 'Archlinux'
+      changed_when: true
+
+    - name: Full system upgrade on Arch (ensures compatibility)
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Create test user for ssh_keys converge
+      ansible.builtin.user:
+        name: testuser
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create absent_user with pre-existing authorized_keys
+      ansible.builtin.user:
+        name: absent_user
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create .ssh directory for absent_user
+      ansible.builtin.file:
+        path: /home/absent_user/.ssh
+        state: directory
+        owner: absent_user
+        mode: "0700"
+
+    - name: Plant authorized_keys for absent_user (role should remove this)
+      ansible.builtin.copy:
+        content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOldKey oldkey@shouldberemoved\n"
+        dest: /home/absent_user/.ssh/authorized_keys
+        owner: absent_user
+        mode: "0600"
+
+    - name: Set molecule_test_user fact
+      ansible.builtin.set_fact:
+        molecule_test_user: testuser
+        cacheable: true

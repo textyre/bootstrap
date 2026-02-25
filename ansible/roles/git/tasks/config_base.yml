@@ -7,7 +7,7 @@
 - name: Set git user.name
   community.general.git_config:
     name: user.name
-    value: "{{ git_current_user.user_name }}"
+    value: "{{ _git_current_user.user_name }}"
     scope: global
   when: (_git_current_user.user_name | default('')) | length > 0
   tags: [git, configure]
@@ -15,7 +15,7 @@
 - name: Set git user.email
   community.general.git_config:
     name: user.email
-    value: "{{ git_current_user.user_email }}"
+    value: "{{ _git_current_user.user_email }}"
     scope: global
   when: (_git_current_user.user_email | default('')) | length > 0
   tags: [git, configure]
@@ -58,7 +58,7 @@
 - name: "CVE-2022-24765 | Check current safe.directory entries"  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: git config --global --get-all safe.directory
-  register: git_current_safe_dirs
+  register: _git_current_safe_dirs
   changed_when: false
   failed_when: false
   when: git_safe_directories | length > 0

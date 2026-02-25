@@ -1,0 +1,23 @@
+---
+# ansible/roles/ssh_keys/molecule/shared/converge.yml
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Test accounts using the shared data model.
+    # molecule_test_user is set by prepare.yml (defaults to "testuser").
+    accounts:
+      - name: "{{ molecule_test_user | default('testuser') }}"
+        state: present
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAISecondTestKey567890abcdefghijklmn test2@molecule"
+      - name: absent_user
+        state: absent
+    ssh_keys_generate_user_keys: false
+    ssh_keys_exclusive: false
+
+  roles:
+    - role: ssh_keys

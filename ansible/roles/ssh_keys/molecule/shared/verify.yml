@@ -1,0 +1,99 @@
+---
+# ansible/roles/ssh_keys/molecule/shared/verify.yml
+- name: Verify ssh_keys role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    _verify_test_user: "{{ molecule_test_user | default('testuser') }}"
+    _verify_test_home: "/home/{{ _verify_test_user }}"
+
+  tasks:
+
+    # ---- .ssh directory ----
+
+    - name: Stat .ssh directory
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh"
+      register: _sshkeys_verify_dir
+
+    - name: Assert .ssh directory exists with mode 0700
+      ansible.builtin.assert:
+        that:
+          - _sshkeys_verify_dir.stat.exists
+          - _sshkeys_verify_dir.stat.isdir
+          - _sshkeys_verify_dir.stat.mode == '0700'
+          - _sshkeys_verify_dir.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          .ssh directory for {{ _verify_test_user }}:
+          exists={{ _sshkeys_verify_dir.stat.exists | default(false) }},
+          mode={{ _sshkeys_verify_dir.stat.mode | default('n/a') }},
+          owner={{ _sshkeys_verify_dir.stat.pw_name | default('n/a') }}
+
+    # ---- authorized_keys file ----
+
+    - name: Stat authorized_keys
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh/authorized_keys"
+      register: _sshkeys_verify_authkeys
+
+    - name: Assert authorized_keys exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - _sshkeys_verify_authkeys.stat.exists
+          - _sshkeys_verify_authkeys.stat.isreg
+          - _sshkeys_verify_authkeys.stat.mode == '0600'
+          - _sshkeys_verify_authkeys.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          authorized_keys for {{ _verify_test_user }}:
+          exists={{ _sshkeys_verify_authkeys.stat.exists | default(false) }},
+          mode={{ _sshkeys_verify_authkeys.stat.mode | default('n/a') }},
+          owner={{ _sshkeys_verify_authkeys.stat.pw_name | default('n/a') }}
+
+    # ---- Key content ----
+
+    - name: Read authorized_keys content
+      ansible.builtin.slurp:
+        src: "{{ _verify_test_home }}/.ssh/authorized_keys"
+      register: _sshkeys_verify_content_raw
+
+    - name: Set authorized_keys text fact
+      ansible.builtin.set_fact:
+        _sshkeys_verify_content: "{{ _sshkeys_verify_content_raw.content | b64decode }}"
+
+    - name: Assert first test key is present (test@molecule)
+      ansible.builtin.assert:
+        that:
+          - "'test@molecule' in _sshkeys_verify_content"
+        fail_msg: "Key 'test@molecule' not found in authorized_keys"
+
+    - name: Assert second test key is present (test2@molecule)
+      ansible.builtin.assert:
+        that:
+          - "'test2@molecule' in _sshkeys_verify_content"
+        fail_msg: "Key 'test2@molecule' not found in authorized_keys"
+
+    # ---- Absent user cleanup ----
+
+    - name: Stat authorized_keys for absent_user
+      ansible.builtin.stat:
+        path: /home/absent_user/.ssh/authorized_keys
+      register: _sshkeys_verify_absent
+
+    - name: Assert authorized_keys removed for absent_user
+      ansible.builtin.assert:
+        that:
+          - not _sshkeys_verify_absent.stat.exists
+        fail_msg: >-
+          authorized_keys for absent_user should have been removed
+          but still exists at /home/absent_user/.ssh/authorized_keys
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          ssh_keys verify passed: .ssh directory 0700 owned by {{ _verify_test_user }},
+          authorized_keys 0600 with both test keys present,
+          absent_user authorized_keys removed.

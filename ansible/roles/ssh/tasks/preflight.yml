@@ -22,7 +22,7 @@
       AllowGroups НЕ будет применён для предотвращения блокировки SSH.
   when:
     - ssh_allow_groups | length > 0
-    - ssh_allow_groups | intersect(_ssh_user_groups.stdout.split()) | length == 0
+    - ssh_allow_groups | intersect(ssh_user_groups.stdout.split()) | length == 0
   tags: ['ssh', 'security']
 
 # ---- Проверка AllowUsers ----
@@ -47,7 +47,7 @@
       ssh_deny_groups {{ ssh_deny_groups }}, что заблокирует SSH-доступ.
   when:
     - ssh_deny_groups | length > 0
-    - ssh_deny_groups | intersect(_ssh_user_groups.stdout.split()) | length > 0
+    - ssh_deny_groups | intersect(ssh_user_groups.stdout.split()) | length > 0
   tags: ['ssh', 'security']
 
 # ---- Проверка DenyUsers ----

@@ -13,7 +13,7 @@
 - name: "CIS 5.4.3 | Assert root password is locked"
   ansible.builtin.assert:
     that:
-      - _user_root_shadow.ansible_facts.getent_shadow['root'][0] | regex_search('^[!*]')
+      - user_root_shadow.ansible_facts.getent_shadow['root'][0] | regex_search('^[!*]')
     fail_msg: >-
       CIS 5.4.3 FAIL: root account has a usable password.
       Direct root login must be disabled. Use sudo for privilege escalation.

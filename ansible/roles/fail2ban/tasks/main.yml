@@ -14,7 +14,7 @@
     - name: "Assert supported operating system"
       ansible.builtin.assert:
         that:
-          - ansible_facts['os_family'] in _fail2ban_supported_os
+          - ansible_facts['os_family'] in fail2ban_supported_os
         fail_msg: >-
           OS family '{{ ansible_facts['os_family'] }}' is not supported.
           Supported: {{ fail2ban_supported_os | join(', ') }}

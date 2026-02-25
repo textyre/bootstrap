@@ -1,20 +1,26 @@
 ---
 driver:
   name: default
+  options:
+    managed: false
 
 platforms:
-  - name: Instance
-    managed: false
+  - name: Localhost
 
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
   inventory:
     host_vars:
-      instance:
+      localhost:
         ansible_connection: local
+  playbooks:
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
-    ANSIBLE_VAULT_PASSWORD_FILE: "${MOLECULE_PROJECT_DIRECTORY}/../../vault-pass.sh"
 
 verifier:
   name: ansible
@@ -23,4 +29,5 @@ scenario:
   test_sequence:
     - syntax
     - converge
+    - idempotence
     - verify
