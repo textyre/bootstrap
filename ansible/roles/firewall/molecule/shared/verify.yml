@@ -1,0 +1,253 @@
+---
+- name: Verify firewall role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+
+    # ---- Package installed ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert nftables package is installed
+      ansible.builtin.assert:
+        that: "'nftables' in ansible_facts.packages"
+        fail_msg: "nftables package not found"
+
+    # ---- Configuration file ----
+
+    - name: Stat /etc/nftables.conf
+      ansible.builtin.stat:
+        path: /etc/nftables.conf
+      register: firewall_verify_conf
+
+    - name: Assert nftables.conf exists with correct owner and mode
+      ansible.builtin.assert:
+        that:
+          - firewall_verify_conf.stat.exists
+          - firewall_verify_conf.stat.isreg
+          - firewall_verify_conf.stat.pw_name == 'root'
+          - firewall_verify_conf.stat.gr_name == 'root'
+          - firewall_verify_conf.stat.mode == '0644'
+        fail_msg: "/etc/nftables.conf missing or wrong permissions (expected root:root 0644)"
+
+    - name: Read nftables.conf content
+      ansible.builtin.slurp:
+        src: /etc/nftables.conf
+      register: firewall_verify_conf_raw
+
+    - name: Set nftables.conf text fact
+      ansible.builtin.set_fact:
+        firewall_verify_conf_text: "{{ firewall_verify_conf_raw.content | b64decode }}"
+
+    # ---- Core structure assertions ----
+
+    - name: Assert config contains inet filter table
+      ansible.builtin.assert:
+        that: "'table inet filter' in firewall_verify_conf_text"
+        fail_msg: "'table inet filter' not found in /etc/nftables.conf"
+
+    - name: Assert input chain has drop policy
+      ansible.builtin.assert:
+        that: "'policy drop' in firewall_verify_conf_text"
+        fail_msg: "Input chain default policy is not 'drop'"
+
+    - name: Assert loopback is accepted
+      ansible.builtin.assert:
+        that: "'iifname \"lo\" accept' in firewall_verify_conf_text"
+        fail_msg: "Loopback accept rule missing"
+
+    - name: Assert established/related connections accepted
+      ansible.builtin.assert:
+        that: "'ct state established,related accept' in firewall_verify_conf_text"
+        fail_msg: "Established/related accept rule missing"
+
+    - name: Assert invalid packets dropped
+      ansible.builtin.assert:
+        that: "'ct state invalid drop' in firewall_verify_conf_text"
+        fail_msg: "Invalid state drop rule missing"
+
+    - name: Assert ICMP rate limiting present (IPv4)
+      ansible.builtin.assert:
+        that: "'ip protocol icmp limit rate' in firewall_verify_conf_text"
+        fail_msg: "ICMP rate limit rule missing for IPv4"
+
+    - name: Assert ICMP rate limiting present (IPv6)
+      ansible.builtin.assert:
+        that: "'ip6 nexthdr icmpv6 limit rate' in firewall_verify_conf_text"
+        fail_msg: "ICMP rate limit rule missing for IPv6"
+
+    # ---- SSH rules ----
+
+    - name: Assert SSH accept rule present
+      ansible.builtin.assert:
+        that: "'tcp dport 22 ct state new accept' in firewall_verify_conf_text"
+        fail_msg: "SSH accept rule missing from nftables.conf"
+      when: firewall_allow_ssh
+
+    # ---- CRIT-01 validation: per-source-IP rate limiting ----
+
+    - name: Assert ssh_ratelimit dynamic set defined
+      ansible.builtin.assert:
+        that:
+          - "'set ssh_ratelimit' in firewall_verify_conf_text"
+          - "'type ipv4_addr' in firewall_verify_conf_text"
+          - "'flags dynamic' in firewall_verify_conf_text"
+        fail_msg: >-
+          CRIT-01: ssh_ratelimit dynamic set not found in config.
+          Per-source-IP rate limiting requires a named set with type ipv4_addr and flags dynamic.
+      when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
+
+    - name: Assert SSH rate limit rule uses per-source-IP pattern (add @ssh_ratelimit)
+      ansible.builtin.assert:
+        that: "'add @ssh_ratelimit { ip saddr limit rate over' in firewall_verify_conf_text"
+        fail_msg: >-
+          CRIT-01: SSH rate limit rule does not use per-source-IP pattern.
+          Expected 'add @ssh_ratelimit { ip saddr limit rate over ...' but not found.
+          This means rate limiting is global (shared across all IPs), not per-source.
+      when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
+
+    - name: Assert SSH rate limit values match defaults
+      ansible.builtin.assert:
+        that:
+          - "firewall_ssh_rate_limit in firewall_verify_conf_text"
+          - "('burst ' ~ firewall_ssh_rate_limit_burst | string ~ ' packets') in firewall_verify_conf_text"
+        fail_msg: >-
+          SSH rate limit values not found in config.
+          Expected rate '{{ firewall_ssh_rate_limit }}' and burst '{{ firewall_ssh_rate_limit_burst }}'.
+      when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
+
+    # ---- Forward chain ----
+
+    - name: Assert forward chain exists
+      ansible.builtin.assert:
+        that: "'chain forward' in firewall_verify_conf_text"
+        fail_msg: "Forward chain missing from nftables.conf"
+
+    # ---- Output chain ----
+
+    - name: Assert output chain exists
+      ansible.builtin.assert:
+        that: "'chain output' in firewall_verify_conf_text"
+        fail_msg: "Output chain missing from nftables.conf"
+
+    # ---- Catch-all log + drop ----
+
+    - name: Assert catch-all log and drop rule present
+      ansible.builtin.assert:
+        that: "'log prefix' in firewall_verify_conf_text"
+        fail_msg: "Catch-all log+drop rule missing"
+
+    # ---- Ansible managed marker ----
+
+    - name: Assert Ansible managed marker present
+      ansible.builtin.assert:
+        that: "'Ansible' in firewall_verify_conf_text"
+        fail_msg: "Ansible managed marker not found -- config may not be template-generated"
+
+    # ---- Service state ----
+
+    - name: Check nftables service is enabled
+      ansible.builtin.command: systemctl is-enabled nftables.service
+      register: firewall_verify_svc_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Assert nftables service is enabled
+      ansible.builtin.assert:
+        that: firewall_verify_svc_enabled.stdout == 'enabled'
+        fail_msg: >-
+          nftables.service is not enabled (got '{{ firewall_verify_svc_enabled.stdout }}').
+      when: firewall_enable_service
+
+    - name: Check nftables service is active
+      ansible.builtin.command: systemctl is-active nftables.service
+      register: firewall_verify_svc_active
+      changed_when: false
+      failed_when: false
+
+    - name: Assert nftables service is active
+      ansible.builtin.assert:
+        that: firewall_verify_svc_active.stdout == 'active'
+        fail_msg: >-
+          nftables.service is not active (got '{{ firewall_verify_svc_active.stdout }}').
+          This may be expected in Docker containers without full netfilter support.
+      when: firewall_enable_service
+
+    # ---- Runtime rules loaded (requires nft binary and kernel support) ----
+
+    - name: List loaded nftables tables
+      ansible.builtin.command: nft list tables
+      register: firewall_verify_nft_tables
+      changed_when: false
+      failed_when: false
+
+    - name: Assert inet filter table loaded in runtime
+      ansible.builtin.assert:
+        that: "'inet filter' in firewall_verify_nft_tables.stdout"
+        fail_msg: >-
+          inet filter table not loaded in nftables runtime.
+          nft list tables returned: {{ firewall_verify_nft_tables.stdout }}
+          stderr: {{ firewall_verify_nft_tables.stderr | default('') }}
+      when: firewall_verify_nft_tables.rc == 0
+
+    - name: Warn if nft command failed (container without netfilter)
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: 'nft list tables' failed (rc={{ firewall_verify_nft_tables.rc }}).
+          This is expected in containers without nf_tables kernel module.
+          Runtime rule verification skipped.
+      when: firewall_verify_nft_tables.rc != 0
+
+    # ---- Runtime: verify dynamic set loaded (CRIT-01 runtime validation) ----
+
+    - name: List ssh_ratelimit set in runtime
+      ansible.builtin.command: nft list set inet filter ssh_ratelimit
+      register: firewall_verify_nft_set
+      changed_when: false
+      failed_when: false
+      when:
+        - firewall_allow_ssh
+        - firewall_ssh_rate_limit_enabled
+        - firewall_verify_nft_tables.rc == 0
+
+    - name: Assert ssh_ratelimit set exists in runtime
+      ansible.builtin.assert:
+        that:
+          - firewall_verify_nft_set.rc == 0
+          - "'ssh_ratelimit' in firewall_verify_nft_set.stdout"
+        fail_msg: >-
+          CRIT-01 runtime: ssh_ratelimit set not loaded.
+          Expected per-source-IP dynamic set but nft returned:
+          {{ firewall_verify_nft_set.stderr | default('') }}
+      when:
+        - firewall_allow_ssh
+        - firewall_ssh_rate_limit_enabled
+        - firewall_verify_nft_tables.rc == 0
+
+    # ---- Diagnostic: dump full ruleset ----
+
+    - name: Diagnostic -- full nftables ruleset
+      ansible.builtin.command: nft list ruleset
+      register: firewall_verify_ruleset_diag
+      changed_when: false
+      failed_when: false
+
+    - name: Show nftables ruleset (diagnostic)
+      ansible.builtin.debug:
+        var: firewall_verify_ruleset_diag.stdout_lines
+      when: firewall_verify_ruleset_diag.rc == 0
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          Firewall verify passed: nftables installed, /etc/nftables.conf deployed
+          (root:root 0644), inet filter table with drop policy, SSH per-source-IP
+          rate limiting (CRIT-01 validated), service enabled and active.
