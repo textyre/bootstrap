@@ -1,0 +1,264 @@
+---
+- name: Verify sysctl role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Parameters verified in all scenarios (loop-based, Tier 2)
+    _sysctl_perf_params:
+      - { param: "vm.swappiness", expected: "10" }
+      - { param: "vm.vfs_cache_pressure", expected: "50" }
+      - { param: "fs.inotify.max_user_watches", expected: "524288" }
+      - { param: "fs.inotify.max_user_instances", expected: "1024" }
+      - { param: "fs.file-max", expected: "2097152" }
+      - { param: "net.core.somaxconn", expected: "4096" }
+      - { param: "net.ipv4.tcp_fastopen", expected: "3" }
+
+    _sysctl_kernel_hardening_params:
+      - { param: "kernel.randomize_va_space", expected: "2" }
+      - { param: "kernel.kptr_restrict", expected: "2" }
+      - { param: "kernel.dmesg_restrict", expected: "1" }
+      - { param: "kernel.yama.ptrace_scope", expected: "1" }
+      - { param: "kernel.perf_event_paranoid", expected: "3" }
+      - { param: "kernel.unprivileged_bpf_disabled", expected: "1" }
+      - { param: "dev.tty.ldisc_autoload", expected: "0" }
+      - { param: "vm.unprivileged_userfaultfd", expected: "0" }
+      - { param: "vm.mmap_min_addr", expected: "65536" }
+
+    _sysctl_network_hardening_params:
+      - { param: "net.core.bpf_jit_harden", expected: "2" }
+      - { param: "net.ipv4.conf.all.rp_filter", expected: "1" }
+      - { param: "net.ipv4.tcp_syncookies", expected: "1" }
+      - { param: "net.ipv4.tcp_rfc1337", expected: "1" }
+      - { param: "net.ipv4.conf.all.accept_redirects", expected: "0" }
+      - { param: "net.ipv4.conf.all.send_redirects", expected: "0" }
+      - { param: "net.ipv4.conf.all.accept_source_route", expected: "0" }
+      - { param: "net.ipv4.conf.all.log_martians", expected: "1" }
+      - { param: "net.ipv4.icmp_echo_ignore_broadcasts", expected: "1" }
+      - { param: "net.ipv4.icmp_ignore_bogus_error_responses", expected: "1" }
+      - { param: "net.ipv4.tcp_timestamps", expected: "0" }
+      - { param: "net.ipv4.tcp_tw_reuse", expected: "0" }
+      - { param: "net.ipv4.conf.all.arp_filter", expected: "1" }
+      - { param: "net.ipv4.conf.all.arp_ignore", expected: "1" }
+      - { param: "net.ipv6.conf.all.accept_redirects", expected: "0" }
+      - { param: "net.ipv6.conf.all.accept_source_route", expected: "0" }
+      - { param: "net.ipv6.conf.all.accept_ra", expected: "1" }
+
+    _sysctl_filesystem_hardening_params:
+      - { param: "fs.protected_hardlinks", expected: "1" }
+      - { param: "fs.protected_symlinks", expected: "1" }
+      - { param: "fs.protected_fifos", expected: "2" }
+      - { param: "fs.protected_regular", expected: "2" }
+      - { param: "fs.suid_dumpable", expected: "0" }
+
+  tasks:
+    # =====================================================================
+    # Container detection
+    # =====================================================================
+    - name: Detect if running inside a container
+      ansible.builtin.set_fact:
+        _sysctl_in_container: "{{ ansible_virtualization_type | default('') == 'docker' }}"
+
+    # =====================================================================
+    # Tier 1: File deployment checks (run in ALL scenarios)
+    # =====================================================================
+    - name: Stat sysctl drop-in file
+      ansible.builtin.stat:
+        path: /etc/sysctl.d/99-ansible.conf
+      register: _sysctl_verify_stat
+
+    - name: Assert drop-in file exists
+      ansible.builtin.assert:
+        that: _sysctl_verify_stat.stat.exists
+        fail_msg: "/etc/sysctl.d/99-ansible.conf does not exist"
+        success_msg: "drop-in file exists"
+
+    - name: Assert drop-in file ownership and permissions
+      ansible.builtin.assert:
+        that:
+          - _sysctl_verify_stat.stat.pw_name == 'root'
+          - _sysctl_verify_stat.stat.gr_name == 'root'
+          - _sysctl_verify_stat.stat.mode == '0644'
+        fail_msg: >-
+          /etc/sysctl.d/99-ansible.conf has wrong ownership or mode:
+          owner={{ _sysctl_verify_stat.stat.pw_name }}
+          group={{ _sysctl_verify_stat.stat.gr_name }}
+          mode={{ _sysctl_verify_stat.stat.mode }}
+        success_msg: "drop-in file ownership and mode correct"
+
+    - name: Read drop-in file content
+      ansible.builtin.slurp:
+        src: /etc/sysctl.d/99-ansible.conf
+      register: _sysctl_verify_content_raw
+
+    - name: Set config content fact
+      ansible.builtin.set_fact:
+        _sysctl_verify_content: "{{ _sysctl_verify_content_raw.content | b64decode }}"
+
+    - name: Assert performance parameters present in config
+      ansible.builtin.assert:
+        that:
+          - "'vm.swappiness' in _sysctl_verify_content"
+          - "'fs.inotify.max_user_watches' in _sysctl_verify_content"
+          - "'net.core.somaxconn' in _sysctl_verify_content"
+        fail_msg: "Required performance parameters missing from config file"
+        success_msg: "Performance parameters present in config"
+
+    - name: Assert security kernel hardening parameters present in config
+      ansible.builtin.assert:
+        that:
+          - "'kernel.randomize_va_space' in _sysctl_verify_content"
+          - "'kernel.kptr_restrict' in _sysctl_verify_content"
+          - "'kernel.yama.ptrace_scope' in _sysctl_verify_content"
+        fail_msg: "Security kernel hardening parameters missing from config file"
+        success_msg: "Security kernel hardening parameters present in config"
+
+    - name: Assert security network hardening parameters present in config
+      ansible.builtin.assert:
+        that:
+          - "'net.ipv4.tcp_syncookies' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_timestamps' in _sysctl_verify_content"
+        fail_msg: "Security network hardening parameters missing from config file"
+        success_msg: "Security network hardening parameters present in config"
+
+    - name: Assert filesystem hardening parameters present in config
+      ansible.builtin.assert:
+        that:
+          - "'fs.protected_hardlinks' in _sysctl_verify_content"
+          - "'fs.suid_dumpable' in _sysctl_verify_content"
+        fail_msg: "Filesystem hardening parameters missing from config file"
+        success_msg: "Filesystem hardening parameters present in config"
+
+    - name: Assert IPv6 disable directives NOT present when toggle is false (default)
+      ansible.builtin.assert:
+        that:
+          - "'net.ipv6.conf.all.disable_ipv6' not in _sysctl_verify_content"
+        fail_msg: "IPv6 disable is in config but sysctl_security_ipv6_disable is false"
+        success_msg: "IPv6 disable directives correctly absent"
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert procps-ng installed (Arch)
+      ansible.builtin.assert:
+        that: "'procps-ng' in ansible_facts.packages"
+        fail_msg: "procps-ng is not installed on Arch Linux"
+        success_msg: "procps-ng installed"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Assert procps installed (Debian)
+      ansible.builtin.assert:
+        that: "'procps' in ansible_facts.packages"
+        fail_msg: "procps is not installed on Debian/Ubuntu"
+        success_msg: "procps installed"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # =====================================================================
+    # Tier 2: Live value verification (skip in container)
+    # =====================================================================
+    - name: Read live performance sysctl values
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_perf_live
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_perf_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: Assert live performance sysctl values match expected
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: "{{ item.item.param }}: expected={{ item.item.expected }} got={{ item.stdout }}"
+        success_msg: "{{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_perf_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    - name: Read live kernel hardening sysctl values
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_kernel_live
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_kernel_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: Assert live kernel hardening sysctl values match expected
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: "{{ item.item.param }}: expected={{ item.item.expected }} got={{ item.stdout }}"
+        success_msg: "{{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_kernel_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    - name: Read live network hardening sysctl values
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_network_live
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_network_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: Assert live network hardening sysctl values match expected
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: "{{ item.item.param }}: expected={{ item.item.expected }} got={{ item.stdout }}"
+        success_msg: "{{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_network_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    - name: Read live filesystem hardening sysctl values
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_fs_live
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_filesystem_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: Assert live filesystem hardening sysctl values match expected
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: "{{ item.item.param }}: expected={{ item.item.expected }} got={{ item.stdout }}"
+        success_msg: "{{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_fs_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    # =====================================================================
+    # Tier 3: Cross-platform checks (architecture-specific)
+    # =====================================================================
+    - name: Assert kernel.unprivileged_userns_clone present in config (Arch only)
+      ansible.builtin.assert:
+        that: "'kernel.unprivileged_userns_clone' in _sysctl_verify_content"
+        fail_msg: "kernel.unprivileged_userns_clone missing from config on Arch Linux"
+        success_msg: "kernel.unprivileged_userns_clone present in config (Arch)"
+      when: ansible_facts['distribution'] == 'Archlinux'
+
+    - name: Show verify summary
+      ansible.builtin.debug:
+        msg: >-
+          sysctl verify complete.
+          Container mode: {{ _sysctl_in_container }}.
+          Live value checks: {{ 'skipped' if _sysctl_in_container else 'performed' }}.

@@ -207,6 +207,50 @@ ansible-playbook playbook.yml --tags sysctl,verify
 
 - `/etc/sysctl.d/99-ansible.conf` — drop-in kernel parameter configuration, loaded automatically at boot by `systemd-sysctl.service` and on-demand via `sysctl --system`
 
+## Testing
+
+### Scenarios
+
+| Scenario | Driver | Platforms | What is tested |
+|---|---|---|---|
+| `default` | localhost | Developer's Arch Linux machine | File deployment + live sysctl values |
+| `docker` | Docker | Arch Linux (arch-systemd image) | File deployment only (sysctl namespace restricted in containers) |
+| `vagrant` | Vagrant + libvirt | Arch Linux, Ubuntu 24.04 | Full: file deployment + live values on both distros |
+
+### Running tests
+
+```bash
+# Localhost (requires running on Arch Linux)
+molecule test -s default
+
+# Docker (requires Docker + arch-systemd image)
+molecule test -s docker
+
+# Vagrant (requires libvirt + vagrant)
+molecule test -s vagrant
+```
+
+### Test structure
+
+```
+molecule/
+  shared/
+    converge.yml   # Role application (all scenarios)
+    verify.yml     # Assertions (file + live values, with container guards)
+  default/
+    molecule.yml   # Localhost scenario config
+  docker/
+    molecule.yml   # Docker scenario config
+    prepare.yml    # Update pacman cache
+  vagrant/
+    molecule.yml   # Vagrant KVM scenario config (Arch + Ubuntu)
+```
+
+Verification is split into three tiers:
+1. **File checks** (all scenarios): `/etc/sysctl.d/99-ansible.conf` exists, correct ownership/permissions, required parameters present
+2. **Live value checks** (skipped in Docker): Live `sysctl -n` values match expected values for performance, kernel hardening, network hardening, and filesystem hardening parameters
+3. **Cross-platform checks**: Arch-specific parameters (`kernel.unprivileged_userns_clone`) verified on Arch only
+
 ## Compliance
 
 | Standard | Coverage |

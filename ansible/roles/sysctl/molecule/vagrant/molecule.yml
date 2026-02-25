@@ -1,26 +1,31 @@
 ---
 driver:
-  name: default
-  options:
-    managed: false
+  name: vagrant
+  provider:
+    name: libvirt
 
 platforms:
-  - name: Localhost
+  - name: arch-vm
+    box: generic/arch
+    memory: 2048
+    cpus: 2
+  - name: ubuntu-noble
+    box: bento/ubuntu-24.04
+    memory: 2048
+    cpus: 2
 
 provisioner:
   name: ansible
+  options:
+    skip-tags: report
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    host_vars:
-      localhost:
-        ansible_connection: local
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   playbooks:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
-  env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 
 verifier:
   name: ansible
@@ -28,6 +33,8 @@ verifier:
 scenario:
   test_sequence:
     - syntax
+    - create
     - converge
     - idempotence
     - verify
+    - destroy

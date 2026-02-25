@@ -1,0 +1,6 @@
+---
+# === sysctl: internal variables ===
+# Bridge private (underscore-prefixed) vars used in task when-guards
+# to the public defaults, following project convention.
+
+_sysctl_supported_os: "{{ sysctl_supported_os }}"
