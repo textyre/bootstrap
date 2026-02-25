@@ -75,7 +75,7 @@
       ansible.builtin.find:
         paths: "{{ reflector_mirrorlist_path | dirname }}"
         patterns: "mirrorlist.bak.*"
-      register: reflector_backups
+      register: _reflector_backups
       when:
         - reflector_backup_mirrorlist | bool
         - reflector_backup_keep | int > 0
@@ -93,7 +93,7 @@
     - name: Determine if mirrorlist changed
       ansible.builtin.set_fact:
         reflector_mirrorlist_changed: >-
-          {{ (_reflector_old_mirror.content | default('')) != (_reflector_new_mirror.content | default('')) }}
+          {{ (reflector_old_mirror.content | default('')) != (reflector_new_mirror.content | default('')) }}
 
     - name: Report reflector result
       ansible.builtin.debug:
