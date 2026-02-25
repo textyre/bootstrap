@@ -1,0 +1,166 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    # -----------------------------------------------------------------------
+    # 1. Teleport binary
+    # -----------------------------------------------------------------------
+    - name: Check teleport binary is executable
+      ansible.builtin.command: teleport version
+      register: _teleport_version
+      changed_when: false
+      failed_when: _teleport_version.rc != 0
+
+    - name: Show teleport version output
+      ansible.builtin.debug:
+        msg: "{{ _teleport_version.stdout }}"
+
+    # -----------------------------------------------------------------------
+    # 2. Configuration file
+    # -----------------------------------------------------------------------
+    - name: Stat /etc/teleport.yaml
+      ansible.builtin.stat:
+        path: /etc/teleport.yaml
+      register: _teleport_cfg_stat
+
+    - name: Assert /etc/teleport.yaml exists
+      ansible.builtin.assert:
+        that:
+          - _teleport_cfg_stat.stat.exists
+        fail_msg: "/etc/teleport.yaml does not exist"
+
+    - name: Assert /etc/teleport.yaml owner and permissions
+      ansible.builtin.assert:
+        that:
+          - _teleport_cfg_stat.stat.pw_name == 'root'
+          - _teleport_cfg_stat.stat.gr_name == 'root'
+          - _teleport_cfg_stat.stat.mode == '0600'
+        fail_msg: >
+          /etc/teleport.yaml has wrong owner/mode:
+          owner={{ _teleport_cfg_stat.stat.pw_name }}
+          group={{ _teleport_cfg_stat.stat.gr_name }}
+          mode={{ _teleport_cfg_stat.stat.mode }}
+
+    # -----------------------------------------------------------------------
+    # 3. Configuration file content
+    # -----------------------------------------------------------------------
+    - name: Slurp /etc/teleport.yaml
+      ansible.builtin.slurp:
+        src: /etc/teleport.yaml
+      register: _teleport_cfg_raw
+
+    - name: Decode teleport config
+      ansible.builtin.set_fact:
+        _teleport_cfg: "{{ _teleport_cfg_raw.content | b64decode }}"
+
+    - name: Assert config version
+      ansible.builtin.assert:
+        that: "'version: v3' in _teleport_cfg"
+        fail_msg: "Config does not contain 'version: v3'"
+
+    - name: Assert auth_server address
+      ansible.builtin.assert:
+        that: "'auth_server: localhost:3025' in _teleport_cfg"
+        fail_msg: "Config does not contain 'auth_server: localhost:3025'"
+
+    - name: Assert nodename
+      ansible.builtin.assert:
+        that: "'nodename: molecule-test' in _teleport_cfg"
+        fail_msg: "Config does not contain 'nodename: molecule-test'"
+
+    - name: Assert auth_token present
+      ansible.builtin.assert:
+        that: "'auth_token:' in _teleport_cfg"
+        fail_msg: "Config does not contain 'auth_token:'"
+
+    - name: Assert data_dir
+      ansible.builtin.assert:
+        that: "'data_dir: /var/lib/teleport' in _teleport_cfg"
+        fail_msg: "Config does not contain 'data_dir: /var/lib/teleport'"
+
+    - name: Assert ssh_service section present
+      ansible.builtin.assert:
+        that: "'ssh_service:' in _teleport_cfg"
+        fail_msg: "Config does not contain 'ssh_service:'"
+
+    - name: Assert proxy_service section present
+      ansible.builtin.assert:
+        that: "'proxy_service:' in _teleport_cfg"
+        fail_msg: "Config does not contain 'proxy_service:'"
+
+    - name: Assert auth_service section present
+      ansible.builtin.assert:
+        that: "'auth_service:' in _teleport_cfg"
+        fail_msg: "Config does not contain 'auth_service:'"
+
+    - name: Assert session_recording mode
+      ansible.builtin.assert:
+        that: "\"mode: 'node'\" in _teleport_cfg or 'mode: node' in _teleport_cfg"
+        fail_msg: "Config does not contain session recording mode 'node'"
+
+    - name: Assert Ansible managed header
+      ansible.builtin.assert:
+        that: "'Ansible managed' in _teleport_cfg or 'Managed by Ansible' in _teleport_cfg"
+        fail_msg: "Config does not contain Ansible managed header"
+
+    # -----------------------------------------------------------------------
+    # 4. Data directory
+    # -----------------------------------------------------------------------
+    - name: Stat /var/lib/teleport
+      ansible.builtin.stat:
+        path: /var/lib/teleport
+      register: _teleport_data_stat
+
+    - name: Assert /var/lib/teleport exists and is a directory
+      ansible.builtin.assert:
+        that:
+          - _teleport_data_stat.stat.exists
+          - _teleport_data_stat.stat.isdir
+        fail_msg: "/var/lib/teleport does not exist or is not a directory"
+
+    - name: Assert /var/lib/teleport owner and permissions
+      ansible.builtin.assert:
+        that:
+          - _teleport_data_stat.stat.pw_name == 'root'
+          - _teleport_data_stat.stat.gr_name == 'root'
+          - _teleport_data_stat.stat.mode == '0750'
+        fail_msg: >
+          /var/lib/teleport has wrong owner/mode:
+          owner={{ _teleport_data_stat.stat.pw_name }}
+          group={{ _teleport_data_stat.stat.gr_name }}
+          mode={{ _teleport_data_stat.stat.mode }}
+
+    # -----------------------------------------------------------------------
+    # 5. Service unit (repo install only)
+    # -----------------------------------------------------------------------
+    - name: Stat teleport systemd unit (repo install only)
+      ansible.builtin.stat:
+        path: /lib/systemd/system/teleport.service
+      register: _teleport_unit_stat
+      when: (teleport_install_method | default('package')) == 'repo'
+
+    - name: Assert teleport systemd unit exists (repo install only)
+      ansible.builtin.assert:
+        that: _teleport_unit_stat.stat.exists
+        fail_msg: "teleport.service unit not found (expected for repo install)"
+      when: (teleport_install_method | default('package')) == 'repo'
+
+    # -----------------------------------------------------------------------
+    # 6. Diagnostic notes for untestable items
+    # -----------------------------------------------------------------------
+    - name: Note -- service runtime not tested (requires live cluster)
+      ansible.builtin.debug:
+        msg: >
+          teleport service start is skipped in molecule (skip-tags: service).
+          Runtime connectivity requires a live Teleport auth cluster -- not
+          tested here. Run integration tests against a real cluster for that.
+
+    - name: Note -- CA export not tested (requires live cluster)
+      ansible.builtin.debug:
+        msg: >
+          teleport_export_ca_key=false in converge vars, so CA export is not
+          exercised. CA export integration requires tctl access to a running
+          auth server -- out of scope for offline molecule tests.

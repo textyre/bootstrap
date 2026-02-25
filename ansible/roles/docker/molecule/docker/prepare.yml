@@ -1,0 +1,14 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Update pacman package cache
+      community.general.pacman:
+        update_cache: true
+
+    - name: Install docker package (prerequisite for role)
+      community.general.pacman:
+        name: docker
+        state: present
