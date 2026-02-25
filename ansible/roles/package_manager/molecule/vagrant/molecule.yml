@@ -16,6 +16,8 @@ platforms:
 
 provisioner:
   name: ansible
+  options:
+    skip-tags: report,aur,mirrors
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
