@@ -1,0 +1,55 @@
+---
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+
+platforms:
+  - name: arch-vm
+    box: generic/arch
+    memory: 2048
+    cpus: 2
+  - name: ubuntu-noble
+    box: bento/ubuntu-24.04
+    memory: 2048
+    cpus: 2
+
+provisioner:
+  name: ansible
+  options:
+    skip-tags: report
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      arch-vm:
+        chezmoi_install_method: pacman
+        chezmoi_source_dir: /opt/dotfiles
+        chezmoi_verify_has_dotfiles: true
+        chezmoi_verify_fixture: true
+      ubuntu-noble:
+        chezmoi_install_method: script
+        chezmoi_source_dir: /opt/dotfiles
+        chezmoi_verify_has_dotfiles: true
+        chezmoi_verify_fixture: true
+  playbooks:
+    prepare: prepare.yml
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
+
+verifier:
+  name: ansible
+
+scenario:
+  # No idempotence: chezmoi init --apply always reports changed.
+  # fixture dotfiles: no Arch-specific configs, so chezmoi_verify_full stays false.
+  test_sequence:
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

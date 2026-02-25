@@ -1,0 +1,66 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    # Bootstrap Python on Arch before gathering facts (generic/arch may lack Python)
+    - name: Bootstrap Python on Arch
+      ansible.builtin.raw: >
+        test -e /etc/arch-release && pacman -Sy --noconfirm python || true
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.gather_facts:
+
+    # Arch-specific prep
+    - name: Refresh pacman keyring (generic/arch box has stale keys)
+      ansible.builtin.shell: |
+        sed -i 's/^SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+        pacman -Sy --noconfirm archlinux-keyring
+        sed -i 's/^SigLevel.*/SigLevel = Required DatabaseOptional/' /etc/pacman.conf
+        pacman-key --populate archlinux
+      args:
+        executable: /bin/bash
+      when: ansible_facts['os_family'] == 'Archlinux'
+      changed_when: true
+
+    - name: Full system upgrade on Arch
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    # Ubuntu-specific prep
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure curl is installed (Ubuntu -- needed for get.chezmoi.io)
+      ansible.builtin.apt:
+        name: curl
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # Fixture dotfiles -- minimal source so chezmoi init --source /opt/dotfiles succeeds
+    - name: Create dotfiles fixture directory
+      ansible.builtin.file:
+        path: /opt/dotfiles
+        state: directory
+        mode: '0755'
+
+    - name: Deploy minimal .chezmoi.toml.tmpl fixture
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/.chezmoi.toml.tmpl
+        content: |
+          [data]
+            theme_name = "dracula"
+        mode: '0644'
+
+    - name: Deploy minimal test marker dotfile
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/dot_chezmoi_test_marker
+        content: "chezmoi-molecule-test\n"
+        mode: '0644'

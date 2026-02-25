@@ -1,0 +1,49 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Update pacman package cache
+      community.general.pacman:
+        update_cache: true
+
+    - name: Install curl and git
+      community.general.pacman:
+        name:
+          - curl
+          - git
+        state: present
+
+    - name: Create test user
+      ansible.builtin.user:
+        name: testuser
+        state: present
+        shell: /bin/bash
+        create_home: true
+
+    - name: Create dotfiles fixture directory
+      ansible.builtin.file:
+        path: /opt/dotfiles
+        state: directory
+        mode: '0755'
+        owner: testuser
+        group: testuser
+
+    - name: Deploy minimal .chezmoi.toml.tmpl fixture
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/.chezmoi.toml.tmpl
+        content: |
+          [data]
+            theme_name = "dracula"
+        mode: '0644'
+        owner: testuser
+        group: testuser
+
+    - name: Deploy minimal test marker dotfile
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/dot_chezmoi_test_marker
+        content: "chezmoi-molecule-test\n"
+        mode: '0644'
+        owner: testuser
+        group: testuser

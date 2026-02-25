@@ -1,0 +1,162 @@
+---
+- name: Verify chezmoi role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+
+    # ---- Resolve user home (needed for all checks) ----
+
+    - name: Get user home directory
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ chezmoi_user }}"
+
+    - name: Set user home fact
+      ansible.builtin.set_fact:
+        chezmoi_verify_home: "{{ getent_passwd[chezmoi_user][4] }}"
+
+    # ---- Tier 1: chezmoi binary installed ----
+
+    - name: Check chezmoi is installed (PATH or ~/.local/bin)
+      ansible.builtin.shell: >-
+        which chezmoi 2>/dev/null ||
+        test -x {{ chezmoi_verify_home }}/.local/bin/chezmoi
+      register: chezmoi_verify_which
+      changed_when: false
+      failed_when: chezmoi_verify_which.rc != 0
+
+    - name: Determine chezmoi binary path
+      ansible.builtin.set_fact:
+        chezmoi_verify_bin: >-
+          {{ 'chezmoi' if (chezmoi_verify_which.stdout | default('') | trim) != ''
+             else chezmoi_verify_home ~ '/.local/bin/chezmoi' }}
+
+    - name: Check chezmoi --version works
+      ansible.builtin.command: "{{ chezmoi_verify_bin }} --version"
+      register: chezmoi_verify_version
+      changed_when: false
+      failed_when: chezmoi_verify_version.rc != 0
+
+    - name: Assert chezmoi version output is non-empty
+      ansible.builtin.assert:
+        that: chezmoi_verify_version.stdout | length > 0
+        fail_msg: "chezmoi --version produced empty output"
+
+    # ---- Tier 1: chezmoi source directory initialized ----
+
+    - name: Check chezmoi source directory exists
+      ansible.builtin.stat:
+        path: "{{ chezmoi_verify_home }}/.local/share/chezmoi"
+      register: chezmoi_verify_source_dir
+      when: chezmoi_verify_has_dotfiles | default(false)
+
+    - name: Assert chezmoi source directory was initialized
+      ansible.builtin.assert:
+        that:
+          - chezmoi_verify_source_dir.stat.exists
+          - chezmoi_verify_source_dir.stat.isdir
+        fail_msg: "chezmoi source directory not found at ~/.local/share/chezmoi"
+      when: chezmoi_verify_has_dotfiles | default(false)
+
+    # ---- Tier 1: fixture marker check (Vagrant / Docker stub scenarios) ----
+
+    - name: Check chezmoi deployed the fixture test marker
+      ansible.builtin.stat:
+        path: "{{ chezmoi_verify_home }}/.chezmoi_test_marker"
+      register: chezmoi_verify_marker
+      when: chezmoi_verify_fixture | default(false)
+
+    - name: Assert fixture marker was deployed by chezmoi
+      ansible.builtin.assert:
+        that: chezmoi_verify_marker.stat.exists
+        fail_msg: "chezmoi did not deploy ~/.chezmoi_test_marker from fixture dotfiles"
+      when: chezmoi_verify_fixture | default(false)
+
+    # ---- Tier 2: Dotfiles deployed (Arch only, with real dotfiles source) ----
+
+    - name: Tier 2 -- verify deployed dotfiles (Arch with full dotfiles source)
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - chezmoi_verify_full | default(false)
+      block:
+        - name: Check .xinitrc exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.xinitrc"
+          register: chezmoi_verify_xinitrc
+          failed_when: not chezmoi_verify_xinitrc.stat.exists
+
+        - name: Check i3 config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/i3/config"
+          register: chezmoi_verify_i3
+          failed_when: not chezmoi_verify_i3.stat.exists
+
+        - name: Check picom config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/picom.conf"
+          register: chezmoi_verify_picom
+          failed_when: not chezmoi_verify_picom.stat.exists
+
+        - name: Check ewwii config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
+          register: chezmoi_verify_ewwii
+          failed_when: not chezmoi_verify_ewwii.stat.exists
+
+        - name: Check rofi config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/rofi/config.rasi"
+          register: chezmoi_verify_rofi
+          failed_when: not chezmoi_verify_rofi.stat.exists
+
+        - name: Check alacritty config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
+          register: chezmoi_verify_alacritty
+          failed_when: not chezmoi_verify_alacritty.stat.exists
+
+        - name: Check dunst config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/dunst/dunstrc"
+          register: chezmoi_verify_dunst
+          failed_when: not chezmoi_verify_dunst.stat.exists
+
+        - name: Check starship config exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/starship.toml"
+          register: chezmoi_verify_starship
+          failed_when: not chezmoi_verify_starship.stat.exists
+
+        - name: Check theme-switch is executable
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.local/bin/theme-switch"
+          register: chezmoi_verify_theme_switch
+          failed_when: >-
+            not chezmoi_verify_theme_switch.stat.exists or
+            not chezmoi_verify_theme_switch.stat.executable
+
+        - name: Check wallpapers directory exists
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.local/share/wallpapers"
+          register: chezmoi_verify_wallpapers
+          failed_when: >-
+            not chezmoi_verify_wallpapers.stat.exists or
+            not chezmoi_verify_wallpapers.stat.isdir
+
+        - name: Check GTK3 settings exist
+          ansible.builtin.stat:
+            path: "{{ chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
+          register: chezmoi_verify_gtk3
+          failed_when: not chezmoi_verify_gtk3.stat.exists
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          chezmoi verify passed: binary at {{ chezmoi_verify_bin }},
+          version {{ chezmoi_verify_version.stdout | trim }}.

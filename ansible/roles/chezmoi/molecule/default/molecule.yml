@@ -9,19 +9,22 @@ platforms:
 
 provisioner:
   name: ansible
+  options:
+    skip-tags: report
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
       callbacks_enabled: profile_tasks
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   inventory:
     host_vars:
       localhost:
         ansible_connection: local
+        chezmoi_verify_has_dotfiles: true
+        chezmoi_verify_full: true
   playbooks:
-    converge: converge.yml
-    verify: verify.yml
-  env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
 
 verifier:
   name: ansible

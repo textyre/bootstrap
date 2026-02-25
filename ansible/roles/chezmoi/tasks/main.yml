@@ -42,8 +42,8 @@
 - name: Assert chezmoi source directory exists
   ansible.builtin.assert:
     that:
-      - _chezmoi_source_stat.stat.exists
-      - _chezmoi_source_stat.stat.isdir
+      - chezmoi_source_stat.stat.exists
+      - chezmoi_source_stat.stat.isdir
     fail_msg: "Директория с дотфайлами не найдена: {{ chezmoi_source_dir }}"
   tags: ['chezmoi', 'dotfiles']
 
