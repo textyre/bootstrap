@@ -39,6 +39,6 @@ scenario:
     - create
     - prepare
     - converge
-    - idempotency
+    - idempotence
     - verify
     - destroy
