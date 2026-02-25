@@ -8,5 +8,7 @@ galaxy_info:
   platforms:
     - name: ArchLinux
       versions: [all]
+    - name: Ubuntu
+      versions: [all]
   galaxy_tags: [xorg, x11, display, monitor]
 dependencies: []

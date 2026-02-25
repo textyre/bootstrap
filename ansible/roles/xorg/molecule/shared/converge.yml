@@ -1,0 +1,75 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Create dotfiles source directory structure
+      ansible.builtin.file:
+        path: /tmp/xorg_test_dotfiles/etc/X11/xorg.conf.d
+        state: directory
+        mode: '0755'
+
+    - name: Create 00-keyboard.conf in test dotfiles
+      ansible.builtin.copy:
+        dest: /tmp/xorg_test_dotfiles/etc/X11/xorg.conf.d/00-keyboard.conf
+        content: |
+          # /etc/X11/xorg.conf.d/00-keyboard.conf
+          # Keyboard layout: US + RU, toggle with Alt+Shift
+
+          Section "InputClass"
+              Identifier "keyboard-layout"
+              MatchIsKeyboard "on"
+              Option "XkbLayout" "us,ru"
+              Option "XkbOptions" "grp:ctrl_space_toggle"
+          EndSection
+        mode: '0644'
+
+    - name: Create 10-monitor.conf in test dotfiles
+      ansible.builtin.copy:
+        dest: /tmp/xorg_test_dotfiles/etc/X11/xorg.conf.d/10-monitor.conf
+        content: |
+          # /etc/X11/xorg.conf.d/10-monitor.conf
+          # Xorg monitor configuration example
+          #
+          # Drivers:
+          #   - modesetting (recommended for modern KMS/DRM)
+          #   - vmware      (for VMware VMs with xf86-video-vmware)
+          #   - vesa        (fallback, limited performance)
+
+          Section "Monitor"
+              Identifier "Monitor0"
+
+              # Modeline generated with: cvt 2560 1440 60
+              # For reduced blanking (VMs): cvt -r 2560 1440 60
+              Modeline "2560x1440_60.00"  312.25  2560 2752 3024 3488  1440 1443 1448 1493 -hsync +vsync
+
+              Option "PreferredMode" "2560x1440_60.00"
+          EndSection
+
+          Section "Device"
+              Identifier "Card0"
+
+              # Choose one driver:
+              Driver "modesetting"    # Universal DRM/KMS driver
+              # Driver "vmware"       # VMware SVGA (requires xf86-video-vmware)
+              # Driver "vesa"         # Fallback, limited modes
+          EndSection
+
+          Section "Screen"
+              Identifier "Screen0"
+              Device "Card0"
+              Monitor "Monitor0"
+
+              SubSection "Display"
+                  Depth 24
+                  Modes "2560x1440_60.00"
+              EndSubSection
+          EndSection
+        mode: '0644'
+
+  roles:
+    - role: xorg
+      vars:
+        xorg_source_dir: /tmp/xorg_test_dotfiles

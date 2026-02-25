@@ -11,8 +11,8 @@
 - name: Assert dotfiles source directory exists
   ansible.builtin.assert:
     that:
-      - _xorg_source_stat.stat.exists
-      - _xorg_source_stat.stat.isdir
+      - xorg_source_stat.stat.exists
+      - xorg_source_stat.stat.isdir
     fail_msg: "Директория с исходниками не найдена: {{ xorg_source_dir }}"
   tags: ['xorg', 'display']
 
