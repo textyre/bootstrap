@@ -1,0 +1,224 @@
+---
+- name: Verify pam_hardening role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+
+    # ---- faillock.conf existence and permissions ----
+
+    - name: Stat /etc/security/faillock.conf
+      ansible.builtin.stat:
+        path: /etc/security/faillock.conf
+      register: pam_hardening_verify_conf
+
+    - name: Assert faillock.conf exists with correct owner and mode
+      ansible.builtin.assert:
+        that:
+          - pam_hardening_verify_conf.stat.exists
+          - pam_hardening_verify_conf.stat.isreg
+          - pam_hardening_verify_conf.stat.pw_name == 'root'
+          - pam_hardening_verify_conf.stat.gr_name == 'root'
+          - pam_hardening_verify_conf.stat.mode == '0644'
+        fail_msg: >-
+          /etc/security/faillock.conf missing or wrong permissions
+          (expected root:root 0644)
+
+    # ---- faillock.conf content ----
+
+    - name: Slurp faillock.conf
+      ansible.builtin.slurp:
+        src: /etc/security/faillock.conf
+      register: pam_hardening_verify_conf_raw
+
+    - name: Set faillock.conf text fact
+      ansible.builtin.set_fact:
+        pam_hardening_verify_conf_text: >-
+          {{ pam_hardening_verify_conf_raw.content | b64decode }}
+
+    - name: Assert faillock.conf deny setting matches default
+      ansible.builtin.assert:
+        that:
+          - >-
+            pam_hardening_verify_conf_text is search(
+            'deny = ' ~ pam_hardening_faillock_deny | string)
+        fail_msg: >-
+          faillock.conf deny value does not match expected
+          {{ pam_hardening_faillock_deny }}
+
+    - name: Assert faillock.conf fail_interval setting
+      ansible.builtin.assert:
+        that:
+          - >-
+            pam_hardening_verify_conf_text is search(
+            'fail_interval = ' ~ pam_hardening_faillock_fail_interval | string)
+        fail_msg: >-
+          faillock.conf fail_interval does not match expected
+          {{ pam_hardening_faillock_fail_interval }}
+
+    - name: Assert faillock.conf unlock_time setting
+      ansible.builtin.assert:
+        that:
+          - >-
+            pam_hardening_verify_conf_text is search(
+            'unlock_time = ' ~ pam_hardening_faillock_unlock_time | string)
+        fail_msg: >-
+          faillock.conf unlock_time does not match expected
+          {{ pam_hardening_faillock_unlock_time }}
+
+    - name: Assert faillock.conf root_unlock_time setting
+      ansible.builtin.assert:
+        that:
+          - >-
+            pam_hardening_verify_conf_text is search(
+            'root_unlock_time = ' ~ pam_hardening_faillock_root_unlock_time | string)
+        fail_msg: >-
+          faillock.conf root_unlock_time does not match expected
+          {{ pam_hardening_faillock_root_unlock_time }}
+
+    - name: Assert faillock.conf even_deny_root directive present
+      ansible.builtin.assert:
+        that:
+          - pam_hardening_verify_conf_text is search('(?m)^even_deny_root$')
+        fail_msg: >-
+          faillock.conf missing even_deny_root directive
+          (root would be exempt from lockout)
+      when: pam_hardening_faillock_even_deny_root
+
+    - name: Assert faillock.conf audit directive present
+      ansible.builtin.assert:
+        that:
+          - pam_hardening_verify_conf_text is search('(?m)^audit$')
+        fail_msg: "faillock.conf missing audit directive"
+      when: pam_hardening_faillock_audit
+
+    - name: Assert faillock.conf dir setting
+      ansible.builtin.assert:
+        that:
+          - "'dir = /run/faillock' in pam_hardening_verify_conf_text"
+        fail_msg: "faillock.conf missing 'dir = /run/faillock'"
+
+    - name: Assert faillock.conf Ansible managed header
+      ansible.builtin.assert:
+        that:
+          - "'Ansible managed' in pam_hardening_verify_conf_text"
+        fail_msg: "faillock.conf missing Ansible managed header"
+
+    # ---- PAM stack: Arch / Void ----
+
+    - name: Verify PAM stack on Arch/Void
+      when: ansible_facts['os_family'] in ['Archlinux', 'Void']
+      block:
+        - name: Slurp /etc/pam.d/system-auth
+          ansible.builtin.slurp:
+            src: /etc/pam.d/system-auth
+          register: pam_hardening_verify_system_auth_raw
+
+        - name: Set system-auth text fact
+          ansible.builtin.set_fact:
+            pam_hardening_verify_system_auth_text: >-
+              {{ pam_hardening_verify_system_auth_raw.content | b64decode }}
+
+        - name: Assert pam_faillock.so preauth in system-auth
+          ansible.builtin.assert:
+            that:
+              - >-
+                pam_hardening_verify_system_auth_text is search(
+                '(?m)^auth\s+required\s+pam_faillock\.so\s+preauth')
+            fail_msg: >-
+              /etc/pam.d/system-auth missing
+              'auth required pam_faillock.so preauth' line
+
+        - name: Assert pam_faillock.so authfail in system-auth
+          ansible.builtin.assert:
+            that:
+              - >-
+                pam_hardening_verify_system_auth_text is search(
+                '(?m)^auth\s+required\s+pam_faillock\.so\s+authfail')
+            fail_msg: >-
+              /etc/pam.d/system-auth missing
+              'auth required pam_faillock.so authfail' line
+
+        - name: Assert pam_faillock.so account in system-auth
+          ansible.builtin.assert:
+            that:
+              - >-
+                pam_hardening_verify_system_auth_text is search(
+                '(?m)^account\s+required\s+pam_faillock\.so')
+            fail_msg: >-
+              /etc/pam.d/system-auth missing
+              'account required pam_faillock.so' line
+
+    # ---- PAM stack: Debian / Ubuntu ----
+
+    - name: Verify PAM stack on Debian/Ubuntu
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+        - name: Stat pam-auth-update faillock profile
+          ansible.builtin.stat:
+            path: /usr/share/pam-configs/faillock
+          register: pam_hardening_verify_deb_profile
+
+        - name: Assert pam-auth-update faillock profile exists
+          ansible.builtin.assert:
+            that:
+              - pam_hardening_verify_deb_profile.stat.exists
+              - pam_hardening_verify_deb_profile.stat.isreg
+            fail_msg: "/usr/share/pam-configs/faillock not deployed"
+
+        - name: Stat pam-auth-update faillock-authfail profile
+          ansible.builtin.stat:
+            path: /usr/share/pam-configs/faillock-authfail
+          register: pam_hardening_verify_deb_authfail_profile
+
+        - name: Assert pam-auth-update faillock-authfail profile exists
+          ansible.builtin.assert:
+            that:
+              - pam_hardening_verify_deb_authfail_profile.stat.exists
+              - pam_hardening_verify_deb_authfail_profile.stat.isreg
+            fail_msg: "/usr/share/pam-configs/faillock-authfail not deployed"
+
+        - name: Slurp faillock pam-configs profile
+          ansible.builtin.slurp:
+            src: /usr/share/pam-configs/faillock
+          register: pam_hardening_verify_deb_profile_raw
+
+        - name: Assert faillock profile contains preauth
+          ansible.builtin.assert:
+            that:
+              - >-
+                (pam_hardening_verify_deb_profile_raw.content | b64decode)
+                is search('pam_faillock\.so preauth')
+            fail_msg: >-
+              /usr/share/pam-configs/faillock missing
+              pam_faillock.so preauth directive
+
+    # ---- PAM stack: RedHat / Fedora ----
+
+    - name: Verify PAM stack on RedHat/Fedora
+      when: ansible_facts['os_family'] == 'RedHat'
+      block:
+        - name: Check authselect current profile
+          ansible.builtin.command: authselect current
+          register: pam_hardening_verify_authselect
+          changed_when: false
+
+        - name: Assert authselect has with-faillock feature
+          ansible.builtin.assert:
+            that:
+              - "'with-faillock' in pam_hardening_verify_authselect.stdout"
+            fail_msg: >-
+              authselect does not have with-faillock feature enabled.
+              Output: {{ pam_hardening_verify_authselect.stdout }}
+
+    # ---- Diagnostic ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          pam_hardening verify passed on {{ ansible_facts['os_family'] }}:
+          faillock.conf deployed (root:root 0644) with correct parameters,
+          PAM stack configured for {{ ansible_facts['distribution'] }}.
