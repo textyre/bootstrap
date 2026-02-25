@@ -70,7 +70,7 @@
       | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass_zen'} if ansible_become_password is defined else {})
     }}
   register: zen_browser_install
-  changed_when: "'there is nothing to do' not in _zen_browser_install.stdout | default('')"
+  changed_when: "'there is nothing to do' not in zen_browser_install.stdout | default('')"
   when: zen_browser_exists.rc != 0
   tags: ['zen_browser', 'browser']
 
@@ -113,7 +113,7 @@
   changed_when: true
   when:
     - zen_browser_set_default
-    - _zen_browser_current_default.stdout | default('') != zen_browser_desktop_file
+    - zen_browser_current_default.stdout | default('') != zen_browser_desktop_file
   tags: ['zen_browser', 'browser', 'configure']
 
 # ---- Отчёт ----
