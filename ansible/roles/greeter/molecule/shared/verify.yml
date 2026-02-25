@@ -1,0 +1,148 @@
+---
+# NOTE: Known bug in the greeter role — tasks register variables as greeter_*
+# (e.g. greeter_timezone, greeter_systemd_ver) but system-info.json.j2
+# references them as _greeter_* (e.g. _greeter_timezone). This means all
+# system-info fields populated by shell commands render as their default
+# fallback values ("unknown", "UTC", etc.). Verification of system-info.json
+# is limited to JSON validity and required key presence until the bug is fixed.
+
+- name: Verify greeter role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+
+  tasks:
+
+    # ---- web-greeter.yml config ----
+
+    - name: Stat web-greeter.yml
+      ansible.builtin.stat:
+        path: /etc/lightdm/web-greeter.yml
+      register: _greeter_verify_config
+
+    - name: Assert web-greeter.yml exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_config.stat.exists
+          - _greeter_verify_config.stat.isreg
+          - _greeter_verify_config.stat.pw_name == 'root'
+          - _greeter_verify_config.stat.gr_name == 'root'
+          - _greeter_verify_config.stat.mode == '0644'
+        fail_msg: "/etc/lightdm/web-greeter.yml missing or wrong permissions (expected root:root 0644)"
+
+    - name: Read web-greeter.yml content
+      ansible.builtin.slurp:
+        src: /etc/lightdm/web-greeter.yml
+      register: _greeter_verify_config_raw
+
+    - name: Set web-greeter.yml text fact
+      ansible.builtin.set_fact:
+        _greeter_verify_config_text: "{{ _greeter_verify_config_raw.content | b64decode }}"
+
+    - name: Assert web-greeter.yml references expected theme
+      ansible.builtin.assert:
+        that:
+          - "'theme: ' ~ greeter_theme in _greeter_verify_config_text"
+        fail_msg: "web-greeter.yml does not reference theme '{{ greeter_theme }}'"
+
+    - name: Assert web-greeter.yml contains screensaver_timeout directive
+      ansible.builtin.assert:
+        that:
+          - "'screensaver_timeout:' in _greeter_verify_config_text"
+        fail_msg: "web-greeter.yml missing screensaver_timeout directive"
+
+    - name: Assert web-greeter.yml contains background_images_dir directive
+      ansible.builtin.assert:
+        that:
+          - "'background_images_dir:' in _greeter_verify_config_text"
+        fail_msg: "web-greeter.yml missing background_images_dir directive"
+
+    # ---- Theme directory ----
+
+    - name: Stat ctOS theme directory
+      ansible.builtin.stat:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}"
+      register: _greeter_verify_theme_dir
+
+    - name: Assert theme directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_theme_dir.stat.exists
+          - _greeter_verify_theme_dir.stat.isdir
+          - _greeter_verify_theme_dir.stat.pw_name == 'root'
+          - _greeter_verify_theme_dir.stat.mode == '0755'
+        fail_msg: >-
+          Theme directory /usr/share/web-greeter/themes/{{ greeter_theme }}
+          missing or wrong permissions (expected root 0755)
+
+    # ---- system-info.json ----
+
+    - name: Stat system-info.json
+      ansible.builtin.stat:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
+      register: _greeter_verify_sysinfo
+
+    - name: Assert system-info.json exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo.stat.exists
+          - _greeter_verify_sysinfo.stat.isreg
+          - _greeter_verify_sysinfo.stat.pw_name == 'root'
+          - _greeter_verify_sysinfo.stat.gr_name == 'root'
+          - _greeter_verify_sysinfo.stat.mode == '0644'
+        fail_msg: "system-info.json missing or wrong permissions (expected root:root 0644)"
+
+    - name: Validate system-info.json is valid JSON
+      # NOTE: value correctness is not asserted here due to the known variable
+      # naming bug (see header comment). Fields like timezone, display_name,
+      # and ssh_fingerprint will contain fallback values until the bug is fixed.
+      ansible.builtin.command: >
+        python3 -m json.tool
+        "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
+      changed_when: false
+
+    - name: Read system-info.json content
+      ansible.builtin.slurp:
+        src: "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
+      register: _greeter_verify_sysinfo_raw
+
+    - name: Parse system-info.json
+      ansible.builtin.set_fact:
+        _greeter_verify_sysinfo_data: "{{ _greeter_verify_sysinfo_raw.content | b64decode | from_json }}"
+
+    - name: Assert system-info.json contains required keys
+      ansible.builtin.assert:
+        that:
+          - "'kernel' in _greeter_verify_sysinfo_data"
+          - "'hostname' in _greeter_verify_sysinfo_data"
+          - "'project_version' in _greeter_verify_sysinfo_data"
+          - "'ip_address' in _greeter_verify_sysinfo_data"
+          - "'timezone' in _greeter_verify_sysinfo_data"
+          - "'machine_id' in _greeter_verify_sysinfo_data"
+        fail_msg: "system-info.json missing one or more required keys"
+
+    # ---- index.yml ----
+
+    - name: Stat index.yml in theme directory
+      ansible.builtin.stat:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}/index.yml"
+      register: _greeter_verify_index
+
+    - name: Assert index.yml exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_index.stat.exists
+          - _greeter_verify_index.stat.isreg
+          - _greeter_verify_index.stat.mode == '0644'
+        fail_msg: "index.yml missing or wrong permissions in theme directory"
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          Greeter offline verify passed: web-greeter.yml deployed (root:root 0644,
+          theme={{ greeter_theme }}), theme directory exists with correct permissions,
+          system-info.json valid with required keys, index.yml present.

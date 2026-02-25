@@ -1,0 +1,62 @@
+---
+# Prepare greeter Docker test environment.
+#
+# Creates a minimal stub of the greeter build output so the role's assertion
+# on greeter_dist_dir and its copy tasks succeed without needing a real
+# `yarn build` output inside the container.
+#
+# Stub mirrors the real repo structure expected by defaults/main.yml:
+#   REPO_ROOT/greeter/dist/    → greeter_dist_dir
+#   REPO_ROOT/greeter/index.yml → greeter_index_yml
+#
+# With REPO_ROOT=/opt/greeter-stub (set in molecule.yml provisioner env):
+#   greeter_dist_dir  = /opt/greeter-stub/greeter/dist
+#   greeter_index_yml = /opt/greeter-stub/greeter/index.yml
+
+- name: Prepare greeter environment
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+
+    - name: Update pacman package cache
+      community.general.pacman:
+        update_cache: true
+
+    - name: Install python3 (required for JSON validation in verify)
+      community.general.pacman:
+        name: python
+        state: present
+
+    - name: Create stub greeter dist directory
+      ansible.builtin.file:
+        path: /opt/greeter-stub/greeter/dist/assets
+        state: directory
+        mode: '0755'
+
+    - name: Create stub index.html in dist
+      ansible.builtin.copy:
+        content: |
+          <!DOCTYPE html>
+          <html><head><title>ctOS Greeter Stub</title></head>
+          <body>Stub for molecule testing</body></html>
+        dest: /opt/greeter-stub/greeter/dist/index.html
+        mode: '0644'
+
+    - name: Create stub index.yml (theme metadata)
+      ansible.builtin.copy:
+        content: |
+          primary_html: "index.html"
+          secondary_html: "index.html"
+        dest: /opt/greeter-stub/greeter/index.yml
+        mode: '0644'
+
+    - name: Create /etc/lightdm config directory
+      # lightdm is not installed in the container (web-greeter is AUR-only);
+      # the role writes the config file here unconditionally.
+      ansible.builtin.file:
+        path: /etc/lightdm
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
