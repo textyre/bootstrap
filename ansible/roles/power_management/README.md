@@ -440,6 +440,74 @@ loki.source.journal "power_audit" {
 }
 ```
 
+## Testing
+
+Three Molecule scenarios cover different environments.
+
+### Scenarios
+
+| Scenario | Driver | Platform | Purpose |
+|----------|--------|----------|---------|
+| `default` | `default` (localhost) | Local system (Arch) | Fast iteration, full hardware access |
+| `docker` | Docker | `arch-systemd` container | CI, file deployment and service checks |
+| `vagrant` | Vagrant + libvirt | Arch VM + Ubuntu 24.04 VM | Multi-distro integration with real kernel |
+
+All scenarios share `molecule/shared/converge.yml` and `molecule/shared/verify.yml` so the
+assertions are consistent across environments.
+
+### Running tests
+
+```bash
+# Localhost (default scenario)
+cd ansible/roles/power_management
+molecule test
+
+# Docker (requires MOLECULE_ARCH_IMAGE or uses ghcr.io/textyre/bootstrap/arch-systemd:latest)
+molecule test -s docker
+
+# Vagrant + libvirt (requires vagrant + vagrant-libvirt on host)
+molecule test -s vagrant
+```
+
+### What is tested
+
+The shared verify playbook asserts:
+
+- **Packages:** `cpupower` on Arch; `linux-cpupower` or `linux-tools-common` on Debian
+- **sleep.conf:** deployed with mode `0644`, contains `[Sleep]`, `HibernateMode=platform`, Ansible header
+- **logind.conf:** deployed with mode `0644`, contains all 8 logind directives with default values
+- **udev rule:** `50-cpu-governor.rules` deployed with correct `schedutil` governor (desktop path)
+- **Audit infra:** `power-audit.sh` (mode `0755`), `power-audit.service`, `power-audit.timer` deployed and enabled
+- **Conflict masking:** `power-profiles-daemon` and `auto-cpufreq` masked or absent
+- **Drift state:** `/var/lib/ansible-power-management/` (mode `0700`) and `last_state.json` (mode `0600`) with required JSON keys
+
+Hardware-dependent checks (CPU governor from `/sys/`, TLP service state, battery thresholds)
+are conditional — they run only when `/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
+exists. Docker containers normally lack this path; Vagrant VMs may have it depending on the
+KVM host's cpufreq configuration.
+
+### Converge overrides for test environments
+
+Test converge forces desktop mode to avoid hardware dependencies:
+
+```yaml
+power_management_device_type: desktop   # QEMU/containers report non-laptop chassis
+power_management_assert_strict: false   # No cpufreq in containers → skip governor assert
+power_management_audit_battery: false   # No battery in VMs/containers
+```
+
+### Testing the laptop path
+
+To exercise TLP installation, config deployment, and service enablement, override in a custom converge:
+
+```yaml
+power_management_device_type: laptop
+power_management_assert_strict: false
+power_management_audit_battery: false
+```
+
+This is not covered by the default scenarios (no real or simulated battery available in CI).
+
 ## Requirements
 
 - Ansible 2.15+
