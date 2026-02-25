@@ -1,0 +1,23 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Gather package facts (required by preflight pciutils assertion)
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Ensure pciutils is installed
+      ansible.builtin.package:
+        name: pciutils
+        state: present
+
+    - name: Re-gather package facts after pciutils install
+      ansible.builtin.package_facts:
+        manager: auto
+
+  roles:
+    - role: gpu_drivers
+      vars:
+        gpu_drivers_vendor: intel

@@ -130,6 +130,38 @@ Detects the installed GPU automatically via `lspci`, or accepts a manual overrid
     gpu_drivers_vendor: none
 ```
 
+## Testing
+
+Three Molecule scenarios are provided:
+
+| Scenario | Driver | Platform | Purpose |
+|----------|--------|----------|---------|
+| `default` | localhost | Host machine | Fast local iteration |
+| `docker` | Docker | Arch Linux (systemd container) | CI — package install + config file assertions |
+| `vagrant` | Vagrant (libvirt) | Arch Linux + Ubuntu 24.04 | Cross-platform, real VMs |
+
+All scenarios use `gpu_drivers_vendor: intel` (Intel = pure Mesa, no DKMS, no kernel modules) to enable testing in GPU-less environments.
+
+**What is tested:**
+- Intel driver packages installed (`mesa`, `vulkan-intel`, `intel-media-driver` on Arch; `intel-media-va-driver`, `mesa-vulkan-drivers`, `libgl1-mesa-dri` on Ubuntu)
+- `vulkan-tools` installed
+- `/etc/environment.d/gpu.conf` exists with mode `0644`, contains `LIBVA_DRIVER_NAME=iHD`
+- NVIDIA-specific configs are absent (`/etc/modprobe.d/nvidia.conf`, `nvidia-blacklist.conf`, mkinitcpio/dracut drop-ins)
+- Idempotence (zero changed on second run)
+
+**NVIDIA driver packages cannot be tested in CI** — they require DKMS and kernel headers that are not present in containers or headless VMs.
+
+```bash
+# Run default scenario (localhost)
+molecule test -s default
+
+# Run Docker scenario
+molecule test -s docker
+
+# Run Vagrant scenario (requires libvirt)
+molecule test -s vagrant
+```
+
 ## Requirements
 
 - Ansible 2.15+
