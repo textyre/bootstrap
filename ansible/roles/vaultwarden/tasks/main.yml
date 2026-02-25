@@ -50,7 +50,7 @@
 - name: Check if admin token file exists
   ansible.builtin.stat:
     path: "{{ vaultwarden_base_dir }}/.admin_token"
-  register: vaultwarden_token_file
+  register: _vaultwarden_token_file
   when: vaultwarden_enabled and vaultwarden_admin_enabled
   tags: ['vaultwarden', 'secrets']
 
@@ -116,7 +116,7 @@
     project_src: "{{ vaultwarden_base_dir }}"
     state: present
   when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+  tags: ['vaultwarden', 'secrets', 'molecule-notest']
 
 # ---- Бэкап ----
 
@@ -136,7 +136,7 @@
     enabled: true
     state: started
   when: vaultwarden_enabled and vaultwarden_backup_enabled
-  tags: ['vaultwarden', 'secrets']
+  tags: ['vaultwarden', 'secrets', 'molecule-notest']
 
 - name: Configure Vaultwarden backup cron job
   ansible.builtin.cron:

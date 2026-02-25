@@ -1,0 +1,31 @@
+---
+- name: Prepare (stub docker + caddy dependencies)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update pacman package cache
+      community.general.pacman:
+        update_cache: true
+
+    - name: Install openssl (needed for admin token generation)
+      community.general.pacman:
+        name: openssl
+        state: present
+
+    - name: Install cronie (needed for backup cron)
+      community.general.pacman:
+        name: cronie
+        state: present
+
+    - name: Create Caddy directories (stub for caddy role)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /opt/caddy
+        - /opt/caddy/sites

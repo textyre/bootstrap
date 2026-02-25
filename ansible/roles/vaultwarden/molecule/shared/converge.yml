@@ -1,0 +1,13 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Set test admin token (no vault needed in molecule)
+      ansible.builtin.set_fact:
+        vault_vaultwarden_admin_token: "molecule-test-token-not-for-production"
+
+  roles:
+    - role: vaultwarden
