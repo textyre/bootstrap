@@ -2,7 +2,9 @@
   "mcpServers": {
     "supergrep": {
       "command": "supergrep",
-      "args": ["mcp-serve"]
+      "args": [
+        "mcp-serve"
+      ]
     }
   }
 }
