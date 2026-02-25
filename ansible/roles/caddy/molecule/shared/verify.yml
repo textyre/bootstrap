@@ -1,0 +1,297 @@
+---
+- name: Verify caddy role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+
+    # ===========================================================
+    # Directory structure
+    # ===========================================================
+
+    - name: Stat caddy base directory
+      ansible.builtin.stat:
+        path: "{{ caddy_base_dir }}"
+      register: caddy_verify_base_dir
+
+    - name: Assert caddy base directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - caddy_verify_base_dir.stat.exists
+          - caddy_verify_base_dir.stat.isdir
+          - caddy_verify_base_dir.stat.pw_name == 'root'
+          - caddy_verify_base_dir.stat.gr_name == 'root'
+          - caddy_verify_base_dir.stat.mode == '0755'
+        fail_msg: >-
+          {{ caddy_base_dir }} missing or wrong permissions
+          (expected root:root 0755)
+
+    - name: Stat caddy subdirectories
+      ansible.builtin.stat:
+        path: "{{ caddy_base_dir }}/{{ item }}"
+      loop:
+        - sites
+        - data
+        - config
+      register: caddy_verify_subdirs
+
+    - name: Assert caddy subdirectories exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "{{ item.item }} directory missing under {{ caddy_base_dir }}"
+      loop: "{{ caddy_verify_subdirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ===========================================================
+    # Caddyfile -- existence and permissions
+    # ===========================================================
+
+    - name: Stat Caddyfile
+      ansible.builtin.stat:
+        path: "{{ caddy_base_dir }}/Caddyfile"
+      register: caddy_verify_caddyfile
+
+    - name: Assert Caddyfile exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - caddy_verify_caddyfile.stat.exists
+          - caddy_verify_caddyfile.stat.isreg
+          - caddy_verify_caddyfile.stat.pw_name == 'root'
+          - caddy_verify_caddyfile.stat.gr_name == 'root'
+          - caddy_verify_caddyfile.stat.mode == '0644'
+        fail_msg: >-
+          {{ caddy_base_dir }}/Caddyfile missing or wrong permissions
+          (expected root:root 0644)
+
+    # ===========================================================
+    # Caddyfile -- content assertions
+    # ===========================================================
+
+    - name: Read Caddyfile
+      ansible.builtin.slurp:
+        src: "{{ caddy_base_dir }}/Caddyfile"
+      register: caddy_verify_caddyfile_raw
+
+    - name: Set Caddyfile text fact
+      ansible.builtin.set_fact:
+        caddy_verify_caddyfile_text: "{{ caddy_verify_caddyfile_raw.content | b64decode }}"
+
+    - name: Assert Caddyfile contains Ansible managed marker
+      ansible.builtin.assert:
+        that: "'Ansible' in caddy_verify_caddyfile_text"
+        fail_msg: "Ansible managed marker not found in Caddyfile"
+
+    - name: Assert Caddyfile contains admin off directive
+      ansible.builtin.assert:
+        that: "'admin off' in caddy_verify_caddyfile_text"
+        fail_msg: "'admin off' directive missing from Caddyfile"
+
+    - name: Assert Caddyfile contains local_certs (internal TLS mode)
+      ansible.builtin.assert:
+        that: "'local_certs' in caddy_verify_caddyfile_text"
+        fail_msg: "'local_certs' directive missing from Caddyfile (expected for tls_mode=internal)"
+      when: caddy_tls_mode == "internal"
+
+    - name: Assert Caddyfile does NOT contain local_certs (ACME TLS mode)
+      ansible.builtin.assert:
+        that: "'local_certs' not in caddy_verify_caddyfile_text"
+        fail_msg: "'local_certs' directive found in Caddyfile but tls_mode is 'acme'"
+      when: caddy_tls_mode == "acme"
+
+    - name: Assert Caddyfile imports sites directory
+      ansible.builtin.assert:
+        that: "'import /etc/caddy/sites/*.caddy' in caddy_verify_caddyfile_text"
+        fail_msg: "'import /etc/caddy/sites/*.caddy' directive missing from Caddyfile"
+
+    # ===========================================================
+    # docker-compose.yml -- existence and permissions
+    # ===========================================================
+
+    - name: Stat docker-compose.yml
+      ansible.builtin.stat:
+        path: "{{ caddy_base_dir }}/docker-compose.yml"
+      register: caddy_verify_compose
+
+    - name: Assert docker-compose.yml exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - caddy_verify_compose.stat.exists
+          - caddy_verify_compose.stat.isreg
+          - caddy_verify_compose.stat.pw_name == 'root'
+          - caddy_verify_compose.stat.gr_name == 'root'
+          - caddy_verify_compose.stat.mode == '0644'
+        fail_msg: >-
+          {{ caddy_base_dir }}/docker-compose.yml missing or wrong permissions
+          (expected root:root 0644)
+
+    # ===========================================================
+    # docker-compose.yml -- content assertions
+    # ===========================================================
+
+    - name: Read docker-compose.yml
+      ansible.builtin.slurp:
+        src: "{{ caddy_base_dir }}/docker-compose.yml"
+      register: caddy_verify_compose_raw
+
+    - name: Set docker-compose.yml text fact
+      ansible.builtin.set_fact:
+        caddy_verify_compose_text: "{{ caddy_verify_compose_raw.content | b64decode }}"
+
+    - name: Assert docker-compose.yml contains Ansible managed marker
+      ansible.builtin.assert:
+        that: "'Ansible' in caddy_verify_compose_text"
+        fail_msg: "Ansible managed marker not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml uses caddy:2-alpine image
+      ansible.builtin.assert:
+        that: "'caddy:2-alpine' in caddy_verify_compose_text"
+        fail_msg: "caddy:2-alpine image not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml maps HTTPS port
+      ansible.builtin.assert:
+        that: "'{{ caddy_https_port | string }}:443' in caddy_verify_compose_text"
+        fail_msg: "HTTPS port mapping {{ caddy_https_port }}:443 not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml maps HTTP port
+      ansible.builtin.assert:
+        that: "'{{ caddy_http_port | string }}:80' in caddy_verify_compose_text"
+        fail_msg: "HTTP port mapping {{ caddy_http_port }}:80 not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml mounts Caddyfile
+      ansible.builtin.assert:
+        that: "'{{ caddy_base_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro' in caddy_verify_compose_text"
+        fail_msg: "Caddyfile volume mount not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml mounts sites directory
+      ansible.builtin.assert:
+        that: "'{{ caddy_base_dir }}/sites:/etc/caddy/sites:ro' in caddy_verify_compose_text"
+        fail_msg: "Sites volume mount not found in docker-compose.yml"
+
+    - name: Assert docker-compose.yml references proxy network
+      ansible.builtin.assert:
+        that: "'{{ caddy_docker_network }}' in caddy_verify_compose_text"
+        fail_msg: "Docker network '{{ caddy_docker_network }}' not found in docker-compose.yml"
+
+    # ===========================================================
+    # Docker network and container (requires Docker daemon)
+    # ===========================================================
+
+    - name: Check Docker daemon is running  # noqa: command-instead-of-module
+      ansible.builtin.command: docker info
+      register: caddy_verify_docker_info
+      changed_when: false
+      failed_when: false
+
+    - name: Docker network and container assertions
+      when: caddy_verify_docker_info.rc == 0
+      block:
+
+        - name: Check proxy Docker network exists  # noqa: command-instead-of-module
+          ansible.builtin.command: docker network inspect {{ caddy_docker_network }}
+          register: caddy_verify_network
+          changed_when: false
+          failed_when: false
+
+        - name: Assert proxy Docker network exists
+          ansible.builtin.assert:
+            that: caddy_verify_network.rc == 0
+            fail_msg: >-
+              Docker network '{{ caddy_docker_network }}' does not exist.
+              Expected the caddy role to create it.
+
+        - name: Check caddy container is running  # noqa: command-instead-of-module
+          ansible.builtin.command: >
+            docker inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' caddy
+          register: caddy_verify_container_status
+          changed_when: false
+          failed_when: false
+
+        - name: Assert caddy container is running
+          ansible.builtin.assert:
+            that:
+              - caddy_verify_container_status.rc == 0
+              - caddy_verify_container_status.stdout == 'running'
+            fail_msg: >-
+              Caddy container is not running.
+              Status: {{ caddy_verify_container_status.stdout | default('container not found') }}
+
+        - name: Validate Caddyfile syntax inside container  # noqa: command-instead-of-module
+          ansible.builtin.command: docker exec caddy caddy validate --config /etc/caddy/Caddyfile
+          register: caddy_verify_validate
+          changed_when: false
+          failed_when: false
+
+        - name: Assert Caddyfile validation passed
+          ansible.builtin.assert:
+            that: caddy_verify_validate.rc == 0
+            fail_msg: >-
+              Caddyfile validation failed inside container:
+              {{ caddy_verify_validate.stderr | default('') }}
+
+        - name: Check caddy container is connected to proxy network  # noqa: command-instead-of-module
+          ansible.builtin.command: >
+            docker inspect --format '{{ '{{' }}json .NetworkSettings.Networks{{ '}}' }}' caddy
+          register: caddy_verify_container_networks
+          changed_when: false
+          failed_when: false
+
+        - name: Assert caddy container is connected to proxy network
+          ansible.builtin.assert:
+            that: "'{{ caddy_docker_network }}' in caddy_verify_container_networks.stdout"
+            fail_msg: >-
+              Caddy container is not connected to '{{ caddy_docker_network }}' network.
+              Networks: {{ caddy_verify_container_networks.stdout | default('') }}
+
+    - name: Warn if Docker daemon not available (config-only verification)
+      ansible.builtin.debug:
+        msg: >-
+          Docker daemon not available (rc={{ caddy_verify_docker_info.rc }}).
+          Skipping Docker network, container, and caddy validate checks.
+          This is expected in molecule Docker (container) scenarios.
+      when: caddy_verify_docker_info.rc != 0
+
+    # ===========================================================
+    # CA trust (Arch Linux + internal TLS only, requires Docker daemon)
+    # ===========================================================
+
+    - name: Verify CA trust deployment
+      when:
+        - caddy_tls_mode == "internal"
+        - caddy_verify_docker_info.rc == 0
+        - ansible_facts['os_family'] == 'Archlinux'
+      block:
+
+        - name: Stat Caddy root CA in system trust store
+          ansible.builtin.stat:
+            path: /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+          register: caddy_verify_ca_cert
+
+        - name: Assert Caddy root CA exists in trust store
+          ansible.builtin.assert:
+            that:
+              - caddy_verify_ca_cert.stat.exists
+              - caddy_verify_ca_cert.stat.mode == '0644'
+            fail_msg: >-
+              Caddy root CA not found at
+              /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+              or has wrong permissions
+
+    # ===========================================================
+    # Summary
+    # ===========================================================
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          Caddy role verify passed on
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+          Docker checks: {{ 'enabled' if caddy_verify_docker_info.rc == 0 else 'skipped (no daemon)' }}.
+          CA trust checks: {{ 'enabled' if (caddy_tls_mode == 'internal' and
+          caddy_verify_docker_info.rc == 0 and
+          ansible_facts['os_family'] == 'Archlinux') else 'skipped' }}.

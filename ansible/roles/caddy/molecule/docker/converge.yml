@@ -1,0 +1,42 @@
+---
+- name: Converge (config-only -- no Docker daemon available)
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+
+  tasks:
+
+    # ---- Directory structure ----
+
+    - name: Create Caddy directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - "{{ caddy_base_dir }}"
+        - "{{ caddy_base_dir }}/sites"
+        - "{{ caddy_base_dir }}/data"
+        - "{{ caddy_base_dir }}/config"
+
+    # ---- Configuration files ----
+
+    - name: Deploy Caddyfile
+      ansible.builtin.template:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/Caddyfile.j2"
+        dest: "{{ caddy_base_dir }}/Caddyfile"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy docker-compose.yml
+      ansible.builtin.template:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/docker-compose.yml.j2"
+        dest: "{{ caddy_base_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: '0644'
