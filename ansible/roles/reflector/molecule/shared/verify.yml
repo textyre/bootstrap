@@ -1,0 +1,190 @@
+---
+- name: Verify reflector role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+
+    # ---- Package installed ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert reflector package is installed
+      ansible.builtin.assert:
+        that: "'reflector' in ansible_facts.packages"
+        fail_msg: "reflector package not found"
+
+    # ---- Config file ----
+
+    - name: Stat reflector config
+      ansible.builtin.stat:
+        path: "{{ reflector_conf_path }}"
+      register: reflector_verify_conf
+
+    - name: Assert reflector config exists
+      ansible.builtin.assert:
+        that:
+          - reflector_verify_conf.stat.exists
+          - reflector_verify_conf.stat.isreg
+          - reflector_verify_conf.stat.pw_name == 'root'
+          - reflector_verify_conf.stat.mode == '0644'
+        fail_msg: "{{ reflector_conf_path }} missing or wrong permissions"
+
+    - name: Read reflector config content
+      ansible.builtin.slurp:
+        src: "{{ reflector_conf_path }}"
+      register: reflector_verify_conf_raw
+
+    - name: Set config text fact
+      ansible.builtin.set_fact:
+        reflector_verify_conf_text: "{{ reflector_verify_conf_raw.content | b64decode }}"
+
+    - name: Assert config contains expected directives
+      ansible.builtin.assert:
+        that:
+          - "'--protocol ' ~ reflector_protocol in reflector_verify_conf_text"
+          - "'--sort ' ~ reflector_sort in reflector_verify_conf_text"
+          - "'--latest ' ~ reflector_latest | string in reflector_verify_conf_text"
+          - "'--age ' ~ reflector_age | string in reflector_verify_conf_text"
+          - "'--country ' ~ reflector_countries in reflector_verify_conf_text"
+          - "'--save ' ~ reflector_mirrorlist_path in reflector_verify_conf_text"
+        fail_msg: "reflector.conf missing expected directives"
+
+    # ---- Timer drop-in ----
+
+    - name: Stat timer drop-in
+      ansible.builtin.stat:
+        path: /etc/systemd/system/reflector.timer.d/override.conf
+      register: reflector_verify_dropin
+
+    - name: Assert timer drop-in exists
+      ansible.builtin.assert:
+        that:
+          - reflector_verify_dropin.stat.exists
+          - reflector_verify_dropin.stat.isreg
+        fail_msg: "Timer drop-in /etc/systemd/system/reflector.timer.d/override.conf missing"
+
+    - name: Read timer drop-in content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/reflector.timer.d/override.conf
+      register: reflector_verify_dropin_raw
+
+    - name: Assert timer drop-in contains expected values
+      ansible.builtin.assert:
+        that:
+          - "'OnCalendar=' ~ reflector_timer_schedule in (reflector_verify_dropin_raw.content | b64decode)"
+          - "'RandomizedDelaySec=' ~ reflector_timer_randomized_delay in (reflector_verify_dropin_raw.content | b64decode)"
+        fail_msg: "Timer drop-in missing OnCalendar or RandomizedDelaySec"
+
+    # ---- Timer service state ----
+
+    - name: Check reflector.timer is enabled
+      ansible.builtin.command: systemctl is-enabled reflector.timer
+      register: reflector_verify_timer_enabled
+      changed_when: false
+      failed_when: reflector_verify_timer_enabled.rc != 0
+
+    - name: Assert reflector.timer is enabled
+      ansible.builtin.assert:
+        that: reflector_verify_timer_enabled.stdout == 'enabled'
+        fail_msg: "reflector.timer is not enabled (got: {{ reflector_verify_timer_enabled.stdout }})"
+
+    # ---- Pacman hook ----
+
+    - name: Stat pacman hooks directory
+      ansible.builtin.stat:
+        path: /etc/pacman.d/hooks
+      register: reflector_verify_hooks_dir
+      when: reflector_pacman_hook | bool
+
+    - name: Assert pacman hooks directory exists
+      ansible.builtin.assert:
+        that:
+          - reflector_verify_hooks_dir.stat.exists
+          - reflector_verify_hooks_dir.stat.isdir
+        fail_msg: "/etc/pacman.d/hooks directory missing"
+      when: reflector_pacman_hook | bool
+
+    - name: Stat pacman hook file
+      ansible.builtin.stat:
+        path: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+      register: reflector_verify_hook
+      when: reflector_pacman_hook | bool
+
+    - name: Assert pacman hook file exists
+      ansible.builtin.assert:
+        that:
+          - reflector_verify_hook.stat.exists
+          - reflector_verify_hook.stat.isreg
+        fail_msg: "Pacman hook /etc/pacman.d/hooks/reflector-mirrorlist.hook missing"
+      when: reflector_pacman_hook | bool
+
+    - name: Read pacman hook content
+      ansible.builtin.slurp:
+        src: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+      register: reflector_verify_hook_raw
+      when: reflector_pacman_hook | bool
+
+    - name: Assert hook content references pacman-mirrorlist and --config
+      ansible.builtin.assert:
+        that:
+          - "'pacman-mirrorlist' in (reflector_verify_hook_raw.content | b64decode)"
+          - "'--config' in (reflector_verify_hook_raw.content | b64decode)"
+        fail_msg: "Hook file missing expected content (pacman-mirrorlist or --config)"
+      when: reflector_pacman_hook | bool
+
+    # ---- Mirrorlist (online checks -- only when update was run) ----
+
+    - name: Stat mirrorlist
+      ansible.builtin.stat:
+        path: "{{ reflector_mirrorlist_path }}"
+      register: reflector_verify_mirrorlist
+
+    - name: Validate mirrorlist contains Server entries
+      ansible.builtin.command: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
+      register: reflector_verify_server_count
+      changed_when: false
+      failed_when: reflector_verify_server_count.stdout | int < 3
+      when:
+        - reflector_verify_mirrorlist.stat.exists
+        - reflector_verify_mirrorlist.stat.size > 0
+
+    # ---- Backup rotation (online checks -- only when backups exist) ----
+
+    - name: Count mirrorlist backup files
+      ansible.builtin.find:
+        paths: "{{ reflector_mirrorlist_path | dirname }}"
+        patterns: "mirrorlist.bak.*"
+      register: reflector_verify_backups
+      when:
+        - reflector_verify_mirrorlist.stat.exists
+        - reflector_backup_mirrorlist | bool
+
+    - name: Assert backup count does not exceed reflector_backup_keep
+      ansible.builtin.assert:
+        that:
+          - reflector_verify_backups.matched <= reflector_backup_keep | int
+        fail_msg: >
+          Found {{ reflector_verify_backups.matched }} backup files,
+          expected <= {{ reflector_backup_keep }}
+      when:
+        - reflector_verify_backups is defined
+        - not (reflector_verify_backups is skipped)
+        - reflector_backup_keep | int > 0
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          Reflector verify passed: package installed, config deployed at
+          {{ reflector_conf_path }}, timer drop-in configured, timer enabled,
+          pacman hook {{ 'deployed' if reflector_pacman_hook | bool else 'skipped' }}.
+          Mirrorlist: {{ 'validated (' ~ reflector_verify_server_count.stdout | default('N/A') ~ ' servers)'
+          if (reflector_verify_mirrorlist.stat.exists and reflector_verify_mirrorlist.stat.size > 0)
+          else 'not checked (update was skipped)' }}.
