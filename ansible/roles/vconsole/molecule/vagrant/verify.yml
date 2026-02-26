@@ -1,0 +1,127 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    verify_keymap: "us"
+    verify_font: >-
+      {{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+    verify_font_package: >-
+      {{ 'terminus-font' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+    verify_gpm_enabled: false
+
+  tasks:
+
+    # ---- /etc/vconsole.conf (systemd) ----
+
+    - name: Stat /etc/vconsole.conf
+      ansible.builtin.stat:
+        path: /etc/vconsole.conf
+      register: vconsole_verify_stat
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert /etc/vconsole.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - vconsole_verify_stat.stat.exists
+          - vconsole_verify_stat.stat.isreg
+          - vconsole_verify_stat.stat.pw_name == 'root'
+          - vconsole_verify_stat.stat.gr_name == 'root'
+          - vconsole_verify_stat.stat.mode == '0644'
+        fail_msg: "/etc/vconsole.conf missing or wrong permissions (expected root:root 0644)"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Slurp /etc/vconsole.conf
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: vconsole_verify_slurp
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Set vconsole.conf content fact
+      ansible.builtin.set_fact:
+        vconsole_verify_content: "{{ vconsole_verify_slurp.content | b64decode }}"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert KEYMAP is set correctly
+      ansible.builtin.assert:
+        that: "'KEYMAP=' + verify_keymap in vconsole_verify_content"
+        fail_msg: "KEYMAP={{ verify_keymap }} not found in /etc/vconsole.conf"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert FONT is set correctly
+      ansible.builtin.assert:
+        that: "'FONT=' + verify_font in vconsole_verify_content"
+        fail_msg: "FONT={{ verify_font }} not found in /etc/vconsole.conf"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - verify_font | default('') | length > 0
+
+    # ---- localectl verification (vagrant VMs have real systemd) ----
+
+    - name: Check localectl status
+      ansible.builtin.command: localectl status
+      register: vconsole_verify_localectl
+      changed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert VC Keymap shown by localectl
+      ansible.builtin.assert:
+        that:
+          - vconsole_verify_localectl.stdout is search('VC Keymap:\s+' + verify_keymap)
+        fail_msg: >-
+          localectl does not show VC Keymap={{ verify_keymap }}.
+          Output: {{ vconsole_verify_localectl.stdout }}
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- Font package ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_font | default('') | length > 0
+
+    - name: Assert console font package is installed
+      ansible.builtin.assert:
+        that: verify_font_package in ansible_facts.packages
+        fail_msg: "{{ verify_font_package }} package not installed"
+      when: verify_font | default('') | length > 0
+
+    # ---- GPM (systemd) ----
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert GPM service is running (when enabled)
+      ansible.builtin.assert:
+        that:
+          - "'gpm.service' in ansible_facts.services"
+          - "ansible_facts.services['gpm.service'].state == 'running'"
+        fail_msg: "GPM service is not running -- expected enabled"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - verify_gpm_enabled | bool
+
+    - name: Assert GPM service is absent or stopped (when disabled)
+      ansible.builtin.assert:
+        that: >-
+          ('gpm.service' not in ansible_facts.services) or
+          (ansible_facts.services['gpm.service'].state != 'running')
+        fail_msg: "GPM service is running but verify_gpm_enabled=false"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - not (verify_gpm_enabled | bool)
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          vconsole verify passed:
+          keymap={{ verify_keymap }},
+          font={{ verify_font | default('none') }},
+          gpm={{ verify_gpm_enabled }},
+          init={{ ansible_facts['service_mgr'] }},
+          os={{ ansible_facts['os_family'] }}

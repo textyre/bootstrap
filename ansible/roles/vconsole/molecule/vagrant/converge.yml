@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    vconsole_console: "us"
+    vconsole_gpm_enabled: false
+    # Font config: Arch uses terminus-font, Ubuntu uses fonts-terminus
+    # On Ubuntu, console font support via vconsole.conf is non-standard;
+    # skip font testing there to focus on keymap (the cross-platform value)
+    vconsole_console_font: >-
+      {{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+    vconsole_console_font_package: >-
+      {{ 'terminus-font' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+
+  roles:
+    - role: vconsole
