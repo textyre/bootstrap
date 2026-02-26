@@ -110,7 +110,7 @@
     - name: Deploy chrony configuration
       ansible.builtin.template:
         src: chrony.conf.j2
-        dest: /etc/chrony.conf
+        dest: "{{ ntp_conf_path[ansible_facts['os_family']] | default('/etc/chrony.conf') }}"
         owner: root
         group: root
         mode: "0644"
@@ -123,7 +123,7 @@
 
     - name: Enable and start chronyd
       ansible.builtin.service:
-        name: "{{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }}"
+        name: "{{ ntp_service_name[ansible_facts['os_family']] | default('chronyd') }}"
         enabled: true
         state: started
       tags: ['ntp', 'ntp:state']
@@ -148,7 +148,7 @@
         common_rpt_fact: "_ntp_phases"
         common_rpt_phase: "Configure NTP"
         common_rpt_detail: >-
-          chrony ({{ ntp_service[ansible_facts['service_mgr']] | default('chronyd') }})
+          chrony ({{ ntp_service_name[ansible_facts['os_family']] | default('chronyd') }})
           env={{ ntp_virt_type | default('unknown') }}
           refclocks={{ ntp_active_refclocks | default([]) | length }}
       tags: ['ntp', 'report']

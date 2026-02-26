@@ -6,6 +6,20 @@
 
   tasks:
 
+    # ---- Cross-platform facts ----
+
+    - name: Set cross-platform verify facts
+      ansible.builtin.set_fact:
+        _ntp_verify_service: >-
+          {{ 'chrony.service' if ansible_facts['os_family'] == 'Debian'
+             else 'chronyd.service' }}
+        _ntp_verify_conf_path: >-
+          {{ '/etc/chrony/chrony.conf' if ansible_facts['os_family'] == 'Debian'
+             else '/etc/chrony.conf' }}
+        _ntp_verify_user: >-
+          {{ '_chrony' if ansible_facts['os_family'] == 'Debian'
+             else 'chrony' }}
+
     # ---- Package installed ----
 
     - name: Gather package facts
@@ -23,20 +37,20 @@
       ansible.builtin.service_facts:
       when: ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Assert chronyd.service is running and enabled
+    - name: Assert chrony service is running and enabled
       ansible.builtin.assert:
         that:
-          - "'chronyd.service' in ansible_facts.services"
-          - "ansible_facts.services['chronyd.service'].state == 'running'"
-          - "ansible_facts.services['chronyd.service'].status == 'enabled'"
-        fail_msg: "chronyd.service is not running or not enabled"
+          - "_ntp_verify_service in ansible_facts.services"
+          - "ansible_facts.services[_ntp_verify_service].state == 'running'"
+          - "ansible_facts.services[_ntp_verify_service].status == 'enabled'"
+        fail_msg: "{{ _ntp_verify_service }} is not running or not enabled"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     # ---- chrony.conf permissions ----
 
-    - name: Stat /etc/chrony.conf
+    - name: Stat chrony.conf
       ansible.builtin.stat:
-        path: /etc/chrony.conf
+        path: "{{ _ntp_verify_conf_path }}"
       register: ntp_verify_conf
 
     - name: Assert chrony.conf exists with correct owner and mode
@@ -47,13 +61,13 @@
           - ntp_verify_conf.stat.pw_name == 'root'
           - ntp_verify_conf.stat.gr_name == 'root'
           - ntp_verify_conf.stat.mode == '0644'
-        fail_msg: "/etc/chrony.conf missing or wrong permissions (expected root:root 0644)"
+        fail_msg: "{{ _ntp_verify_conf_path }} missing or wrong permissions (expected root:root 0644)"
 
     # ---- chrony.conf content ----
 
     - name: Read chrony.conf
       ansible.builtin.slurp:
-        src: /etc/chrony.conf
+        src: "{{ _ntp_verify_conf_path }}"
       register: ntp_verify_conf_raw
 
     - name: Set chrony.conf text fact
@@ -107,9 +121,9 @@
         that:
           - ntp_verify_logdir.stat.exists
           - ntp_verify_logdir.stat.isdir
-          - ntp_verify_logdir.stat.pw_name == 'chrony'
+          - ntp_verify_logdir.stat.pw_name == _ntp_verify_user
           - ntp_verify_logdir.stat.mode == '0755'
-        fail_msg: "/var/log/chrony missing, not owned by chrony, or wrong mode"
+        fail_msg: "/var/log/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode"
 
     - name: Stat /var/lib/chrony/nts-data
       ansible.builtin.stat:
@@ -121,9 +135,9 @@
         that:
           - ntp_verify_ntsdumpdir.stat.exists
           - ntp_verify_ntsdumpdir.stat.isdir
-          - ntp_verify_ntsdumpdir.stat.pw_name == 'chrony'
+          - ntp_verify_ntsdumpdir.stat.pw_name == _ntp_verify_user
           - ntp_verify_ntsdumpdir.stat.mode == '0700'
-        fail_msg: "/var/lib/chrony/nts-data missing, not owned by chrony, or wrong mode (expected 0700)"
+        fail_msg: "/var/lib/chrony/nts-data missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0700)"
 
     # ---- Competitor services stopped ----
 
@@ -152,6 +166,7 @@
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          NTP offline verify passed: chrony installed, chronyd running,
-          /etc/chrony.conf correct (root:root 0644), directives present,
+          NTP offline verify passed: chrony installed,
+          {{ _ntp_verify_service }} running,
+          {{ _ntp_verify_conf_path }} correct (root:root 0644), directives present,
           directories exist with correct ownership and mode.

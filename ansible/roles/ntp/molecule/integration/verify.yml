@@ -4,9 +4,17 @@
 - name: Verify NTP synchronization (live)
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
 
   tasks:
+
+    # ---- Cross-platform facts ----
+
+    - name: Set expected chrony config path
+      ansible.builtin.set_fact:
+        _ntp_verify_conf_path: >-
+          {{ '/etc/chrony/chrony.conf' if ansible_facts['os_family'] == 'Debian'
+             else '/etc/chrony.conf' }}
 
     # ---- Wait for sync ----
     # chronyc waitsync: canonical approach per upstream chrony-wait.service.
@@ -66,7 +74,7 @@
 
     - name: Read chrony.conf for refclock assertion
       ansible.builtin.slurp:
-        src: /etc/chrony.conf
+        src: "{{ _ntp_verify_conf_path }}"
       register: ntp_int_conf_raw
       when: ansible_facts['virtualization_type'] | default('') in ['kvm', 'hyperv']
 

@@ -1,11 +1,24 @@
 ---
 # === Внутренние маппинги (не для пользователя) ===
 
-# Имя сервиса NTP по init-системе
-ntp_service:
-  systemd: chronyd
-  openrc: chronyd
-  runit: chronyd
+# Имя сервиса NTP по OS family
+# Примечание: на Debian/Ubuntu пакет chrony создаёт юнит 'chrony.service',
+# на Arch/RedHat/Alpine/Void — 'chronyd.service'
+ntp_service_name:
+  Archlinux: chronyd
+  Debian: chrony
+  RedHat: chronyd
+  Alpine: chronyd
+  Void: chronyd
+
+# Путь к конфигурационному файлу chrony по OS family
+# Ubuntu пакет использует /etc/chrony/chrony.conf, остальные — /etc/chrony.conf
+ntp_conf_path:
+  Archlinux: /etc/chrony.conf
+  Debian: /etc/chrony/chrony.conf
+  RedHat: /etc/chrony.conf
+  Alpine: /etc/chrony.conf
+  Void: /etc/chrony.conf
 
 # Имя пакета NTP по OS family
 ntp_package:
