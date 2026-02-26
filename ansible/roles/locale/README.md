@@ -56,6 +56,33 @@ Arch Linux, Debian, Ubuntu, RedHat/EL, Void Linux
 
 `locale`, `locale,report`
 
+## Testing
+
+| Scenario | Driver | Platforms | Notes |
+|----------|--------|-----------|-------|
+| `default` | localhost | localhost | Syntax/lint only |
+| `docker` | docker | Arch Linux (custom image) | Unit tests in container |
+| `vagrant` | vagrant (libvirt) | Arch Linux, Ubuntu 24.04 | Full VM integration tests |
+
+```bash
+# Docker (fast, CI)
+molecule test -s docker
+
+# Vagrant (full integration, requires KVM)
+molecule test -s vagrant
+
+# Step-by-step vagrant
+molecule create -s vagrant
+molecule converge -s vagrant
+molecule verify -s vagrant
+molecule destroy -s vagrant
+```
+
+The shared `converge.yml` and `verify.yml` are reused across all scenarios. The vagrant scenario additionally tests:
+- Ubuntu `locales` package dependency
+- Cross-platform `/etc/locale.conf` behaviour (Ubuntu uses `/etc/locale.conf` via systemd, role writes it natively)
+- Idempotence of `community.general.locale_gen` on pre-generated locales
+
 ## License
 
 MIT
