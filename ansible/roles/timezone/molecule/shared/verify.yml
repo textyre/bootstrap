@@ -1,0 +1,89 @@
+---
+- name: Verify timezone role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    _tz_verify_expected: "Asia/Almaty"
+
+  tasks:
+
+    # ---- /etc/localtime symlink (all platforms) ----
+
+    - name: Check /etc/localtime symlink target
+      ansible.builtin.command: readlink -f /etc/localtime
+      register: _tz_verify_localtime
+      changed_when: false
+
+    - name: Assert /etc/localtime points to expected timezone
+      ansible.builtin.assert:
+        that:
+          - _tz_verify_expected in _tz_verify_localtime.stdout
+        fail_msg: >-
+          Expected '{{ _tz_verify_expected }}' in symlink target,
+          got '{{ _tz_verify_localtime.stdout }}'
+
+    # ---- timedatectl (systemd hosts only) ----
+
+    - name: Check timezone via timedatectl (systemd)
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: _tz_verify_timedatectl
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert timedatectl reports expected timezone (systemd)
+      ansible.builtin.assert:
+        that:
+          - _tz_verify_timedatectl.stdout == _tz_verify_expected
+        fail_msg: >-
+          timedatectl expected '{{ _tz_verify_expected }}',
+          got '{{ _tz_verify_timedatectl.stdout }}'
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _tz_verify_timedatectl.rc == 0
+
+    # ---- tzdata package installed ----
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert tzdata package is installed
+      ansible.builtin.assert:
+        that:
+          - "'tzdata' in ansible_facts.packages"
+        fail_msg: "tzdata package not found in installed packages"
+
+    # ---- /etc/timezone file (Debian/Ubuntu only) ----
+
+    - name: Stat /etc/timezone
+      ansible.builtin.stat:
+        path: /etc/timezone
+      register: _tz_verify_etc_timezone
+
+    - name: Read /etc/timezone content
+      ansible.builtin.slurp:
+        src: /etc/timezone
+      register: _tz_verify_etc_timezone_raw
+      when: _tz_verify_etc_timezone.stat.exists
+
+    - name: Assert /etc/timezone matches expected value (Debian/Ubuntu)
+      ansible.builtin.assert:
+        that:
+          - (_tz_verify_etc_timezone_raw.content | b64decode | trim) == _tz_verify_expected
+        fail_msg: >-
+          /etc/timezone expected '{{ _tz_verify_expected }}',
+          got '{{ _tz_verify_etc_timezone_raw.content | b64decode | trim }}'
+      when: _tz_verify_etc_timezone.stat.exists
+
+    # ---- Summary ----
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          timezone verify passed on
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
+          /etc/localtime -> {{ _tz_verify_localtime.stdout }},
+          tzdata installed

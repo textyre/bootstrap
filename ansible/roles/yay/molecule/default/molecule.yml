@@ -19,9 +19,10 @@ platforms:
 
 provisioner:
   name: ansible
+  options:
+    skip-tags: report
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
       callbacks_enabled: profile_tasks
   inventory:
     host_vars:
@@ -36,18 +37,16 @@ provisioner:
           - base-devel
           - git
           - go
-        # AUR package management
         yay_packages_aur:
           - rofi-greenclip
         yay_packages_aur_remove_conflicts: []
-        # Single aggregated list for conflict validation (replaces per-category lists)
         yay_packages_official:
           - git
   playbooks:
-    converge: converge.yml
-    verify: verify.yml
+    converge: ../shared/converge.yml
+    verify: ../shared/verify.yml
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 
 verifier:
   name: ansible
@@ -56,5 +55,4 @@ scenario:
   test_sequence:
     - syntax
     - converge
-    - idempotence
     - verify

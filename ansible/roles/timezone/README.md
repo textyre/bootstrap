@@ -1,30 +1,31 @@
 # timezone
 
-Устанавливает системную таймзону и обеспечивает наличие базы данных tzdata.
+Sets the system timezone and ensures the `tzdata` database package is installed.
 
 ## What this role does
 
-- [x] Устанавливает пакет tzdata (имя пакета из `packages_tzdata` в `packages.yml`)
-- [x] Устанавливает системную таймзону через `community.general.timezone`
-- [x] Проверяет корректность применённой таймзоны
-- [x] Перезапускает cron при фактической смене таймзоны (skipped если не установлен)
+- [x] Installs `tzdata` package (name resolved from `timezone_packages_tzdata` dict, keyed by `os_family`)
+- [x] Sets system timezone via `community.general.timezone` (`/etc/localtime` symlink + `/etc/timezone` on Debian)
+- [x] Verifies the applied timezone via `readlink -f /etc/localtime`
+- [x] Restarts cron after a timezone change (skipped when cron is not installed)
 
 ## Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `timezone_name` | `"UTC"` | Имя таймзоны в формате tz database (`timedatectl list-timezones`) |
+| `timezone_name` | `"UTC"` | Timezone name in tz database format (`timedatectl list-timezones`) |
+| `timezone_packages_tzdata` | _(undefined)_ | Package name dict keyed by `os_family` with `default` fallback. Task is skipped when undefined. |
 
-Реальное значение задаётся в `group_vars/all/system.yml`:
+Production values are set in `group_vars/all/system.yml`:
 
 ```yaml
 timezone_name: "Asia/Almaty"
 ```
 
-`packages_tzdata` живёт в `group_vars/all/packages.yml`:
+`timezone_packages_tzdata` comes from `group_vars/all/packages.yml`:
 
 ```yaml
-packages_tzdata:
+timezone_packages_tzdata:
   Gentoo: "sys-libs/timezone-data"
   default: "tzdata"
 ```
@@ -35,12 +36,38 @@ packages_tzdata:
 |---------|-------|
 | System timezone (`/etc/localtime`) | this role |
 | tzdata package currency | this role |
-| RTC mode (UTC vs local) | `ntp` role (`ntp_rtcsync: true`) |
+| RTC hardware clock mode (UTC vs local) | `ntp` role (`ntp_rtcsync: true`) |
 | Clock accuracy (NTP sync) | `ntp` role (chrony) |
+
+## Handlers
+
+`restart cron` — triggered by timezone change. Collects `service_facts` and restarts the distro-appropriate cron daemon only when present.
+
+| OS family | Cron service |
+|-----------|-------------|
+| Archlinux | `crond` |
+| Debian / Ubuntu | `cron` |
+| RedHat | `crond` |
+| Void / Gentoo | `crond` |
+
+## Testing
+
+```bash
+# Localhost (Arch only, fast)
+molecule test -s default
+
+# Docker (Arch systemd container, idempotence check)
+molecule test -s docker
+
+# Vagrant (Arch + Ubuntu full VMs, cross-platform)
+molecule test -s vagrant
+```
+
+Vagrant requires `libvirt` provider. All three scenarios share `molecule/shared/converge.yml` and `molecule/shared/verify.yml`.
 
 ## Supported platforms
 
-Arch Linux, Fedora, Ubuntu, Void Linux, Gentoo
+Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo
 
 ## Tags
 
