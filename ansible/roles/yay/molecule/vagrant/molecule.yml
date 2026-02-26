@@ -9,6 +9,10 @@ platforms:
     box: generic/arch
     memory: 2048
     cpus: 2
+  - name: ubuntu-noble
+    box: bento/ubuntu-24.04
+    memory: 2048
+    cpus: 2
 
 provisioner:
   name: ansible
@@ -21,8 +25,8 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    converge: converge.yml
+    verify: verify.yml
 
 verifier:
   name: ansible

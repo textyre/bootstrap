@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Skip yay role on non-Arch systems (yay is AUR helper for Arch only)
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
+
+    - name: Apply yay role
+      ansible.builtin.include_role:
+        name: yay
