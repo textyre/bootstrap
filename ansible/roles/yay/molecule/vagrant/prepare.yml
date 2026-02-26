@@ -29,6 +29,15 @@
         upgrade: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    - name: Fix DNS after system upgrade on Arch (systemd may replace resolv.conf with [::1]:53)
+      ansible.builtin.copy:
+        content: |
+          nameserver 8.8.8.8
+          nameserver 1.1.1.1
+        dest: /etc/resolv.conf
+        unsafe_writes: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     - name: Update apt cache (Ubuntu)
       ansible.builtin.apt:
         update_cache: true
