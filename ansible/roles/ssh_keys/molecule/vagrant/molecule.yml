@@ -7,8 +7,8 @@ driver:
 
 platforms:
   - name: arch-vm
-    box: textyre/arch-molecule
-    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-molecule-latest.box
+    box: arch-base
+    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
   - name: ubuntu-noble
