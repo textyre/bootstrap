@@ -1,63 +1,34 @@
 ---
-name: Build Arch Molecule Image
+# The arch-molecule image is built and maintained in https://github.com/textyre/arch-images
+# This workflow only verifies the image contract — it does not build the image.
+name: "Verify Arch Molecule Image"
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'ansible/molecule/Dockerfile.archlinux'
-      - '.github/workflows/build-arch-image.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'   # Weekly Monday 04:00 UTC — runs after arch-images build (02:00 UTC)
 
 jobs:
-  build:
-    name: Build and push arch-systemd
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ansible/molecule
-          file: ansible/molecule/Dockerfile.archlinux
-          push: true
-          tags: ghcr.io/${{ github.repository }}/arch-systemd:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   verify:
-    name: Verify image contract
-    needs: build
+    name: Verify arch-molecule image contract
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Verify image contract
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}/arch-systemd:latest
         run: |
-          docker run --rm "$IMAGE" sh -c '
+          docker run --rm ghcr.io/textyre/arch-molecule:latest sh -c '
             set -e
-            echo "=== Image Contract Verification ==="
-            echo -n "systemd: "   && test -x /usr/lib/systemd/systemd && echo OK
-            echo -n "python: "    && python --version
-            echo -n "sudo: "      && sudo --version | head -1
-            echo -n "SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo OK
-            echo -n "en_US: "     && test -f /usr/share/i18n/locales/en_US && echo OK
-            echo -n "ru_RU: "     && test -f /usr/share/i18n/locales/ru_RU && echo OK
-            echo -n "locale-gen: " && command -v locale-gen
-            echo "=== Image contract: PASS ==="
+            echo "=== arch-molecule image contract ==="
+            echo -n "systemd:          " && test -x /usr/lib/systemd/systemd && echo "OK"
+            echo -n "python:           " && python --version
+            echo -n "sudo:             " && sudo --version | head -1
+            echo -n "gcc (base-devel): " && gcc --version | head -1
+            echo -n "git:              " && git --version
+            echo -n "aur_builder:      " && id aur_builder
+            echo -n "locale SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo "OK"
+            echo -n "en_US:            " && test -f /usr/share/i18n/locales/en_US && echo "OK"
+            echo -n "ru_RU:            " && test -f /usr/share/i18n/locales/ru_RU && echo "OK"
+            echo -n "locale-gen:       " && command -v locale-gen
+            echo "=== PASS ==="
           '

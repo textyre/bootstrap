@@ -1,3 +1,6 @@
+# DEPRECATED: This Dockerfile is superseded by ghcr.io/textyre/arch-molecule
+# (built and maintained in https://github.com/textyre/arch-images).
+# Kept for reference and local builds only. CI uses the pre-built GHCR image.
 FROM archlinux:base
 
 ENV container=docker
