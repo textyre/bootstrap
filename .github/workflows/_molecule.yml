@@ -24,7 +24,7 @@ jobs:
     env:
       PY_COLORS: "1"
       ANSIBLE_FORCE_COLOR: "1"
-      MOLECULE_ARCH_IMAGE: ghcr.io/textyre/arch-molecule:latest
+      MOLECULE_ARCH_IMAGE: ghcr.io/textyre/arch-base:latest
 
     concurrency:
       group: "molecule-${{ inputs.role_name }}-${{ github.event.pull_request.number || github.sha }}"

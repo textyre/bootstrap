@@ -6,12 +6,13 @@ driver:
 
 platforms:
   - name: arch-vm
-    box: textyre/arch-molecule
-    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-molecule-latest.box
+    box: arch-base
+    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
   - name: ubuntu-noble
-    box: bento/ubuntu-24.04
+    box: ubuntu-noble
+    box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-noble-latest.box
     memory: 2048
     cpus: 2
 
