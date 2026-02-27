@@ -557,3 +557,217 @@ run: |
 - **Нет проверки что bootstrap molecule-тесты используют новые боксы** — Vagrant сценарии
   скачивают боксы только при первом `vagrant up`. Нужен отдельный прогон molecule-vagrant
   для проверки совместимости.
+
+---
+
+## Продолжение: минимизация образов и настоящая vagrant-верификация
+
+**Дата:** 2026-02-27 (вторая сессия)
+**Итерации:** arch-images: 1 прогон (успех), ubuntu-images: 2 прогона (1 фикс)
+
+### Проблема: загрязнение тестов
+
+Базовые образы содержали артефакты, устанавливаемые ролями bootstrap:
+- `arch-molecule`: роль `archlinux/aur_tools` устанавливала `aur_builder` и `yay`
+- Оба образа: `qemu-guest-agent` устанавливался в `common/base`
+
+Это делало molecule-тесты ролей тривиально проходящими: `yay` уже был в образе, поэтому
+тест роли `yay` проходил независимо от того, работала ли роль сама по себе.
+
+**Фикс:** удаление всех role-специфичных пакетов из базовых образов:
+- `arch-images`: удалён каталог `ansible/roles/archlinux/aur_tools/` целиком, убран из `site.yml`
+- Оба: убран `qemu-guest-agent` из `common/base/tasks/main.yml` + задача `Enable qemu-guest-agent`
+
+### Переименование образов
+
+Образы переименованы с временных названий (`arch-molecule`, `ubuntu-molecule`) в постоянные
+(`arch-base`, `ubuntu-noble`) — отражают дистрибутив, а не назначение для molecule.
+
+| Было | Стало |
+|------|-------|
+| `arch-molecule-latest.box` | `arch-base-latest.box` |
+| `ubuntu-molecule-latest.box` | `ubuntu-noble-latest.box` |
+| `ghcr.io/textyre/arch-molecule:latest` | `ghcr.io/textyre/arch-base:latest` |
+
+### Апгрейд верификации: архивная → настоящий vagrant up
+
+Предыдущая сессия использовала архивную валидацию (tar + json) как компромисс из-за
+сложностей с vagrant в CI. Эта сессия реализовала полную верификацию:
+
+```yaml
+- name: Verify Vagrant box contract
+  run: |
+    # Install HashiCorp repo (vagrant not in ubuntu-24.04 standard repos)
+    ...
+    sudo apt-get install -y vagrant ruby-dev build-essential pkg-config libvirt-dev
+    sudo chmod a+rw /var/run/libvirt/libvirt-sock
+    vagrant plugin install vagrant-libvirt
+
+    vagrant box add --name verify-box "$BOX_FILE"
+    mkdir /tmp/verify-vm && cd /tmp/verify-vm
+    cp "$GITHUB_WORKSPACE/contracts/verify-vagrantfile" Vagrantfile
+    vagrant up --provider libvirt --no-provision
+    vagrant ssh -c "bash -s" < "$GITHUB_WORKSPACE/contracts/vagrant.sh"
+    vagrant destroy -f
+```
+
+arch-images: первый прогон — ✓ 4m33s.
+
+---
+
+### Инцидент #8 — YAML heredoc конфликт с Ruby-синтаксисом
+
+**Затронуто:** arch-images и ubuntu-images первый push
+**Ошибка:** HTTP 422 от GitHub API при попытке запустить workflow_dispatch:
+```
+{"message":"Workflow does not have 'workflow_dispatch' trigger"}
+```
+
+**Причина:**
+
+Vagrantfile записывался в workflow через bash heredoc:
+```yaml
+run: |
+  cat <<'VAGRANTEOF' > Vagrantfile
+  Vagrant.configure("2") do |config|
+    config.vm.box = "verify-box"
+    config.vm.provider :libvirt do |l|
+      l.memory = 1024
+    end
+  end
+  VAGRANTEOF
+```
+
+YAML парсит `run: |` как блочный скаляр. Содержимое блочного скаляра должно быть
+индентировано относительно ключа. Bash heredoc с `<<'VAGRANTEOF'` помещает строки
+Vagrantfile на нулевой отступ (`Vagrant.configure` начинается с колонки 0).
+
+YAML-парсер интерпретирует строку `Vagrant.configure("2") do |config|` на нулевом
+отступе как **выход из блочного скаляра** и начало нового YAML-узла. Особенно критично:
+pipe `|` в Ruby-синтаксе `do |config|` и `do |l|` триггерит YAML-парсер.
+
+Результат: GitHub не мог распарсить workflow YAML и не видел секцию `on.workflow_dispatch`.
+
+**Диагностика:**
+```python
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/build.yml'))"
+# Raises yaml.scanner.ScannerError — подтверждает проблему
+```
+
+**Фикс:** вынести Vagrantfile в отдельный файл репозитория:
+
+```
+contracts/verify-vagrantfile:
+  Vagrant.configure("2") do |config|
+    config.vm.box = "verify-box"
+    config.vm.provider :libvirt do |l|
+      l.memory = 1024; l.cpus = 1
+    end
+  end
+```
+
+```yaml
+# В workflow:
+cp "$GITHUB_WORKSPACE/contracts/verify-vagrantfile" Vagrantfile
+```
+
+**Урок:** Не встраивать в YAML блочные скаляры (`run: |`) код на языках с синтаксисом,
+конфликтующим с YAML (`|`, `:`, `{`, `}`). Это касается Ruby, Perl, Go-шаблонов.
+Выносить такой код в отдельные файлы репозитория.
+
+---
+
+### Инцидент #9 — Ubuntu VM не получает DHCP-lease от libvirt
+
+**Затронуто:** ubuntu-images первый прогон с vagrant up (run 22491244576)
+**Ошибка:**
+```
+Fog::Errors::TimeoutError: The specified wait_for timeout (2 seconds) was exceeded
+  from vagrant-libvirt-0.12.2/lib/vagrant-libvirt/driver.rb:303:in `get_ipaddress_from_domain'
+```
+
+После 16 минут ожидания vagrant не смог получить IP-адрес Ubuntu VM.
+
+**Причина:**
+
+Cloud-init во время Packer-билда генерирует `/etc/netplan/50-cloud-init.yaml` с привязкой
+к MAC-адресу сетевого интерфейса Packer VM:
+
+```yaml
+# /etc/netplan/50-cloud-init.yaml (генерируется cloud-init)
+network:
+  ethernets:
+    enp1s0:
+      dhcp4: true
+      match:
+        macaddress: "52:54:00:xx:xx:xx"  # MAC Packer VM
+      set-name: enp1s0
+  version: 2
+```
+
+Когда vagrant создаёт новую VM на основе этого бокса, MAC-адрес меняется. Netplan не может
+сопоставить ни один интерфейс с записью в `50-cloud-init.yaml`. Интерфейс не получает
+DHCP-lease → vagrant-libvirt не видит IP → timeout.
+
+Arch-images работал, потому что Arch не использует cloud-init — systemd-networkd настроен
+на DHCP на всех ethernet-интерфейсах без привязки к MAC.
+
+**Фикс (в ansible/roles/common/cleanup/tasks/main.yml):**
+
+```yaml
+- name: Disable cloud-init network configuration (Ubuntu)
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network.cfg
+    content: "network: {config: disabled}\n"
+    mode: '0644'
+  when: ansible_os_family == 'Debian'
+
+- name: Write MAC-agnostic netplan config for vagrant (Ubuntu)
+  ansible.builtin.copy:
+    dest: /etc/netplan/99-vagrant.yaml
+    content: |
+      network:
+        version: 2
+        ethernets:
+          default:
+            match:
+              name: "en*"
+            dhcp4: true
+    owner: root
+    group: root
+    mode: '0600'
+  when: ansible_os_family == 'Debian'
+
+- name: Remove cloud-init generated netplan config (Ubuntu)
+  ansible.builtin.file:
+    path: /etc/netplan/50-cloud-init.yaml
+    state: absent
+  when: ansible_os_family == 'Debian'
+```
+
+После фикса: ubuntu-images run 22492044966 — ✓ 4m6s, `vagrant ssh -c "bash -s"` прошёл.
+
+**Урок:** Ubuntu cloud-init генерирует netplan-конфиг с MAC-привязкой. При создании
+Vagrant-бокса из Ubuntu cloud image обязательно:
+1. Отключить cloud-init network модуль (`99-disable-network.cfg`)
+2. Создать MAC-агностичный netplan конфиг (`match: name: "en*"`)
+3. Удалить `50-cloud-init.yaml`
+
+---
+
+### Итог второй сессии
+
+| Репо | Образ | CI статус | Результат |
+|------|-------|-----------|-----------|
+| textyre/arch-images | arch-base | ✓ | arch-base-latest.box (4m33s) |
+| textyre/ubuntu-images | ubuntu-noble | ✓ | ubuntu-noble-latest.box (4m6s) |
+| textyre/bootstrap | все роли | ✓ | всё переименовано, запушено |
+
+**Ключевые паттерны этой сессии:**
+
+| Паттерн | Правило |
+|---------|---------|
+| YAML + Ruby в `run:` | Выносить Vagrantfile/Gemfile в repo-файл, не heredoc |
+| Ubuntu cloud images + Vagrant | Отключать cloud-init network; писать MAC-агностичный netplan |
+| Минимальный base image | Убирать все role-специфичные пакеты; только: python3, sudo, ssh, базовые утилиты |
+| Тестовые образы | Чистый образ без role-артефактов = честные тесты |
