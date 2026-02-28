@@ -1,0 +1,40 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Install Python on Arch (raw — no Python pre-installed on generic/arch)
+      ansible.builtin.raw: pacman -Sy --noconfirm python
+      when: inventory_hostname == 'arch-vm'
+      changed_when: true
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Refresh Arch keyring (SigLevel=Never trick)
+      ansible.builtin.shell: |
+        pacman -Sy --noconfirm --config <(sed 's/SigLevel.*/SigLevel = Never/' /etc/pacman.conf) archlinux-keyring
+        pacman-key --populate archlinux
+      when: ansible_facts['os_family'] == 'Archlinux'
+      changed_when: true
+
+    - name: Full system upgrade (Arch)
+      community.general.pacman:
+        upgrade: true
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Fix DNS after pacman -Syu (systemd stub replaced resolv.conf)
+      ansible.builtin.copy:
+        content: "nameserver 8.8.8.8\nnameserver 1.1.1.1\n"
+        dest: /etc/resolv.conf
+        unsafe_writes: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
