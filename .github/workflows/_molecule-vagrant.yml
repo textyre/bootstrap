@@ -51,21 +51,23 @@ jobs:
         id: vagrant-ver
         run: echo "version=$(vagrant --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
+      - name: Get libvirt version
+        id: libvirt-ver
+        run: echo "version=$(dpkg -s libvirt-dev | grep '^Version:' | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
       - name: Cache vagrant plugins
         uses: actions/cache@v4
         id: vagrant-gems-cache
         with:
           path: ~/.vagrant.d/gems
-          key: vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}
-          restore-keys: vagrant-gems-${{ runner.os }}-
+          key: vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-libvirt${{ steps.libvirt-ver.outputs.version }}
+          restore-keys: |
+            vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-
+            vagrant-gems-${{ runner.os }}-
 
       - name: Install vagrant-libvirt plugin
         if: steps.vagrant-gems-cache.outputs.cache-hit != 'true'
         run: vagrant plugin install vagrant-libvirt
-
-      - name: Repair vagrant plugins (recompile native extensions)
-        if: steps.vagrant-gems-cache.outputs.cache-hit == 'true'
-        run: vagrant plugin repair
 
       - name: Resolve box version
         id: box
