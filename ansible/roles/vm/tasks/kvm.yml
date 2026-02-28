@@ -38,7 +38,7 @@
     file: _manage_services.yml
   vars:
     vm_svc_list:
-      - name: Qemu-guest-agent
+      - name: qemu-guest-agent
         description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
         required: true
     vm_svc_label: "KVM"
