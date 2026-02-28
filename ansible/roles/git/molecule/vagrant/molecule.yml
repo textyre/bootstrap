@@ -10,7 +10,7 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
-  - name: ubuntu-noble
+  - name: ubuntu-base
     box: bento/ubuntu-24.04
     memory: 2048
     cpus: 2
@@ -41,7 +41,7 @@ provisioner:
           diff.colorMoved: zebra
         git_safe_directories:
           - /tmp/test-safe-dir
-      ubuntu-noble:
+      ubuntu-base:
         git_owner:
           name: vagrant
           user_name: "Test User"

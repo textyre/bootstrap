@@ -10,9 +10,9 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
-  - name: ubuntu-noble
-    box: ubuntu-noble
-    box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-noble-latest.box
+  - name: ubuntu-base
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-base-latest.box
     memory: 2048
     cpus: 2
 

@@ -11,7 +11,7 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
-  - name: ubuntu-noble
+  - name: ubuntu-base
     box: bento/ubuntu-24.04
     memory: 2048
     cpus: 2

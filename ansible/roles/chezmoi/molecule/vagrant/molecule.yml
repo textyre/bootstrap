@@ -10,7 +10,7 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
     memory: 2048
     cpus: 2
-  - name: ubuntu-noble
+  - name: ubuntu-base
     box: bento/ubuntu-24.04
     memory: 2048
     cpus: 2
@@ -31,7 +31,7 @@ provisioner:
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true
         chezmoi_verify_fixture: true
-      ubuntu-noble:
+      ubuntu-base:
         chezmoi_install_method: script
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true
