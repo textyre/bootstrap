@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        platform: [arch-vm, ubuntu-noble]
+        platform: [arch-vm, ubuntu-base]
       fail-fast: false
 
     steps:
