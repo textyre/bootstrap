@@ -9,7 +9,7 @@ platforms:
     box: archlinux/archlinux
     memory: 2048
     cpus: 2
-  - name: ubuntu-noble
+  - name: ubuntu-base
     box: generic/ubuntu2404
     memory: 2048
     cpus: 2
