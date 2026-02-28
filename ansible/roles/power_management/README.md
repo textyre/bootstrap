@@ -462,7 +462,7 @@ assertions are consistent across environments.
 cd ansible/roles/power_management
 molecule test
 
-# Docker (requires MOLECULE_ARCH_IMAGE or uses ghcr.io/textyre/bootstrap/arch-systemd:latest)
+# Docker (requires MOLECULE_ARCH_IMAGE or uses ghcr.io/textyre/arch-base:latest)
 molecule test -s docker
 
 # Vagrant + libvirt (requires vagrant + vagrant-libvirt on host)

@@ -93,7 +93,7 @@ assertions are identical across environments.
 cd ansible/roles/zen_browser
 molecule test
 
-# Docker — requires MOLECULE_ARCH_IMAGE or uses ghcr.io/textyre/bootstrap/arch-systemd:latest
+# Docker — requires MOLECULE_ARCH_IMAGE or uses ghcr.io/textyre/arch-base:latest
 molecule test -s docker
 
 # Syntax check only

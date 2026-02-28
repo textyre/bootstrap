@@ -85,7 +85,7 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-The vagrant scenario tests both `generic/arch` and `bento/ubuntu-24.04` VMs
+The vagrant scenario tests both `generic/arch` and `ubuntu-base` VMs
 against the same `shared/converge.yml` and `shared/verify.yml`.
 
 ### Test sequence
