@@ -6,11 +6,13 @@ driver:
 
 platforms:
   - name: arch-vm
-    box: archlinux/archlinux
+    box: arch-base
+    box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
   - name: ubuntu-base
-    box: generic/ubuntu2404
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
     memory: 2048
     cpus: 2
 
