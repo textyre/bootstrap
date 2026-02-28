@@ -2,38 +2,89 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Clean up `textyre/arch-images` and `textyre/ubuntu-images` — remove redundant `molecule` variants, unify naming, add OCI labels, CalVer tags, supply-chain security (Trivy/Cosign/Renovate), and document a standard in bootstrap.
+**Goal:** Clean up `textyre/arch-images` and `textyre/ubuntu-images` — remove molecule variants, rename `ubuntu-noble` → `ubuntu-base`, add OCI labels + CalVer tags, supply-chain security (Trivy/Cosign/Renovate/SBOM), real Vagrant boot-verification, and document a standard in bootstrap.
 
-**Architecture:** Three repos are touched in order: (1) bootstrap gets the standard doc; (2) arch-images and ubuntu-images get workflow + Dockerfile + contract + README overhauls; (3) bootstrap gets downstream reference updates. All changes are self-contained per repo and can be PRed independently.
+**Architecture:** Four phases across three repos. Phase 1 (bootstrap standard doc) is independent and can land anytime. Phases 2–3 (image repos) are the bulk of the work and can run in parallel. Phase 4 (bootstrap downstream) is **blocked** until new image releases exist — do not start it until CI passes and `arch-base-latest.box` + `ubuntu-base-latest.box` are live in GitHub Releases.
 
-**Tech Stack:** GitHub Actions, Docker Buildx, `docker/metadata-action@v5`, `docker/build-push-action@v6`, Trivy, Cosign (keyless), Renovate, Packer (HCL2), Vagrant
+**Tech Stack:** GitHub Actions, Docker Buildx, `docker/metadata-action@v5`, `docker/build-push-action@v6`, `aquasecurity/trivy-action` (pinned tag — see Task 6 Step 1), `sigstore/cosign-installer@v3`, `dorny/paths-filter@v3`, Packer (HCL2), Vagrant (libvirt)
 
 ---
 
-## Context You Need
+## Context
 
 **Repos:**
 - `textyre/arch-images` — builds `ghcr.io/textyre/arch-base` Docker image + `arch-base-*.box` Vagrant box
 - `textyre/ubuntu-images` — builds `ghcr.io/textyre/ubuntu-noble` Docker image (→ rename to `ubuntu-base`) + `ubuntu-noble-*.box` (→ rename to `ubuntu-base-*.box`)
-- `textyre/bootstrap` — consumes both; has wiki/standards/ for infrastructure standards
+- `textyre/bootstrap` — consumes both; hosts `wiki/standards/` for infrastructure standards
 
-**Current problems being fixed:**
-- `ubuntu-noble` uses a codename, should be `ubuntu-base` (purpose-based, like `arch-base`)
-- Both repos also publish `arch-molecule` / `ubuntu-molecule` Docker images and Vagrant boxes — these are redundant and being removed
-- No OCI labels, no CalVer tags, no security scanning, no supply-chain controls
+**Current state (2026-02-28):**
+- `arch-molecule` → `arch-base` rename in bootstrap molecule scenarios: **DONE** (commits ace8463, 623fefc)
+- `ubuntu-molecule` → `ubuntu-noble` rename in bootstrap molecule scenarios: **DONE** (commit ace8463)
+- `ubuntu-noble` → `ubuntu-base` rename: **TODO** (Phase 4)
+- Supply-chain security (Trivy/Cosign/Renovate/SBOM): **TODO** (Phases 2–3)
+- `wiki/standards/image-repo-requirements.md`: **TODO** (Phase 1)
 
-**GHCR package cleanup** (manual, one-time): After removing molecule image publishing from workflows, delete existing GHCR packages manually at `github.com/orgs/textyre/packages` or via API.
+**GHCR cleanup (manual, one-time):** After removing molecule publishing from workflows, delete old GHCR packages manually: `github.com/orgs/textyre/packages`.
+
+---
+
+## Order dependency
+
+```
+Phase 1 (bootstrap: standard doc)  ─────────────────────────────────────────┐
+                                                                              │
+Phase 2 (arch-images: overhaul)  ──┐                                        │
+                                    ├── push + CI green + releases exist ──► │
+Phase 3 (ubuntu-images: overhaul) ─┘                    BLOCKING GATE       │
+                                                                              ↓
+                                         Phase 4 (bootstrap: downstream refs, AFTER gate)
+```
+
+---
+
+## Phase 0 — State Check (5 minutes, no commit)
+
+Before touching anything, verify current bootstrap state so you don't redo completed work.
+
+### Task 0: Verify current state in bootstrap
+
+**Step 1: Check arch-molecule refs**
+
+```bash
+grep -rn "arch-molecule" .github/ ansible/ wiki/ \
+  --include="*.yml" --include="*.yaml" --include="*.md"
+```
+
+Expected: **zero matches** (already done).
+
+**Step 2: Check ubuntu-noble refs (these are the Phase 4 target)**
+
+```bash
+grep -rn "ubuntu-noble" .github/ ansible/ wiki/ \
+  --include="*.yml" --include="*.yaml" --include="*.md"
+```
+
+Record the count — these will all be renamed in Phase 4.
+
+**Step 3: Check ubuntu-molecule refs**
+
+```bash
+grep -rn "ubuntu-molecule" .github/ ansible/ wiki/ \
+  --include="*.yml" --include="*.yaml" --include="*.md"
+```
+
+Expected: **zero matches** (already done).
 
 ---
 
 ## Phase 1 — bootstrap: Write the Standard
 
-### Task 1: Create image-repo-requirements.md
+### Task 1: Create `wiki/standards/image-repo-requirements.md`
 
 **Files:**
 - Create: `wiki/standards/image-repo-requirements.md`
 
-**Step 1: Create the standard document**
+**Step 1: Create the file**
 
 ```markdown
 # Image Repo Requirements
@@ -95,11 +146,11 @@ All four controls are mandatory:
 | Control | Implementation |
 |---------|---------------|
 | Vulnerability gate | Trivy scan before push; exit-code 1 on CRITICAL/HIGH (ignore-unfixed) |
-| Keyless signing | Cosign OIDC keyless signing after push |
+| Keyless signing | Cosign OIDC keyless signing after push (sigstore/cosign-installer@v3) |
 | SLSA L1 provenance | `provenance: true` in `build-push-action` |
 | Base image digest pinning | `renovate.json` with `docker:pinDigests` preset |
 
-SBOM (CycloneDX) generated via Trivy and attached to GitHub Release.
+SBOM (CycloneDX) generated via Trivy and uploaded as a build artifact.
 
 ## REQ-07: Contract Verification
 
@@ -110,6 +161,8 @@ Every image MUST have `contracts/docker.sh` that verifies:
 - Script MUST `set -euo pipefail` and exit non-zero on any failure
 
 Vagrant boxes MUST have `contracts/vagrant.sh` with equivalent checks.
+The vagrant contract MUST be run inside a booted VM (not as a host-side archive check):
+`vagrant ssh -c "bash -s" < contracts/vagrant.sh`
 
 Contracts MUST be run in CI after every build, before the release step.
 
@@ -119,18 +172,20 @@ Contracts MUST be run in CI after every build, before the release step.
 build.yml
 ├── changes (dorny/paths-filter@v3)
 ├── build-docker (needs: changes)
-│   ├── Trivy scan (before push)
+│   ├── Trivy scan (before push — gate, not archive check)
 │   ├── docker/metadata-action + build-push-action
-│   └── Contract verify
+│   └── Contract verify (docker run --rm)
 ├── build-vagrant (needs: changes, independent of build-docker)
 │   ├── packer build
-│   └── Contract verify
+│   ├── vagrant up + vagrant ssh -c contract verify
+│   └── Publish to GitHub Releases
 └── attest (needs: build-docker)
-    └── Cosign keyless sign
+    └── Cosign keyless sign (by digest)
 ```
 
 No action version MAY use a floating branch reference (e.g., `@main`, `@master`).
-`hashicorp/setup-packer` MUST be pinned to a SHA.
+`hashicorp/setup-packer` MUST be pinned to a commit SHA.
+All other actions MUST use a pinned semver tag (e.g., `@v3`, `@v5`).
 
 ## REQ-09: README Structure
 
@@ -171,13 +226,13 @@ Before marking an image repo as compliant, verify all 10 requirements:
 - [ ] REQ-04: OCI labels present on image (`docker inspect <image>`)
 - [ ] REQ-05: No `LABEL` in Dockerfile
 - [ ] REQ-06: Trivy + Cosign + SLSA L1 + Renovate all active
-- [ ] REQ-07: `contracts/docker.sh` covers every installed package
-- [ ] REQ-08: Workflow uses `changes` → `build-docker` → `build-vagrant` → `attest`
+- [ ] REQ-07: `contracts/docker.sh` covers every installed package; vagrant contract runs inside booted VM
+- [ ] REQ-08: Workflow uses `changes` → `build-docker` → `build-vagrant` → `attest`; no floating action refs
 - [ ] REQ-09: README has all 8 required sections
 - [ ] REQ-10: `renovate.json` present with `docker:pinDigests`
 ```
 
-**Step 2: Verify the file looks correct**
+**Step 2: Verify**
 
 Open `wiki/standards/image-repo-requirements.md` and confirm all 10 REQ sections render cleanly.
 
@@ -192,30 +247,35 @@ git commit -m "docs(standards): add image-repo-requirements (10 REQs)"
 
 ## Phase 2 — arch-images: Cleanup and Harden
 
-All steps below are in the `textyre/arch-images` repo.
+All work is in the `textyre/arch-images` repo.
 
-### Task 2: Remove molecule artifacts from Packer and workflow
+### Task 2: Remove arch-molecule variant from Packer and workflow
 
-**Background:** `arch-molecule-*.box` appears in GitHub Releases. This means either
-(a) there are two Packer templates, or (b) the workflow builds a second artifact.
-Locate and remove whatever produces the `arch-molecule` box.
+**Background:** Locate and remove whatever produces `arch-molecule-*.box`. There may be a second
+Packer template or a second workflow step.
 
 **Files:**
 - Modify: `packer/*.pkr.hcl` (find any molecule-specific template)
 - Modify: `.github/workflows/build.yml`
 
-**Step 1: Find the molecule Packer config**
+**Step 1: Find molecule references**
 
 ```bash
-grep -r "arch-molecule\|molecule" packer/ .github/
+grep -rn "arch-molecule\|molecule" packer/ .github/
 ```
 
-**Step 2: Delete or comment out** any `build {}` block or workflow step that produces
-`arch-molecule-*.box`. Keep only the `arch-base` build.
+**Step 2: Delete or comment out** any `build {}` block that produces `arch-molecule-*.box`. Keep only the `arch-base` build.
 
-**Step 3: In `build.yml`, remove** any step that uploads `arch-molecule-*.box` to GitHub Releases.
+**Step 3: Remove** any workflow step that uploads `arch-molecule-*.box` to GitHub Releases.
 
-**Step 4: Commit**
+**Step 4: Verify no molecule remnants**
+
+```bash
+grep -rn "arch-molecule\|molecule" packer/ .github/
+# Expected: no output
+```
+
+**Step 5: Commit**
 
 ```bash
 git add packer/ .github/workflows/build.yml
@@ -224,28 +284,25 @@ git commit -m "chore: remove arch-molecule variant (box + packer config)"
 
 ---
 
-### Task 3: Clean up Dockerfile
+### Task 3: Remove LABEL from Dockerfile
 
 **Files:**
 - Modify: `docker/Dockerfile`
 
-**Step 1: Read the current Dockerfile**
+**Step 1: Read the Dockerfile**
 
 ```bash
 cat docker/Dockerfile
 ```
 
-**Step 2: Remove any `LABEL` instructions** (OCI labels will be injected at build time).
+**Step 2: Remove all `LABEL` instructions** — OCI labels are injected at build time by the workflow.
 
-The Dockerfile MUST NOT contain `LABEL` lines after this step.
-
-**Step 3: Verify Dockerfile has no LABEL lines**
+**Step 3: Verify no LABEL lines remain**
 
 ```bash
 grep -n "LABEL" docker/Dockerfile
+# Expected: no output
 ```
-
-Expected: no output.
 
 **Step 4: Commit**
 
@@ -284,22 +341,22 @@ git commit -m "chore: add renovate config for Docker digest pinning"
 
 ### Task 5: Rewrite `contracts/docker.sh`
 
-**Background:** The contract script verifies the image satisfies its promise.
-Every package in the Dockerfile must be checked.
-
-Current Dockerfile installs: `python`, `sudo`, `glibc`, `base-devel`, `git`
-(which includes `gcc`, `make`, etc.) and creates user `aur_builder`.
+**Background:** Every package in the Dockerfile must be checked. arch-base includes:
+`python`, `sudo`, `glibc`, `base-devel` (gcc, make, etc.), `git`, and pre-created user `aur_builder`.
 
 **Files:**
 - Modify: `contracts/docker.sh`
 
-**Step 1: Read current script**
+**Step 1: Read current script and Dockerfile**
 
 ```bash
 cat contracts/docker.sh
+cat docker/Dockerfile
 ```
 
-**Step 2: Rewrite to verify ALL installed packages**
+Identify every package installed. The contract must verify ALL of them.
+
+**Step 2: Rewrite to verify all installed packages**
 
 ```bash
 #!/usr/bin/env bash
@@ -308,25 +365,25 @@ set -euo pipefail
 echo "=== arch-base Docker image contract ==="
 
 # Core tools
-echo -n "systemd:          " && test -x /usr/lib/systemd/systemd && echo "OK"
-echo -n "python:           " && python --version
-echo -n "sudo:             " && sudo --version | head -1
-echo -n "gcc (base-devel): " && gcc --version | head -1
-echo -n "make (base-devel):" && make --version | head -1
-echo -n "git:              " && git --version
+echo -n "systemd:           " && test -x /usr/lib/systemd/systemd && echo "OK"
+echo -n "python:            " && python --version
+echo -n "sudo:              " && sudo --version | head -1
+echo -n "gcc (base-devel):  " && gcc --version | head -1
+echo -n "make (base-devel): " && make --version | head -1
+echo -n "git:               " && git --version
 
 # AUR builder user
-echo -n "aur_builder user: " && id aur_builder
-echo -n "aur_builder sudo: " && test -f /etc/sudoers.d/aur_builder && echo "OK"
+echo -n "aur_builder user:  " && id aur_builder
+echo -n "aur_builder sudo:  " && test -f /etc/sudoers.d/aur_builder && echo "OK"
 
 # Locale data (required for en_US/ru_RU locale generation in bootstrap roles)
-echo -n "locale SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo "OK"
-echo -n "locale en_US:     " && test -f /usr/share/i18n/locales/en_US && echo "OK"
-echo -n "locale ru_RU:     " && test -f /usr/share/i18n/locales/ru_RU && echo "OK"
-echo -n "locale-gen:       " && command -v locale-gen
+echo -n "locale SUPPORTED:  " && test -f /usr/share/i18n/SUPPORTED && echo "OK"
+echo -n "locale en_US:      " && test -f /usr/share/i18n/locales/en_US && echo "OK"
+echo -n "locale ru_RU:      " && test -f /usr/share/i18n/locales/ru_RU && echo "OK"
+echo -n "locale-gen:        " && command -v locale-gen
 
 # Systemd minimal (required for Molecule systemd driver)
-echo -n "systemd-tmpfiles: " && test -f /usr/lib/systemd/system/systemd-tmpfiles-setup.service && echo "OK"
+echo -n "systemd-tmpfiles:  " && test -f /usr/lib/systemd/system/systemd-tmpfiles-setup.service && echo "OK"
 
 echo "=== arch-base contract: PASS ==="
 ```
@@ -338,7 +395,7 @@ docker build -t arch-base-test docker/
 docker run --rm arch-base-test bash contracts/docker.sh
 ```
 
-Expected: all lines print "OK" or version string, final line: `=== arch-base contract: PASS ===`
+Expected: all lines print "OK" or a version string, final line: `=== arch-base contract: PASS ===`
 
 **Step 4: Commit**
 
@@ -351,29 +408,41 @@ git commit -m "fix(contracts): verify all installed packages in docker.sh"
 
 ### Task 6: Rewrite `.github/workflows/build.yml`
 
-This is the main task. The rewrite adds: `docker/metadata-action`, CalVer tags, Trivy,
-Cosign keyless signing, SLSA L1 provenance, `dorny/paths-filter`, pinned packer action.
+This is the main task. Adds: `docker/metadata-action`, CalVer tags, Trivy (pinned tag, not @master),
+Cosign keyless signing (without deprecated COSIGN_EXPERIMENTAL), SLSA L1 provenance, `dorny/paths-filter`,
+pinned packer action SHA, and real Vagrant boot-verification.
 
 **Files:**
 - Modify: `.github/workflows/build.yml`
 
-**Step 1: Read the current workflow**
+**Step 1: Look up pinned SHA for `hashicorp/setup-packer`**
+
+```bash
+# Find the latest release tag
+gh release list --repo hashicorp/setup-packer --limit 1
+
+# Get the SHA for that tag (replace vX.Y.Z with the actual tag)
+gh api repos/hashicorp/setup-packer/git/refs/tags/vX.Y.Z | jq -r '.object.sha'
+# If it's an annotated tag, dereference it:
+gh api repos/hashicorp/setup-packer/git/tags/<sha-from-above> | jq -r '.object.sha'
+```
+
+**Step 2: Look up the latest pinned tag for `aquasecurity/trivy-action`**
+
+```bash
+# Find the latest release tag (e.g., v0.30.0)
+gh release list --repo aquasecurity/trivy-action --limit 1
+```
+
+Note: Do NOT use `@master`. Use the actual tag from this lookup.
+
+**Step 3: Read the current workflow**
 
 ```bash
 cat .github/workflows/build.yml
 ```
 
-**Step 2: Find the pinned SHA for `hashicorp/setup-packer`**
-
-```bash
-# Check latest release SHA at github.com/hashicorp/setup-packer/releases
-# Then pin to: hashicorp/setup-packer@<sha>  # vX.Y.Z
-```
-
-Use `curl -s https://api.github.com/repos/hashicorp/setup-packer/releases/latest | jq -r '.tag_name'`
-to find latest version, then look up its SHA.
-
-**Step 3: Write the new workflow**
+**Step 4: Write the new workflow** (replace `<PACKER-SHA>` and `<TRIVY-TAG>` with values from Steps 1–2)
 
 ```yaml
 ---
@@ -426,12 +495,12 @@ jobs:
     needs: changes
     if: |
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' && (inputs.artifact == 'all' || inputs.artifact == 'docker') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.artifact == 'all' || inputs.artifact == 'docker')) ||
       needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
     permissions:
       packages: write
-      id-token: write   # required for keyless Cosign signing
+      id-token: write      # required for keyless Cosign signing
       attestations: write  # required for SLSA provenance
 
     steps:
@@ -471,17 +540,17 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan with Trivy (gate on CRITICAL/HIGH)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@<TRIVY-TAG>   # Replace with tag from Step 2
         with:
           image-ref: arch-base:scan
           severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: true
 
-      - name: Verify image contract
+      - name: Verify Docker image contract
         run: docker run --rm arch-base:scan bash contracts/docker.sh
 
-      - name: Build and push (with provenance + SBOM)
+      - name: Build and push (with SLSA L1 provenance + SBOM)
         id: push
         uses: docker/build-push-action@v6
         with:
@@ -494,17 +563,17 @@ jobs:
           provenance: true
           sbom: true
 
-      - name: Generate CycloneDX SBOM for release attachment
-        uses: aquasecurity/trivy-action@master
+      - name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@<TRIVY-TAG>   # Same tag as above
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: arch-base:scan
           format: cyclonedx
           output: sbom.cyclonedx.json
 
-      - name: Upload SBOM as artifact
+      - name: Upload SBOM as build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-docker
+          name: sbom-arch-base-docker
           path: sbom.cyclonedx.json
 
   attest:
@@ -526,19 +595,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign image
-        env:
-          COSIGN_EXPERIMENTAL: "1"
+      - name: Sign image by digest
+        # Sign by digest (covers all tags; COSIGN_EXPERIMENTAL is not needed in cosign v2+)
         run: |
+          IMAGE_DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{.Manifest.Digest}}')
           cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${IMAGE_DIGEST}"
 
   build-vagrant:
     name: Build arch-base Vagrant box
     needs: changes
     if: |
       github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' && (inputs.artifact == 'all' || inputs.artifact == 'vagrant') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.artifact == 'all' || inputs.artifact == 'vagrant')) ||
       needs.changes.outputs.vagrant == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -569,7 +640,7 @@ jobs:
           vagrant plugin install vagrant-libvirt
 
       - name: Set up Packer
-        uses: hashicorp/setup-packer@<PIN-TO-SHA>   # TODO: replace with SHA of latest release
+        uses: hashicorp/setup-packer@<PACKER-SHA>   # vX.Y.Z — replace with SHA from Step 1
 
       - name: Packer init
         run: packer init packer/archlinux.pkr.hcl
@@ -578,10 +649,25 @@ jobs:
         timeout-minutes: 60
         run: packer build packer/archlinux.pkr.hcl
 
-      - name: Verify Vagrant contract
-        run: bash contracts/vagrant.sh
+      - name: Verify Vagrant box contract (boot test)
+        # Real boot verification — not an archive check. Runs contract inside the booted VM.
+        run: |
+          vagrant box add --name verify-box arch-base.box
+          mkdir /tmp/verify-vm && cd /tmp/verify-vm
+          cat > Vagrantfile <<'EOF'
+          Vagrant.configure("2") do |config|
+            config.vm.box = "verify-box"
+            config.vm.provider :libvirt do |l|
+              l.memory = 1024
+              l.cpus   = 1
+            end
+          end
+          EOF
+          vagrant up --provider libvirt --no-provision
+          vagrant ssh -c "bash -s" < "$GITHUB_WORKSPACE/contracts/vagrant.sh"
+          vagrant destroy -f
 
-      - name: Compute version
+      - name: Compute CalVer date
         id: version
         run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
@@ -596,13 +682,18 @@ jobs:
           body: "Built ${{ steps.version.outputs.date }}"
 ```
 
-**Step 4: Replace `<PIN-TO-SHA>` with the actual SHA** from step 2.
+**Step 5: Verify no floating action refs remain**
 
-**Step 5: Commit**
+```bash
+grep -n "@master\|@main\|@latest" .github/workflows/build.yml
+# Expected: no output
+```
+
+**Step 6: Commit**
 
 ```bash
 git add .github/workflows/build.yml
-git commit -m "feat: overhaul workflow — metadata-action, Trivy, Cosign, CalVer tags, paths-filter"
+git commit -m "feat: overhaul workflow — metadata-action, Trivy, Cosign, CalVer tags, boot-verify, paths-filter"
 ```
 
 ---
@@ -641,8 +732,14 @@ Every image push is contract-tested. The following are always true:
 - `aur_builder` user exists with `/etc/sudoers.d/aur_builder`
 - `/usr/share/i18n/locales/en_US` and `ru_RU` are present
 - `/usr/share/i18n/SUPPORTED` exists
+- `/usr/lib/systemd/system/systemd-tmpfiles-setup.service` exists
 
 See [`contracts/docker.sh`](contracts/docker.sh) for the machine-readable contract.
+
+## Contract tests
+
+- Docker: [`contracts/docker.sh`](contracts/docker.sh) — runs inside the built image
+- Vagrant: [`contracts/vagrant.sh`](contracts/vagrant.sh) — runs inside a booted VM via `vagrant ssh`
 
 ## Usage
 
@@ -661,7 +758,7 @@ platforms:
 
 ### As a Vagrant box
 
-```
+```ruby
 # Vagrantfile
 config.vm.box = "arch-base"
 config.vm.box_url = "https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box"
@@ -708,43 +805,48 @@ git commit -m "docs: rewrite README with full structure (contents, guarantees, u
 
 ### Task 8: Delete arch-molecule from GHCR (manual)
 
-**This step requires manual action in the GitHub UI or via API.**
-
 **Step 1: Go to** `https://github.com/orgs/textyre/packages?repo_name=arch-images`
 
 **Step 2: Find** the `arch-molecule` package. Click into it.
 
-**Step 3: Delete** all versions of `arch-molecule`. GitHub will ask for confirmation.
+**Step 3: Delete** all versions of `arch-molecule`. GitHub asks for confirmation per version.
 
 **Step 4: Delete** the package itself once all versions are removed.
 
-**Step 5: Verify** `ghcr.io/textyre/arch-molecule` no longer resolves:
+**Step 5: Verify** `arch-molecule` no longer resolves:
 
 ```bash
 docker pull ghcr.io/textyre/arch-molecule:latest
-# Expected: error - manifest unknown
+# Expected: error response from daemon: manifest unknown
 ```
 
 ---
 
 ## Phase 3 — ubuntu-images: Cleanup, Rename, Harden
 
-All steps below are in the `textyre/ubuntu-images` repo.
-`ubuntu-noble` → `ubuntu-base` is a breaking rename. Bootstrap refs are updated in Phase 4.
+All work is in the `textyre/ubuntu-images` repo.
+`ubuntu-noble` → `ubuntu-base` is a breaking rename. Bootstrap refs are updated in Phase 4 after CI passes.
 
-### Task 9: Remove molecule artifacts from Packer and workflow
+### Task 9: Remove ubuntu-molecule variant
 
-Same pattern as Task 2 but for ubuntu-images.
+Same pattern as Task 2.
 
-**Step 1: Find molecule Packer configs**
+**Step 1: Find molecule references**
 
 ```bash
-grep -r "ubuntu-molecule\|molecule" packer/ .github/
+grep -rn "ubuntu-molecule\|molecule" packer/ .github/
 ```
 
-**Step 2: Delete** any build block or workflow step producing `ubuntu-molecule-*.box`.
+**Step 2: Delete** any Packer build block or workflow step producing `ubuntu-molecule-*.box`.
 
-**Step 3: Commit**
+**Step 3: Verify**
+
+```bash
+grep -rn "ubuntu-molecule\|molecule" packer/ .github/
+# Expected: no output
+```
+
+**Step 4: Commit**
 
 ```bash
 git add packer/ .github/workflows/build.yml
@@ -753,12 +855,15 @@ git commit -m "chore: remove ubuntu-molecule variant (box + packer config)"
 
 ---
 
-### Task 10: Clean up Dockerfile
+### Task 10: Remove LABEL from Dockerfile
 
-Same as Task 3. Remove any `LABEL` instructions.
+Same as Task 3.
 
 ```bash
+grep -n "LABEL" docker/Dockerfile   # find what exists
+# Remove all LABEL lines
 grep -n "LABEL" docker/Dockerfile   # must return nothing after edit
+
 git add docker/Dockerfile
 git commit -m "chore(dockerfile): remove hardcoded LABEL instructions"
 ```
@@ -767,7 +872,7 @@ git commit -m "chore(dockerfile): remove hardcoded LABEL instructions"
 
 ### Task 11: Add `renovate.json`
 
-Same as Task 4. Identical content.
+Identical content to Task 4.
 
 ```bash
 git add renovate.json
@@ -778,8 +883,8 @@ git commit -m "chore: add renovate config for Docker digest pinning"
 
 ### Task 12: Expand `contracts/docker.sh` to full parity
 
-**Background:** Current ubuntu contract checks only 3 items (systemd, python3, sudo).
-Dockerfile also installs: `systemd-sysv`, `dbus`, `udev`, `kmod`, `python3-apt`.
+**Background:** Current ubuntu contract likely checks only 3 items (systemd, python3, sudo).
+The Dockerfile also installs: `systemd-sysv`, `dbus`, `udev`, `kmod`, `python3-apt`.
 
 **Files:**
 - Modify: `contracts/docker.sh`
@@ -790,6 +895,8 @@ Dockerfile also installs: `systemd-sysv`, `dbus`, `udev`, `kmod`, `python3-apt`.
 cat contracts/docker.sh
 cat docker/Dockerfile
 ```
+
+Identify every package installed. The contract must verify ALL of them.
 
 **Step 2: Rewrite to verify all installed packages**
 
@@ -804,7 +911,7 @@ echo -n "systemd:          " && test -x /lib/systemd/systemd && echo "OK"
 echo -n "python3:          " && python3 --version
 echo -n "sudo:             " && sudo --version | head -1
 
-# Explicitly installed packages (per Dockerfile)
+# Explicitly installed packages (adjust to match actual Dockerfile — read it first)
 echo -n "dbus:             " && command -v dbus-daemon && echo "OK"
 echo -n "udev:             " && command -v udevadm && echo "OK"
 echo -n "kmod:             " && command -v kmod && echo "OK"
@@ -835,67 +942,75 @@ git commit -m "fix(contracts): expand ubuntu contract to verify all installed pa
 
 ---
 
-### Task 13: Rewrite `.github/workflows/build.yml`
-
-Same structure as Task 6 but for ubuntu. Key differences:
-- `IMAGE_NAME: ${{ github.repository_owner }}/ubuntu-base` (not `ubuntu-noble`)
-- Tags include `type=raw,value=24.04` instead of `rolling`
-- `description=Ubuntu 24.04 base image with systemd for Ansible/Molecule testing`
-- Packer template is `packer/ubuntu.pkr.hcl`
-- Box files are named `ubuntu-base-*.box` (not `ubuntu-noble-*.box`)
+### Task 13: Update Packer template for ubuntu-base rename
 
 **Files:**
-- Modify: `.github/workflows/build.yml`
+- Modify: `packer/ubuntu.pkr.hcl` (or `packer/ubuntu.pkrvars.hcl` — read to find out)
 
-**Step 1: Copy the arch workflow from Task 6 and apply ubuntu-specific substitutions:**
-
-Replace every occurrence of:
-- `arch-base` → `ubuntu-base`
-- `archlinux.pkr.hcl` → `ubuntu.pkr.hcl`
-- `rolling` → `24.04`
-- `/usr/lib/systemd/systemd` → `/lib/systemd/systemd`
-- `arch-base:scan` → `ubuntu-base:scan`
-- Arch Linux description → Ubuntu description
-
-Also update the Packer template file name and box output name in the packer config
-(check `packer/ubuntu.pkr.hcl` for the output box filename variable).
-
-**Step 2: Verify the workflow file references `ubuntu-base` consistently**
+**Step 1: Search for noble/ubuntu-noble references in packer/**
 
 ```bash
-grep -n "ubuntu-noble" .github/workflows/build.yml
+grep -rn "ubuntu-noble\|noble" packer/
+```
+
+**Step 2: Replace** `ubuntu-noble` with `ubuntu-base` in box output filename variable(s).
+
+**Step 3: Verify**
+
+```bash
+grep -rn "ubuntu-noble" packer/
 # Expected: no output
 ```
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
-git add .github/workflows/build.yml
-git commit -m "feat: overhaul workflow — rename ubuntu-noble→ubuntu-base, add metadata-action/Trivy/Cosign"
+git add packer/
+git commit -m "chore: rename ubuntu-noble → ubuntu-base in packer template"
 ```
 
 ---
 
-### Task 14: Update Packer template for ubuntu-base rename
+### Task 14: Rewrite `.github/workflows/build.yml`
 
-**Background:** The Packer template may hardcode the box output filename as `ubuntu-noble`.
+Same structure as Task 6, with ubuntu-specific substitutions. Use the SHA/tag values already looked up in Task 6.
 
 **Files:**
-- Modify: `packer/ubuntu.pkr.hcl`
+- Modify: `.github/workflows/build.yml`
 
-**Step 1: Search for hardcoded noble references**
+**Step 1: Apply ubuntu-specific substitutions** to the arch workflow:
+
+| Find | Replace |
+|------|---------|
+| `IMAGE_NAME: .../arch-base` | `IMAGE_NAME: .../ubuntu-base` |
+| `type=raw,value=rolling` | `type=raw,value=24.04` |
+| `Arch Linux base image...` | `Ubuntu 24.04 base image with systemd for Ansible/Molecule testing` |
+| `arch-base:scan` | `ubuntu-base:scan` |
+| `archlinux.pkr.hcl` | `ubuntu.pkr.hcl` |
+| `arch-base.box` | `ubuntu-base.box` |
+| `arch-base-*.box` | `ubuntu-base-*.box` |
+| `/usr/lib/systemd/systemd` | `/lib/systemd/systemd` (Ubuntu path) |
+| schedule `cron: '0 2 * * 1'` | `cron: '0 3 * * 1'` (03:00 UTC, 1 hour after arch) |
+
+**Step 2: Verify no ubuntu-noble refs remain**
 
 ```bash
-grep -n "ubuntu-noble\|noble" packer/ubuntu.pkr.hcl
+grep -n "ubuntu-noble\|ubuntu-molecule" .github/workflows/build.yml
+# Expected: no output
 ```
 
-**Step 2: Replace** `ubuntu-noble` with `ubuntu-base` in the output box filename variable.
-
-**Step 3: Commit**
+**Step 3: Verify no floating action refs**
 
 ```bash
-git add packer/ubuntu.pkr.hcl
-git commit -m "chore: rename ubuntu-noble → ubuntu-base in packer template"
+grep -n "@master\|@main\|@latest" .github/workflows/build.yml
+# Expected: no output
+```
+
+**Step 4: Commit**
+
+```bash
+git add .github/workflows/build.yml
+git commit -m "feat: overhaul workflow — rename ubuntu-noble→ubuntu-base, metadata-action/Trivy/Cosign"
 ```
 
 ---
@@ -933,6 +1048,11 @@ Every image push is contract-tested. The following are always true:
 
 See [`contracts/docker.sh`](contracts/docker.sh) for the machine-readable contract.
 
+## Contract tests
+
+- Docker: [`contracts/docker.sh`](contracts/docker.sh) — runs inside the built image
+- Vagrant: [`contracts/vagrant.sh`](contracts/vagrant.sh) — runs inside a booted VM via `vagrant ssh`
+
 ## Usage
 
 ### In molecule.yml (Docker driver)
@@ -950,7 +1070,7 @@ platforms:
 
 ### As a Vagrant box
 
-```
+```ruby
 # Vagrantfile
 config.vm.box = "ubuntu-base"
 config.vm.box_url = "https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-base-latest.box"
@@ -995,12 +1115,11 @@ git commit -m "docs: create README with full structure (ubuntu-base)"
 
 ---
 
-### Task 16: Delete ubuntu-molecule and ubuntu-noble from GHCR (manual)
+### Task 16: Delete ubuntu-noble and ubuntu-molecule from GHCR (manual)
 
 **Step 1: Go to** `https://github.com/orgs/textyre/packages?repo_name=ubuntu-images`
 
-**Step 2: Delete** all versions of `ubuntu-noble` and `ubuntu-molecule` packages.
-The new image will be published as `ubuntu-base`.
+**Step 2: Delete** all versions of both `ubuntu-noble` and `ubuntu-molecule` packages.
 
 **Step 3: Verify** old names no longer resolve:
 
@@ -1012,39 +1131,95 @@ docker pull ghcr.io/textyre/ubuntu-molecule:latest
 
 ---
 
+## Blocking Gate — Push image repos and verify CI
+
+**Do not start Phase 4 until this completes successfully.**
+
+### Task 17: Push both image repos and wait for green releases
+
+**Step 1: Push arch-images**
+
+```bash
+# In textyre/arch-images working directory
+git push origin main
+```
+
+**Step 2: Push ubuntu-images**
+
+```bash
+# In textyre/ubuntu-images working directory
+git push origin main
+```
+
+**Step 3: Trigger builds**
+
+```bash
+gh workflow run build.yml --repo textyre/arch-images   --field artifact=all
+gh workflow run build.yml --repo textyre/ubuntu-images --field artifact=all
+```
+
+**Step 4: Watch until complete**
+
+```bash
+gh run watch --repo textyre/arch-images \
+  $(gh run list --repo textyre/arch-images --limit 1 --json databaseId -q '.[0].databaseId')
+gh run watch --repo textyre/ubuntu-images \
+  $(gh run list --repo textyre/ubuntu-images --limit 1 --json databaseId -q '.[0].databaseId')
+```
+
+Expected: both complete with green checkmarks.
+
+**Step 5: Verify new releases exist**
+
+```bash
+gh release view boxes --repo textyre/arch-images   --json assets --jq '.assets[].name'
+gh release view boxes --repo textyre/ubuntu-images --json assets --jq '.assets[].name'
+```
+
+Expected output (arch):
+```
+arch-base-YYYYMMDD.box
+arch-base-latest.box
+```
+
+Expected output (ubuntu):
+```
+ubuntu-base-YYYYMMDD.box
+ubuntu-base-latest.box
+```
+
+If either `arch-base-latest.box` or `ubuntu-base-latest.box` is missing, **do not proceed to Phase 4**.
+
+---
+
 ## Phase 4 — bootstrap: Update Downstream References
 
-All steps below are in the `textyre/bootstrap` repo (this repo).
+All work is in `textyre/bootstrap` (this repo).
 
-**What changed in image repos:**
-- `ghcr.io/textyre/arch-molecule` → `ghcr.io/textyre/arch-base`
-- Vagrant box `ubuntu-noble` → `ubuntu-base`
-- Platform name `ubuntu-noble` in molecule.yml → `ubuntu-base`
-- `molecule-vagrant.yml` matrix value `ubuntu-noble` → `ubuntu-base`
+**What changed upstream:**
+- `ghcr.io/textyre/arch-molecule` → `ghcr.io/textyre/arch-base` (already done in molecule scenarios)
+- Vagrant box `ubuntu-noble` → `ubuntu-base` (TODO)
+- Platform name `ubuntu-noble` in molecule.yml → `ubuntu-base` (TODO)
+- `molecule-vagrant.yml` matrix `ubuntu-noble` → `ubuntu-base` (TODO)
 
-**Reference inventory (from search):**
-1. `.github/workflows/build-arch-image.yml` — 4 refs to `arch-molecule`
-2. `.github/workflows/molecule-vagrant.yml` — line 21: `platform: [arch-vm, ubuntu-noble]`
-3. `ansible/roles/package_manager/molecule/vagrant/molecule.yml` — `box: ubuntu-noble`, `box_url: .../ubuntu-noble-latest.box`
-4. `ansible/roles/pam_hardening/molecule/vagrant/molecule.yml` — same
-5. 26 vagrant `molecule.yml` files — `- name: ubuntu-noble` (platform name)
-6. `ansible/roles/chezmoi/README.md` — reference to `ubuntu-noble` in table
-
-### Task 17: Update `build-arch-image.yml`
+### Task 18: Update `build-arch-image.yml`
 
 **Files:**
 - Modify: `.github/workflows/build-arch-image.yml`
 
 **Step 1: Read the file**
 
-**Step 2: Make replacements**
+```bash
+cat .github/workflows/build-arch-image.yml
+```
+
+**Step 2: Replace all arch-molecule references**
 
 | Old | New |
 |-----|-----|
-| `# The arch-molecule image is built...` | `# The arch-base image is built...` |
-| `name: Verify arch-molecule image contract` | `name: Verify arch-base image contract` |
-| `ghcr.io/textyre/arch-molecule:latest` | `ghcr.io/textyre/arch-base:latest` |
+| `arch-molecule` image name | `arch-base` |
 | `=== arch-molecule image contract ===` | `=== arch-base image contract ===` |
+| Any comment mentioning arch-molecule | Update to arch-base |
 
 **Step 3: Verify no arch-molecule refs remain**
 
@@ -1062,24 +1237,35 @@ git commit -m "fix(ci): update arch image verify to use arch-base (was arch-mole
 
 ---
 
-### Task 18: Update `molecule-vagrant.yml` matrix
+### Task 19: Update `molecule-vagrant.yml` matrix
 
 **Files:**
 - Modify: `.github/workflows/molecule-vagrant.yml`
 
-**Step 1: Change platform matrix**
-
-Line 21: `platform: [arch-vm, ubuntu-noble]`
-→ `platform: [arch-vm, ubuntu-base]`
-
-**Step 2: Verify**
+**Step 1: Read the file and find the platform matrix**
 
 ```bash
-grep -n "ubuntu-noble\|ubuntu-molecule" .github/workflows/molecule-vagrant.yml
+grep -n "ubuntu-noble\|platform" .github/workflows/molecule-vagrant.yml
+```
+
+**Step 2: Change platform matrix**
+
+```yaml
+# Old
+platform: [arch-vm, ubuntu-noble]
+
+# New
+platform: [arch-vm, ubuntu-base]
+```
+
+**Step 3: Verify**
+
+```bash
+grep -n "ubuntu-noble" .github/workflows/molecule-vagrant.yml
 # Expected: no output
 ```
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
 git add .github/workflows/molecule-vagrant.yml
@@ -1088,28 +1274,32 @@ git commit -m "fix(ci): rename ubuntu-noble platform → ubuntu-base in vagrant 
 
 ---
 
-### Task 19: Update box definitions in 2 explicit molecule.yml files
+### Task 20: Update box definitions in 2 explicit molecule.yml files
 
 **Files:**
 - Modify: `ansible/roles/package_manager/molecule/vagrant/molecule.yml`
 - Modify: `ansible/roles/pam_hardening/molecule/vagrant/molecule.yml`
 
-**Step 1: In each file, change**
+**Step 1: In each file, update the ubuntu platform**
 
 ```yaml
 # Old
-box: ubuntu-noble
-box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-noble-latest.box
+- name: ubuntu-noble
+  box: ubuntu-noble
+  box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-noble-latest.box
 
 # New
-box: ubuntu-base
-box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-base-latest.box
+- name: ubuntu-base
+  box: ubuntu-base
+  box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-base-latest.box
 ```
 
 **Step 2: Verify**
 
 ```bash
-grep -rn "ubuntu-noble" ansible/roles/package_manager/molecule/ ansible/roles/pam_hardening/molecule/
+grep -rn "ubuntu-noble" \
+  ansible/roles/package_manager/molecule/vagrant/ \
+  ansible/roles/pam_hardening/molecule/vagrant/
 # Expected: no output
 ```
 
@@ -1123,50 +1313,43 @@ git commit -m "fix(molecule): update vagrant box refs ubuntu-noble → ubuntu-ba
 
 ---
 
-### Task 20: Update platform name in all 26 vagrant molecule.yml files
+### Task 21: Update platform name in all vagrant molecule.yml files
 
-**Background:** All 26 vagrant scenarios have `- name: ubuntu-noble`. This must match
-the `--platform-name ubuntu-base` argument from the updated workflow matrix.
+**Background:** All vagrant scenarios have `- name: ubuntu-noble`. This must match
+the `--platform-name ubuntu-base` argument from the updated workflow matrix in Task 19.
 
 **Step 1: Find all affected files**
 
 ```bash
-grep -rn "name: ubuntu-noble" ansible/roles/*/molecule/vagrant/molecule.yml
+grep -rn "name: ubuntu-noble" ansible/roles/
 ```
 
 Expected: ~26 files.
 
-**Step 2: Bulk rename using sed**
+**Step 2: Bulk rename**
 
 ```bash
-find ansible/roles -path "*/molecule/vagrant/molecule.yml" -exec \
-  sed -i 's/- name: ubuntu-noble/- name: ubuntu-base/g' {} +
+find ansible/roles -path "*/molecule/vagrant/molecule.yml" \
+  -exec sed -i 's/- name: ubuntu-noble/- name: ubuntu-base/g' {} +
 ```
 
 **Step 3: Verify no ubuntu-noble platform names remain**
 
 ```bash
-grep -rn "ubuntu-noble" ansible/roles/*/molecule/vagrant/molecule.yml
-# Expected: no output (only box_url refs from Tasks 18-19 should be gone already)
-```
-
-**Step 4: Do a final sweep across all ansible/ files**
-
-```bash
-grep -rn "ubuntu-noble" ansible/
+grep -rn "name: ubuntu-noble" ansible/roles/
 # Expected: no output
 ```
 
-**Step 5: Commit**
+**Step 4: Commit**
 
 ```bash
 git add ansible/roles/
-git commit -m "fix(molecule): rename ubuntu-noble platform → ubuntu-base across all 26 vagrant scenarios"
+git commit -m "fix(molecule): rename ubuntu-noble platform → ubuntu-base across all vagrant scenarios"
 ```
 
 ---
 
-### Task 21: Update chezmoi README.md
+### Task 22: Update chezmoi README.md
 
 **Files:**
 - Modify: `ansible/roles/chezmoi/README.md`
@@ -1177,7 +1360,7 @@ git commit -m "fix(molecule): rename ubuntu-noble platform → ubuntu-base acros
 grep -n "ubuntu-noble" ansible/roles/chezmoi/README.md
 ```
 
-**Step 2: Update** the table cell `ubuntu-noble` → `ubuntu-base`.
+**Step 2: Update** `ubuntu-noble` → `ubuntu-base` in the table.
 
 **Step 3: Verify**
 
@@ -1195,35 +1378,34 @@ git commit -m "docs(chezmoi): update platform name ubuntu-noble → ubuntu-base"
 
 ---
 
-### Task 22: Verify the full rename is complete
+### Task 23: Final verification sweep
 
-**Step 1: Final sweep across entire bootstrap repo**
+**Step 1: Sweep bootstrap for all stale references**
 
 ```bash
 grep -rn "ubuntu-noble\|arch-molecule\|ubuntu-molecule" \
   .github/ ansible/roles/ wiki/ \
-  --include="*.yml" --include="*.yaml" --include="*.md" \
-  --exclude-dir=".git"
+  --include="*.yml" --include="*.yaml" --include="*.md"
 ```
 
-Expected: zero matches (historical docs in `docs/troubleshooting/` and `docs/plans/` are OK to leave).
+Expected: **zero matches** (historical docs in `docs/` are OK to leave).
 
-**Step 2: Run existing molecule tests (docker scenarios) to confirm nothing broken**
+**Step 2: Run a docker molecule test on the remote VM** to confirm nothing is broken
 
 ```bash
-# On remote VM, for a role with vagrant scenario:
 bash scripts/ssh-run.sh "cd /home/textyre/bootstrap && source ansible/.venv/bin/activate && \
   cd ansible/roles/package_manager && molecule test -s docker"
 ```
 
 Expected: converge + verify pass.
 
-**Step 3: Final commit for the design document (already written in Phase 1)**
+**Step 3: Final commit (if any files were missed)**
+
+If the sweep in Step 1 found anything, fix it and commit:
 
 ```bash
-git add docs/plans/2026-02-27-image-repo-housecleaning-design.md \
-        docs/plans/2026-02-27-image-repo-housecleaning.md
-git commit -m "docs(plans): add image-repo housecleaning design + implementation plan"
+git add <files>
+git commit -m "fix: final cleanup of stale ubuntu-noble/arch-molecule refs"
 ```
 
 ---
@@ -1232,9 +1414,21 @@ git commit -m "docs(plans): add image-repo housecleaning design + implementation
 
 | Phase | Repo | Tasks | Key outcome |
 |-------|------|-------|-------------|
-| 1 | bootstrap | 1 | Standard documented |
-| 2 | arch-images | 2–8 | Molecule removed, Trivy/Cosign/Renovate added |
+| 0 | bootstrap | State check | Confirm current state, skip completed work |
+| 1 | bootstrap | 1 | Standard documented (10 REQs) |
+| 2 | arch-images | 2–8 | Molecule removed, Trivy/Cosign/Renovate added, boot-verify |
 | 3 | ubuntu-images | 9–16 | Renamed ubuntu-noble→ubuntu-base, same hardening |
-| 4 | bootstrap | 17–22 | All downstream refs updated |
+| Gate | both image repos | 17 | CI green, new releases published — blocking |
+| 4 | bootstrap | 18–23 | All downstream refs updated |
 
-**Verification that work is complete:** `grep -rn "ubuntu-noble\|arch-molecule\|ubuntu-molecule"` across all active code files returns zero results.
+**Definition of done:** `grep -rn "ubuntu-noble\|arch-molecule\|ubuntu-molecule"` across `.github/`, `ansible/roles/`, `wiki/` returns zero matches.
+
+---
+
+## Out of scope
+
+- SLSA L3 (slsa-github-generator reusable workflow) — overkill for internal CI images
+- Multi-arch builds (linux/arm64) — no ARM runners in use
+- GitHub CODEOWNERS, issue templates — low-priority
+- Dependabot (Renovate covers Docker; Actions pinning is manual via SHA)
+- OCI SBOM attachment (`cosign attach sbom`) — file-based artifact upload is sufficient
