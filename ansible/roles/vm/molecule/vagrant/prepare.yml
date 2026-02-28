@@ -30,6 +30,7 @@
       ansible.builtin.copy:
         content: "nameserver 8.8.8.8\nnameserver 1.1.1.1\n"
         dest: /etc/resolv.conf
+        mode: '0644'
         unsafe_writes: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
