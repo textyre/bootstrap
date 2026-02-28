@@ -95,10 +95,9 @@ jobs:
           fi
 
           # Vagrant matrix = intersection of changed roles and vagrant-capable roles
-          VAGRANT_ROLES=$(printf '%s\n' $ROLES | grep -v '^$' \
-            | while IFS= read -r role; do
-                echo "$ALL_VAGRANT" | grep -qx "$role" && echo "$role"
-              done)
+          VAGRANT_ROLES=$(comm -12 \
+            <(printf '%s\n' $ROLES | sort -u | grep -v '^$') \
+            <(printf '%s\n' $ALL_VAGRANT | grep -v '^$'))
           VAGRANT_MATRIX=$(printf '%s\n' $VAGRANT_ROLES | grep -v '^$' \
             | jq -Rsc '[split("\n")[] | select(length > 0)]')
           echo "vagrant_matrix=$VAGRANT_MATRIX" >> "$GITHUB_OUTPUT"
