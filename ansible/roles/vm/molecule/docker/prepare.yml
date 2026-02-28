@@ -3,6 +3,7 @@
   hosts: all
   become: true
   gather_facts: true
+
   tasks:
     - name: Update pacman package cache (Arch)
       community.general.pacman:

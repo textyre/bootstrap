@@ -47,7 +47,7 @@
   loop: "{{ vm_svc_list }}"
   loop_control:
     label: "{{ item.name }} ({{ 'required' if item.required else 'optional' }})"
-  register: vm_svc_result
+  register: _vm_svc_result
   failed_when:
     - _vm_svc_result is failed
     - item.required

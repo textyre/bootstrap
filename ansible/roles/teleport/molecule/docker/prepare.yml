@@ -2,8 +2,15 @@
 - name: Prepare
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   tasks:
-    - name: Update pacman package cache
+    - name: Update pacman package cache (Arch)
       community.general.pacman:
         update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'

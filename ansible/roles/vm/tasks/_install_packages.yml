@@ -37,7 +37,7 @@
     name: "{{ vm_pkg_list }}"
     state: present
   when: vm_pkg_list | length > 0
-  register: vm_pkg_install_result
+  register: _vm_pkg_install_result
   retries: 3
   delay: 5
   until: _vm_pkg_install_result is succeeded

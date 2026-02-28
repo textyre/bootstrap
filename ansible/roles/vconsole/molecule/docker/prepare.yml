@@ -2,7 +2,7 @@
 - name: Prepare — set up container for vconsole testing
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
 
   tasks:
     - name: Ensure kbd package is present (provides loadkeys/setfont)
