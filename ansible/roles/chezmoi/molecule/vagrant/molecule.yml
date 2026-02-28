@@ -31,7 +31,7 @@ provisioner:
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true
         chezmoi_verify_fixture: true
-      ubuntu-noble:
+      ubuntu-base:
         chezmoi_install_method: script
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true

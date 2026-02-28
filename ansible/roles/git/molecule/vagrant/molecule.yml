@@ -41,7 +41,7 @@ provisioner:
           diff.colorMoved: zebra
         git_safe_directories:
           - /tmp/test-safe-dir
-      ubuntu-noble:
+      ubuntu-base:
         git_owner:
           name: vagrant
           user_name: "Test User"
