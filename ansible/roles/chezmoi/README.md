@@ -89,7 +89,7 @@ Tests use [Molecule](https://molecule.readthedocs.io/).
 |----------|--------|-----------|-------|
 | `default` | none (localhost) | localhost (connection: local) | Fast smoke test against real dotfiles; requires `REPO_ROOT` set |
 | `docker` | Docker | `arch-systemd` container | Uses fixture dotfiles under `/opt/dotfiles`; validates binary install + apply |
-| `vagrant` | Vagrant + libvirt | `arch-vm`, `ubuntu-noble` | Full VM test; covers both `pacman` and `script` install methods |
+| `vagrant` | Vagrant + libvirt | `arch-vm`, `ubuntu-base` | Full VM test; covers both `pacman` and `script` install methods |
 
 ### Running
 
