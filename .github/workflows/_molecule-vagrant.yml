@@ -63,6 +63,10 @@ jobs:
         if: steps.vagrant-gems-cache.outputs.cache-hit != 'true'
         run: vagrant plugin install vagrant-libvirt
 
+      - name: Repair vagrant plugins (recompile native extensions)
+        if: steps.vagrant-gems-cache.outputs.cache-hit == 'true'
+        run: vagrant plugin repair
+
       - name: Resolve box version
         id: box
         env:
