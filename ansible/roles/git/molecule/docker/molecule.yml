@@ -18,6 +18,21 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+  - name: Ubuntu-systemd
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
 provisioner:
   name: ansible
   options:
@@ -30,6 +45,21 @@ provisioner:
   inventory:
     host_vars:
       Archlinux-systemd:
+        git_owner:
+          name: root
+          user_name: "Test User"
+          user_email: "test@example.com"
+          signing_method: none
+          signing_key: ""
+          credential_helper: ""
+        git_manage_hooks: true
+        git_hooks_path: "/tmp/test-git-hooks"
+        git_config_extra:
+          color.ui: auto
+          diff.colorMoved: zebra
+        git_safe_directories:
+          - /tmp/test-safe-dir
+      Ubuntu-systemd:
         git_owner:
           name: root
           user_name: "Test User"
