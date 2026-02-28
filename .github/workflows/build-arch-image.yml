@@ -1,7 +1,7 @@
 ---
-# The arch-molecule image is built and maintained in https://github.com/textyre/arch-images
+# The arch-base image is built and maintained in https://github.com/textyre/arch-images
 # This workflow only verifies the image contract — it does not build the image.
-name: "Verify Arch Molecule Image"
+name: "Verify Arch Base Image"
 
 on:
   workflow_dispatch:
@@ -10,25 +10,11 @@ on:
 
 jobs:
   verify:
-    name: Verify arch-molecule image contract
+    name: Verify arch-base image contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Verify image contract
         run: |
-          docker run --rm ghcr.io/textyre/arch-molecule:latest sh -c '
-            set -e
-            echo "=== arch-molecule image contract ==="
-            echo -n "systemd:          " && test -x /usr/lib/systemd/systemd && echo "OK"
-            echo -n "python:           " && python --version
-            echo -n "sudo:             " && sudo --version | head -1
-            echo -n "gcc (base-devel): " && gcc --version | head -1
-            echo -n "git:              " && git --version
-            echo -n "aur_builder:      " && id aur_builder
-            echo -n "locale SUPPORTED: " && test -f /usr/share/i18n/SUPPORTED && echo "OK"
-            echo -n "en_US:            " && test -f /usr/share/i18n/locales/en_US && echo "OK"
-            echo -n "ru_RU:            " && test -f /usr/share/i18n/locales/ru_RU && echo "OK"
-            echo -n "locale-gen:       " && command -v locale-gen
-            echo "=== PASS ==="
-          '
+          docker run --rm ghcr.io/textyre/arch-base:latest bash contracts/docker.sh
