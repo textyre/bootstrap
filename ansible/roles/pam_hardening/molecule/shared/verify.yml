@@ -196,6 +196,21 @@
               /usr/share/pam-configs/faillock missing
               pam_faillock.so preauth directive
 
+        - name: Slurp /etc/pam.d/common-auth
+          ansible.builtin.slurp:
+            src: /etc/pam.d/common-auth
+          register: pam_hardening_verify_common_auth_raw
+
+        - name: Assert pam_faillock.so preauth in common-auth
+          ansible.builtin.assert:
+            that:
+              - >-
+                (pam_hardening_verify_common_auth_raw.content | b64decode)
+                is search('pam_faillock\.so preauth')
+            fail_msg: >-
+              /etc/pam.d/common-auth missing pam_faillock.so preauth —
+              pam-auth-update did not apply the faillock profile
+
     # ---- PAM stack: RedHat / Fedora ----
 
     - name: Verify PAM stack on RedHat/Fedora
