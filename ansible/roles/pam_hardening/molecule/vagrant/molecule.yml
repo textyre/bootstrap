@@ -7,12 +7,12 @@ driver:
 platforms:
   - name: arch-vm
     box: arch-base
-    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
+    box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
   - name: ubuntu-base
     box: ubuntu-base
-    box_url: https://github.com/textyre/ubuntu-images/releases/download/boxes/ubuntu-base-latest.box
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
     memory: 2048
     cpus: 2
 

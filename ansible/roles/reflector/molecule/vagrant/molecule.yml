@@ -7,7 +7,7 @@ driver:
 platforms:
   - name: arch-vm
     box: arch-base
-    box_url: https://github.com/textyre/arch-images/releases/download/boxes/arch-base-latest.box
+    box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
 
