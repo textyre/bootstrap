@@ -11,7 +11,8 @@ platforms:
     memory: 2048
     cpus: 2
   - name: ubuntu-base
-    box: bento/ubuntu-24.04
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
     memory: 2048
     cpus: 2
 
