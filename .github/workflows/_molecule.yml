@@ -16,7 +16,7 @@ on:
 
 jobs:
   test:
-    name: "${{ inputs.role_name }} (Arch/systemd)"
+    name: "${{ inputs.role_name }} (Arch+Ubuntu/systemd)"
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository }}/ci-env:latest
@@ -25,6 +25,7 @@ jobs:
       PY_COLORS: "1"
       ANSIBLE_FORCE_COLOR: "1"
       MOLECULE_ARCH_IMAGE: ghcr.io/textyre/arch-base:latest
+      MOLECULE_UBUNTU_IMAGE: ghcr.io/textyre/ubuntu-base:latest
 
     concurrency:
       group: "molecule-${{ inputs.role_name }}-${{ github.event.pull_request.number || github.sha }}"

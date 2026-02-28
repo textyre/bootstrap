@@ -89,7 +89,7 @@ molecule test -s default
 
 ### `docker` (Arch Linux systemd container)
 
-Runs inside a privileged Arch Linux container with systemd. Requires the custom image (`ghcr.io/textyre/bootstrap/arch-systemd:latest`) and a running Docker daemon with cgroup v2 support.
+Runs inside a privileged Arch Linux container with systemd. Requires the custom image (`ghcr.io/textyre/arch-base:latest`) and a running Docker daemon with cgroup v2 support.
 
 ```bash
 cd ansible/roles/caddy

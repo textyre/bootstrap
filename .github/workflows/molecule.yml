@@ -9,6 +9,7 @@ on:
       - 'ansible/requirements.txt'
       - '.github/workflows/molecule.yml'
       - '.github/workflows/_molecule.yml'
+      - '.github/workflows/_molecule-vagrant.yml'
   pull_request:
     branches: [master]
     paths:
@@ -16,6 +17,7 @@ on:
       - 'ansible/requirements.txt'
       - '.github/workflows/molecule.yml'
       - '.github/workflows/_molecule.yml'
+      - '.github/workflows/_molecule-vagrant.yml'
   workflow_dispatch:
     inputs:
       role_filter:
@@ -34,6 +36,8 @@ jobs:
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
       empty: ${{ steps.build.outputs.empty }}
+      vagrant_matrix: ${{ steps.build.outputs.vagrant_matrix }}
+      vagrant_empty: ${{ steps.build.outputs.vagrant_empty }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,7 +56,9 @@ jobs:
           # CI-ready roles = those with molecule/docker/molecule.yml
           ALL_ROLES=$(find ansible/roles -name molecule.yml -path "*/docker/molecule.yml" \
             | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
-          CHANGED=""  # empty on workflow_dispatch; populated on push/PR
+          # Vagrant-capable roles = those also with molecule/vagrant/molecule.yml
+          ALL_VAGRANT=$(find ansible/roles -name molecule.yml -path "*/vagrant/molecule.yml" \
+            | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             FILTER="${{ inputs.role_filter }}"
@@ -88,6 +94,19 @@ jobs:
             echo "empty=false" >> "$GITHUB_OUTPUT"
           fi
 
+          # Vagrant matrix = intersection of changed roles and vagrant-capable roles
+          VAGRANT_ROLES=$(comm -12 \
+            <(printf '%s\n' $ROLES | sort -u | grep -v '^$') \
+            <(printf '%s\n' $ALL_VAGRANT | grep -v '^$'))
+          VAGRANT_MATRIX=$(printf '%s\n' $VAGRANT_ROLES | grep -v '^$' \
+            | jq -Rsc '[split("\n")[] | select(length > 0)]')
+          echo "vagrant_matrix=$VAGRANT_MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$VAGRANT_MATRIX" = "[]" ]; then
+            echo "vagrant_empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "vagrant_empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     needs: detect
     if: needs.detect.outputs.empty == 'false'
@@ -98,3 +117,16 @@ jobs:
     uses: ./.github/workflows/_molecule.yml
     with:
       role_name: ${{ matrix.role }}
+
+  test-vagrant:
+    needs: detect
+    if: needs.detect.outputs.vagrant_empty == 'false'
+    strategy:
+      matrix:
+        role: ${{ fromJSON(needs.detect.outputs.vagrant_matrix) }}
+        platform: [arch-vm, ubuntu-base]
+      fail-fast: false
+    uses: ./.github/workflows/_molecule-vagrant.yml
+    with:
+      role_name: ${{ matrix.role }}
+      platform: ${{ matrix.platform }}

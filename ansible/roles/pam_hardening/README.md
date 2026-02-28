@@ -67,4 +67,4 @@ Follows guidance from: dev-sec Linux Baseline, Kicksecure hardening, VMware Phot
 |----------|-------------|
 | `default` | Localhost (developer's Arch workstation), idempotence check |
 | `docker` | Arch Linux systemd container — file content assertions |
-| `vagrant` | `generic/arch` + `bento/ubuntu-24.04` — dual-platform PAM stack validation |
+| `vagrant` | `generic/arch` + `ubuntu-base` — dual-platform PAM stack validation |
