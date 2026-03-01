@@ -20,3 +20,16 @@
         path: /run/sshd
         state: directory
         mode: "0755"
+
+    - name: Create sshusers group (access-control platforms)
+      ansible.builtin.group:
+        name: sshusers
+        state: present
+      when: inventory_hostname is search('access-control')
+
+    - name: Add root to sshusers group (access-control platforms)
+      ansible.builtin.user:
+        name: root
+        groups: sshusers
+        append: true
+      when: inventory_hostname is search('access-control')
