@@ -31,12 +31,14 @@ provisioner:
         docker_log_driver: "json-file"
         docker_live_restore: false
         docker_no_new_privileges: false
+        docker_enable_service: false
       ubuntu-base:
         docker_userns_remap: ""
         docker_icc: true
         docker_log_driver: "json-file"
         docker_live_restore: false
         docker_no_new_privileges: false
+        docker_enable_service: false
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
