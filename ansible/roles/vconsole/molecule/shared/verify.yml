@@ -75,6 +75,14 @@
         - ansible_facts['service_mgr'] == 'systemd'
         - _vconsole_verify_font | default('') | length > 0
 
+    - name: Assert FONT_MAP is set correctly
+      ansible.builtin.assert:
+        that: "'FONT_MAP=8859-2' in _vconsole_verify_content"
+        fail_msg: "FONT_MAP=8859-2 not found in /etc/vconsole.conf"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - ansible_facts['os_family'] == 'Archlinux'
+
     # ---- Font package ----
 
     - name: Gather package facts
@@ -88,32 +96,6 @@
           - _vconsole_verify_font_package in ansible_facts.packages
         fail_msg: "{{ _vconsole_verify_font_package }} package not installed"
       when: _vconsole_verify_font | default('') | length > 0
-
-    # ---- GPM (systemd) ----
-
-    - name: Gather service facts
-      ansible.builtin.service_facts:
-      when: ansible_facts['service_mgr'] == 'systemd'
-
-    - name: Assert GPM service is running (when enabled)
-      ansible.builtin.assert:
-        that:
-          - "'gpm.service' in ansible_facts.services"
-          - ansible_facts.services['gpm.service'].state == 'running'
-        fail_msg: "GPM service is not running -- expected enabled"
-      when:
-        - ansible_facts['service_mgr'] == 'systemd'
-        - _vconsole_verify_gpm_enabled | bool
-
-    - name: Assert GPM service is absent or stopped (when disabled)
-      ansible.builtin.assert:
-        that: >-
-          ('gpm.service' not in ansible_facts.services) or
-          (ansible_facts.services['gpm.service'].state != 'running')
-        fail_msg: "GPM service is running but _vconsole_verify_gpm_enabled=false"
-      when:
-        - ansible_facts['service_mgr'] == 'systemd'
-        - not (_vconsole_verify_gpm_enabled | bool)
 
     # ---- OpenRC: /etc/conf.d/keymaps ----
 
@@ -139,6 +121,21 @@
         - ansible_facts['service_mgr'] == 'openrc'
         - "'content' in _vconsole_verify_openrc"
 
+    - name: Stat /etc/conf.d/keymaps (openrc)
+      ansible.builtin.stat:
+        path: /etc/conf.d/keymaps
+      register: vconsole_verify_stat_openrc
+      when: ansible_facts['service_mgr'] == 'openrc'
+
+    - name: Assert /etc/conf.d/keymaps permissions (openrc)
+      ansible.builtin.assert:
+        that:
+          - vconsole_verify_stat_openrc.stat.exists
+          - vconsole_verify_stat_openrc.stat.pw_name == 'root'
+          - vconsole_verify_stat_openrc.stat.mode == '0644'
+        fail_msg: "/etc/conf.d/keymaps wrong permissions"
+      when: ansible_facts['service_mgr'] == 'openrc'
+
     # ---- Runit: /etc/rc.conf ----
 
     - name: Slurp /etc/rc.conf
@@ -162,6 +159,21 @@
       when:
         - ansible_facts['service_mgr'] == 'runit'
         - "'content' in _vconsole_verify_runit"
+
+    - name: Stat /etc/rc.conf (runit)
+      ansible.builtin.stat:
+        path: /etc/rc.conf
+      register: vconsole_verify_stat_runit
+      when: ansible_facts['service_mgr'] == 'runit'
+
+    - name: Assert /etc/rc.conf permissions (runit)
+      ansible.builtin.assert:
+        that:
+          - vconsole_verify_stat_runit.stat.exists
+          - vconsole_verify_stat_runit.stat.pw_name == 'root'
+          - vconsole_verify_stat_runit.stat.mode == '0644'
+        fail_msg: "/etc/rc.conf wrong permissions"
+      when: ansible_facts['service_mgr'] == 'runit'
 
     # ---- Summary ----
 

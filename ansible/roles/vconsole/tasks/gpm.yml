@@ -13,5 +13,15 @@
     name: gpm
     enabled: true
     state: started
-  when: vconsole_gpm_enabled
+  when:
+    - vconsole_gpm_enabled
+    - (ansible_facts['virtualization_type'] | default('')) not in ['docker', 'container', 'podman']
+  tags: ['vconsole']
+
+- name: Skip GPM service start in containerized environments
+  ansible.builtin.debug:
+    msg: "Skipping GPM service start in containerized environment (virtualization_type={{ ansible_facts['virtualization_type'] | default('unknown') }}). Package remains installed."
+  when:
+    - vconsole_gpm_enabled
+    - (ansible_facts['virtualization_type'] | default('')) in ['docker', 'container', 'podman']
   tags: ['vconsole']
