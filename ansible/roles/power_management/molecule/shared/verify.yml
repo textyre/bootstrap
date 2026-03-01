@@ -17,7 +17,7 @@
     - name: Set laptop detection fact
       ansible.builtin.set_fact:
         pm_verify_is_laptop: >-
-          {{ pm_verify_chassis is succeeded and
+          {{ 'content' in pm_verify_chassis and
              (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32'] }}
 
     - name: Check if cpufreq is available
@@ -325,13 +325,13 @@
     - name: Assert governor is set (when cpufreq available)
       ansible.builtin.assert:
         that:
-          - pm_verify_governor is succeeded
+          - "'content' in pm_verify_governor"
           - (pm_verify_governor.content | b64decode | trim) in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative']
         fail_msg: "CPU governor not set to a valid value"
         success_msg: "CPU governor: {{ pm_verify_governor.content | b64decode | trim }}"
       when:
         - pm_verify_cpufreq_available.stat.exists | default(false)
-        - pm_verify_governor is succeeded
+        - "'content' in pm_verify_governor"
 
     # ==== Arch-specific: systemd-rfkill masked (laptop path only, informational) ====
 
