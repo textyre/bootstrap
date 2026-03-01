@@ -10,7 +10,7 @@
 
 - name: Install tzdata
   ansible.builtin.package:
-    name: "{{ timezone_packages_tzdata[ansible_facts['os_family']] | default(timezone_packages_tzdata['default']) }}"
+    name: "{{ timezone_packages_tzdata[ansible_facts['os_family']] | default(timezone_packages_tzdata.get('default', 'tzdata')) }}"
     state: present
   when: timezone_packages_tzdata is defined
   tags: ['timezone']

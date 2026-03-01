@@ -4,9 +4,6 @@
   become: true
   gather_facts: true
 
-  vars:
-    _timezone_verify_expected: "Asia/Almaty"
-
   tasks:
 
     # ---- /etc/localtime is a symlink ----
@@ -33,9 +30,9 @@
     - name: Assert /etc/localtime points to expected timezone
       ansible.builtin.assert:
         that:
-          - _timezone_verify_expected in _timezone_verify_localtime_target.stdout
+          - timezone_name in _timezone_verify_localtime_target.stdout
         fail_msg: >-
-          Expected '{{ _timezone_verify_expected }}' in symlink target,
+          Expected '{{ timezone_name }}' in symlink target,
           got '{{ _timezone_verify_localtime_target.stdout }}'
 
     # ---- timedatectl (systemd hosts only) ----
@@ -50,9 +47,9 @@
     - name: Assert timedatectl reports expected timezone (systemd)
       ansible.builtin.assert:
         that:
-          - _timezone_verify_timedatectl.stdout == _timezone_verify_expected
+          - _timezone_verify_timedatectl.stdout == timezone_name
         fail_msg: >-
-          timedatectl expected '{{ _timezone_verify_expected }}',
+          timedatectl expected '{{ timezone_name }}',
           got '{{ _timezone_verify_timedatectl.stdout }}'
       when:
         - ansible_facts['service_mgr'] == 'systemd'
@@ -67,8 +64,15 @@
     - name: Assert tzdata package is installed
       ansible.builtin.assert:
         that:
-          - "'tzdata' in ansible_facts.packages"
-        fail_msg: "tzdata package not found in installed packages"
+          - >-
+            (timezone_packages_tzdata[ansible_facts['os_family']]
+             | default(timezone_packages_tzdata.get('default', 'tzdata')))
+            in ansible_facts.packages
+        fail_msg: >-
+          tzdata package '{{ timezone_packages_tzdata[ansible_facts['os_family']]
+            | default(timezone_packages_tzdata.get('default', 'tzdata')) }}'
+          not found in installed packages
+      when: timezone_packages_tzdata is defined
 
     # ---- /etc/timezone file (Debian/Ubuntu, non-systemd only) ----
     # NOTE: community.general.timezone on systemd hosts uses timedatectl
@@ -94,9 +98,9 @@
       ansible.builtin.assert:
         that:
           - "'content' in _timezone_verify_etc_timezone_raw"
-          - (_timezone_verify_etc_timezone_raw.content | b64decode | trim) == _timezone_verify_expected
+          - (_timezone_verify_etc_timezone_raw.content | b64decode | trim) == timezone_name
         fail_msg: >-
-          /etc/timezone expected '{{ _timezone_verify_expected }}',
+          /etc/timezone expected '{{ timezone_name }}',
           got '{{ _timezone_verify_etc_timezone_raw.content | b64decode | trim }}'
       when:
         - ansible_facts['service_mgr'] != 'systemd'

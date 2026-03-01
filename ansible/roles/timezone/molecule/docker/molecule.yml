@@ -39,6 +39,14 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+      forks: 1
+  inventory:
+    group_vars:
+      all:
+        timezone_name: "Asia/Almaty"
+        timezone_packages_tzdata:
+          Gentoo: "timezone-data"
+          default: "tzdata"
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
