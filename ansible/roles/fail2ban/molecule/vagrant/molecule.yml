@@ -25,6 +25,12 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      arch-vm:
+        # Arch vagrant box: use noop banaction to avoid iptables-nft/KVM incompatibility.
+        # Ubuntu uses real iptables (works fine without override).
+        fail2ban_sshd_banaction: noop
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
