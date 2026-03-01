@@ -3,14 +3,8 @@
   hosts: all
   become: true
   gather_facts: true
-
-  pre_tasks:
-    # Load role defaults at proper (lowest) precedence so molecule host_vars can override them.
-    # Using include_role instead of vars_files avoids the vars_files > host_vars precedence bug.
-    - name: Load docker role defaults (respects host_vars overrides)
-      ansible.builtin.include_role:
-        name: docker
-        tasks_from: noop.yml
+  vars_files:
+    - ../../defaults/main.yml
 
   tasks:
 
