@@ -1,9 +1,34 @@
 ---
-# === Конфигурация Docker ===
-# daemon.json, сервис, группа пользователя
+# === Docker ===
+# Docker daemon configuration: daemon.json, сервис, группа пользователя
 # NOTE: docker group membership = эквивалент root доступа (документированное поведение Docker)
+# PREREQUISITE: Docker must be installed before running this role
 
+# ======================================================================
+# ---- Preflight: OS validation ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _docker_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _docker_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['docker']
+
+# ======================================================================
+# ---- OS-specific variables ----
+# ======================================================================
+
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['docker']
+
+# ======================================================================
 # ---- Конфигурация daemon ----
+# ======================================================================
 
 - name: Ensure /etc/docker directory exists
   ansible.builtin.file:
@@ -12,7 +37,7 @@
     owner: root
     group: root
     mode: '0755'
-  tags: ['docker', 'configure']
+  tags: ['docker', 'docker:configure']
 
 - name: Build Docker daemon configuration
   ansible.builtin.set_fact:
@@ -31,7 +56,7 @@
         | combine({"live-restore": true} if docker_live_restore else {})
         | combine({"no-new-privileges": true} if docker_no_new_privileges else {})
       }}
-  tags: ['docker', 'configure']
+  tags: ['docker', 'docker:configure']
 
 - name: Deploy Docker daemon.json
   ansible.builtin.template:
@@ -42,16 +67,18 @@
     mode: '0644'
     validate: 'python3 -m json.tool %s'
   notify: Restart docker
-  tags: ['docker', 'configure']
+  tags: ['docker', 'docker:configure']
 
+# ======================================================================
 # ---- Группа пользователя ----
+# ======================================================================
 
 - name: Ensure docker group exists
   ansible.builtin.group:
     name: docker
     state: present
   when: docker_add_user_to_group
-  tags: ['docker', 'configure']
+  tags: ['docker', 'docker:configure']
 
 - name: Add user to docker group
   ansible.builtin.user:
@@ -59,14 +86,24 @@
     groups: docker
     append: true
   when: docker_add_user_to_group
-  tags: ['docker', 'configure']
+  tags: ['docker', 'docker:configure']
 
+# ======================================================================
 # ---- Сервис ----
+# ======================================================================
 
 - name: Enable and start docker service
   ansible.builtin.service:
-    name: docker
+    name: "{{ _docker_service_name }}"
     enabled: true
     state: started
   when: docker_enable_service
-  tags: ['docker', 'service']
+  tags: ['docker', 'docker:service']
+
+# ======================================================================
+# ---- Проверка ----
+# ======================================================================
+
+- name: Verify Docker configuration
+  ansible.builtin.include_tasks: verify.yml
+  tags: ['docker']

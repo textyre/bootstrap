@@ -23,6 +23,35 @@ provisioner:
       callbacks_enabled: profile_tasks
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+  inventory:
+    group_vars:
+      all:
+        docker_log_driver: "journald"
+        docker_log_max_size: "10m"
+        docker_log_max_file: "3"
+        docker_storage_driver: ""
+        docker_userns_remap: "default"
+        docker_icc: false
+        docker_live_restore: true
+        docker_no_new_privileges: true
+        docker_add_user_to_group: true
+        docker_enable_service: true
+        docker_user: "vagrant"
+    host_vars:
+      arch-vm:
+        docker_userns_remap: ""
+        docker_icc: true
+        docker_log_driver: "json-file"
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_enable_service: false
+      ubuntu-base:
+        docker_userns_remap: ""
+        docker_icc: true
+        docker_log_driver: "json-file"
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_enable_service: false
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

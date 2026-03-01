@@ -3,17 +3,11 @@ driver:
   name: docker
 
 platforms:
+  # Default security settings (all CIS features enabled, service skipped)
   - name: Archlinux-systemd
     image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
     pre_build_image: true
-    command: /usr/lib/systemd/systemd
-    cgroupns_mode: host
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    tmpfs:
-      - /run
-      - /tmp
-    privileged: true
+    command: sleep infinity
     dns_servers:
       - 8.8.8.8
       - 8.8.4.4
@@ -21,14 +15,24 @@ platforms:
   - name: Ubuntu-systemd
     image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
     pre_build_image: true
-    command: /lib/systemd/systemd
-    cgroupns_mode: host
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    tmpfs:
-      - /run
-      - /tmp
-    privileged: true
+    command: sleep infinity
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  # Negative-path platforms: test optional security settings disabled
+  - name: Archlinux-nosec
+    image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
+    pre_build_image: true
+    command: sleep infinity
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  - name: Ubuntu-nosec
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: sleep infinity
     dns_servers:
       - 8.8.8.8
       - 8.8.4.4
@@ -43,11 +47,44 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   inventory:
+    group_vars:
+      all:
+        # Role defaults for verify.yml assertions (group_vars precedence < host_vars)
+        docker_log_driver: "journald"
+        docker_log_max_size: "10m"
+        docker_log_max_file: "3"
+        docker_storage_driver: ""
+        docker_userns_remap: "default"
+        docker_icc: false
+        docker_live_restore: true
+        docker_no_new_privileges: true
+        docker_add_user_to_group: true
+        docker_enable_service: true
+        docker_user: "root"
     host_vars:
+      # Default security settings (all CIS features enabled)
+      # docker_add_user_to_group=false to avoid usermod in containers (unstable in DinD)
       Archlinux-systemd:
         docker_enable_service: false
+        docker_add_user_to_group: false
       Ubuntu-systemd:
         docker_enable_service: false
+        docker_add_user_to_group: false
+      # nosec platforms: all optional security features disabled
+      Archlinux-nosec:
+        docker_enable_service: false
+        docker_icc: true
+        docker_userns_remap: ""
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_add_user_to_group: false
+      Ubuntu-nosec:
+        docker_enable_service: false
+        docker_icc: true
+        docker_userns_remap: ""
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_add_user_to_group: false
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

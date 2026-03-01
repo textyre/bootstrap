@@ -48,6 +48,12 @@ All security variables ship with CIS Docker Benchmark values enabled:
 Use `--skip-tags service` or set `docker_enable_service: false` to skip service management
 (e.g., in container-based molecule scenarios).
 
+## Molecule test coverage
+
+The `docker` scenario tests four platform configurations:
+- `Archlinux-systemd` / `Ubuntu-systemd` — default security settings (all CIS features enabled)
+- `Archlinux-nosec` / `Ubuntu-nosec` — all optional security settings disabled (tests key-absent paths)
+
 ## Molecule scenarios
 
 | Scenario | Driver | Scope | Notes |
@@ -56,6 +62,16 @@ Use `--skip-tags service` or set `docker_enable_service: false` to skip service 
 | `docker` | Docker | Config-only | Uses DinD container, skips service start |
 | `vagrant` | Vagrant (libvirt) | Full | Real VMs with running daemon, Arch + Ubuntu |
 
+## Prerequisites
+
+Docker must be installed before running this role. The role only configures Docker — it does not install the package. Use your distro's package manager or a dedicated installation role before this one.
+
 ## Supported platforms
 
-Arch Linux (primary). Ubuntu 24.04 tested via molecule vagrant scenario (role tasks are distro-agnostic).
+| Platform | Status |
+|----------|--------|
+| Arch Linux | Primary, fully tested |
+| Ubuntu 24.04 | Tested via molecule (docker + vagrant scenarios) |
+| Fedora / RHEL | Supported (distro-agnostic tasks), community tested |
+| Void Linux | Supported (distro-agnostic tasks), community tested |
+| Gentoo | Supported (distro-agnostic tasks), community tested |
