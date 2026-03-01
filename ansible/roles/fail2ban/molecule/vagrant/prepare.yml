@@ -9,6 +9,18 @@
         update_cache: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    - name: Install python-systemd (Arch) — enables fail2ban systemd journal backend
+      community.general.pacman:
+        name: python-systemd
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Load nf_tables kernel module (Arch) — required for iptables-nft banaction
+      community.general.modprobe:
+        name: nf_tables
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     - name: Update apt cache (Ubuntu)
       ansible.builtin.apt:
         update_cache: true

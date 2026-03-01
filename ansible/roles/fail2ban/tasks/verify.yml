@@ -2,7 +2,7 @@
 - name: "Wait for fail2ban socket"
   ansible.builtin.wait_for:
     path: /var/run/fail2ban/fail2ban.sock
-    timeout: 30
+    timeout: 60
   when: ansible_virtualization_type | default('') not in ['docker', 'container']
   tags: [fail2ban]
 
