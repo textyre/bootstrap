@@ -14,6 +14,18 @@
   gather_facts: true
 
   tasks:
+    - name: Install ca-certificates package (Ubuntu)
+      ansible.builtin.apt:
+        name: ca-certificates
+        state: present
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Refresh CA certificate bundle (Ubuntu)
+      ansible.builtin.command: update-ca-certificates
+      changed_when: false
+      when: ansible_facts['os_family'] == 'Debian'
+
     - name: Create aur_builder user for AUR privilege escalation (Arch only)
       ansible.builtin.user:
         name: aur_builder
