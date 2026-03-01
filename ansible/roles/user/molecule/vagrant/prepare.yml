@@ -4,14 +4,30 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Ensure logrotate is installed (Arch)
-      ansible.builtin.package:
-        name: logrotate
-        state: present
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Update apt cache (Ubuntu)
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure video group exists (required by testuser_extra)
+      ansible.builtin.group:
+        name: video
+        state: present
+
+    - name: Ensure logrotate is installed (Arch)
+      community.general.pacman:
+        name: logrotate
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Ensure logrotate is installed (Ubuntu)
+      ansible.builtin.apt:
+        name: logrotate
+        state: present
       when: ansible_facts['os_family'] == 'Debian'
