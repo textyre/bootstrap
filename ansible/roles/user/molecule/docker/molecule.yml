@@ -37,6 +37,9 @@ provisioner:
   name: ansible
   options:
     skip-tags: report
+    # extra-vars have highest Ansible precedence — override vars_files defaults for verify.yml
+    # shared/converge.yml already sets these via vars: block; this covers verify.yml too.
+    extra-vars: "user_manage_password_aging=false"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
