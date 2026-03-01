@@ -8,3 +8,8 @@
     state: present
   loop: "{{ locale_list }}"
   tags: ['locale']
+
+- name: Refresh locale archive (Arch Linux)
+  ansible.builtin.command: locale-gen
+  changed_when: false
+  tags: ['locale']

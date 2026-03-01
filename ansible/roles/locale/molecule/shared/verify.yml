@@ -93,17 +93,23 @@
              | list }}
       loop: "{{ test_locales }}"
 
-    # ---- 6. Functional smoke test — locale command ----
+    # ---- 6. Functional smoke test — locale command (env sourced from locale.conf) ----
 
-    - name: Run locale command
+    - name: Parse locale.conf into env dict for smoke test
+      ansible.builtin.set_fact:
+        _locale_conf_env: >-
+          {{
+            dict(
+              (_locale_verify_conf_content.content | b64decode)
+              | regex_findall('(?m)^(LC_[A-Z_]+|LANG)=(.+)$')
+            )
+          }}
+
+    - name: Run locale command (env from /etc/locale.conf)
       ansible.builtin.command: locale
       register: _locale_verify_locale_cmd
       changed_when: false
-      environment: >-
-        {{
-          {'LANG': test_locale} |
-          combine(test_lc_overrides)
-        }}
+      environment: "{{ _locale_conf_env }}"
 
     - name: Assert LANG is active in locale output
       ansible.builtin.assert:
