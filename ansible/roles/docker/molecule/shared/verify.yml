@@ -242,6 +242,15 @@
               {{ _docker_verify_info['SecurityOptions'] }}
           when: docker_userns_remap | length > 0
 
+        - name: Assert storage driver at runtime matches variable (when non-empty)
+          ansible.builtin.assert:
+            that: "_docker_verify_info['Driver'] == docker_storage_driver"
+            fail_msg: >-
+              Storage driver mismatch:
+              expected '{{ docker_storage_driver | default('') }}',
+              got '{{ _docker_verify_info['Driver'] | default('') }}'
+          when: docker_storage_driver | default('') | length > 0
+
     # ==========================================================
     # Negative-path assertions: security settings disabled
     # ==========================================================
@@ -289,6 +298,14 @@
           - "'storage-driver' not in _docker_verify_daemon_dict"
         fail_msg: "'storage-driver' should be absent in daemon.json when docker_storage_driver is empty"
       when: docker_storage_driver | default('') | length == 0
+
+    - name: Assert storage-driver in daemon.json (when non-empty)
+      ansible.builtin.assert:
+        that:
+          - "'storage-driver' in _docker_verify_daemon_dict"
+          - "_docker_verify_daemon_dict['storage-driver'] == docker_storage_driver"
+        fail_msg: "storage-driver not set to '{{ docker_storage_driver | default('') }}' in daemon.json"
+      when: docker_storage_driver | default('') | length > 0
 
     # ==========================================================
     # Summary
