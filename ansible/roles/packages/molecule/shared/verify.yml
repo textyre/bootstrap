@@ -6,11 +6,11 @@
 
   tasks:
 
-    # ---- Build expected package list ----
+    # ---- Build expected package list (mirrors tasks/main.yml logic) ----
 
-    - name: Build combined package list (mirrors tasks/main.yml logic)
+    - name: Build combined package list
       ansible.builtin.set_fact:
-        packages_verify_expected: >-
+        _packages_verify_expected: >-
           {{ (packages_base | default([]))
              + (packages_editors | default([]))
              + (packages_docker | default([]))
@@ -29,22 +29,31 @@
              + (packages_viewers | default([]))
              + (packages_distro[ansible_facts['os_family']] | default([])) }}
 
-    # ---- Gather package facts ----
+    # ---- Verify each package is installed via native package manager ----
 
-    - name: Gather package facts
-      ansible.builtin.package_facts:
-        manager: auto
-
-    # ---- Assert all expected packages are installed ----
-
-    - name: Assert each expected package is installed
-      ansible.builtin.assert:
-        that: "item in ansible_facts.packages"
-        fail_msg: "Package '{{ item }}' not found in installed packages"
-        quiet: true
-      loop: "{{ packages_verify_expected }}"
+    - name: "Verify package installed (pacman -Q): {{ item }}"
+      ansible.builtin.command:
+        cmd: "pacman -Q {{ item }}"
+      register: _packages_verify_pacman
+      changed_when: false
+      failed_when: _packages_verify_pacman.rc != 0
+      loop: "{{ _packages_verify_expected }}"
       loop_control:
         label: "{{ item }}"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: "Verify package installed (dpkg-query): {{ item }}"
+      ansible.builtin.command:
+        cmd: "dpkg-query -W -f='${Status}' {{ item }}"
+      register: _packages_verify_dpkg
+      changed_when: false
+      failed_when: >-
+        _packages_verify_dpkg.rc != 0 or
+        'install ok installed' not in _packages_verify_dpkg.stdout
+      loop: "{{ _packages_verify_expected }}"
+      loop_control:
+        label: "{{ item }}"
+      when: ansible_facts['os_family'] == 'Debian'
 
     # ---- Summary ----
 
@@ -53,4 +62,5 @@
         msg: >-
           packages verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          all {{ packages_verify_expected | length }} packages present.
+          all {{ _packages_verify_expected | length }} packages verified
+          via native package manager.
