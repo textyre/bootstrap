@@ -286,6 +286,13 @@
           (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
       when: not (docker_add_user_to_group | default(true) | bool)
 
+    - name: Assert storage-driver key is ABSENT from daemon.json (when default empty)
+      ansible.builtin.assert:
+        that:
+          - "'storage-driver' not in _docker_verify_daemon_dict"
+        fail_msg: "'storage-driver' should be absent in daemon.json when docker_storage_driver is empty"
+      when: docker_storage_driver | default('') | length == 0
+
     # ==========================================================
     # Summary
     # ==========================================================
