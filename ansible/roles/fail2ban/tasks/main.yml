@@ -57,6 +57,10 @@
       when: ansible_virtualization_type | default('') not in ['docker', 'container']
       tags: [fail2ban, service]
 
+    - name: "Flush handlers (apply config restart before verify)"
+      ansible.builtin.meta: flush_handlers
+      tags: [fail2ban]
+
     # ======================================================================
     # ---- Проверка ----
     # ======================================================================

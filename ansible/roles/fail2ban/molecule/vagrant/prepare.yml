@@ -15,6 +15,23 @@
         state: present
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    - name: Install iptables-nft (Arch) — fail2ban banaction requires iptables
+      community.general.pacman:
+        name: iptables-nft
+        state: present
+      register: _arch_iptables_nft
+      failed_when: false
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Install iptables (Arch fallback if iptables-nft conflicts)
+      community.general.pacman:
+        name: iptables
+        state: present
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - _arch_iptables_nft is defined
+        - _arch_iptables_nft.rc | default(0) != 0
+
     - name: Load nf_tables kernel module (Arch) — required for iptables-nft banaction
       community.general.modprobe:
         name: nf_tables
