@@ -65,13 +65,13 @@
     # =====================================================================
     - name: Stat sysctl drop-in file
       ansible.builtin.stat:
-        path: /etc/sysctl.d/99-ansible.conf
+        path: /etc/sysctl.d/99-z-ansible.conf
       register: _sysctl_verify_stat
 
     - name: Assert drop-in file exists
       ansible.builtin.assert:
         that: _sysctl_verify_stat.stat.exists
-        fail_msg: "/etc/sysctl.d/99-ansible.conf does not exist"
+        fail_msg: "/etc/sysctl.d/99-z-ansible.conf does not exist"
         success_msg: "drop-in file exists"
 
     - name: Assert drop-in file ownership and permissions
@@ -81,7 +81,7 @@
           - _sysctl_verify_stat.stat.gr_name == 'root'
           - _sysctl_verify_stat.stat.mode == '0644'
         fail_msg: >-
-          /etc/sysctl.d/99-ansible.conf has wrong ownership or mode:
+          /etc/sysctl.d/99-z-ansible.conf has wrong ownership or mode:
           owner={{ _sysctl_verify_stat.stat.pw_name }}
           group={{ _sysctl_verify_stat.stat.gr_name }}
           mode={{ _sysctl_verify_stat.stat.mode }}
@@ -89,7 +89,7 @@
 
     - name: Read drop-in file content
       ansible.builtin.slurp:
-        src: /etc/sysctl.d/99-ansible.conf
+        src: /etc/sysctl.d/99-z-ansible.conf
       register: _sysctl_verify_content_raw
 
     - name: Set config content fact
@@ -240,6 +240,90 @@
         fail_msg: "{{ item.item.param }}: expected={{ item.item.expected }} got={{ item.stdout }}"
         success_msg: "{{ item.item.param }}={{ item.stdout }} OK"
       loop: "{{ _sysctl_verify_fs_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    # =====================================================================
+    # Tier 2b: Boot persistence (skipped in Docker containers)
+    # Runs sysctl --system to replicate what systemd-sysctl does at boot,
+    # then re-asserts all security values. Catches file-ordering bugs:
+    # if our sysctl.d file sorts before a system-provided file (e.g. Ubuntu's
+    # 99-sysctl.conf), that file overwrites our settings at every reboot.
+    # =====================================================================
+    - name: "Boot persistence | simulate systemd-sysctl boot sequence"
+      ansible.builtin.command: sysctl -e --system
+      changed_when: false
+      when: not _sysctl_in_container
+
+    - name: "Boot persistence | read kernel hardening values after boot simulation"
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_kernel_boot
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_kernel_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: "Boot persistence | assert kernel hardening values survive reboot"
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: >-
+          [BOOT] {{ item.item.param }}: expected={{ item.item.expected }}
+          got={{ item.stdout }} — value overwritten at boot by a later sysctl.d file
+        success_msg: "[BOOT] {{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_kernel_boot.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    - name: "Boot persistence | read network hardening values after boot simulation"
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_network_boot
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_network_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: "Boot persistence | assert network hardening values survive reboot"
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: >-
+          [BOOT] {{ item.item.param }}: expected={{ item.item.expected }}
+          got={{ item.stdout }} — value overwritten at boot by a later sysctl.d file
+        success_msg: "[BOOT] {{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_network_boot.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc == 0
+
+    - name: "Boot persistence | read filesystem hardening values after boot simulation"
+      ansible.builtin.command: "sysctl -n {{ item.param }}"
+      register: _sysctl_verify_fs_boot
+      changed_when: false
+      failed_when: false
+      loop: "{{ _sysctl_filesystem_hardening_params }}"
+      loop_control:
+        label: "{{ item.param }}"
+      when: not _sysctl_in_container
+
+    - name: "Boot persistence | assert filesystem hardening values survive reboot"
+      ansible.builtin.assert:
+        that: item.stdout | string == item.item.expected | string
+        fail_msg: >-
+          [BOOT] {{ item.item.param }}: expected={{ item.item.expected }}
+          got={{ item.stdout }} — value overwritten at boot by a later sysctl.d file
+        success_msg: "[BOOT] {{ item.item.param }}={{ item.stdout }} OK"
+      loop: "{{ _sysctl_verify_fs_boot.results }}"
       loop_control:
         label: "{{ item.item.param }}"
       when:

@@ -1,6 +1,6 @@
 ---
 # === sysctl — kernel parameter tuning ===
-# Управление параметрами ядра через /etc/sysctl.d/99-ansible.conf
+# Управление параметрами ядра через /etc/sysctl.d/99-z-ansible.conf
 
 # Supported OS families
 sysctl_supported_os:

@@ -1,6 +1,6 @@
 # Ansible Role: sysctl
 
-Configures Linux kernel parameters via `/etc/sysctl.d/99-ansible.conf` for three goals: kernel exploit hardening, network attack surface reduction, and workstation performance tuning.
+Configures Linux kernel parameters via `/etc/sysctl.d/99-z-ansible.conf` for three goals: kernel exploit hardening, network attack surface reduction, and workstation performance tuning.
 
 Parameters are applied distribution-agnostically: `sysctl -e --system` loads all drop-in files and silently ignores parameters unsupported by the current kernel (e.g. `kernel.unprivileged_userns_clone` exists only in Arch `linux-hardened`).
 
@@ -205,7 +205,7 @@ ansible-playbook playbook.yml --tags sysctl,verify
 
 ## Files deployed
 
-- `/etc/sysctl.d/99-ansible.conf` — drop-in kernel parameter configuration, loaded automatically at boot by `systemd-sysctl.service` and on-demand via `sysctl --system`
+- `/etc/sysctl.d/99-z-ansible.conf` — drop-in kernel parameter configuration, loaded automatically at boot by `systemd-sysctl.service` and on-demand via `sysctl --system`
 
 ## Testing
 
@@ -247,7 +247,7 @@ molecule/
 ```
 
 Verification is split into three tiers:
-1. **File checks** (all scenarios): `/etc/sysctl.d/99-ansible.conf` exists, correct ownership/permissions, required parameters present
+1. **File checks** (all scenarios): `/etc/sysctl.d/99-z-ansible.conf` exists, correct ownership/permissions, required parameters present
 2. **Live value checks** (skipped in Docker): Live `sysctl -n` values match expected values for performance, kernel hardening, network hardening, and filesystem hardening parameters
 3. **Cross-platform checks**: Arch-specific parameters (`kernel.unprivileged_userns_clone`) verified on Arch only
 
