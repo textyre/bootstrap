@@ -17,7 +17,7 @@
     - name: Set laptop detection fact
       ansible.builtin.set_fact:
         pm_verify_is_laptop: >-
-          {{ pm_verify_force_laptop | default(false) or
+          {{ (pm_verify_force_laptop | default(false) | bool) or
              ('content' in pm_verify_chassis and
               (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32']) }}
 
