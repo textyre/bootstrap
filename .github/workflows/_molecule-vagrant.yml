@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     concurrency:
-      group: "vagrant-${{ inputs.role_name }}-${{ inputs.platform }}-${{ github.event.pull_request.number || github.sha }}"
+      group: "${{ inputs.scenario }}-${{ inputs.role_name }}-${{ inputs.platform }}-${{ github.event.pull_request.number || github.sha }}"
       cancel-in-progress: true
 
     steps:
