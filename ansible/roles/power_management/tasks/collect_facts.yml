@@ -13,7 +13,7 @@
 
 - name: Set governor fact
   ansible.builtin.set_fact:
-    power_management_fact_governor: "{{ (power_management_fact_governor_raw.content | b64decode | trim) if power_management_fact_governor_raw is succeeded else 'unknown' }}"
+    power_management_fact_governor: "{{ (power_management_fact_governor_raw.content | b64decode | trim) if 'content' in power_management_fact_governor_raw else 'unknown' }}"
   tags: ['power', 'facts']
 
 # ---- Battery status ----
@@ -67,9 +67,9 @@
       is_laptop: "{{ power_management_is_laptop }}"
       init_system: "{{ power_management_init }}"
       battery:
-        capacity: "{{ (power_management_fact_bat0_capacity_raw.content | b64decode | trim) if power_management_fact_bat0_capacity_raw is succeeded else 'N/A' }}"
-        status: "{{ (power_management_fact_bat0_status_raw.content | b64decode | trim) if power_management_fact_bat0_status_raw is succeeded else 'N/A' }}"
-        charge_start_threshold: "{{ (power_management_fact_bat0_thresh_start_raw.content | b64decode | trim) if power_management_fact_bat0_thresh_start_raw is succeeded else 'N/A' }}"
-        charge_stop_threshold: "{{ (power_management_fact_bat0_thresh_stop_raw.content | b64decode | trim) if power_management_fact_bat0_thresh_stop_raw is succeeded else 'N/A' }}"
+        capacity: "{{ (power_management_fact_bat0_capacity_raw.content | b64decode | trim) if 'content' in power_management_fact_bat0_capacity_raw else 'N/A' }}"
+        status: "{{ (power_management_fact_bat0_status_raw.content | b64decode | trim) if 'content' in power_management_fact_bat0_status_raw else 'N/A' }}"
+        charge_start_threshold: "{{ (power_management_fact_bat0_thresh_start_raw.content | b64decode | trim) if 'content' in power_management_fact_bat0_thresh_start_raw else 'N/A' }}"
+        charge_stop_threshold: "{{ (power_management_fact_bat0_thresh_stop_raw.content | b64decode | trim) if 'content' in power_management_fact_bat0_thresh_stop_raw else 'N/A' }}"
       tlp_active: "{{ 'enabled' in (power_management_fact_tlp_status_raw.stdout | default('')) if power_management_is_laptop else 'N/A' }}"
   tags: ['power', 'facts']
