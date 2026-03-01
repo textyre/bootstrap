@@ -26,9 +26,23 @@
         password_hash: ""
         update_password: on_create
         umask: "077"
-    user_manage_password_aging: false  # chage/shadow interactions vary across VMs
+        password_max_age: 90
+        password_min_age: 0
+        password_warn_age: 7
+      - name: testuser_with_sudo
+        shell: /bin/bash
+        groups: []
+        sudo: true
+        password_hash: ""
+        update_password: on_create
+        umask: "077"
+    # Users to remove (zero-trust cleanup)
+    accounts:
+      - name: testuser_toberemoved
+        state: absent
+    user_manage_password_aging: true   # Real VMs support chage/shadow
     user_manage_umask: true
-    user_verify_root_lock: false       # vagrant boxes don't lock root by default
+    user_verify_root_lock: true        # Vagrant boxes ship with locked root
     user_sudo_logrotate_enabled: true
     user_sudo_log_input: false
     user_sudo_log_output: false
