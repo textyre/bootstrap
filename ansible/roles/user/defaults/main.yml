@@ -20,7 +20,7 @@ user_owner:
   umask: "027"                  # CIS 5.4.2: restrictive default umask
   password_max_age: 365         # CIS 5.5.1: days before password must change
   password_min_age: 1           # CIS 5.5.2: days before password can change
-  password_warn_age: 7          # Days before expiry to warn
+  password_warn_age: 7          # Days before expiry to warn (NOTE: requires ansible-core >= 2.17 to apply via password_expire_warn; currently stored for future use)
 
 # --- Additional users (family, guests, etc.) ---
 # Each entry supports the same fields as user_owner, plus:
