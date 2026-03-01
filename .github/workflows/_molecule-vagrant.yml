@@ -39,6 +39,13 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-vagrant-${{ runner.os }}-${{ hashFiles('.github/workflows/_molecule-vagrant.yml') }}
+          restore-keys: apt-vagrant-${{ runner.os }}-
+
       - name: Install libvirt + vagrant
         run: |
           wget --fail --retry-connrefused --tries=3 -O- https://apt.releases.hashicorp.com/gpg | \
@@ -53,22 +60,20 @@ jobs:
           sudo systemctl start libvirtd
           sudo chmod a+rw /var/run/libvirt/libvirt-sock
 
-      - name: Get Vagrant version
-        id: vagrant-ver
-        run: echo "version=$(vagrant --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
-
-      - name: Get libvirt version
-        id: libvirt-ver
-        run: echo "version=$(dpkg -s libvirt-dev | grep '^Version:' | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+      - name: Get tool versions
+        id: versions
+        run: |
+          echo "vagrant=$(vagrant --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+          echo "libvirt=$(dpkg -s libvirt-dev | grep '^Version:' | cut -d' ' -f2)" >> $GITHUB_OUTPUT
 
       - name: Cache vagrant plugins
         uses: actions/cache@v4
         id: vagrant-gems-cache
         with:
           path: ~/.vagrant.d/gems
-          key: vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-libvirt${{ steps.libvirt-ver.outputs.version }}
+          key: vagrant-gems-${{ runner.os }}-${{ steps.versions.outputs.vagrant }}-libvirt${{ steps.versions.outputs.libvirt }}
           restore-keys: |
-            vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-
+            vagrant-gems-${{ runner.os }}-${{ steps.versions.outputs.vagrant }}-
             vagrant-gems-${{ runner.os }}-
 
       - name: Install vagrant-libvirt plugin
