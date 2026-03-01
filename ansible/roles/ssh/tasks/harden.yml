@@ -45,6 +45,25 @@
   ansible.builtin.meta: flush_handlers
   tags: ['ssh', 'security']
 
+- name: "Gather service facts before host key cleanup"
+  ansible.builtin.service_facts:
+  when:
+    - ssh_host_key_cleanup
+    - ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ssh', 'security']
+
+- name: "Disable sshdgenkeys service to prevent weak key regeneration"
+  ansible.builtin.systemd:
+    name: sshdgenkeys.service
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - ssh_host_key_cleanup
+    - ansible_facts['service_mgr'] == 'systemd'
+    - ansible_facts.services['sshdgenkeys.service'] is defined
+  tags: ['ssh', 'security']
+
 # ---- Удаление слабых host-ключей (DSA, ECDSA) ----
 
 - name: Find existing host key files

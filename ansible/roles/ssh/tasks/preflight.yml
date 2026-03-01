@@ -73,7 +73,7 @@
   when: ssh_password_authentication == "no"
   tags: ['ssh', 'security']
 
-- name: "Warn: no authorized_keys found for {{ ssh_user }} while password auth is disabled"
+- name: "Warn: no authorized_keys found while password auth is disabled for user {{ ssh_user }}"
   ansible.builtin.debug:
     msg: >-
       LOCKOUT RISK WARNING: ssh_password_authentication='no' but
