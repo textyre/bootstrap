@@ -76,3 +76,32 @@
         extra_opts: [--strip-components=1]
         creates: /usr/local/bin/teleport
       when: not _teleport_binary_stat.stat.exists
+
+    - name: "Deploy teleport systemd unit for binary install"
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Teleport SSH Access Platform
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/teleport start --config=/etc/teleport.yaml
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/teleport.service
+        mode: "0644"
+      when: ansible_facts['service_mgr'] == 'systemd'
+      register: _teleport_unit_result
+      tags: [teleport, install]
+
+    - name: "Reload systemd daemon after unit file change"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_unit_result is changed
+      tags: [teleport, install]
