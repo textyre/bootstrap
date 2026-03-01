@@ -123,17 +123,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-vagrant-${{ runner.os }}-ansible-core-2.20.1-molecule-25.12.0
+          key: pip-vagrant-${{ runner.os }}-${{ hashFiles('ansible/requirements.txt', 'ansible/requirements-molecule-vagrant.txt') }}
           restore-keys: pip-vagrant-${{ runner.os }}-
 
       - name: Install molecule + dependencies
-        run: |
-          pip install \
-            "ansible-core==2.20.1" \
-            "molecule==25.12.0" \
-            "molecule-plugins[vagrant]==25.8.12" \
-            "jmespath" "rich"
-          python -c "import vagrant; print('python-vagrant OK:', vagrant.__file__)"
+        run: pip install -r ansible/requirements-molecule-vagrant.txt
 
       - name: Cache Ansible collections
         uses: actions/cache@v4
