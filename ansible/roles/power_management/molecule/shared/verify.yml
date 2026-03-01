@@ -242,6 +242,18 @@
         fail_msg: "power-audit.timer is not enabled (status: {{ pm_verify_audit_timer_enabled.stdout | trim }})"
         success_msg: "power-audit.timer is enabled"
 
+    - name: Check power-audit.timer is active
+      ansible.builtin.command: systemctl is-active power-audit.timer
+      register: pm_verify_audit_timer_active
+      changed_when: false
+      failed_when: false
+
+    - name: Assert power-audit.timer is active
+      ansible.builtin.assert:
+        that: pm_verify_audit_timer_active.stdout | trim == 'active'
+        fail_msg: "power-audit.timer is not active (got: {{ pm_verify_audit_timer_active.stdout | trim }})"
+        success_msg: "power-audit.timer is active"
+
     # ==== Conflicting Services Masked ====
 
     - name: Check power-profiles-daemon is masked or not found
@@ -313,6 +325,17 @@
         fail_msg: "Drift state JSON missing expected keys"
         success_msg: "Drift state JSON contains required fields"
 
+    - name: Set drift state parsed fact
+      ansible.builtin.set_fact:
+        pm_verify_drift_json: "{{ pm_verify_drift_content.content | b64decode | from_json }}"
+
+    - name: Assert drift governor field contains a valid value
+      ansible.builtin.assert:
+        that:
+          - pm_verify_drift_json.governor in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative', 'unknown']
+        fail_msg: "Drift state has unexpected governor value: '{{ pm_verify_drift_json.governor }}'"
+        success_msg: "Drift state governor: '{{ pm_verify_drift_json.governor }}'"
+
     # ==== CPU Governor (hardware-dependent, conditional) ====
 
     - name: Read current CPU governor
@@ -330,6 +353,20 @@
         fail_msg: "CPU governor not set to a valid value"
         success_msg: "CPU governor: {{ pm_verify_governor.content | b64decode | trim }}"
       when:
+        - pm_verify_cpufreq_available.stat.exists | default(false)
+        - "'content' in pm_verify_governor"
+
+    - name: Assert governor matches configured value (desktop, when cpufreq available)
+      ansible.builtin.assert:
+        that:
+          - (pm_verify_governor.content | b64decode | trim) == 'schedutil'
+        fail_msg: >-
+          CPU governor is '{{ pm_verify_governor.content | b64decode | trim }}',
+          expected 'schedutil' (converge configures desktop default).
+          Run 'cpupower frequency-info' to diagnose.
+        success_msg: "CPU governor 'schedutil' confirmed"
+      when:
+        - not pm_verify_is_laptop
         - pm_verify_cpufreq_available.stat.exists | default(false)
         - "'content' in pm_verify_governor"
 
