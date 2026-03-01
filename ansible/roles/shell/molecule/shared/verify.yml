@@ -9,24 +9,31 @@
   tasks:
 
     # ==========================================================
-    # Resolve user context (mirrors role's own resolution)
+    # ---- Resolve user context (mirrors role's own resolution) ----
     # ==========================================================
 
     - name: Resolve shell_user
       ansible.builtin.set_fact:
-        _verify_user: "{{ shell_user }}"
+        _shell_verify_user: "{{ shell_user }}"
 
     - name: Get user info from passwd
       ansible.builtin.getent:
         database: passwd
-        key: "{{ _verify_user }}"
+        key: "{{ _shell_verify_user }}"
 
     - name: Set user home fact
       ansible.builtin.set_fact:
-        _verify_home: "{{ getent_passwd[_verify_user][4] }}"
+        _shell_verify_home: "{{ getent_passwd[_shell_verify_user][4] }}"
 
     # ==========================================================
-    # Shell package installed
+    # ---- Include OS-specific vars (for shell_bin, shell_packages) ----
+    # ==========================================================
+
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "../../vars/{{ ansible_facts['os_family'] | lower }}.yml"
+
+    # ==========================================================
+    # ---- Shell package installed ----
     # ==========================================================
 
     - name: Gather package facts
@@ -39,43 +46,85 @@
         fail_msg: "zsh package not found in installed packages"
 
     # ==========================================================
-    # Login shell is /usr/bin/zsh
+    # ---- Shell binary exists and is in /etc/shells ----
     # ==========================================================
 
-    - name: Assert login shell is /usr/bin/zsh
+    - name: Stat shell binary
+      ansible.builtin.stat:
+        path: "{{ shell_bin[shell_type] }}"
+      register: _shell_verify_bin
+
+    - name: Assert shell binary exists and is executable
       ansible.builtin.assert:
         that:
-          - "getent_passwd[_verify_user][5] == '/usr/bin/zsh'"
+          - _shell_verify_bin.stat.exists
+          - _shell_verify_bin.stat.executable
         fail_msg: >-
-          Login shell for {{ _verify_user }} is
-          '{{ getent_passwd[_verify_user][5] }}' but expected '/usr/bin/zsh'.
+          Shell binary '{{ shell_bin[shell_type] }}' does not exist
+          or is not executable.
+
+    - name: Read /etc/shells
+      ansible.builtin.slurp:
+        src: /etc/shells
+      register: _shell_verify_shells_raw
+
+    - name: Assert slurp /etc/shells succeeded
+      ansible.builtin.assert:
+        that: "'content' in _shell_verify_shells_raw"
+        fail_msg: "Failed to read /etc/shells"
+
+    - name: Set /etc/shells content fact
+      ansible.builtin.set_fact:
+        _shell_verify_shells_text: "{{ _shell_verify_shells_raw.content | b64decode }}"
+
+    - name: Assert shell binary is listed in /etc/shells
+      ansible.builtin.assert:
+        that: "shell_bin[shell_type] in _shell_verify_shells_text"
+        fail_msg: >-
+          '{{ shell_bin[shell_type] }}' not found in /etc/shells.
 
     # ==========================================================
-    # XDG directories exist
+    # ---- Login shell is correct ----
+    # ==========================================================
+
+    - name: Assert login shell is {{ shell_bin[shell_type] }}
+      ansible.builtin.assert:
+        that:
+          - "getent_passwd[_shell_verify_user][5] == shell_bin[shell_type]"
+        fail_msg: >-
+          Login shell for {{ _shell_verify_user }} is
+          '{{ getent_passwd[_shell_verify_user][5] }}'
+          but expected '{{ shell_bin[shell_type] }}'.
+
+    # ==========================================================
+    # ---- XDG directories exist with correct ownership ----
     # ==========================================================
 
     - name: Check XDG directories exist
       ansible.builtin.stat:
-        path: "{{ _verify_home }}/{{ item }}"
-      register: _verify_xdg
+        path: "{{ _shell_verify_home }}/{{ item }}"
+      register: _shell_verify_xdg
       loop:
         - ".config"
         - ".local/share"
         - ".local/bin"
         - ".cache"
 
-    - name: Assert all XDG directories exist and are directories
+    - name: Assert all XDG directories exist, are directories, and have correct owner
       ansible.builtin.assert:
         that:
           - item.stat.exists
           - item.stat.isdir
-        fail_msg: "XDG directory '{{ item.item }}' missing or not a directory"
-      loop: "{{ _verify_xdg.results }}"
+          - item.stat.pw_name == _shell_verify_user
+        fail_msg: >-
+          XDG directory '{{ item.item }}' missing, not a directory,
+          or not owned by {{ _shell_verify_user }}
+      loop: "{{ _shell_verify_xdg.results }}"
       loop_control:
         label: "{{ item.item }}"
 
     # ==========================================================
-    # /etc/profile.d/dev-paths.sh (bash + zsh)
+    # ---- /etc/profile.d/dev-paths.sh (bash + zsh) ----
     # ==========================================================
 
     - name: Verify /etc/profile.d/dev-paths.sh
@@ -84,15 +133,15 @@
         - name: Stat /etc/profile.d/dev-paths.sh
           ansible.builtin.stat:
             path: /etc/profile.d/dev-paths.sh
-          register: _verify_profiled
+          register: _shell_verify_profiled
 
-        - name: Assert /etc/profile.d/dev-paths.sh exists
+        - name: Assert /etc/profile.d/dev-paths.sh exists with correct permissions
           ansible.builtin.assert:
             that:
-              - _verify_profiled.stat.exists
-              - _verify_profiled.stat.isreg
-              - _verify_profiled.stat.mode == '0644'
-              - _verify_profiled.stat.pw_name == 'root'
+              - _shell_verify_profiled.stat.exists
+              - _shell_verify_profiled.stat.isreg
+              - _shell_verify_profiled.stat.mode == '0644'
+              - _shell_verify_profiled.stat.pw_name == 'root'
             fail_msg: >-
               /etc/profile.d/dev-paths.sh missing or wrong permissions
               (expected root 0644)
@@ -100,32 +149,44 @@
         - name: Read /etc/profile.d/dev-paths.sh
           ansible.builtin.slurp:
             src: /etc/profile.d/dev-paths.sh
-          register: _verify_profiled_raw
+          register: _shell_verify_profiled_raw
+
+        - name: Assert slurp profile.d succeeded
+          ansible.builtin.assert:
+            that: "'content' in _shell_verify_profiled_raw"
+            fail_msg: "Failed to read /etc/profile.d/dev-paths.sh"
 
         - name: Set profile.d text fact
           ansible.builtin.set_fact:
-            _verify_profiled_text: "{{ _verify_profiled_raw.content | b64decode }}"
+            _shell_verify_profiled_text: "{{ _shell_verify_profiled_raw.content | b64decode }}"
 
         - name: Assert profile.d contains Ansible managed marker
           ansible.builtin.assert:
-            that: "'Ansible' in _verify_profiled_text"
+            that: "'Ansible' in _shell_verify_profiled_text"
             fail_msg: "/etc/profile.d/dev-paths.sh missing Ansible managed marker"
 
         - name: Assert profile.d contains PATH entries
           ansible.builtin.assert:
             that:
-              - "'.local/bin' in _verify_profiled_text"
-              - "'.cargo/bin' in _verify_profiled_text"
-              - "'go/bin' in _verify_profiled_text"
+              - "'.local/bin' in _shell_verify_profiled_text"
+              - "'.cargo/bin' in _shell_verify_profiled_text"
+              - "'go/bin' in _shell_verify_profiled_text"
             fail_msg: "/etc/profile.d/dev-paths.sh missing expected PATH entries"
 
-        - name: Assert profile.d contains GOPATH env var
+        - name: Assert profile.d exports PATH
           ansible.builtin.assert:
-            that: "'GOPATH' in _verify_profiled_text"
-            fail_msg: "/etc/profile.d/dev-paths.sh missing GOPATH env var"
+            that: "'export PATH' in _shell_verify_profiled_text"
+            fail_msg: "/etc/profile.d/dev-paths.sh missing 'export PATH'"
+
+        - name: Assert profile.d contains GOPATH export
+          ansible.builtin.assert:
+            that:
+              - "'GOPATH' in _shell_verify_profiled_text"
+              - "'export GOPATH' in _shell_verify_profiled_text"
+            fail_msg: "/etc/profile.d/dev-paths.sh missing GOPATH export"
 
     # ==========================================================
-    # /etc/zsh/zshenv (zsh only)
+    # ---- /etc/zsh/zshenv (zsh only) ----
     # ==========================================================
 
     - name: Verify /etc/zsh/zshenv
@@ -134,27 +195,27 @@
         - name: Stat /etc/zsh directory
           ansible.builtin.stat:
             path: /etc/zsh
-          register: _verify_zshdir
+          register: _shell_verify_zshdir
 
         - name: Assert /etc/zsh directory exists
           ansible.builtin.assert:
             that:
-              - _verify_zshdir.stat.exists
-              - _verify_zshdir.stat.isdir
+              - _shell_verify_zshdir.stat.exists
+              - _shell_verify_zshdir.stat.isdir
             fail_msg: "/etc/zsh directory does not exist"
 
         - name: Stat /etc/zsh/zshenv
           ansible.builtin.stat:
             path: /etc/zsh/zshenv
-          register: _verify_zshenv
+          register: _shell_verify_zshenv
 
         - name: Assert /etc/zsh/zshenv exists with correct permissions
           ansible.builtin.assert:
             that:
-              - _verify_zshenv.stat.exists
-              - _verify_zshenv.stat.isreg
-              - _verify_zshenv.stat.mode == '0644'
-              - _verify_zshenv.stat.pw_name == 'root'
+              - _shell_verify_zshenv.stat.exists
+              - _shell_verify_zshenv.stat.isreg
+              - _shell_verify_zshenv.stat.mode == '0644'
+              - _shell_verify_zshenv.stat.pw_name == 'root'
             fail_msg: >-
               /etc/zsh/zshenv missing or wrong permissions
               (expected root 0644)
@@ -162,29 +223,51 @@
         - name: Read /etc/zsh/zshenv
           ansible.builtin.slurp:
             src: /etc/zsh/zshenv
-          register: _verify_zshenv_raw
+          register: _shell_verify_zshenv_raw
+
+        - name: Assert slurp zshenv succeeded
+          ansible.builtin.assert:
+            that: "'content' in _shell_verify_zshenv_raw"
+            fail_msg: "Failed to read /etc/zsh/zshenv"
 
         - name: Set zshenv text fact
           ansible.builtin.set_fact:
-            _verify_zshenv_text: "{{ _verify_zshenv_raw.content | b64decode }}"
-
-        - name: Assert zshenv contains ZDOTDIR
-          ansible.builtin.assert:
-            that: "'ZDOTDIR' in _verify_zshenv_text"
-            fail_msg: "/etc/zsh/zshenv missing ZDOTDIR setting"
-
-        - name: Assert zshenv sets ZDOTDIR to XDG path
-          ansible.builtin.assert:
-            that: "'XDG_CONFIG_HOME' in _verify_zshenv_text"
-            fail_msg: "/etc/zsh/zshenv ZDOTDIR not referencing XDG_CONFIG_HOME"
+            _shell_verify_zshenv_text: "{{ _shell_verify_zshenv_raw.content | b64decode }}"
 
         - name: Assert zshenv contains Ansible managed marker
           ansible.builtin.assert:
-            that: "'Ansible' in _verify_zshenv_text"
+            that: "'Ansible' in _shell_verify_zshenv_text"
             fail_msg: "/etc/zsh/zshenv missing Ansible managed marker"
 
+        - name: Assert zshenv exports ZDOTDIR to XDG path
+          ansible.builtin.assert:
+            that:
+              - "'export ZDOTDIR' in _shell_verify_zshenv_text"
+              - "'XDG_CONFIG_HOME' in _shell_verify_zshenv_text"
+              - "'/zsh' in _shell_verify_zshenv_text"
+            fail_msg: >-
+              /etc/zsh/zshenv does not contain expected
+              'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"'
+
     # ==========================================================
-    # Summary
+    # ---- Verify shell binary runs (runtime check) ----
+    # ==========================================================
+
+    - name: Run shell with --version
+      ansible.builtin.command:
+        cmd: "{{ shell_bin[shell_type] }} --version"
+      register: _shell_verify_version
+      changed_when: false
+
+    - name: Assert shell binary responds to --version
+      ansible.builtin.assert:
+        that: _shell_verify_version.rc == 0
+        fail_msg: >-
+          '{{ shell_bin[shell_type] }} --version' failed
+          with rc={{ _shell_verify_version.rc }}
+
+    # ==========================================================
+    # ---- Summary ----
     # ==========================================================
 
     - name: Show verify result
@@ -192,6 +275,9 @@
         msg: >-
           shell role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          zsh installed, login shell set to /usr/bin/zsh,
-          XDG dirs created, /etc/profile.d/dev-paths.sh deployed,
+          {{ shell_type }} installed ({{ _shell_verify_version.stdout_lines[0] | default('ok') }}),
+          login shell set to {{ shell_bin[shell_type] }},
+          binary listed in /etc/shells,
+          XDG dirs created with correct ownership,
+          /etc/profile.d/dev-paths.sh deployed with PATH and env vars,
           /etc/zsh/zshenv deployed with ZDOTDIR.
