@@ -581,6 +581,34 @@
       when: inventory_hostname is search('access-control')
 
     # ================================================================
+    #  Features directives (features platforms)
+    # ================================================================
+
+    - name: Assert ListenAddress 127.0.0.1 in config (features)
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('ListenAddress\s+127\.0\.0\.1\b')
+        fail_msg: "ListenAddress 127.0.0.1 not found in sshd_config"
+      when: inventory_hostname is search('features')
+
+    - name: Assert TrustedUserCAKeys directive in config (features)
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('TrustedUserCAKeys\s+/etc/ssh/teleport_user_ca\.pub')
+        fail_msg: "TrustedUserCAKeys /etc/ssh/teleport_user_ca.pub not found in sshd_config"
+      when: inventory_hostname is search('features')
+
+    - name: Assert SFTP chroot Match Group block in config (features)
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('Match\s+Group\s+sftponly')
+        fail_msg: "Match Group sftponly block not found in sshd_config"
+      when: inventory_hostname is search('features')
+
+    - name: Assert ChrootDirectory in config (features)
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('ChrootDirectory\s+/home/%u')
+        fail_msg: "ChrootDirectory /home/%u not found in sshd_config"
+      when: inventory_hostname is search('features')
+
+    # ================================================================
     #  Diagnostic
     # ================================================================
 
