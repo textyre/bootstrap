@@ -814,9 +814,12 @@ Vagrant задаёт `user_manage_password_aging: true` в converge.yml → пр
 - ~~**logrotate directives (delaycompress, missingok, notifempty, create 0640) не тестируются**~~
   — **ЗАКРЫТО:** все четыре директивы проверяются в verify.yml.
 
-### Открытые gaps
+- ~~**`password_warn_age` не применяется**~~ — **ЗАКРЫТО:** Обход через `chage -W <days> <user>`
+  напрямую. `ansible.builtin.user.password_expire_warn` требует ansible-core ≥ 2.17, но
+  `chage -W` работает на любой версии. Добавлены задачи в `owner.yml` и `additional_users.yml`
+  (пропускаются при `user_manage_password_aging: false`). Shadow[4] (warn_days) проверяется
+  в verify.yml.
 
-- **`password_warn_age` не применяется:** Переменная `password_warn_age: 7` в
-  defaults/main.yml. Параметр `password_expire_warn` модуля `ansible.builtin.user`
-  требует ansible-core ≥ 2.17. Проект использует 2.15. Значение задокументировано
-  в defaults как "для будущего использования". Тест станет возможен после апгрейда.
+### Открытых gaps нет
+
+Все покрытие достигнуто.

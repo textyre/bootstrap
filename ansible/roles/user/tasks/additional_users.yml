@@ -21,6 +21,16 @@
   when: user_additional_users | length > 0
   tags: [user, cis_5.5.1, cis_5.5.2]
 
+- name: "CIS 5.4.1 | Set password warn age for additional users (chage -W)"
+  ansible.builtin.command:
+    cmd: "chage -W {{ item.password_warn_age | default(7) }} {{ item.name }}"
+  changed_when: false
+  loop: "{{ user_additional_users }}"
+  when:
+    - user_manage_password_aging | bool
+    - user_additional_users | length > 0
+  tags: [user, cis_5.4.1]
+
 - name: "Add additional users to sudo group when sudo: true"
   ansible.builtin.user:
     name: "{{ item.name }}"

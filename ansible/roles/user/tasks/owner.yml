@@ -19,6 +19,13 @@
   no_log: true
   tags: [user, cis_5.5.1, cis_5.5.2]
 
+- name: "CIS 5.4.1 | Set password warn age for owner (chage -W)"
+  ansible.builtin.command:
+    cmd: "chage -W {{ user_owner.password_warn_age | default(7) }} {{ user_owner.name }}"
+  changed_when: false
+  when: user_manage_password_aging | bool
+  tags: [user, cis_5.4.1]
+
 - name: "CIS 5.4.2 | Deploy umask profile for owner"
   ansible.builtin.template:
     src: user_umask.sh.j2
