@@ -3,8 +3,16 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - ../../defaults/main.yml
+
+  pre_tasks:
+    # Load role defaults at proper (lowest) precedence so molecule host_vars can override them.
+    # Using include_role instead of vars_files avoids the vars_files > host_vars precedence bug.
+    # Ansible 2.19+ evaluates fail_msg at finalization time — add | default('') to all
+    # fail_msg templates referencing role vars to prevent UndefinedError at parse time.
+    - name: Load docker role defaults (respects host_vars overrides)
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: noop.yml
 
   tasks:
 
@@ -76,20 +84,20 @@
         that:
           - "'log-driver' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['log-driver'] == docker_log_driver"
-        fail_msg: "log-driver not set to '{{ docker_log_driver }}' in daemon.json"
+        fail_msg: "log-driver not set to '{{ docker_log_driver | default('') }}' in daemon.json"
 
     - name: Assert log-opts max-size matches variable
       ansible.builtin.assert:
         that:
           - "'log-opts' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['log-opts']['max-size'] == docker_log_max_size"
-        fail_msg: "log-opts.max-size not set to '{{ docker_log_max_size }}' in daemon.json"
+        fail_msg: "log-opts.max-size not set to '{{ docker_log_max_size | default('') }}' in daemon.json"
 
     - name: Assert log-opts max-file matches variable
       ansible.builtin.assert:
         that:
           - "_docker_verify_daemon_dict['log-opts']['max-file'] == docker_log_max_file"
-        fail_msg: "log-opts.max-file not set to '{{ docker_log_max_file }}' in daemon.json"
+        fail_msg: "log-opts.max-file not set to '{{ docker_log_max_file | default('') }}' in daemon.json"
 
     # ---- Security settings ----
 
@@ -98,7 +106,7 @@
         that:
           - "'userns-remap' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['userns-remap'] == docker_userns_remap"
-        fail_msg: "userns-remap not set to '{{ docker_userns_remap }}' in daemon.json"
+        fail_msg: "userns-remap not set to '{{ docker_userns_remap | default('') }}' in daemon.json"
       when: docker_userns_remap | length > 0
 
     - name: Assert icc is false in daemon.json (when docker_icc is false)
@@ -220,7 +228,7 @@
             that: "_docker_verify_info['LoggingDriver'] == docker_log_driver"
             fail_msg: >-
               Docker logging driver mismatch:
-              expected '{{ docker_log_driver }}',
+              expected '{{ docker_log_driver | default('') }}',
               got '{{ _docker_verify_info['LoggingDriver'] }}'
 
         - name: Assert live-restore is active (when enabled)
