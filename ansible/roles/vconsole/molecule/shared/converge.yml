@@ -4,10 +4,20 @@
   become: true
   gather_facts: true
 
+  pre_tasks:
+    - name: Set OS-specific font variables
+      ansible.builtin.set_fact:
+        _vconsole_font_pkg: >-
+          {{ 'terminus-font' if ansible_facts['os_family'] == 'Archlinux'
+             else 'console-setup' }}
+        _vconsole_font_name: >-
+          {{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux'
+             else '' }}
+
   vars:
     vconsole_console: "us"
-    vconsole_console_font: "ter-v16n"
-    vconsole_console_font_package: "terminus-font"
+    vconsole_console_font: "{{ _vconsole_font_name }}"
+    vconsole_console_font_package: "{{ _vconsole_font_pkg }}"
     vconsole_gpm_enabled: false
 
   roles:

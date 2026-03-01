@@ -1,11 +1,29 @@
 ---
-- name: Prepare — set up container for vconsole testing
+- name: Prepare -- set up container for vconsole testing
   hosts: all
   become: true
   gather_facts: true
 
   tasks:
-    - name: Ensure kbd package is present (provides loadkeys/setfont)
-      ansible.builtin.package:
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure kbd package is present (Arch -- provides loadkeys/setfont)
+      community.general.pacman:
         name: kbd
         state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Ensure kbd package is present (Ubuntu -- provides loadkeys/setfont)
+      ansible.builtin.apt:
+        name: kbd
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
