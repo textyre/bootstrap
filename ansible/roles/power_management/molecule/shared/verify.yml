@@ -17,8 +17,9 @@
     - name: Set laptop detection fact
       ansible.builtin.set_fact:
         pm_verify_is_laptop: >-
-          {{ pm_verify_chassis is succeeded and
-             (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32'] }}
+          {{ (pm_verify_force_laptop | default(false) | bool) or
+             ('content' in pm_verify_chassis and
+              (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32']) }}
 
     - name: Check if cpufreq is available
       ansible.builtin.stat:
@@ -46,6 +47,31 @@
         fail_msg: "Neither linux-cpupower nor linux-tools-common installed"
         success_msg: "cpupower tooling installed (Debian)"
       when: ansible_facts['os_family'] == 'Debian'
+
+    # ---- TLP (laptop path) ----
+
+    - name: Assert TLP package is installed (laptop)
+      ansible.builtin.assert:
+        that: "'tlp' in ansible_facts.packages"
+        fail_msg: "TLP not installed on laptop"
+        success_msg: "TLP package installed"
+      when: pm_verify_is_laptop
+
+    - name: Check TLP service state (laptop)
+      ansible.builtin.command: systemctl is-active tlp.service
+      register: pm_verify_tlp_active
+      changed_when: false
+      failed_when: false
+      when: pm_verify_is_laptop
+
+    - name: Assert TLP service is active (laptop)
+      ansible.builtin.assert:
+        that: pm_verify_tlp_active.stdout | trim == 'active'
+        fail_msg: "TLP service is not active (got: {{ pm_verify_tlp_active.stdout | trim }})"
+        success_msg: "TLP service is active"
+      when:
+        - pm_verify_is_laptop
+        - pm_verify_tlp_active is not skipped
 
     # ==== Config File Deployment Checks ====
 
@@ -242,6 +268,18 @@
         fail_msg: "power-audit.timer is not enabled (status: {{ pm_verify_audit_timer_enabled.stdout | trim }})"
         success_msg: "power-audit.timer is enabled"
 
+    - name: Check power-audit.timer is active
+      ansible.builtin.command: systemctl is-active power-audit.timer
+      register: pm_verify_audit_timer_active
+      changed_when: false
+      failed_when: false
+
+    - name: Assert power-audit.timer is active
+      ansible.builtin.assert:
+        that: pm_verify_audit_timer_active.stdout | trim == 'active'
+        fail_msg: "power-audit.timer is not active (got: {{ pm_verify_audit_timer_active.stdout | trim }})"
+        success_msg: "power-audit.timer is active"
+
     # ==== Conflicting Services Masked ====
 
     - name: Check power-profiles-daemon is masked or not found
@@ -313,6 +351,17 @@
         fail_msg: "Drift state JSON missing expected keys"
         success_msg: "Drift state JSON contains required fields"
 
+    - name: Set drift state parsed fact
+      ansible.builtin.set_fact:
+        pm_verify_drift_json: "{{ pm_verify_drift_content.content | b64decode | from_json }}"
+
+    - name: Assert drift governor field contains a valid value
+      ansible.builtin.assert:
+        that:
+          - pm_verify_drift_json.governor in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative', 'unknown']
+        fail_msg: "Drift state has unexpected governor value: '{{ pm_verify_drift_json.governor }}'"
+        success_msg: "Drift state governor: '{{ pm_verify_drift_json.governor }}'"
+
     # ==== CPU Governor (hardware-dependent, conditional) ====
 
     - name: Read current CPU governor
@@ -325,13 +374,27 @@
     - name: Assert governor is set (when cpufreq available)
       ansible.builtin.assert:
         that:
-          - pm_verify_governor is succeeded
+          - "'content' in pm_verify_governor"
           - (pm_verify_governor.content | b64decode | trim) in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative']
         fail_msg: "CPU governor not set to a valid value"
         success_msg: "CPU governor: {{ pm_verify_governor.content | b64decode | trim }}"
       when:
         - pm_verify_cpufreq_available.stat.exists | default(false)
-        - pm_verify_governor is succeeded
+        - "'content' in pm_verify_governor"
+
+    - name: Assert governor matches configured value (desktop, when cpufreq available)
+      ansible.builtin.assert:
+        that:
+          - (pm_verify_governor.content | b64decode | trim) == 'schedutil'
+        fail_msg: >-
+          CPU governor is '{{ pm_verify_governor.content | b64decode | trim }}',
+          expected 'schedutil' (converge configures desktop default).
+          Run 'cpupower frequency-info' to diagnose.
+        success_msg: "CPU governor 'schedutil' confirmed"
+      when:
+        - not pm_verify_is_laptop
+        - pm_verify_cpufreq_available.stat.exists | default(false)
+        - "'content' in pm_verify_governor"
 
     # ==== Arch-specific: systemd-rfkill masked (laptop path only, informational) ====
 
@@ -364,6 +427,7 @@
           - "cpufreq available: {{ pm_verify_cpufreq_available.stat.exists | default(false) }}"
           - "Configs: sleep.conf, logind.conf deployed with correct content"
           - "Udev rule: {{ 'deployed' if not pm_verify_is_laptop else 'skipped (laptop)' }}"
-          - "Audit: script + service + timer deployed and enabled"
+          - "Audit: script + service + timer deployed, enabled and active"
+          - "TLP: {{ 'active' if pm_verify_is_laptop else 'not applicable (desktop)' }}"
           - "Drift: state directory and file present with correct permissions"
           - "Conflicts: power-profiles-daemon + auto-cpufreq masked/absent"

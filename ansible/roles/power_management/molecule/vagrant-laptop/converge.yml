@@ -1,0 +1,16 @@
+---
+- name: Converge (laptop scenario)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: power_management
+      vars:
+        power_management_device_type: laptop
+        power_management_assert_strict: true
+        power_management_audit_battery: false
+        # Charge thresholds: empty = don't configure (VMs have no battery)
+        # assert.yml skips the threshold check when these are empty strings
+        power_management_tlp_bat0_charge_start: ""
+        power_management_tlp_bat0_charge_stop: ""
