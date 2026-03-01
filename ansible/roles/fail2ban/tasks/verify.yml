@@ -1,4 +1,11 @@
 ---
+- name: "Wait for fail2ban socket"
+  ansible.builtin.wait_for:
+    path: /var/run/fail2ban/fail2ban.sock
+    timeout: 30
+  when: ansible_virtualization_type | default('') not in ['docker', 'container']
+  tags: [fail2ban]
+
 - name: "Verify fail2ban is running"
   ansible.builtin.command:
     cmd: "fail2ban-client status"

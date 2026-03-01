@@ -14,16 +14,8 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
-
-    # ---- fail2ban needs iptables for its default ban action (iptables-multiport) ----
-    - name: Install iptables-nft for fail2ban backend (Arch)
-      community.general.pacman:
-        name: iptables-nft
-        state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Install iptables for fail2ban backend (Ubuntu)
-      ansible.builtin.apt:
-        name: iptables
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'
+    # NOTE: iptables/nftables are NOT installed here because:
+    # - In Docker, kernel netfilter modules are unavailable regardless.
+    # - converge succeeds (installs package + deploys config).
+    # - Runtime checks (fail2ban-client) are guarded with
+    #   'ansible_virtualization_type not in [docker, container]'.
