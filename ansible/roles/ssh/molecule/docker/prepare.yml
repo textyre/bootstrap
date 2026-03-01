@@ -34,6 +34,13 @@
         append: true
       when: inventory_hostname is search('access-control')
 
+    - name: Ensure /etc/ssh exists (features platforms — Ubuntu container lacks it pre-install)
+      ansible.builtin.file:
+        path: /etc/ssh
+        state: directory
+        mode: "0755"
+      when: inventory_hostname is search('features')
+
     - name: Create fake Teleport user CA key file (features platforms)
       ansible.builtin.copy:
         content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA fake-teleport-ca\n"
