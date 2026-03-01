@@ -4,10 +4,29 @@
   become: true
   gather_facts: true
 
+  pre_tasks:
+    - name: Set OS-specific font variables
+      ansible.builtin.set_fact:
+        _vconsole_font_pkg: >-
+          {{ 'terminus-font' if ansible_facts['os_family'] == 'Archlinux'
+             else '' }}
+        _vconsole_font_name: >-
+          {{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux'
+             else '' }}
+
+    - name: Ensure /dev/input exists (mock for GPM in container)
+      ansible.builtin.file:
+        path: /dev/input
+        state: directory
+        mode: '0755'
+      when: ansible_facts['virtualization_type'] | default('') in ['docker', 'container', '']
+
   vars:
     vconsole_console: "us"
-    vconsole_console_font: "ter-v16n"
-    vconsole_console_font_package: "terminus-font"
+    vconsole_console_font: "{{ _vconsole_font_name }}"
+    vconsole_console_font_package: "{{ _vconsole_font_pkg }}"
+    vconsole_console_font_map: "{{ '8859-2' if ansible_facts['os_family'] == 'Archlinux' else '' }}"
+    vconsole_console_font_unimap: ""
     vconsole_gpm_enabled: false
 
   roles:
