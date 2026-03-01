@@ -1,7 +1,7 @@
 ---
-# === Vagrant verify for yay role ===
+# === Docker verify for yay role ===
 # yay is Arch-only. Ubuntu gets end_host.
-# Full verification including binary, since vagrant builds yay from source.
+# Checks: aur_builder user, sudoers, yay binary, build cleanup.
 
 - name: Verify yay role
   hosts: all
@@ -112,7 +112,7 @@
       failed_when: false
       when: _yay_verify_binary.stat.exists
 
-    - name: Assert yay version output is valid
+    - name: Assert yay version output contains yay
       ansible.builtin.assert:
         that:
           - _yay_verify_version.stdout is regex('^yay')
@@ -141,14 +141,6 @@
         fail_msg: >-
           Found {{ _yay_verify_build_dirs.matched }} leftover build directories in /tmp:
           {{ _yay_verify_build_dirs.files | map(attribute='path') | list }}
-
-    # ---- AUR packages (conditional -- only when yay_packages_aur is set) ----
-
-    - name: Check that AUR packages are installed
-      ansible.builtin.command: "pacman -Q {{ item }}"
-      loop: "{{ yay_packages_aur }}"
-      changed_when: false
-      when: yay_packages_aur | default([]) | length > 0
 
     # ---- aur_builder can execute yay (functional test) ----
 
@@ -180,5 +172,3 @@
           - "yay version: {{ _yay_verify_version.stdout | default('N/A') }}"
           - "Build deps: {{ yay_build_deps | join(', ') }} installed"
           - "Temp build dirs: cleaned up (0 found)"
-          - "AUR packages: {{ yay_packages_aur | default([]) | join(', ') | default('(none -- skipped)', true) }}"
-          - "aur_builder can execute yay: yes"

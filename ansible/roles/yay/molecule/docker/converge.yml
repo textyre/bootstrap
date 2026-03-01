@@ -1,0 +1,19 @@
+---
+# === Docker converge for yay role ===
+# yay is an Arch-only AUR helper. Ubuntu gets end_host.
+# AUR package installs are skipped (yay_packages_aur is empty by default).
+# The role builds yay from source (setup-yay-binary.yml).
+
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Skip on non-Arch systems (yay is AUR helper for Arch only)
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
+
+    - name: Apply yay role
+      ansible.builtin.include_role:
+        name: yay
