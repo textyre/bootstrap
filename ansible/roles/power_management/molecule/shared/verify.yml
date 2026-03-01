@@ -430,12 +430,14 @@
         fail_msg: "Drift state has unexpected governor value: '{{ pm_verify_drift_json.governor }}'"
         success_msg: "Drift state governor: '{{ pm_verify_drift_json.governor }}'"
 
-    - name: Assert drift state governor matches deployed value (desktop)
+    - name: Assert drift state governor matches deployed value (desktop, when cpufreq available)
       ansible.builtin.assert:
         that: pm_verify_drift_json.governor == 'schedutil'
         fail_msg: "Drift state governor='{{ pm_verify_drift_json.governor }}', expected 'schedutil' for desktop"
         success_msg: "Drift state governor matches deployed value: schedutil"
-      when: not pm_verify_is_laptop
+      when:
+        - not pm_verify_is_laptop
+        - pm_verify_cpufreq_available.stat.exists | default(false)
 
     - name: Assert drift state records correct device type (desktop)
       ansible.builtin.assert:
