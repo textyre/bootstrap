@@ -177,8 +177,10 @@ Shared playbooks live in `molecule/shared/` and are reused across all scenarios.
 | Scenario | Driver | Platform | Purpose |
 |----------|--------|----------|---------|
 | `default` | localhost | local machine | Fast syntax + functional check (no daemon restart) |
-| `docker` | Docker | `arch-systemd` container (PID 1 = systemd) | Full systemd lifecycle, service running+enabled |
-| `vagrant` | Vagrant (libvirt) | Arch Linux + Ubuntu 24.04 VMs | Cross-distro integration (Arch `sshd.service` / Debian `ssh.service`) |
+| `docker` | Docker | `Archlinux-systemd`, `Ubuntu-systemd` | Full systemd lifecycle, service running+enabled, banner, moduli |
+| `docker` | Docker | `Archlinux-access-control`, `Ubuntu-access-control` | Access control directives (AllowGroups/AllowUsers/DenyGroups/DenyUsers) |
+| `docker` | Docker | `Archlinux-features`, `Ubuntu-features` | Teleport CA, SFTP chroot, ListenAddress |
+| `vagrant` | Vagrant (libvirt) | `arch-vm`, `ubuntu-base` | Cross-distro integration (Arch `sshd.service` / Debian `ssh.service`) |
 
 ### Run tests
 
@@ -193,16 +195,19 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-### Verify assertions (59 total)
+### Verify assertions (70 total)
 
 Package install, service enabled+running (`systemctl is-active`), `sshd_config` permissions (0600/root),
-41 security directive checks (all major hardening directives including
-`KbdInteractiveAuthentication`, `TCPKeepAlive`, `PrintMotd`, `PrintLastLog`,
-`MaxSessions`, `AcceptEnv`), cryptography suite (positive + negative),
-host key presence (ed25519+RSA private with 0600, ed25519+RSA public with 0644)
-and absence (DSA/ECDSA), `RekeyLimit 512M 1h` value check, banner file + content + config directive,
-`AllowGroups` absent when empty, SFTP subsystem, `sshd -t` syntax validation,
-and Ansible managed comment.
+`Port 22`, `AddressFamily inet`, 39+ security directive checks (all major hardening directives including
+`KbdInteractiveAuthentication`, `TCPKeepAlive`, `PrintMotd`, `PrintLastLog`, `MaxSessions`, `AcceptEnv`),
+cryptography suite (positive + negative), host key presence (ed25519+RSA private with 0600,
+ed25519+RSA public with 0644) and absence (DSA/ECDSA), `RekeyLimit 512M 1h` value check,
+`AllowGroups` absent by default (or present on `*-access-control` platforms),
+access control directives — AllowGroups/AllowUsers/DenyGroups/DenyUsers (`*-access-control` platforms),
+Teleport CA (`TrustedUserCAKeys`) + SFTP chroot (`Match Group` + `ChrootDirectory`) + `ListenAddress` (`*-features` platforms),
+banner file + content + config directive (banner-enabled platforms),
+DH moduli cleanup result — no primes < 3072 bits (moduli-enabled platforms),
+SFTP subsystem, `sshd -t` syntax validation, and Ansible managed comment.
 
 ## License
 
