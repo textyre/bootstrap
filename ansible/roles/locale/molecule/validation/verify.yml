@@ -1,0 +1,24 @@
+---
+# Проверяет что при невалидной конфигурации /etc/locale.conf НЕ создаётся
+# (soft-fail validation работает корректно).
+- name: Verify — validation soft-fail
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Stat /etc/locale.conf
+      ansible.builtin.stat:
+        path: /etc/locale.conf
+      register: locale_validation_locale_conf_stat
+
+    - name: Assert locale.conf was NOT created (soft-fail worked)
+      ansible.builtin.assert:
+        that:
+          - not locale_validation_locale_conf_stat.stat.exists
+        fail_msg: >-
+          /etc/locale.conf was created despite invalid locale configuration.
+          Soft-fail validation is broken.
+        success_msg: >-
+          OK: /etc/locale.conf not created for any invalid config variant.
+          Soft-fail validation works correctly.

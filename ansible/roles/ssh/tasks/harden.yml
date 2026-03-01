@@ -1,6 +1,68 @@
 ---
 # === Hardening sshd ===
 # Развёртывание шаблона sshd_config и управление host-ключами
+#
+# ПОРЯДОК ВАЖЕН: сначала генерируем ключи и деплоим конфиг, потом
+# флашим хендлеры (sshd рестартует пока ECDSA-ключи ещё на диске,
+# sshdgenkeys.service не регенерирует их), затем удаляем слабые ключи
+# БЕЗ повторного рестарта → идемпотентность гарантирована.
+
+# ---- Генерация отсутствующих host-ключей ----
+
+- name: Ensure ed25519 host key exists
+  ansible.builtin.command: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
+  args:
+    creates: /etc/ssh/ssh_host_ed25519_key
+  notify: restart sshd
+  tags: ['ssh', 'security']
+
+- name: Ensure RSA host key exists
+  ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''
+  args:
+    creates: /etc/ssh/ssh_host_rsa_key
+  when: "'rsa-sha2-512' in ssh_host_key_algorithms or 'rsa-sha2-256' in ssh_host_key_algorithms"
+  notify: restart sshd
+  tags: ['ssh', 'security']
+
+# ---- Развёртывание конфигурации sshd ----
+
+- name: Deploy hardened sshd_config
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+    validate: 'sshd -t -f %s'
+    backup: true
+  notify: restart sshd
+  tags: ['ssh', 'security']
+
+# Flush handlers: sshd рестартует ПОКА слабые ключи ещё на диске.
+# sshdgenkeys.service видит что все файлы присутствуют → no-op.
+# После этого удаляем ключи без повторного рестарта → идемпотентность.
+- name: "Commit sshd config changes before removing weak keys"
+  ansible.builtin.meta: flush_handlers
+  tags: ['ssh', 'security']
+
+- name: "Gather service facts before host key cleanup"
+  ansible.builtin.service_facts:
+  when:
+    - ssh_host_key_cleanup
+    - ansible_facts['service_mgr'] == 'systemd'
+  tags: ['ssh', 'security']
+
+- name: "Disable sshdgenkeys service to prevent weak key regeneration"
+  ansible.builtin.systemd:
+    name: sshdgenkeys.service
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - ssh_host_key_cleanup
+    - ansible_facts['service_mgr'] == 'systemd'
+    - ansible_facts.services['sshdgenkeys.service'] is defined
+  tags: ['ssh', 'security']
 
 # ---- Удаление слабых host-ключей (DSA, ECDSA) ----
 
@@ -22,36 +84,6 @@
   when:
     - ssh_host_key_cleanup
     - item.path | basename is match('ssh_host_(dsa|ecdsa)_key')
-  notify: Restart sshd
   tags: ['ssh', 'security']
-
-# ---- Генерация отсутствующих host-ключей ----
-
-- name: Ensure ed25519 host key exists
-  ansible.builtin.command: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
-  args:
-    creates: /etc/ssh/ssh_host_ed25519_key
-  notify: Restart sshd
-  tags: ['ssh', 'security']
-
-- name: Ensure RSA host key exists
-  ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''
-  args:
-    creates: /etc/ssh/ssh_host_rsa_key
-  when: "'rsa-sha2-512' in ssh_host_key_algorithms or 'rsa-sha2-256' in ssh_host_key_algorithms"
-  notify: Restart sshd
-  tags: ['ssh', 'security']
-
-# ---- Развёртывание конфигурации sshd ----
-
-- name: Deploy hardened sshd_config
-  ansible.builtin.template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
-    owner: root
-    group: root
-    mode: '0600'
-    validate: '/usr/sbin/sshd -t -f %s'
-    backup: true
-  notify: Restart sshd
-  tags: ['ssh', 'security']
+  # NOTE: no notify here — sshd was already restarted above (flush_handlers).
+  # sshdgenkeys.service will NOT regenerate deleted keys until next sshd restart.

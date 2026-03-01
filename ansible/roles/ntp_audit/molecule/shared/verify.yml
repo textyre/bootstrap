@@ -16,91 +16,269 @@
 
     # ---- Reuse role verify tasks (single source of truth) ----
     # Path is relative to this playbook's location: molecule/shared/
-    # ../../tasks/verify.yml → tasks/verify.yml (role root)
+    # ../../tasks/verify.yml -> tasks/verify.yml (role root)
 
     - name: Run role verify tasks
       ansible.builtin.include_tasks:
         file: "../../tasks/verify.yml"
 
-    # ---- Extended checks (molecule-only) ----
+    # ---- Zipapp binary ----
+
+    - name: Assert zipapp has correct permissions and ownership
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_verify_script.stat.mode == '0755'
+          - ntp_audit_verify_script.stat.pw_name == 'root'
+          - ntp_audit_verify_script.stat.gr_name == 'root'
+        fail_msg: "ntp-audit zipapp has wrong permissions or owner"
+
+    # ---- Run ntp-audit and verify clean exit ----
 
     - name: Run ntp-audit and verify it exits cleanly
       ansible.builtin.command:
         cmd: /usr/local/bin/ntp-audit
-      register: ntp_audit_molecule_run
+      register: _ntp_audit_verify_run
       changed_when: false
 
     - name: Assert ntp-audit exits with rc 0
       ansible.builtin.assert:
         that:
-          - ntp_audit_molecule_run.rc == 0
+          - _ntp_audit_verify_run.rc == 0
         fail_msg: >-
-          ntp-audit exited {{ ntp_audit_molecule_run.rc }}.
-          stderr: {{ ntp_audit_molecule_run.stderr }}
+          ntp-audit exited {{ _ntp_audit_verify_run.rc }}.
+          stderr: {{ _ntp_audit_verify_run.stderr }}
 
-    - name: Assert zipapp has correct permissions
+    # ---- Log directory permissions ----
+
+    - name: Stat log directory
+      ansible.builtin.stat:
+        path: "{{ ntp_audit_log_dir }}"
+      register: _ntp_audit_verify_logdir_stat
+
+    - name: Assert log directory has correct permissions and ownership
       ansible.builtin.assert:
         that:
-          - ntp_audit_verify_script.stat.mode == '0755'
-          - ntp_audit_verify_script.stat.pw_name == 'root'
-        fail_msg: "ntp-audit zipapp has wrong permissions or owner"
+          - _ntp_audit_verify_logdir_stat.stat.exists
+          - _ntp_audit_verify_logdir_stat.stat.isdir
+          - _ntp_audit_verify_logdir_stat.stat.mode == '0755'
+          - _ntp_audit_verify_logdir_stat.stat.pw_name == 'root'
+          - _ntp_audit_verify_logdir_stat.stat.gr_name == 'root'
+        fail_msg: "{{ ntp_audit_log_dir }} missing or wrong permissions (expected root:root 0755)"
+
+    # ---- Audit log JSON record validation ----
+
+    - name: Parse last audit log line as JSON
+      ansible.builtin.set_fact:
+        _ntp_audit_verify_log_json: "{{ ntp_audit_verify_last_line.stdout | from_json }}"
+
+    - name: Assert all required JSON keys are present
+      ansible.builtin.assert:
+        that:
+          - "'timestamp' in _ntp_audit_verify_log_json"
+          - "'reference_id' in _ntp_audit_verify_log_json"
+          - "'reference_name' in _ntp_audit_verify_log_json"
+          - "'stratum' in _ntp_audit_verify_log_json"
+          - "'current_correction' in _ntp_audit_verify_log_json"
+          - "'last_offset' in _ntp_audit_verify_log_json"
+          - "'rms_offset' in _ntp_audit_verify_log_json"
+          - "'frequency_ppm' in _ntp_audit_verify_log_json"
+          - "'residual_freq' in _ntp_audit_verify_log_json"
+          - "'skew' in _ntp_audit_verify_log_json"
+          - "'root_delay' in _ntp_audit_verify_log_json"
+          - "'root_dispersion' in _ntp_audit_verify_log_json"
+          - "'update_interval' in _ntp_audit_verify_log_json"
+          - "'leap_status' in _ntp_audit_verify_log_json"
+          - "'sync_status' in _ntp_audit_verify_log_json"
+          - "'ntp_conflict' in _ntp_audit_verify_log_json"
+          - "'ntp_phc_status' in _ntp_audit_verify_log_json"
+          - "'ntp_phc_device' in _ntp_audit_verify_log_json"
+          - "'ntp_modules_status' in _ntp_audit_verify_log_json"
+        fail_msg: "audit.log JSON record is missing one or more required keys"
+
+    - name: Assert JSON field types are valid
+      ansible.builtin.assert:
+        that:
+          - _ntp_audit_verify_log_json.timestamp is match('^\d{4}-\d{2}-\d{2}T')
+          - _ntp_audit_verify_log_json.stratum | int >= 0
+          - _ntp_audit_verify_log_json.sync_status in ['ok', 'unsynchronised', 'error']
+          - _ntp_audit_verify_log_json.ntp_conflict | type_debug in ['str', 'AnsibleUnsafeText']
+          - _ntp_audit_verify_log_json.ntp_phc_status in ['ok', 'missing', 'n/a', 'error']
+          - _ntp_audit_verify_log_json.ntp_modules_status | type_debug in ['str', 'AnsibleUnsafeText']
+        fail_msg: >-
+          JSON field type validation failed.
+          timestamp={{ _ntp_audit_verify_log_json.timestamp }},
+          stratum={{ _ntp_audit_verify_log_json.stratum }},
+          sync_status={{ _ntp_audit_verify_log_json.sync_status }},
+          ntp_conflict={{ _ntp_audit_verify_log_json.ntp_conflict }}
+
+    # ---- Logrotate config ----
 
     - name: Assert logrotate config has correct permissions
       ansible.builtin.assert:
         that:
           - ntp_audit_verify_logrotate.stat.mode == '0644'
           - ntp_audit_verify_logrotate.stat.pw_name == 'root'
+          - ntp_audit_verify_logrotate.stat.gr_name == 'root'
         fail_msg: "logrotate config has wrong permissions or owner"
+
+    - name: Read logrotate config content
+      ansible.builtin.slurp:
+        src: /etc/logrotate.d/ntp-audit
+      register: _ntp_audit_verify_logrotate_content
+
+    - name: Assert logrotate config contains expected directives
+      ansible.builtin.assert:
+        that:
+          - ntp_audit_log_file in (_ntp_audit_verify_logrotate_content.content | b64decode)
+          - "'rotate 7' in (_ntp_audit_verify_logrotate_content.content | b64decode)"
+          - "'compress' in (_ntp_audit_verify_logrotate_content.content | b64decode)"
+          - "'missingok' in (_ntp_audit_verify_logrotate_content.content | b64decode)"
+          - "'notifempty' in (_ntp_audit_verify_logrotate_content.content | b64decode)"
+        fail_msg: "logrotate config missing expected directives"
 
     - name: Check if logrotate binary is present
       ansible.builtin.command:
-        cmd: command -v logrotate
-      register: ntp_audit_molecule_logrotate_binary
+        cmd: which logrotate
+      register: _ntp_audit_verify_logrotate_bin
       changed_when: false
       failed_when: false
 
     - name: Validate logrotate config syntax
       ansible.builtin.command:
         cmd: logrotate --debug /etc/logrotate.d/ntp-audit
-      register: ntp_audit_molecule_logrotate_syntax
+      register: _ntp_audit_verify_logrotate_syntax
       changed_when: false
-      failed_when: ntp_audit_molecule_logrotate_syntax.rc != 0
-      when: ntp_audit_molecule_logrotate_binary.rc == 0
+      failed_when: _ntp_audit_verify_logrotate_syntax.rc != 0
+      when: _ntp_audit_verify_logrotate_bin.rc == 0
 
-    - name: Parse last audit log line as JSON
-      ansible.builtin.set_fact:
-        ntp_audit_molecule_log_json: "{{ ntp_audit_verify_last_line.stdout | from_json }}"
+    # ---- Python source staging directory ----
 
-    - name: Assert JSON field types are valid
+    - name: Stat __main__.py in staging directory
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit/__main__.py
+      register: _ntp_audit_verify_src_main
+
+    - name: Stat chrony.py in staging directory
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit/chrony.py
+      register: _ntp_audit_verify_src_chrony
+
+    - name: Stat checkers.py in staging directory
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit/checkers.py
+      register: _ntp_audit_verify_src_checkers
+
+    - name: Stat output.py in staging directory
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit/output.py
+      register: _ntp_audit_verify_src_output
+
+    - name: Assert all Python source files exist in staging directory
       ansible.builtin.assert:
         that:
-          - ntp_audit_molecule_log_json.timestamp is match('^\d{4}-\d{2}-\d{2}T')
-          - ntp_audit_molecule_log_json.stratum | string | int >= 0
-          - ntp_audit_molecule_log_json.ntp_conflict | type_debug in ['bool', 'str', 'AnsibleUnsafeText']
-        fail_msg: >-
-          JSON field type validation failed.
-          timestamp={{ ntp_audit_molecule_log_json.timestamp }},
-          stratum={{ ntp_audit_molecule_log_json.stratum }},
-          ntp_conflict={{ ntp_audit_molecule_log_json.ntp_conflict }}
+          - _ntp_audit_verify_src_main.stat.exists
+          - _ntp_audit_verify_src_chrony.stat.exists
+          - _ntp_audit_verify_src_checkers.stat.exists
+          - _ntp_audit_verify_src_output.stat.exists
+        fail_msg: "One or more Python source files missing from /usr/local/src/ntp-audit/"
+
+    # ---- Systemd timer/service units (systemd only) ----
+
+    - name: Stat ntp-audit.service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/ntp-audit.service
+      register: _ntp_audit_verify_service_unit
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Stat ntp-audit.timer unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/ntp-audit.timer
+      register: _ntp_audit_verify_timer_unit
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert systemd units exist with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _ntp_audit_verify_service_unit.stat.exists
+          - _ntp_audit_verify_service_unit.stat.mode == '0644'
+          - _ntp_audit_verify_timer_unit.stat.exists
+          - _ntp_audit_verify_timer_unit.stat.mode == '0644'
+        fail_msg: "ntp-audit.service or ntp-audit.timer missing or wrong permissions"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Read ntp-audit.service unit content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/ntp-audit.service
+      register: _ntp_audit_verify_service_content
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert service unit has correct ExecStart
+      ansible.builtin.assert:
+        that:
+          - "'ExecStart=/usr/local/bin/ntp-audit' in (_ntp_audit_verify_service_content.content | b64decode)"
+          - "'Type=oneshot' in (_ntp_audit_verify_service_content.content | b64decode)"
+        fail_msg: "ntp-audit.service unit missing ExecStart or Type=oneshot"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Read ntp-audit.timer unit content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/ntp-audit.timer
+      register: _ntp_audit_verify_timer_content
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert timer unit has OnCalendar directive
+      ansible.builtin.assert:
+        that:
+          - "'OnCalendar=' in (_ntp_audit_verify_timer_content.content | b64decode)"
+          - "'Persistent=true' in (_ntp_audit_verify_timer_content.content | b64decode)"
+        fail_msg: "ntp-audit.timer unit missing OnCalendar or Persistent directive"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- Alloy config fragment content ----
 
     - name: Read Alloy config fragment content
       ansible.builtin.slurp:
         src: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
-      register: ntp_audit_molecule_alloy_content
+      register: _ntp_audit_verify_alloy_content
       when: ntp_audit_alloy_enabled | bool
 
-    - name: Assert Alloy config references the correct audit log path
+    - name: Assert Alloy config references the correct audit log path and job name
       ansible.builtin.assert:
         that:
-          - ntp_audit_log_file in (ntp_audit_molecule_alloy_content.content | b64decode)
+          - ntp_audit_log_file in (_ntp_audit_verify_alloy_content.content | b64decode)
+          - "'job      = \"ntp-audit\"' in (_ntp_audit_verify_alloy_content.content | b64decode)"
+          - "'loki.process' in (_ntp_audit_verify_alloy_content.content | b64decode)"
         fail_msg: >-
-          Alloy config does not reference {{ ntp_audit_log_file }}.
-          Content: {{ ntp_audit_molecule_alloy_content.content | b64decode | truncate(200) }}
+          Alloy config missing expected content (audit log path, job name, or loki.process block)
       when: ntp_audit_alloy_enabled | bool
 
-    - name: Show result
+    # ---- Loki rules content ----
+
+    - name: Read Loki rules content
+      ansible.builtin.slurp:
+        src: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
+      register: _ntp_audit_verify_loki_content
+      when: ntp_audit_loki_enabled | bool
+
+    - name: Assert Loki rules contain expected alert definitions
+      ansible.builtin.assert:
+        that:
+          - "'NtpCompetingDaemon' in (_ntp_audit_verify_loki_content.content | b64decode)"
+          - "'NtpUnsynchronised' in (_ntp_audit_verify_loki_content.content | b64decode)"
+          - "'NtpHighOffset' in (_ntp_audit_verify_loki_content.content | b64decode)"
+          - "'NtpHighStratum' in (_ntp_audit_verify_loki_content.content | b64decode)"
+          - "'NtpPHCMissing' in (_ntp_audit_verify_loki_content.content | b64decode)"
+          - "'NtpClockStep' in (_ntp_audit_verify_loki_content.content | b64decode)"
+        fail_msg: "Loki rules missing one or more expected alert definitions"
+      when: ntp_audit_loki_enabled | bool
+
+    # ---- Summary ----
+
+    - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          ntp_audit molecule verify passed: all role checks, exit code clean,
-          permissions correct, logrotate syntax valid, JSON types valid,
-          alloy config references correct path.
+          ntp_audit molecule verify passed: role verify tasks OK, script exits 0,
+          log directory permissions correct, all 19 JSON keys present with valid types,
+          logrotate config content validated, all Python sources present,
+          systemd units verified, Alloy config content verified,
+          Loki alert rules verified.

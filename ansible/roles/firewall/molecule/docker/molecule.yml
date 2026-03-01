@@ -37,6 +37,7 @@ provisioner:
   name: ansible
   options:
     skip-tags: report
+    extra-vars: "firewall_start_service=false"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

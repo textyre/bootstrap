@@ -1,3 +1,9 @@
+# Purpose: Build and push the ci-env-lint Docker image to GHCR.
+#          This image is used by lint.yml for ansible-lint and yamllint runs.
+# Triggers: push to master (ansible/requirements-lint.txt, ansible/requirements.yml,
+#           .github/docker/Dockerfile.ci-lint, this workflow file), workflow_dispatch
+# Uses:    .github/docker/Dockerfile.ci-lint
+# Produces: ghcr.io/<repo>/ci-env-lint:latest
 ---
 name: Build Lint CI Image
 

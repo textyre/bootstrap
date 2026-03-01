@@ -31,9 +31,9 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 | `vconsole_console_map_src` | `""` | Optional: local path to a custom `.map` file in your repo |
 | `vconsole_console_font_package` | `"terminus-font"` | Package providing console fonts (installed when `vconsole_console_font` is set) |
 | `vconsole_console_font` | `""` | Console font name (e.g. `ter-v16n`, `lat2-16`). Empty = no font configured |
-| `vconsole_console_font_map` | `""` | Font map (e.g. `8859-2`) |
-| `vconsole_console_font_unimap` | `""` | Unicode map file |
-| `vconsole_gpm_enabled` | `true` | Install and enable GPM (General Purpose Mouse daemon for TTY) |
+| `vconsole_console_font_map` | `""` | Font map (e.g. `8859-2`) (systemd only) |
+| `vconsole_console_font_unimap` | `""` | Unicode map file (systemd only) |
+| `vconsole_gpm_enabled` | `true` | Install GPM package and enable/start service on non-container targets. In containerized Molecule environments, the role may skip service start while still installing the package (set `false` for headless/VM environments — GPM requires `/dev/input/mice`) |
 
 ## Example playbook
 

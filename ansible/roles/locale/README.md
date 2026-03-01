@@ -60,13 +60,17 @@ Arch Linux, Debian, Ubuntu, RedHat/EL, Void Linux
 
 | Scenario | Driver | Platforms | Notes |
 |----------|--------|-----------|-------|
-| `default` | localhost | localhost | Syntax/lint only |
-| `docker` | docker | Arch Linux (custom image) | Unit tests in container |
+| `default` | localhost | localhost | Syntax only |
+| `docker` | docker | Arch Linux, Ubuntu (custom images) | Unit tests in container |
 | `vagrant` | vagrant (libvirt) | Arch Linux, Ubuntu 24.04 | Full VM integration tests |
+| `validation` | localhost | localhost | Soft-fail validation edge cases |
 
 ```bash
 # Docker (fast, CI)
 molecule test -s docker
+
+# Validation edge cases (empty list, wrong default, wrong LC_*)
+molecule test -s validation
 
 # Vagrant (full integration, requires KVM)
 molecule test -s vagrant
@@ -78,9 +82,14 @@ molecule verify -s vagrant
 molecule destroy -s vagrant
 ```
 
-The shared `converge.yml` and `verify.yml` are reused across all scenarios. The vagrant scenario additionally tests:
+The shared `converge.yml` and `verify.yml` are reused across `docker` and `vagrant` scenarios. The `validation` scenario tests:
+- `locale_list: []` → soft-fail, no `/etc/locale.conf` written
+- `locale_default` not in `locale_list` → soft-fail
+- `LC_*` override value not in `locale_list` → soft-fail
+
+The `vagrant` scenario additionally tests:
 - Ubuntu `locales` package dependency
-- Cross-platform `/etc/locale.conf` behaviour (Ubuntu uses `/etc/locale.conf` via systemd, role writes it natively)
+- Cross-platform `/etc/locale.conf` behaviour
 - Idempotence of `community.general.locale_gen` on pre-generated locales
 
 ## License

@@ -5,6 +5,12 @@
   gather_facts: true
 
   pre_tasks:
+    - name: Update apt cache (Ubuntu/Debian)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
     - name: Ensure chrony is installed (ntp_audit depends on chronyc)
       ansible.builtin.package:
         name: chrony

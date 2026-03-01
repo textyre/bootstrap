@@ -17,5 +17,7 @@ galaxy_info:
       versions: [all]
     - name: EL
       versions: [all]
+    - name: Void Linux
+      versions: [all]
   galaxy_tags: [system, locale, i18n, l10n]
 dependencies: []

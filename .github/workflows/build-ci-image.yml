@@ -1,3 +1,11 @@
+# Purpose: Build and push the ci-env Docker image to GHCR.
+#          This image is used by _molecule.yml for Docker-based molecule tests.
+# Triggers: push to master (ansible/requirements.txt, ansible/requirements.yml,
+#           .github/docker/Dockerfile.ci, this workflow file), workflow_dispatch
+# Uses:    .github/docker/Dockerfile.ci
+# Produces: ghcr.io/<repo>/ci-env:latest
+# Notes:   Rebuild is triggered by ANY change to requirements.txt or Dockerfile.
+#          There is no sequencing guarantee between this build and molecule.yml runs.
 ---
 name: Build CI Environment Image
 

@@ -17,63 +17,106 @@
 
     - name: Set user home fact
       ansible.builtin.set_fact:
-        chezmoi_verify_home: "{{ getent_passwd[chezmoi_user][4] }}"
+        _chezmoi_verify_home: "{{ getent_passwd[chezmoi_user][4] }}"
 
     # ---- Tier 1: chezmoi binary installed ----
 
-    - name: Check chezmoi is installed (PATH or ~/.local/bin)
-      ansible.builtin.shell: >-
-        which chezmoi 2>/dev/null ||
-        test -x {{ chezmoi_verify_home }}/.local/bin/chezmoi
-      register: chezmoi_verify_which
-      changed_when: false
-      failed_when: chezmoi_verify_which.rc != 0
+    - name: Check chezmoi binary in /usr/bin
+      ansible.builtin.stat:
+        path: /usr/bin/chezmoi
+      register: _chezmoi_verify_bin_usr
 
-    - name: Determine chezmoi binary path
-      ansible.builtin.set_fact:
-        chezmoi_verify_bin: >-
-          {{ 'chezmoi' if (chezmoi_verify_which.stdout | default('') | trim) != ''
-             else chezmoi_verify_home ~ '/.local/bin/chezmoi' }}
+    - name: Check chezmoi binary in ~/.local/bin
+      ansible.builtin.stat:
+        path: "{{ _chezmoi_verify_home }}/.local/bin/chezmoi"
+      register: _chezmoi_verify_bin_local
 
-    - name: Check chezmoi --version works
-      ansible.builtin.command: "{{ chezmoi_verify_bin }} --version"
-      register: chezmoi_verify_version
-      changed_when: false
-      failed_when: chezmoi_verify_version.rc != 0
-
-    - name: Assert chezmoi version output is non-empty
+    - name: Assert chezmoi binary exists
       ansible.builtin.assert:
-        that: chezmoi_verify_version.stdout | length > 0
-        fail_msg: "chezmoi --version produced empty output"
+        that:
+          - _chezmoi_verify_bin_usr.stat.exists or _chezmoi_verify_bin_local.stat.exists
+        fail_msg: >-
+          chezmoi binary not found at /usr/bin/chezmoi
+          or {{ _chezmoi_verify_home }}/.local/bin/chezmoi
+
+    - name: Set chezmoi binary path fact
+      ansible.builtin.set_fact:
+        _chezmoi_verify_bin: >-
+          {{ '/usr/bin/chezmoi' if _chezmoi_verify_bin_usr.stat.exists
+             else _chezmoi_verify_home ~ '/.local/bin/chezmoi' }}
+
+    - name: Run chezmoi --version
+      ansible.builtin.command: "{{ _chezmoi_verify_bin }} --version"
+      register: _chezmoi_verify_version
+      changed_when: false
+
+    - name: Assert chezmoi version output matches expected format
+      ansible.builtin.assert:
+        that:
+          - _chezmoi_verify_version.stdout is regex('^chezmoi version v[0-9]+\.[0-9]+')
+        fail_msg: >-
+          chezmoi --version output does not match expected format.
+          Got: {{ _chezmoi_verify_version.stdout }}
 
     # ---- Tier 1: chezmoi source directory initialized ----
 
     - name: Check chezmoi source directory exists
       ansible.builtin.stat:
-        path: "{{ chezmoi_verify_home }}/.local/share/chezmoi"
-      register: chezmoi_verify_source_dir
+        path: "{{ _chezmoi_verify_home }}/.local/share/chezmoi"
+      register: _chezmoi_verify_source_dir
       when: chezmoi_verify_has_dotfiles | default(false)
 
     - name: Assert chezmoi source directory was initialized
       ansible.builtin.assert:
         that:
-          - chezmoi_verify_source_dir.stat.exists
-          - chezmoi_verify_source_dir.stat.isdir
+          - _chezmoi_verify_source_dir.stat.exists
+          - _chezmoi_verify_source_dir.stat.isdir
         fail_msg: "chezmoi source directory not found at ~/.local/share/chezmoi"
+      when: chezmoi_verify_has_dotfiles | default(false)
+
+    # ---- Tier 1: chezmoi config file deployed ----
+
+    - name: Check chezmoi config file exists
+      ansible.builtin.stat:
+        path: "{{ _chezmoi_verify_home }}/.config/chezmoi/chezmoi.toml"
+      register: _chezmoi_verify_config
+      when: chezmoi_verify_has_dotfiles | default(false)
+
+    - name: Assert chezmoi config file was deployed
+      ansible.builtin.assert:
+        that:
+          - _chezmoi_verify_config.stat.exists
+        fail_msg: "chezmoi config file not found at ~/.config/chezmoi/chezmoi.toml"
       when: chezmoi_verify_has_dotfiles | default(false)
 
     # ---- Tier 1: fixture marker check (Vagrant / Docker stub scenarios) ----
 
     - name: Check chezmoi deployed the fixture test marker
       ansible.builtin.stat:
-        path: "{{ chezmoi_verify_home }}/.chezmoi_test_marker"
-      register: chezmoi_verify_marker
+        path: "{{ _chezmoi_verify_home }}/.chezmoi_test_marker"
+      register: _chezmoi_verify_marker
       when: chezmoi_verify_fixture | default(false)
 
     - name: Assert fixture marker was deployed by chezmoi
       ansible.builtin.assert:
-        that: chezmoi_verify_marker.stat.exists
+        that:
+          - _chezmoi_verify_marker.stat.exists
         fail_msg: "chezmoi did not deploy ~/.chezmoi_test_marker from fixture dotfiles"
+      when: chezmoi_verify_fixture | default(false)
+
+    - name: Read fixture marker content
+      ansible.builtin.command: "cat {{ _chezmoi_verify_home }}/.chezmoi_test_marker"
+      register: _chezmoi_verify_marker_content
+      changed_when: false
+      when: chezmoi_verify_fixture | default(false)
+
+    - name: Assert fixture marker has expected content
+      ansible.builtin.assert:
+        that:
+          - _chezmoi_verify_marker_content.stdout is regex('^chezmoi-molecule-test')
+        fail_msg: >-
+          Fixture marker content mismatch.
+          Expected: chezmoi-molecule-test. Got: {{ _chezmoi_verify_marker_content.stdout }}
       when: chezmoi_verify_fixture | default(false)
 
     # ---- Tier 2: Dotfiles deployed (Arch only, with real dotfiles source) ----
@@ -85,78 +128,122 @@
       block:
         - name: Check .xinitrc exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.xinitrc"
-          register: chezmoi_verify_xinitrc
-          failed_when: not chezmoi_verify_xinitrc.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.xinitrc"
+          register: _chezmoi_verify_xinitrc
+
+        - name: Assert .xinitrc exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_xinitrc.stat.exists
+            fail_msg: ".xinitrc not found"
 
         - name: Check i3 config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/i3/config"
-          register: chezmoi_verify_i3
-          failed_when: not chezmoi_verify_i3.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/i3/config"
+          register: _chezmoi_verify_i3
+
+        - name: Assert i3 config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_i3.stat.exists
+            fail_msg: "i3 config not found"
 
         - name: Check picom config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/picom.conf"
-          register: chezmoi_verify_picom
-          failed_when: not chezmoi_verify_picom.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/picom.conf"
+          register: _chezmoi_verify_picom
+
+        - name: Assert picom config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_picom.stat.exists
+            fail_msg: "picom config not found"
 
         - name: Check ewwii config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
-          register: chezmoi_verify_ewwii
-          failed_when: not chezmoi_verify_ewwii.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/ewwii/ewwii.rhai"
+          register: _chezmoi_verify_ewwii
+
+        - name: Assert ewwii config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_ewwii.stat.exists
+            fail_msg: "ewwii config not found"
 
         - name: Check rofi config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/rofi/config.rasi"
-          register: chezmoi_verify_rofi
-          failed_when: not chezmoi_verify_rofi.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/rofi/config.rasi"
+          register: _chezmoi_verify_rofi
+
+        - name: Assert rofi config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_rofi.stat.exists
+            fail_msg: "rofi config not found"
 
         - name: Check alacritty config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
-          register: chezmoi_verify_alacritty
-          failed_when: not chezmoi_verify_alacritty.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/alacritty/alacritty.toml"
+          register: _chezmoi_verify_alacritty
+
+        - name: Assert alacritty config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_alacritty.stat.exists
+            fail_msg: "alacritty config not found"
 
         - name: Check dunst config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/dunst/dunstrc"
-          register: chezmoi_verify_dunst
-          failed_when: not chezmoi_verify_dunst.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/dunst/dunstrc"
+          register: _chezmoi_verify_dunst
+
+        - name: Assert dunst config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_dunst.stat.exists
+            fail_msg: "dunst config not found"
 
         - name: Check starship config exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/starship.toml"
-          register: chezmoi_verify_starship
-          failed_when: not chezmoi_verify_starship.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/starship.toml"
+          register: _chezmoi_verify_starship
+
+        - name: Assert starship config exists
+          ansible.builtin.assert:
+            that: _chezmoi_verify_starship.stat.exists
+            fail_msg: "starship config not found"
 
         - name: Check theme-switch is executable
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.local/bin/theme-switch"
-          register: chezmoi_verify_theme_switch
-          failed_when: >-
-            not chezmoi_verify_theme_switch.stat.exists or
-            not chezmoi_verify_theme_switch.stat.executable
+            path: "{{ _chezmoi_verify_home }}/.local/bin/theme-switch"
+          register: _chezmoi_verify_theme_switch
+
+        - name: Assert theme-switch exists and is executable
+          ansible.builtin.assert:
+            that:
+              - _chezmoi_verify_theme_switch.stat.exists
+              - _chezmoi_verify_theme_switch.stat.executable
+            fail_msg: "theme-switch not found or not executable"
 
         - name: Check wallpapers directory exists
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.local/share/wallpapers"
-          register: chezmoi_verify_wallpapers
-          failed_when: >-
-            not chezmoi_verify_wallpapers.stat.exists or
-            not chezmoi_verify_wallpapers.stat.isdir
+            path: "{{ _chezmoi_verify_home }}/.local/share/wallpapers"
+          register: _chezmoi_verify_wallpapers
+
+        - name: Assert wallpapers directory exists
+          ansible.builtin.assert:
+            that:
+              - _chezmoi_verify_wallpapers.stat.exists
+              - _chezmoi_verify_wallpapers.stat.isdir
+            fail_msg: "wallpapers directory not found"
 
         - name: Check GTK3 settings exist
           ansible.builtin.stat:
-            path: "{{ chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
-          register: chezmoi_verify_gtk3
-          failed_when: not chezmoi_verify_gtk3.stat.exists
+            path: "{{ _chezmoi_verify_home }}/.config/gtk-3.0/settings.ini"
+          register: _chezmoi_verify_gtk3
+
+        - name: Assert GTK3 settings exist
+          ansible.builtin.assert:
+            that: _chezmoi_verify_gtk3.stat.exists
+            fail_msg: "GTK3 settings not found"
 
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          chezmoi verify passed: binary at {{ chezmoi_verify_bin }},
-          version {{ chezmoi_verify_version.stdout | trim }}.
+          chezmoi verify passed: binary at {{ _chezmoi_verify_bin }},
+          version {{ _chezmoi_verify_version.stdout | trim }}.

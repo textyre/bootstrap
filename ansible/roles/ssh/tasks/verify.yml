@@ -9,10 +9,17 @@
   failed_when: ssh_verify_config.rc != 0
   tags: [ssh]
 
+- name: "Gather service facts"
+  ansible.builtin.service_facts:
+  tags: [ssh]
+
 - name: "Verify sshd service is running"
-  ansible.builtin.command:
-    cmd: "pgrep sshd"
-  register: ssh_verify_running
-  changed_when: false
-  failed_when: ssh_verify_running.rc != 0
+  ansible.builtin.assert:
+    that:
+      - >
+        (ansible_facts.services['sshd.service'] is defined and
+         ansible_facts.services['sshd.service'].state == 'running') or
+        (ansible_facts.services['ssh.service'] is defined and
+         ansible_facts.services['ssh.service'].state == 'running')
+    fail_msg: "sshd service is not running (checked sshd.service and ssh.service)"
   tags: [ssh]

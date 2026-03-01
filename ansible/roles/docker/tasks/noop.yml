@@ -1,0 +1,4 @@
+---
+# noop — intentionally empty
+# Used by molecule shared/verify.yml to load role defaults at proper precedence
+# (via include_role) without running any role tasks

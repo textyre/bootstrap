@@ -5,7 +5,7 @@ Hardened OpenSSH server configuration based on dev-sec.io, CIS Benchmark, DISA S
 ## What this role does
 
 - [x] Installs OpenSSH server (package name mapped per OS family)
-- [x] Preflight lockout protection: verifies at least one `authorized_keys` exists before applying hardening
+- [x] Preflight lockout protection: verifies user membership in `AllowGroups`/`AllowUsers`/`DenyGroups`/`DenyUsers` before applying hardening; warns if `~user/.ssh/authorized_keys` is absent when password auth is disabled
 - [x] Deploys `sshd_config` from Jinja2 template with modern-only cryptography
 - [x] Removes weak host keys (DSA, ECDSA)
 - [x] Configures modern cryptography: ChaCha20-Poly1305 / AES-GCM ciphers, ETM MACs, Curve25519 KEX
@@ -57,7 +57,7 @@ Hardened OpenSSH server configuration based on dev-sec.io, CIS Benchmark, DISA S
 | `ssh_permit_empty_passwords` | `"no"` | Permit empty passwords (CIS, DISA STIG: must be `no`) |
 | `ssh_hostbased_authentication` | `"no"` | Allow `.rhosts`/`.shosts` host-based authentication |
 | `ssh_ignore_rhosts` | `"yes"` | Ignore `.rhosts` and `.shosts` files |
-| `ssh_challenge_response_auth` | `"no"` | PAM keyboard-interactive challenge-response |
+| `ssh_kbd_interactive_authentication` | `"no"` | PAM keyboard-interactive authentication (replaces deprecated `ChallengeResponseAuthentication` removed in OpenSSH 9.5+) |
 | `ssh_authentication_methods` | `"publickey"` | Required authentication methods |
 | `ssh_permit_user_environment` | `"no"` | Honour `~/.ssh/environment` (blocks `LD_PRELOAD`/`PATH` injection) |
 | `ssh_use_pam` | `"yes"` | Use PAM for account and session management |
@@ -177,8 +177,10 @@ Shared playbooks live in `molecule/shared/` and are reused across all scenarios.
 | Scenario | Driver | Platform | Purpose |
 |----------|--------|----------|---------|
 | `default` | localhost | local machine | Fast syntax + functional check (no daemon restart) |
-| `docker` | Docker | `arch-systemd` container (PID 1 = systemd) | Full systemd lifecycle, service running+enabled |
-| `vagrant` | Vagrant (libvirt) | Arch Linux + Ubuntu 24.04 VMs | Cross-distro integration (Arch `sshd.service` / Debian `ssh.service`) |
+| `docker` | Docker | `Archlinux-systemd`, `Ubuntu-systemd` | Full systemd lifecycle, service running+enabled, banner, moduli |
+| `docker` | Docker | `Archlinux-access-control`, `Ubuntu-access-control` | Access control directives (AllowGroups/AllowUsers/DenyGroups/DenyUsers) |
+| `docker` | Docker | `Archlinux-features`, `Ubuntu-features` | Teleport CA, SFTP chroot, ListenAddress |
+| `vagrant` | Vagrant (libvirt) | `arch-vm`, `ubuntu-base` | Cross-distro integration (Arch `sshd.service` / Debian `ssh.service`) |
 
 ### Run tests
 
@@ -193,12 +195,19 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-### Verify assertions (38 total)
+### Verify assertions (70 total)
 
-Package install, service enabled+running, `sshd_config` permissions (0600/root),
-32 security directive checks, cryptography suite (positive + negative), host key
-presence (ed25519) and absence (DSA, ECDSA), banner, SFTP subsystem,
-`sshd -t` syntax validation, and Ansible managed comment.
+Package install, service enabled+running (`systemctl is-active`), `sshd_config` permissions (0600/root),
+`Port 22`, `AddressFamily inet`, 39+ security directive checks (all major hardening directives including
+`KbdInteractiveAuthentication`, `TCPKeepAlive`, `PrintMotd`, `PrintLastLog`, `MaxSessions`, `AcceptEnv`),
+cryptography suite (positive + negative), host key presence (ed25519+RSA private with 0600,
+ed25519+RSA public with 0644) and absence (DSA/ECDSA), `RekeyLimit 512M 1h` value check,
+`AllowGroups` absent by default (or present on `*-access-control` platforms),
+access control directives — AllowGroups/AllowUsers/DenyGroups/DenyUsers (`*-access-control` platforms),
+Teleport CA (`TrustedUserCAKeys`) + SFTP chroot (`Match Group` + `ChrootDirectory`) + `ListenAddress` (`*-features` platforms),
+banner file + content + config directive (banner-enabled platforms),
+DH moduli cleanup result — no primes < 3072 bits (moduli-enabled platforms),
+SFTP subsystem, `sshd -t` syntax validation, and Ansible managed comment.
 
 ## License
 
