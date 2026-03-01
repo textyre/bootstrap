@@ -34,19 +34,32 @@
 
     # === Vagrant KVM — vm_is_guest is true, qemu-ga + fact file expected ===
 
-    - name: Check qemu-guest-agent service (KVM)
+    - name: Check virtio-serial channel device (KVM)
+      ansible.builtin.stat:
+        path: /dev/virtio-ports/org.qemu.guest_agent.0
+      register: vm_verify_virtio_dev
+      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
+
+    - name: Check qemu-guest-agent service (KVM with virtio channel)
       ansible.builtin.systemd:
         name: qemu-guest-agent
       register: vm_verify_qemu_ga
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
+      when:
+        - vm_verify_virt_type == 'kvm'
+        - vm_verify_virt_role == 'guest'
+        - vm_verify_virtio_dev.stat.exists | default(false)
 
-    - name: Assert qemu-guest-agent is active (KVM)
+    - name: Assert qemu-guest-agent is active (KVM with virtio channel)
       ansible.builtin.assert:
         that:
           - vm_verify_qemu_ga.status.ActiveState == 'active'
         fail_msg: "qemu-guest-agent is not running on KVM guest"
         success_msg: "qemu-guest-agent is active"
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
+      when:
+        - vm_verify_virt_type == 'kvm'
+        - vm_verify_virt_role == 'guest'
+        - vm_verify_virtio_dev.stat.exists | default(false)
+        - vm_verify_qemu_ga is not skipped
 
     - name: Stat guest fact file (KVM)
       ansible.builtin.stat:

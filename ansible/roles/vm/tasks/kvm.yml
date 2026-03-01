@@ -33,6 +33,21 @@
 
 # ---- Manage services ----
 
+- name: "KVM: Check qemu-guest-agent virtio channel"
+  ansible.builtin.stat:
+    path: /dev/virtio-ports/org.qemu.guest_agent.0
+  register: _vm_qga_channel
+  tags: ['vm', 'kvm']
+
+- name: "KVM: Warn — virtio-serial channel not found, skipping service management"
+  ansible.builtin.debug:
+    msg: >-
+      /dev/virtio-ports/org.qemu.guest_agent.0 not found.
+      The VM may not have a virtio-serial device configured.
+      qemu-guest-agent service will not be started.
+  when: not _vm_qga_channel.stat.exists
+  tags: ['vm', 'kvm']
+
 - name: "KVM: Manage guest services"
   ansible.builtin.include_tasks:
     file: _manage_services.yml
@@ -42,6 +57,7 @@
         description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
         required: true
     vm_svc_label: "KVM"
+  when: _vm_qga_channel.stat.exists
   tags: ['vm', 'kvm']
 
 # ---- Verify kernel modules ----
