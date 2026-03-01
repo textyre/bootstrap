@@ -118,7 +118,7 @@
   when:
     - power_management_assert_strict
     - power_management_init == 'systemd'
-    - power_management_assert_hibernate is succeeded
+    - "'content' in power_management_assert_hibernate"
   tags: ['power', 'assert']
 
 # ---- Validate sleep.conf via systemd-analyze ----
@@ -160,7 +160,7 @@
   when:
     - power_management_assert_strict
     - power_management_init == 'systemd'
-    - power_management_assert_lid is succeeded
+    - "'content' in power_management_assert_lid"
   tags: ['power', 'assert']
 
 # ---- Charge thresholds applied ----
