@@ -70,6 +70,13 @@
         fail_msg: "testuser_owner shadow min_age not set to 1"
       when: user_manage_password_aging | bool
 
+    - name: "Owner shadow: assert password_warn_age set to 7"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][4] | int == 7
+        fail_msg: "testuser_owner shadow warn_age not set to 7"
+      when: user_manage_password_aging | bool
+
     # ==========================================================
     # Owner umask
     # ==========================================================
@@ -171,6 +178,13 @@
         that:
           - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][2] | int == 0
         fail_msg: "testuser_extra shadow min_age not set to 0"
+      when: user_manage_password_aging | bool
+
+    - name: "Extra shadow: assert password_warn_age set to 7"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][4] | int == 7
+        fail_msg: "testuser_extra shadow warn_age not set to 7"
       when: user_manage_password_aging | bool
 
     # ==========================================================
@@ -410,7 +424,7 @@
           extra user with video group (not sudo) + locked account,
           testuser_with_sudo in sudo group,
           testuser_toberemoved absent,
-          password aging {{ 'checked' if user_manage_password_aging | bool else 'skipped (disabled)' }},
+          password aging (max/min/warn) {{ 'checked' if user_manage_password_aging | bool else 'skipped (disabled)' }},
           sudoers policy valid ({{ user_sudo_group }}),
           logrotate config with all directives deployed,
           sudo package installed.
