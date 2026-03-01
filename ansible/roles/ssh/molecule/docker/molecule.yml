@@ -48,13 +48,13 @@ provisioner:
         ansible_user: root
         ssh_user: root
         ssh_banner_enabled: true
-        ssh_moduli_cleanup: true
+        ssh_moduli_cleanup: true  # override default (false); verifies moduli pruning path
         ssh_allow_groups: []
       Ubuntu-systemd:
         ansible_user: root
         ssh_user: root
         ssh_banner_enabled: true
-        ssh_moduli_cleanup: true
+        ssh_moduli_cleanup: true  # override default (false); verifies moduli pruning path
         ssh_allow_groups: []
   playbooks:
     prepare: prepare.yml

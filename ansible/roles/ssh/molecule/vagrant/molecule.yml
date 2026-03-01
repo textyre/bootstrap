@@ -26,16 +26,17 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   inventory:
+    # ansible_user is injected automatically by the Vagrant driver (defaults to 'vagrant')
     host_vars:
       arch-vm:
         ssh_user: vagrant
         ssh_banner_enabled: true
-        ssh_moduli_cleanup: true
+        ssh_moduli_cleanup: true  # override default (false); verifies moduli pruning path
         ssh_allow_groups: []
       ubuntu-base:
         ssh_user: vagrant
         ssh_banner_enabled: true
-        ssh_moduli_cleanup: true
+        ssh_moduli_cleanup: true  # override default (false); verifies moduli pruning path
         ssh_allow_groups: []
   playbooks:
     prepare: prepare.yml
