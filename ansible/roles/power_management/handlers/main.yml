@@ -14,8 +14,10 @@
     name: systemd-logind
     state: reloaded
   when: power_management_init | default('') == 'systemd'
+  failed_when: false
 
 - name: Reload udev rules
   listen: "reload udev rules"
   ansible.builtin.command: udevadm control --reload-rules
   changed_when: false
+  failed_when: false
