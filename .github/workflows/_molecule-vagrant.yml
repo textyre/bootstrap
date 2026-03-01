@@ -150,3 +150,13 @@ jobs:
           export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
           molecule test -s ${{ inputs.scenario }} --platform-name ${{ inputs.platform }}
         working-directory: "ansible/roles/${{ inputs.role_name }}"
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: molecule-logs-${{ inputs.role_name }}-${{ inputs.platform }}
+          path: |
+            ansible/roles/${{ inputs.role_name }}/.molecule/
+            ~/.vagrant.d/logs/
+          retention-days: 7
