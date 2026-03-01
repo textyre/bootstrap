@@ -45,7 +45,9 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 
 ## Git policy
 
-Never run git write operations (commit, push, reset, rebase, merge). Show the user ready-to-run commands instead.
+**Main agent:** Never run git write operations (commit, push, reset, rebase, merge). Show the user ready-to-run commands instead.
+
+**Role agents** (teammates spawned by the molecule-overhaul team): May run `git commit`, `git push`, `gh pr create`, `gh pr merge --squash` within their assigned worktree only. All operations must stay within the worktree branch — never touch master directly.
 
 ## Role Standards
 
