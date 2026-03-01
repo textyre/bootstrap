@@ -26,7 +26,7 @@
 
 - name: Parse previous state
   ansible.builtin.set_fact:
-    power_management_drift_previous: "{{ (power_management_drift_previous_raw.content | b64decode | from_json) if power_management_drift_previous_raw is succeeded else {} }}"
+    power_management_drift_previous: "{{ (power_management_drift_previous_raw.content | b64decode | from_json) if 'content' in power_management_drift_previous_raw else {} }}"
   tags: ['power', 'drift']
 
 - name: Warn about governor drift
