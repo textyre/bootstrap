@@ -2,19 +2,8 @@
 - name: Prepare
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   tasks:
-    - name: Update pacman package cache
-      community.general.pacman:
-        update_cache: true
-
-    - name: Install base-devel and git (yay build dependencies)
-      community.general.pacman:
-        name:
-          - base-devel
-          - git
-        state: present
-
     - name: Create non-root test user for AUR builds
       ansible.builtin.user:
         name: testuser
@@ -27,17 +16,3 @@
         content: "testuser ALL=(ALL) NOPASSWD: ALL\n"
         mode: "0440"
         validate: "visudo -cf %s"
-
-    - name: Install yay from AUR
-      become: true
-      become_user: testuser
-      ansible.builtin.shell: |
-        cd /tmp
-        git clone https://aur.archlinux.org/yay.git yay_build
-        cd yay_build
-        makepkg -si --noconfirm
-        cd /tmp
-        rm -rf yay_build
-      args:
-        executable: /bin/bash
-        creates: /usr/bin/yay
