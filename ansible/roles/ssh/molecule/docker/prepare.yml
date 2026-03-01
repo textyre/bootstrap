@@ -33,3 +33,16 @@
         groups: sshusers
         append: true
       when: inventory_hostname is search('access-control')
+
+    - name: Create fake Teleport user CA key file (features platforms)
+      ansible.builtin.copy:
+        content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForMoleculeTesting fake-teleport-ca\n"
+        dest: /etc/ssh/teleport_user_ca.pub
+        mode: "0644"
+      when: inventory_hostname is search('features')
+
+    - name: Create sftponly group (features platforms)
+      ansible.builtin.group:
+        name: sftponly
+        state: present
+      when: inventory_hostname is search('features')

@@ -63,6 +63,36 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+  - name: Archlinux-features
+    image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
+    pre_build_image: true
+    command: /usr/lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  - name: Ubuntu-features
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
 provisioner:
   name: ansible
   options:
@@ -108,6 +138,22 @@ provisioner:
           - badgroup
         ssh_deny_users:
           - baduser
+      Archlinux-features:
+        ansible_user: root
+        ssh_user: root
+        ssh_allow_groups: []
+        ssh_teleport_integration: true
+        ssh_sftp_chroot_enabled: true
+        ssh_listen_addresses:
+          - "127.0.0.1"
+      Ubuntu-features:
+        ansible_user: root
+        ssh_user: root
+        ssh_allow_groups: []
+        ssh_teleport_integration: true
+        ssh_sftp_chroot_enabled: true
+        ssh_listen_addresses:
+          - "127.0.0.1"
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
