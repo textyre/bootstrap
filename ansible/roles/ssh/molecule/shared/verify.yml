@@ -52,6 +52,42 @@
       when: ansible_os_family == 'Debian'
 
     # ================================================================
+    #  Service running
+    # ================================================================
+
+    - name: Check sshd is active (Arch)
+      ansible.builtin.command:
+        cmd: systemctl is-active sshd.service
+      register: _ssh_verify_active_arch
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Archlinux'
+
+    - name: Assert sshd is active (Arch)
+      ansible.builtin.assert:
+        that: _ssh_verify_active_arch.stdout | trim == 'active'
+        fail_msg: >-
+          sshd.service is not active on Archlinux
+          (systemctl is-active returned: '{{ _ssh_verify_active_arch.stdout | trim }}')
+      when: ansible_os_family == 'Archlinux'
+
+    - name: Check ssh is active (Debian)
+      ansible.builtin.command:
+        cmd: systemctl is-active ssh.service
+      register: _ssh_verify_active_debian
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Assert ssh is active (Debian)
+      ansible.builtin.assert:
+        that: _ssh_verify_active_debian.stdout | trim == 'active'
+        fail_msg: >-
+          ssh.service is not active on Debian/Ubuntu
+          (systemctl is-active returned: '{{ _ssh_verify_active_debian.stdout | trim }}')
+      when: ansible_os_family == 'Debian'
+
+    # ================================================================
     #  sshd_config file permissions
     # ================================================================
 
