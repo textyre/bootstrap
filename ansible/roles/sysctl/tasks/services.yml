@@ -1,0 +1,22 @@
+---
+# === sysctl: services ===
+# Некоторые системные сервисы перезаписывают sysctl-параметры ПОСЛЕ того, как
+# systemd-sysctl.service применил наш конфиг при загрузке. Здесь мы отключаем
+# такие сервисы, если их поведение противоречит нашему hardening.
+
+# Ubuntu's apport (crash reporter) пишет fs.suid_dumpable = 2 напрямую в /proc/sys/
+# через свой systemd unit, который стартует ПОСЛЕ systemd-sysctl.service.
+# Если мы хотим fs.suid_dumpable = 0 или 1, apport должен быть отключён —
+# иначе значение будет перезаписано при каждой загрузке.
+- name: Disable apport crash reporter (overrides fs.suid_dumpable after boot)
+  ansible.builtin.service:
+    name: apport
+    state: stopped
+    enabled: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - sysctl_security_enabled | bool
+    - sysctl_security_filesystem_hardening | bool
+    - sysctl_fs_suid_dumpable | int != 2
+  failed_when: false
+  tags: ['sysctl', 'services']

@@ -9,6 +9,8 @@
     _sysctl_perf_params:
       - { param: "vm.swappiness", expected: "10" }
       - { param: "vm.vfs_cache_pressure", expected: "50" }
+      - { param: "vm.dirty_ratio", expected: "10" }
+      - { param: "vm.dirty_background_ratio", expected: "5" }
       - { param: "fs.inotify.max_user_watches", expected: "524288" }
       - { param: "fs.inotify.max_user_instances", expected: "1024" }
       - { param: "fs.file-max", expected: "2097152" }
@@ -41,6 +43,7 @@
       - { param: "net.ipv4.tcp_tw_reuse", expected: "0" }
       - { param: "net.ipv4.conf.all.arp_filter", expected: "1" }
       - { param: "net.ipv4.conf.all.arp_ignore", expected: "1" }
+      - { param: "net.ipv4.conf.all.drop_gratuitous_arp", expected: "0" }
       - { param: "net.ipv6.conf.all.accept_redirects", expected: "0" }
       - { param: "net.ipv6.conf.all.accept_source_route", expected: "0" }
       - { param: "net.ipv6.conf.all.accept_ra", expected: "1" }
@@ -198,6 +201,27 @@
         success_msg: "procps installed"
       when: ansible_facts['os_family'] == 'Debian'
 
+    - name: Gather service facts (Debian — check apport)
+      ansible.builtin.service_facts:
+      when:
+        - ansible_facts['os_family'] == 'Debian'
+        - not _sysctl_in_container
+
+    - name: Assert apport is disabled (overrides fs.suid_dumpable after boot)
+      ansible.builtin.assert:
+        that: >-
+          'apport.service' not in ansible_facts.services
+          or ansible_facts.services['apport.service']['status'] == 'disabled'
+        fail_msg: >-
+          apport.service is enabled — it resets fs.suid_dumpable=2 after boot,
+          defeating suid_dumpable hardening (expected {{ sysctl_fs_suid_dumpable | default(0) }})
+        success_msg: "apport.service disabled — fs.suid_dumpable hardening persists after reboot"
+      when:
+        - ansible_facts['os_family'] == 'Debian'
+        - not _sysctl_in_container
+        - sysctl_security_filesystem_hardening | default(true) | bool
+        - sysctl_fs_suid_dumpable | default(0) | int != 2
+
     # =====================================================================
     # Tier 2: Live value verification (skip in container)
     # =====================================================================
@@ -291,14 +315,17 @@
 
     # =====================================================================
     # Tier 2b: Boot persistence (skipped in Docker containers)
-    # Runs sysctl --system to replicate what systemd-sysctl does at boot,
-    # then re-asserts all security values. Catches file-ordering bugs:
-    # if our sysctl.d file sorts before a system-provided file (e.g. Ubuntu's
-    # 99-sysctl.conf), that file overwrites our settings at every reboot.
+    # Reboots the VM so systemd-sysctl.service runs for real, then re-asserts
+    # all security values. Catches file-ordering bugs: if our sysctl.d file
+    # sorts before a system-provided file (e.g. Ubuntu's 99-sysctl.conf),
+    # systemd-sysctl overwrites our settings at every real boot.
     # =====================================================================
-    - name: "Boot persistence | simulate systemd-sysctl boot sequence"
-      ansible.builtin.command: sysctl -e --system
-      changed_when: false
+    - name: "Boot persistence | reboot VM to trigger real systemd-sysctl"
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        connect_timeout: 30
+        pre_reboot_delay: 2
+        post_reboot_delay: 10
       when: not _sysctl_in_container
 
     - name: "Boot persistence | read kernel hardening values after boot simulation"
