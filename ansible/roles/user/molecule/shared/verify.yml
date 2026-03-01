@@ -40,6 +40,37 @@
       failed_when: "':/bin/bash' not in _user_verify_owner_shell.stdout"
 
     # ==========================================================
+    # Owner shadow (account lock + password aging)
+    # ==========================================================
+
+    - name: "Owner shadow: get shadow entry"
+      ansible.builtin.getent:
+        database: shadow
+        key: testuser_owner
+      register: _user_verify_owner_shadow
+      no_log: true
+
+    - name: "Owner shadow: assert account is locked (password_hash empty -> !)"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][0] | regex_search('^[!*]')
+        fail_msg: "testuser_owner shadow password field does not indicate locked account (expected ! or *)"
+
+    - name: "Owner shadow: assert password_max_age set to 365"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][3] | int == 365
+        fail_msg: "testuser_owner shadow max_age not set to 365"
+      when: user_manage_password_aging | bool
+
+    - name: "Owner shadow: assert password_min_age set to 1"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][2] | int == 1
+        fail_msg: "testuser_owner shadow min_age not set to 1"
+      when: user_manage_password_aging | bool
+
+    # ==========================================================
     # Owner umask
     # ==========================================================
 
@@ -71,7 +102,7 @@
         fail_msg: "Owner umask profile missing Ansible managed marker"
 
     # ==========================================================
-    # Additional user
+    # Additional user (sudo: false, video group)
     # ==========================================================
 
     - name: "Extra: check user exists"
@@ -110,6 +141,66 @@
         that:
           - "'umask 077' in (_user_verify_extra_umask_raw.content | b64decode)"
         fail_msg: "Extra user umask profile does not contain 'umask 077'"
+
+    # ==========================================================
+    # Extra user shadow (account lock + password aging)
+    # ==========================================================
+
+    - name: "Extra shadow: get shadow entry"
+      ansible.builtin.getent:
+        database: shadow
+        key: testuser_extra
+      register: _user_verify_extra_shadow
+      no_log: true
+
+    - name: "Extra shadow: assert account is locked"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][0] | regex_search('^[!*]')
+        fail_msg: "testuser_extra shadow password field does not indicate locked account (expected ! or *)"
+
+    - name: "Extra shadow: assert password_max_age set to 90"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][3] | int == 90
+        fail_msg: "testuser_extra shadow max_age not set to 90"
+      when: user_manage_password_aging | bool
+
+    - name: "Extra shadow: assert password_min_age set to 0"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][2] | int == 0
+        fail_msg: "testuser_extra shadow min_age not set to 0"
+      when: user_manage_password_aging | bool
+
+    # ==========================================================
+    # Additional user with sudo: true
+    # ==========================================================
+
+    - name: "Sudo user: check testuser_with_sudo exists"
+      ansible.builtin.getent:
+        database: passwd
+        key: testuser_with_sudo
+      register: _user_verify_with_sudo
+      failed_when: _user_verify_with_sudo is failed
+
+    - name: "Sudo user: check testuser_with_sudo is in sudo group"
+      ansible.builtin.command:
+        cmd: "groups testuser_with_sudo"
+      register: _user_verify_with_sudo_groups
+      changed_when: false
+      failed_when: "user_sudo_group not in _user_verify_with_sudo_groups.stdout"
+
+    # ==========================================================
+    # Absent user removed
+    # ==========================================================
+
+    - name: "Absent: verify testuser_toberemoved does not exist"
+      ansible.builtin.getent:
+        database: passwd
+        key: testuser_toberemoved
+      register: _user_verify_absent
+      failed_when: _user_verify_absent is not failed
 
     # ==========================================================
     # Sudoers policy
@@ -234,6 +325,30 @@
           - "'compress' in _user_verify_logrotate_text"
         fail_msg: "Logrotate config missing 'compress' directive"
 
+    - name: "Logrotate: assert delaycompress present"
+      ansible.builtin.assert:
+        that:
+          - "'delaycompress' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'delaycompress' directive"
+
+    - name: "Logrotate: assert missingok present"
+      ansible.builtin.assert:
+        that:
+          - "'missingok' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'missingok' directive"
+
+    - name: "Logrotate: assert notifempty present"
+      ansible.builtin.assert:
+        that:
+          - "'notifempty' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'notifempty' directive"
+
+    - name: "Logrotate: assert create directive present"
+      ansible.builtin.assert:
+        that:
+          - "'create 0640 root adm' in _user_verify_logrotate_text"
+        fail_msg: "Logrotate config missing 'create 0640 root adm' directive"
+
     - name: "Logrotate: assert Ansible managed marker"
       ansible.builtin.assert:
         that:
@@ -285,7 +400,11 @@
         msg: >-
           user role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          owner user exists, correct groups, umask deployed,
-          extra user exists with correct groups,
+          owner exists with sudo group + locked account,
+          extra user with video group (not sudo) + locked account,
+          testuser_with_sudo in sudo group,
+          testuser_toberemoved absent,
+          password aging {{ 'checked' if user_manage_password_aging | bool else 'skipped (disabled)' }},
           sudoers policy valid ({{ user_sudo_group }}),
-          logrotate config deployed, sudo package installed.
+          logrotate config with all directives deployed,
+          sudo package installed.
