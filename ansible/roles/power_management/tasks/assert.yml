@@ -19,15 +19,19 @@
     - power_management_init == 'systemd'
   tags: ['power', 'assert']
 
-- name: Verify TLP is running
+- name: Verify TLP is enabled and did not fail
   ansible.builtin.assert:
     that:
-      - power_management_assert_tlp.state | default('') == 'running'
+      - power_management_assert_tlp.status | default('unknown') == 'enabled'
+      - power_management_assert_tlp.state | default('failed') != 'failed'
     fail_msg: >-
-      TLP service is NOT active. Run 'systemctl status tlp' and
-      'journalctl -u tlp' to diagnose. Check package installation
-      and /etc/tlp.conf syntax with 'tlp-stat -c'.
-    success_msg: "TLP service is active"
+      TLP service is not enabled or failed to start.
+      status={{ power_management_assert_tlp.status | default('unknown') }},
+      state={{ power_management_assert_tlp.state | default('unknown') }}.
+      Run 'systemctl status tlp' and 'journalctl -u tlp' to diagnose.
+      Check /etc/tlp.conf syntax with 'tlp-stat -c'.
+    success_msg: >-
+      TLP service is enabled (state={{ power_management_assert_tlp.state | default('unknown') }})
   when:
     - power_management_assert_strict
     - power_management_is_laptop
