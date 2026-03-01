@@ -11,11 +11,12 @@
 - name: Prepare — set up target container for hostctl testing
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
 
   tasks:
-    - name: Create aur_builder user for AUR privilege escalation
+    - name: Create aur_builder user for AUR privilege escalation (Arch only)
       ansible.builtin.user:
         name: aur_builder
         system: true
         create_home: false
+      when: ansible_facts['os_family'] == 'Archlinux'
