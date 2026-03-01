@@ -9,4 +9,6 @@
       vars:
         timezone_name: "Asia/Almaty"
         timezone_packages_tzdata:
+          Archlinux: "tzdata"
+          Debian: "tzdata"
           default: "tzdata"
