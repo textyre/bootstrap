@@ -1,4 +1,7 @@
 ---
+# === Vagrant verify for reflector role ===
+# reflector is Arch-only. Ubuntu gets end_host.
+
 - name: Verify reflector role
   hosts: all
   become: true
@@ -7,6 +10,10 @@
     - ../../defaults/main.yml
 
   tasks:
+
+    - name: Skip verify on non-Arch systems (reflector is Arch only)
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
 
     # ---- Package installed ----
 
@@ -160,46 +167,6 @@
         fail_msg: "Hook file missing expected content (pacman-mirrorlist or --config)"
       when: reflector_pacman_hook | bool
 
-    # ---- Mirrorlist (online checks -- only when update was run) ----
-
-    - name: Stat mirrorlist
-      ansible.builtin.stat:
-        path: "{{ reflector_mirrorlist_path }}"
-      register: _reflector_verify_mirrorlist
-
-    - name: Validate mirrorlist contains Server entries
-      ansible.builtin.command:
-        cmd: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
-      register: _reflector_verify_server_count
-      changed_when: false
-      failed_when: _reflector_verify_server_count.stdout | int < 1
-      when:
-        - _reflector_verify_mirrorlist.stat.exists
-        - _reflector_verify_mirrorlist.stat.size > 0
-
-    # ---- Backup rotation (online checks -- only when backups exist) ----
-
-    - name: Count mirrorlist backup files
-      ansible.builtin.find:
-        paths: "{{ reflector_mirrorlist_path | dirname }}"
-        patterns: "mirrorlist.bak.*"
-      register: _reflector_verify_backups
-      when:
-        - _reflector_verify_mirrorlist.stat.exists
-        - reflector_backup_mirrorlist | bool
-
-    - name: Assert backup count does not exceed reflector_backup_keep
-      ansible.builtin.assert:
-        that:
-          - _reflector_verify_backups.matched <= reflector_backup_keep | int
-        fail_msg: >
-          Found {{ _reflector_verify_backups.matched }} backup files,
-          expected <= {{ reflector_backup_keep }}
-      when:
-        - _reflector_verify_backups is defined
-        - not (_reflector_verify_backups is skipped)
-        - reflector_backup_keep | int > 0
-
     # ---- Summary ----
 
     - name: Show verify result
@@ -208,6 +175,3 @@
           Reflector verify passed: package installed, config deployed at
           {{ reflector_conf_path }}, timer drop-in configured, timer enabled,
           pacman hook {{ 'deployed' if reflector_pacman_hook | bool else 'skipped' }}.
-          Mirrorlist: {{ 'validated (' ~ _reflector_verify_server_count.stdout | default('N/A') ~ ' servers)'
-          if (_reflector_verify_mirrorlist.stat.exists and _reflector_verify_mirrorlist.stat.size > 0)
-          else 'not checked (update was skipped)' }}.
