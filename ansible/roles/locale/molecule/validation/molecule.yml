@@ -1,0 +1,30 @@
+---
+# Тестирует soft-fail validation: роль не должна создавать /etc/locale.conf
+# при невалидной конфигурации.
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: localhost
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - converge

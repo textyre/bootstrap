@@ -4,6 +4,18 @@
 # Soft-fail: ошибки конфига и генерации не крашат плей, но видны в репорте.
 
 # ======================================================================
+# ---- Сброс фактов (идемпотентность при многократном запуске) ----
+# ======================================================================
+
+- name: Reset locale role facts
+  ansible.builtin.set_fact:
+    locale_skip: false
+    locale_skip_reason: ""
+    locale_verify_ok: true
+    locale_verify_missing: []
+  tags: ['locale']
+
+# ======================================================================
 # ---- Валидация ----
 # ======================================================================
 
@@ -33,11 +45,13 @@
     # ---- Генерация локалей (дистро-специфик) ----
 
     - name: "Generate locales ({{ ansible_facts['os_family'] }})"
-      ansible.builtin.include_tasks: "{{ item }}"
+      ansible.builtin.include_tasks: "{{ locale_generate_file }}"
       with_first_found:
         - files:
             - "generate/{{ ansible_facts['os_family'] | lower }}.yml"
           skip: true
+      loop_control:
+        loop_var: locale_generate_file
       tags: ['locale']
 
     - name: Warn about unsupported OS for locale generation
