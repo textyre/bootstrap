@@ -5,6 +5,14 @@
   gather_facts: true
 
   tasks:
+    # Debian/Ubuntu: install locales package (provides locale-gen)
+    - name: Install locales package (Ubuntu)
+      ansible.builtin.apt:
+        name: locales
+        state: present
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+
     # Debian/Ubuntu: ensure SUPPORTED file has locale entries
     # (locale_gen module reads this file to validate locale names)
     - name: Ensure locale entries exist in /usr/share/i18n/SUPPORTED
