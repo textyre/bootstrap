@@ -8,5 +8,5 @@
     - role: power_management
       vars:
         power_management_device_type: desktop
-        power_management_assert_strict: false
+        power_management_assert_strict: true
         power_management_audit_battery: false
