@@ -236,6 +236,8 @@
       when: firewall_enable_service | bool
 
     # ---- Service active state (skip in Docker -- nftables needs kernel nf_tables) ----
+    # nftables is a Type=oneshot service: after successful execution it goes
+    # 'inactive' without RemainAfterExit=yes. Check Result=success instead.
 
     - name: Check nftables service is active
       ansible.builtin.command: systemctl is-active nftables.service
@@ -244,11 +246,22 @@
       failed_when: false
       when: not _firewall_verify_in_docker
 
-    - name: Assert nftables service is active
+    - name: Check nftables service result (oneshot completes as inactive/success)
+      ansible.builtin.command: systemctl show nftables.service --property=Result
+      register: _firewall_verify_svc_result
+      changed_when: false
+      failed_when: false
+      when: not _firewall_verify_in_docker
+
+    - name: Assert nftables service is active or completed successfully
       ansible.builtin.assert:
-        that: _firewall_verify_svc_active.stdout | trim == 'active'
+        that: >-
+          (_firewall_verify_svc_active.stdout | trim == 'active') or
+          ('Result=success' in (_firewall_verify_svc_result.stdout | default('')))
         fail_msg: >-
-          nftables.service is not active (got '{{ _firewall_verify_svc_active.stdout | trim }}').
+          nftables.service is not active and did not complete successfully
+          (state='{{ _firewall_verify_svc_active.stdout | trim }}',
+          result='{{ _firewall_verify_svc_result.stdout | default("") }}').
       when:
         - not _firewall_verify_in_docker
         - firewall_enable_service | bool
