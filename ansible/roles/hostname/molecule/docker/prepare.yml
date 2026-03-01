@@ -29,7 +29,6 @@
 
     - name: Seed /etc/hosts with localhost entry (lost after umount)
       ansible.builtin.copy:
-        content: |
-          127.0.0.1	localhost
+        content: "127.0.0.1 localhost\n"
         dest: /etc/hosts
         mode: "0644"
