@@ -32,6 +32,12 @@
         state: present
       when: ansible_facts['os_family'] == 'Debian'
 
+    - name: Create testuser_toberemoved (will be removed by role during converge)
+      ansible.builtin.user:
+        name: testuser_toberemoved
+        state: present
+        create_home: false
+
     # The user role deploys /etc/sudoers.d/wheel which requires a password for
     # %wheel group. On Arch, this file sorts AFTER the vagrant user's NOPASSWD
     # rule (alphabetically w > v), causing subsequent become tasks to fail.

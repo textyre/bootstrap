@@ -24,3 +24,9 @@
       ansible.builtin.package:
         name: logrotate
         state: present
+
+    - name: Create testuser_toberemoved (will be removed by role during converge)
+      ansible.builtin.user:
+        name: testuser_toberemoved
+        state: present
+        create_home: false
