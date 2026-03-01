@@ -22,6 +22,7 @@ jobs:
   test:
     name: "${{ inputs.role_name }} — ${{ inputs.platform }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     concurrency:
       group: "${{ inputs.scenario }}-${{ inputs.role_name }}-${{ inputs.platform }}-${{ github.event.pull_request.number || github.sha }}"
@@ -40,7 +41,7 @@ jobs:
 
       - name: Install libvirt + vagrant
         run: |
-          wget -O- https://apt.releases.hashicorp.com/gpg | \
+          wget --fail --retry-connrefused --tries=3 -O- https://apt.releases.hashicorp.com/gpg | \
             sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
             https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
