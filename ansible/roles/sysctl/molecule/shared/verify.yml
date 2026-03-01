@@ -158,6 +158,27 @@
         success_msg: "procps installed"
       when: ansible_facts['os_family'] == 'Debian'
 
+    - name: Gather service facts (Debian — check apport)
+      ansible.builtin.service_facts:
+      when:
+        - ansible_facts['os_family'] == 'Debian'
+        - not _sysctl_in_container
+
+    - name: Assert apport is disabled (overrides fs.suid_dumpable after boot)
+      ansible.builtin.assert:
+        that: >-
+          'apport.service' not in ansible_facts.services
+          or ansible_facts.services['apport.service']['status'] == 'disabled'
+        fail_msg: >-
+          apport.service is enabled — it resets fs.suid_dumpable=2 after boot,
+          defeating suid_dumpable hardening (expected {{ sysctl_fs_suid_dumpable }})
+        success_msg: "apport.service disabled — fs.suid_dumpable hardening persists after reboot"
+      when:
+        - ansible_facts['os_family'] == 'Debian'
+        - not _sysctl_in_container
+        - sysctl_security_filesystem_hardening | bool
+        - sysctl_fs_suid_dumpable | int != 2
+
     # =====================================================================
     # Tier 2: Live value verification (skip in container)
     # =====================================================================
