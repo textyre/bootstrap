@@ -70,20 +70,27 @@
           - "'tzdata' in ansible_facts.packages"
         fail_msg: "tzdata package not found in installed packages"
 
-    # ---- /etc/timezone file (Debian/Ubuntu only) ----
+    # ---- /etc/timezone file (Debian/Ubuntu, non-systemd only) ----
+    # NOTE: community.general.timezone on systemd hosts uses timedatectl
+    # which updates /etc/localtime but does NOT update /etc/timezone.
+    # We verify /etc/timezone only on non-systemd hosts where the module
+    # manages it directly. On systemd, timedatectl assertion above covers this.
 
     - name: Stat /etc/timezone
       ansible.builtin.stat:
         path: /etc/timezone
       register: _timezone_verify_etc_timezone_stat
+      when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Read /etc/timezone content
       ansible.builtin.slurp:
         src: /etc/timezone
       register: _timezone_verify_etc_timezone_raw
-      when: _timezone_verify_etc_timezone_stat.stat.exists
+      when:
+        - ansible_facts['service_mgr'] != 'systemd'
+        - _timezone_verify_etc_timezone_stat.stat.exists | default(false)
 
-    - name: Assert /etc/timezone matches expected value (Debian/Ubuntu)
+    - name: Assert /etc/timezone matches expected value (Debian/Ubuntu, non-systemd)
       ansible.builtin.assert:
         that:
           - "'content' in _timezone_verify_etc_timezone_raw"
@@ -91,7 +98,9 @@
         fail_msg: >-
           /etc/timezone expected '{{ _timezone_verify_expected }}',
           got '{{ _timezone_verify_etc_timezone_raw.content | b64decode | trim }}'
-      when: _timezone_verify_etc_timezone_stat.stat.exists
+      when:
+        - ansible_facts['service_mgr'] != 'systemd'
+        - _timezone_verify_etc_timezone_stat.stat.exists | default(false)
 
     # ---- date command confirms timezone offset ----
 
