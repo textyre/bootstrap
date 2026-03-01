@@ -42,6 +42,12 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      Archlinux-systemd:
+        ansible_user: root
+      Ubuntu-systemd:
+        ansible_user: root
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

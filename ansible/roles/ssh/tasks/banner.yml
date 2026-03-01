@@ -10,5 +10,5 @@
     owner: root
     group: root
     mode: '0644'
-  notify: Reload sshd
+  notify: reload sshd
   tags: ['ssh', 'banner']
