@@ -1,6 +1,5 @@
 ---
 teleport_packages: []
-teleport_install_method: repo
 teleport_service_name:
   systemd: teleport
   runit: teleport

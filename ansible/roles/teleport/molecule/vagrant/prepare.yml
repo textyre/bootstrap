@@ -9,3 +9,19 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    # Arch VM uses binary install (no AUR in CI). Install a mock stub so the
+    # download step is skipped and all config/idempotency logic can be tested.
+    - name: Install mock teleport binary for Arch vagrant tests
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # Mock stub used in molecule vagrant tests
+          if [[ "${1:-}" == "version" ]]; then
+            echo "Teleport v17.0.0 git:api/v7 go1.21"
+          fi
+        dest: /usr/local/bin/teleport
+        owner: root
+        group: root
+        mode: "0755"
+      when: ansible_facts['os_family'] == 'Archlinux'

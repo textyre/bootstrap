@@ -23,6 +23,14 @@ teleport_proxy_mode: false
 teleport_session_recording: "node"
 teleport_enhanced_recording: false
 
+# Installation method — overridable per-host (e.g. molecule host_vars).
+# Default is determined by OS family. Inventory/host_vars take precedence
+# over this default (priority 5 > 2), so molecule can safely override it.
+teleport_install_method: >-
+  {{ {'Archlinux': 'package', 'Debian': 'repo', 'RedHat': 'repo',
+      'Void': 'binary', 'Gentoo': 'binary'}
+     [ansible_facts['os_family']] | default('binary') }}
+
 # CA integration with ssh role
 teleport_export_ca_key: true
 teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub

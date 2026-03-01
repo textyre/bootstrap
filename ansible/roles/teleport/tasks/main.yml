@@ -28,6 +28,16 @@
         fail_msg: "teleport_auth_server must be set (e.g., 'auth.example.com:443')"
       tags: [teleport]
 
+    # Validate session recording mode
+    - name: "Assert session_recording is a valid value"
+      ansible.builtin.assert:
+        that:
+          - teleport_session_recording in ['node', 'proxy', 'off']
+        fail_msg: >-
+          teleport_session_recording='{{ teleport_session_recording }}' is invalid.
+          Valid values: node, proxy, off
+      tags: [teleport]
+
     # Validate join configuration
     - name: "Validate join configuration"
       ansible.builtin.include_tasks: join.yml

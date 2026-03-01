@@ -75,6 +75,7 @@
       ansible.builtin.slurp:
         src: /etc/teleport.yaml
       register: _teleport_verify_conf_raw
+      no_log: true
       when: _teleport_verify_conf_stat.stat.exists
 
     - name: Assert slurp succeeded
@@ -87,6 +88,7 @@
     - name: Decode teleport config
       ansible.builtin.set_fact:
         _teleport_verify_conf_content: "{{ _teleport_verify_conf_raw.content | b64decode }}"
+      no_log: true
       when:
         - _teleport_verify_conf_stat.stat.exists
         - "'content' in _teleport_verify_conf_raw"
@@ -101,14 +103,14 @@
     - name: Assert config contains auth_server address
       ansible.builtin.assert:
         that:
-          - "'auth_server: localhost:3025' in _teleport_verify_conf_content"
+          - _teleport_verify_conf_content is regex('auth_server:.*localhost:3025')
         fail_msg: "Config does not contain 'auth_server: localhost:3025'"
       when: _teleport_verify_conf_content is defined
 
     - name: Assert config contains nodename
       ansible.builtin.assert:
         that:
-          - "'nodename: molecule-test' in _teleport_verify_conf_content"
+          - _teleport_verify_conf_content is regex('nodename:.*molecule-test')
         fail_msg: "Config does not contain expected nodename"
       when: _teleport_verify_conf_content is defined
 
@@ -147,13 +149,41 @@
         fail_msg: "Config does not contain 'auth_service:' section"
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert session_recording mode
+    - name: Assert session_recording mode (proxy)
       ansible.builtin.assert:
         that:
-          - _teleport_verify_conf_content is regex('mode:\s*["\x27]?node["\x27]?')
+          - _teleport_verify_conf_content is regex('mode:\s*["\x27]?proxy["\x27]?')
         fail_msg: >
-          Config does not contain session recording mode 'node'.
+          Config does not contain session recording mode 'proxy'.
           Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert enhanced_recording section present
+      ansible.builtin.assert:
+        that:
+          - "'enhanced_recording:' in _teleport_verify_conf_content"
+        fail_msg: "Config does not contain enhanced_recording section"
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert enhanced_recording is enabled
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('enabled:\s*true')
+        fail_msg: "Config does not contain enhanced_recording enabled: true"
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert labels section present
+      ansible.builtin.assert:
+        that:
+          - "'labels:' in _teleport_verify_conf_content"
+        fail_msg: "Config does not contain labels section"
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert env label present
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('env:')
+        fail_msg: "Config does not contain env label"
       when: _teleport_verify_conf_content is defined
 
     - name: Assert Ansible managed header

@@ -14,3 +14,20 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    # Install a mock teleport binary so binary install tasks skip the real
+    # network download. Docker containers cannot reach cdn.teleport.dev and
+    # AUR packages are unavailable. This stub is sufficient for testing all
+    # configuration, templating, and idempotency logic.
+    - name: Install mock teleport binary for Docker tests
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # Mock stub used in molecule Docker tests
+          if [[ "${1:-}" == "version" ]]; then
+            echo "Teleport v17.0.0 git:api/v7 go1.21"
+          fi
+        dest: /usr/local/bin/teleport
+        owner: root
+        group: root
+        mode: "0755"
