@@ -53,7 +53,7 @@
     - name: "Owner shadow: assert account is locked (password_hash empty -> !)"
       ansible.builtin.assert:
         that:
-          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][0] | regex_search('^[!*]')
+          - _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][0] is regex('^[!*]')
         fail_msg: "testuser_owner shadow password field does not indicate locked account (expected ! or *)"
 
     - name: "Owner shadow: assert password_max_age set to 365"
@@ -156,7 +156,7 @@
     - name: "Extra shadow: assert account is locked"
       ansible.builtin.assert:
         that:
-          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][0] | regex_search('^[!*]')
+          - _user_verify_extra_shadow.ansible_facts.getent_shadow['testuser_extra'][0] is regex('^[!*]')
         fail_msg: "testuser_extra shadow password field does not indicate locked account (expected ! or *)"
 
     - name: "Extra shadow: assert password_max_age set to 90"
@@ -195,12 +195,18 @@
     # Absent user removed
     # ==========================================================
 
-    - name: "Absent: verify testuser_toberemoved does not exist"
+    - name: "Absent: try to get testuser_toberemoved from passwd"
       ansible.builtin.getent:
         database: passwd
         key: testuser_toberemoved
       register: _user_verify_absent
-      failed_when: _user_verify_absent is not failed
+      ignore_errors: true
+
+    - name: "Absent: assert testuser_toberemoved is not in passwd"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_absent is failed
+        fail_msg: "testuser_toberemoved still exists in passwd — role should have removed it"
 
     # ==========================================================
     # Sudoers policy
