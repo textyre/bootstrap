@@ -193,14 +193,14 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-### Verify assertions (56 total)
+### Verify assertions (59 total)
 
-Package install, service enabled+running, `sshd_config` permissions (0600/root),
+Package install, service enabled+running (`systemctl is-active`), `sshd_config` permissions (0600/root),
 41 security directive checks (all major hardening directives including
 `KbdInteractiveAuthentication`, `TCPKeepAlive`, `PrintMotd`, `PrintLastLog`,
 `MaxSessions`, `AcceptEnv`), cryptography suite (positive + negative),
-host key presence (ed25519+RSA with 0600) and absence (DSA/ECDSA),
-`RekeyLimit 512M 1h` value check, banner file + content + config directive,
+host key presence (ed25519+RSA private with 0600, ed25519+RSA public with 0644)
+and absence (DSA/ECDSA), `RekeyLimit 512M 1h` value check, banner file + content + config directive,
 `AllowGroups` absent when empty, SFTP subsystem, `sshd -t` syntax validation,
 and Ansible managed comment.
 
