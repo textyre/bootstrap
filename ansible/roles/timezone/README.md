@@ -5,7 +5,7 @@ Sets the system timezone and ensures the `tzdata` database package is installed.
 ## What this role does
 
 - [x] Installs `tzdata` package (name resolved from `timezone_packages_tzdata` dict, keyed by `os_family`)
-- [x] Sets system timezone via `community.general.timezone` (`/etc/localtime` symlink + `/etc/timezone` on Debian)
+- [x] Sets system timezone via `community.general.timezone` (`/etc/localtime` symlink on all platforms; `/etc/timezone` only on non-systemd Debian/Ubuntu)
 - [x] Verifies the applied timezone via `readlink -f /etc/localtime`
 - [x] Restarts cron after a timezone change (skipped when cron is not installed)
 
@@ -42,6 +42,7 @@ timezone_packages_tzdata:
 ## Handlers
 
 `restart cron` — triggered by timezone change. Collects `service_facts` and restarts the distro-appropriate cron daemon only when present.
+Checks both bare (`crond`) and systemd (`crond.service`) service keys.
 
 | OS family | Cron service |
 |-----------|-------------|
@@ -53,10 +54,10 @@ timezone_packages_tzdata:
 ## Testing
 
 ```bash
-# Localhost (Arch only, fast)
+# Localhost (Arch only, fast, no Docker)
 molecule test -s default
 
-# Docker (Arch systemd container, idempotence check)
+# Docker (Arch + Ubuntu systemd containers, idempotence check)
 molecule test -s docker
 
 # Vagrant (Arch + Ubuntu full VMs, cross-platform)
@@ -64,6 +65,7 @@ molecule test -s vagrant
 ```
 
 Vagrant requires `libvirt` provider. All three scenarios share `molecule/shared/converge.yml` and `molecule/shared/verify.yml`.
+Scenario test vars are defined in each `molecule.yml` under `provisioner.inventory.group_vars.all`.
 
 ## Supported platforms
 
