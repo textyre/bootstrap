@@ -247,7 +247,7 @@
         - item.rc == 0
 
     # =====================================================================
-    # Tier 2b: Boot persistence (Vagrant only — skipped in Docker)
+    # Tier 2b: Boot persistence (skipped in Docker containers)
     # Runs sysctl --system to replicate what systemd-sysctl does at boot,
     # then re-asserts all security values. Catches file-ordering bugs:
     # if our sysctl.d file sorts before a system-provided file (e.g. Ubuntu's
