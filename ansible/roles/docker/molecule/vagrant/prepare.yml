@@ -34,4 +34,3 @@
       ansible.builtin.service:
         name: docker
         state: started
-      ignore_errors: true
