@@ -30,11 +30,21 @@
   when: (firewall_enabled | bool) and (firewall_enable_service | bool)
   tags: ['firewall', 'service']
 
+- name: Check if nftables ruleset is already loaded
+  ansible.builtin.command: nft list ruleset
+  register: _firewall_nft_ruleset
+  changed_when: false
+  failed_when: false
+  when: (firewall_enabled | bool) and (firewall_start_service | bool)
+  tags: ['firewall', 'service']
+
 - name: Start nftables service
   ansible.builtin.service:
     name: nftables
     state: started
-  when: (firewall_enabled | bool) and (firewall_start_service | bool)
+  when:
+    - (firewall_enabled | bool) and (firewall_start_service | bool)
+    - "'chain input' not in (_firewall_nft_ruleset.stdout | default(''))"
   tags: ['firewall', 'service']
 
 # ---- Отчёт о выполнении ----
