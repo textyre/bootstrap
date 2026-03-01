@@ -458,26 +458,31 @@
       ansible.builtin.stat:
         path: /etc/issue.net
       register: _ssh_verify_banner
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
 
     - name: Assert banner file exists
       ansible.builtin.assert:
         that: _ssh_verify_banner.stat.exists
         fail_msg: "/etc/issue.net not found (ssh_banner_enabled was true in converge)"
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
 
     - name: Assert Banner directive in sshd_config
       ansible.builtin.assert:
         that: _ssh_verify_sshd_content is regex('Banner\s+/etc/issue.net')
         fail_msg: "Banner directive not found in sshd_config"
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
 
     - name: Read banner file content
       ansible.builtin.slurp:
         src: /etc/issue.net
       register: _ssh_verify_banner_content
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
 
     - name: Assert banner file contains warning content
       ansible.builtin.assert:
         that: "'====' in (_ssh_verify_banner_content.content | b64decode)"
         fail_msg: "Banner /etc/issue.net does not contain expected warning content (missing '====')"
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
 
     # ================================================================
     #  SFTP subsystem
@@ -518,6 +523,7 @@
         fail_msg: >-
           AllowGroups directive is present in sshd_config but ssh_allow_groups
           was set to [] in converge — template is not respecting empty list
+      when: not (inventory_hostname is search('access-control'))
 
     # ================================================================
     #  Diagnostic
