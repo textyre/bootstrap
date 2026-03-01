@@ -31,3 +31,18 @@
         name: logrotate
         state: present
       when: ansible_facts['os_family'] == 'Debian'
+
+    # The user role deploys /etc/sudoers.d/wheel which requires a password for
+    # %wheel group. On Arch, this file sorts AFTER the vagrant user's NOPASSWD
+    # rule (alphabetically w > v), causing subsequent become tasks to fail.
+    # This file (zz-* prefix sorts after wheel) preserves passwordless sudo
+    # for the vagrant user throughout converge.
+    - name: Preserve passwordless sudo for vagrant user (Arch CI workaround)
+      ansible.builtin.copy:
+        content: "vagrant ALL=(ALL) NOPASSWD: ALL\n"
+        dest: /etc/sudoers.d/zz-molecule-vagrant-nopasswd
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+      when: ansible_facts['os_family'] == 'Archlinux'
