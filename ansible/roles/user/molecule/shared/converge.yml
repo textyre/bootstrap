@@ -26,7 +26,21 @@
         password_hash: ""
         update_password: on_create
         umask: "077"
-    user_manage_password_aging: false   # may not work in containers
+        password_max_age: 90
+        password_min_age: 0
+        password_warn_age: 7
+      - name: testuser_with_sudo
+        shell: /bin/bash
+        groups: []
+        sudo: true
+        password_hash: ""
+        update_password: on_create
+        umask: "077"
+    # Users to remove (zero-trust cleanup)
+    accounts:
+      - name: testuser_toberemoved
+        state: absent
+    user_manage_password_aging: false   # may not work in containers; Vagrant overrides in its converge.yml
     user_manage_umask: true
     user_verify_root_lock: false        # root may not be locked in test environments
     user_sudo_logrotate_enabled: true
