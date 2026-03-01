@@ -20,8 +20,8 @@
   ansible.builtin.set_fact:
     gpu_drivers_initramfs_tool: >-
       {{ 'mkinitcpio' if ansible_facts['os_family'] == 'Archlinux'
-         else ('dracut' if (_gpu_drivers_dracut_check is not skipped
-                           and _gpu_drivers_dracut_check.rc == 0)
+         else ('dracut' if (gpu_drivers_dracut_check is not skipped
+                           and gpu_drivers_dracut_check.rc == 0)
          else 'initramfs-tools') }}
   when: gpu_drivers_manage_initramfs
   tags: ['gpu', 'nvidia']
