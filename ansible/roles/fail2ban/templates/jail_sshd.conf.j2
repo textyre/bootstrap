@@ -12,6 +12,9 @@ bantime.increment = true
 bantime.maxtime = {{ fail2ban_sshd_bantime_maxtime }}
 {% endif %}
 backend = {{ fail2ban_sshd_backend }}
+{% if fail2ban_sshd_banaction %}
+banaction = {{ fail2ban_sshd_banaction }}
+{% endif %}
 {% if fail2ban_ignoreip %}
 ignoreip = {{ fail2ban_ignoreip | join(' ') }}
 {% endif %}
