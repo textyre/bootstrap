@@ -38,6 +38,15 @@
         state: present
         create_home: false
 
+    # Lock root account on Arch: the arch-base box ships without a locked root,
+    # but the role asserts root is locked (user_verify_root_lock: true).
+    # passwd -l sets shadow to '!<hash>', matching regex '^[!*]'.
+    - name: Lock root account (Arch — box ships without locked root)
+      ansible.builtin.command:
+        cmd: passwd -l root
+      changed_when: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     # The user role deploys /etc/sudoers.d/wheel which requires a password for
     # %wheel group. On Arch, this file sorts AFTER the vagrant user's NOPASSWD
     # rule (alphabetically w > v), causing subsequent become tasks to fail.
