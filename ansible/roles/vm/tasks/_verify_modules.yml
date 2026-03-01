@@ -60,7 +60,7 @@
 
 - name: "Check loaded status ({{ vm_mod_label }})"
   ansible.builtin.command: lsmod
-  register: vm_lsmod_output
+  register: _vm_lsmod_output
   changed_when: false
   tags: ['vm', 'vm:verify']
 
