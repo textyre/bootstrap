@@ -44,11 +44,17 @@
     # ---- Запуск ----
     # ======================================================================
 
-    - name: "Enable and start fail2ban"
+    - name: "Enable fail2ban service"
       ansible.builtin.service:
         name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         enabled: true
+      tags: [fail2ban, service]
+
+    - name: "Start fail2ban service"
+      ansible.builtin.service:
+        name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         state: started
+      when: ansible_virtualization_type | default('') not in ['docker', 'container']
       tags: [fail2ban, service]
 
     # ======================================================================
