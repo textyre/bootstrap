@@ -56,3 +56,8 @@
       ansible.builtin.service:
         name: docker
         state: started
+
+    - name: Stop docker service before role converge
+      ansible.builtin.service:
+        name: docker
+        state: stopped
