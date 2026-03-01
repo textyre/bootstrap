@@ -1,23 +1,236 @@
+# Purpose: Vagrant/KVM-based Molecule tests. Detects changed vagrant-capable
+#          roles and runs molecule test -s vagrant for each on arch and ubuntu.
+# Triggers: push/PR to master (ansible/roles/**, requirements.txt),
+#           workflow_dispatch (role_filter: role name or "all")
+# Uses:    arch-base.box (github.com/textyre/arch-images releases)
+#          ubuntu-base.box (github.com/textyre/ubuntu-images releases)
+# Notes:   Only roles with molecule/vagrant/molecule.yml are tested here.
+#          KVM is enabled via udev rules. vagrant-libvirt is always reinstalled
+#          fresh (native .so must be compiled against the runner's libvirt).
+#          Pip versions are pinned inline — update when bumping deps.
 ---
-name: "Molecule Vagrant (KVM)"
+name: "Molecule Vagrant"
 
 on:
-  schedule:
-    - cron: '0 4 * * 1'  # Weekly, Monday 04:00 UTC
+  push:
+    branches: [master]
+    paths:
+      - 'ansible/roles/**'
+      - 'ansible/requirements.txt'
+      - '.github/workflows/molecule-vagrant.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'ansible/roles/**'
+      - 'ansible/requirements.txt'
+      - '.github/workflows/molecule-vagrant.yml'
   workflow_dispatch:
     inputs:
-      role:
-        description: 'Role to test (must have molecule/vagrant/ scenario)'
-        default: 'package_manager'
+      role_filter:
+        description: 'Role to test, or "all" for all vagrant-capable roles'
         required: false
+        default: 'all'
+
+concurrency:
+  group: molecule-vagrant-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  detect:
+    name: Detect changed vagrant roles
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      empty: ${{ steps.build.outputs.empty }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        if: github.event_name != 'workflow_dispatch'
+        uses: tj-actions/changed-files@v46
+        with:
+          files: 'ansible/**'
+
+      - name: Build role matrix
+        id: build
+        run: |
+          # Vagrant-capable roles = those with molecule/vagrant/molecule.yml
+          ALL_VAGRANT=$(find ansible/roles -name molecule.yml -path "*/vagrant/molecule.yml" \
+            | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FILTER="${{ inputs.role_filter }}"
+            if [ "$FILTER" = "all" ] || [ -z "$FILTER" ]; then
+              ROLES="$ALL_VAGRANT"
+            else
+              ROLES="$FILTER"
+            fi
+          else
+            CHANGED="${{ steps.changed.outputs.all_changed_files }}"
+            # Infrastructure or common changed → run all vagrant roles
+            if echo "$CHANGED" | tr ' ' '\n' | grep -qE \
+              "^ansible/roles/common/|^ansible/requirements\.txt"; then
+              ROLES="$ALL_VAGRANT"
+            else
+              # Only changed roles that are vagrant-capable
+              ROLES=$(echo "$CHANGED" | tr ' ' '\n' \
+                | grep "^ansible/roles/" \
+                | sed 's|ansible/roles/||;s|/.*||' \
+                | sort -u \
+                | while IFS= read -r role; do
+                    [ -f "ansible/roles/$role/molecule/vagrant/molecule.yml" ] && echo "$role"
+                  done)
+            fi
+          fi
+
+          MATRIX=$(printf '%s\n' $ROLES | grep -v '^$' \
+            | jq -Rsc '[split("\n")[] | select(length > 0)]')
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$MATRIX" = "[]" ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test-vagrant:
+    needs: detect
+    if: needs.detect.outputs.empty == 'false'
+    name: "${{ matrix.role }} (test-vagrant/${{ matrix.platform }})"
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [arch-vm, ubuntu-base]
+        role: ${{ fromJSON(needs.detect.outputs.matrix) }}
+        platform: [arch, ubuntu]
       fail-fast: false
-    uses: ./.github/workflows/_molecule-vagrant.yml
-    with:
-      role_name: ${{ inputs.role || 'package_manager' }}
-      platform: ${{ matrix.platform }}
+    concurrency:
+      group: "vagrant-${{ matrix.role }}-${{ matrix.platform }}-${{ github.event.pull_request.number || github.sha }}"
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install libvirt + vagrant
+        run: |
+          wget -O- https://apt.releases.hashicorp.com/gpg | \
+            sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+            https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+            sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libvirt-daemon-system libvirt-dev qemu-kvm \
+            vagrant ruby-dev build-essential pkg-config
+          sudo systemctl start libvirtd
+          sudo chmod a+rw /var/run/libvirt/libvirt-sock
+
+      - name: Get Vagrant version
+        id: vagrant-ver
+        run: echo "version=$(vagrant --version | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Get libvirt version
+        id: libvirt-ver
+        run: echo "version=$(dpkg -s libvirt-dev | grep '^Version:' | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache vagrant plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.vagrant.d/gems
+          key: vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-libvirt${{ steps.libvirt-ver.outputs.version }}
+          restore-keys: |
+            vagrant-gems-${{ runner.os }}-${{ steps.vagrant-ver.outputs.version }}-
+            vagrant-gems-${{ runner.os }}-
+
+      - name: Install vagrant-libvirt plugin
+        run: |
+          # Always uninstall + reinstall so native extensions are compiled fresh
+          # against this runner's libvirt. The gems cache speeds up the download
+          # (.gem files in ~/.vagrant.d/gems/cache/) but extensions must be rebuilt.
+          vagrant plugin uninstall vagrant-libvirt 2>/dev/null || true
+          vagrant plugin install vagrant-libvirt
+
+      - name: Resolve box version
+        id: box
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ matrix.platform }}" = "arch" ]; then
+            TAG=$(gh api repos/textyre/arch-images/releases/latest --jq '.tag_name')
+            echo "name=arch-base" >> $GITHUB_OUTPUT
+            echo "url=https://github.com/textyre/arch-images/releases/latest/download/arch-base.box" >> $GITHUB_OUTPUT
+            echo "molecule_platform=arch-vm" >> $GITHUB_OUTPUT
+          else
+            TAG=$(gh api repos/textyre/ubuntu-images/releases/latest --jq '.tag_name')
+            echo "name=ubuntu-base" >> $GITHUB_OUTPUT
+            echo "url=https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box" >> $GITHUB_OUTPUT
+            echo "molecule_platform=ubuntu-base" >> $GITHUB_OUTPUT
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Cache Vagrant box
+        id: box-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.vagrant.d/boxes
+          key: vagrant-box-${{ matrix.platform }}-${{ steps.box.outputs.tag }}
+          restore-keys: vagrant-box-${{ matrix.platform }}-
+
+      - name: Add Vagrant box
+        run: |
+          # Idempotent: skip if box already registered (exact cache hit or restored via restore-key)
+          vagrant box list | grep -q "^${{ steps.box.outputs.name }}" || \
+            vagrant box add ${{ steps.box.outputs.name }} \
+              ${{ steps.box.outputs.url }} --provider libvirt
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-vagrant-${{ runner.os }}-${{ hashFiles('ansible/requirements.txt') }}
+          restore-keys: pip-vagrant-${{ runner.os }}-
+
+      - name: Install molecule + dependencies
+        run: |
+          pip install \
+            "ansible-core==2.20.1" \
+            "molecule==25.12.0" \
+            "molecule-plugins[vagrant]==25.8.12" \
+            "jmespath" "rich"
+          python -c "import vagrant; print('python-vagrant OK:', vagrant.__file__)"
+
+      - name: Cache Ansible collections
+        uses: actions/cache@v4
+        with:
+          path: ~/.ansible/collections
+          key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
+          restore-keys: ansible-collections-
+
+      - name: Install Ansible Galaxy collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Run Molecule
+        env:
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
+        run: |
+          VAGRANT_MODULES=$(python3 -c \
+            "import os, molecule_plugins.vagrant; \
+             print(os.path.join(os.path.dirname(molecule_plugins.vagrant.__file__), 'modules'))")
+          export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
+          molecule test -s vagrant --platform-name ${{ steps.box.outputs.molecule_platform }}
+        working-directory: "ansible/roles/${{ matrix.role }}"
