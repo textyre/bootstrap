@@ -132,6 +132,16 @@
         that: _ssh_verify_sshd_content is regex('PermitRootLogin\s+no')
         fail_msg: "PermitRootLogin is not set to 'no'"
 
+    - name: Assert Port 22
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('Port\s+22\b')
+        fail_msg: "Port is not set to 22"
+
+    - name: Assert AddressFamily inet
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('AddressFamily\s+inet\b')
+        fail_msg: "AddressFamily is not set to 'inet'"
+
     - name: Assert PasswordAuthentication no
       ansible.builtin.assert:
         that: _ssh_verify_sshd_content is regex('PasswordAuthentication\s+no')
@@ -494,6 +504,23 @@
         fail_msg: "SFTP subsystem not configured (expected 'Subsystem sftp internal-sftp')"
 
     # ================================================================
+    #  DH moduli cleanup verification (systemd + vagrant platforms)
+    # ================================================================
+
+    - name: Check for weak DH moduli after cleanup
+      ansible.builtin.command:
+        cmd: awk '$5 < 3072 { print }' /etc/ssh/moduli
+      register: _ssh_verify_weak_moduli
+      changed_when: false
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
+
+    - name: Assert no weak DH moduli remain
+      ansible.builtin.assert:
+        that: _ssh_verify_weak_moduli.stdout == ''
+        fail_msg: "Weak DH moduli still present (< 3072 bits):\n{{ _ssh_verify_weak_moduli.stdout | truncate(500) }}"
+      when: inventory_hostname is search('systemd') or inventory_hostname in ['arch-vm', 'ubuntu-base']
+
+    # ================================================================
     #  Config syntax validation
     # ================================================================
 
@@ -532,8 +559,10 @@
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          SSH verify passed: packages installed, service enabled,
-          sshd_config correct (0600 root, all security directives verified),
-          host keys correct (ed25519+RSA present with 0600, DSA/ECDSA absent),
+          SSH verify passed on {{ inventory_hostname }}: packages installed, service enabled+running,
+          sshd_config correct (0600 root, all security directives verified, Port+AddressFamily checked),
+          host keys correct (ed25519+RSA present with correct perms, DSA/ECDSA absent),
           cryptography validated (ciphers, MACs, KEX),
-          banner deployed, sshd -t passed.
+          AllowGroups absent (or platform-specific for access-control/features),
+          banner checked (systemd+vagrant platforms), moduli verified (systemd+vagrant platforms),
+          sshd -t passed.
