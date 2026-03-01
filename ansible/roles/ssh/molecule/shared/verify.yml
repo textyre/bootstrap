@@ -399,6 +399,20 @@
           /etc/ssh/ssh_host_rsa_key missing or wrong permissions
           (expected 0600, got {{ _ssh_verify_rsa_key.stat.mode | default('missing') }})
 
+    - name: Stat RSA host key (public)
+      ansible.builtin.stat:
+        path: /etc/ssh/ssh_host_rsa_key.pub
+      register: _ssh_verify_rsa_pub
+
+    - name: Assert RSA public key exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _ssh_verify_rsa_pub.stat.exists
+          - _ssh_verify_rsa_pub.stat.mode == '0644'
+        fail_msg: >-
+          /etc/ssh/ssh_host_rsa_key.pub missing or wrong permissions
+          (expected 0644, got {{ _ssh_verify_rsa_pub.stat.mode | default('missing') }})
+
     - name: Stat DSA host key (should be absent)
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_dsa_key
