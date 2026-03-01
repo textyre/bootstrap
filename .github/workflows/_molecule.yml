@@ -1,3 +1,10 @@
+# Purpose: Reusable workflow — runs molecule test for a single role using Docker.
+#          Tests both Arch (systemd) and Ubuntu images in one container run.
+# Triggers: workflow_call only (called by molecule.yml)
+# Uses:    ghcr.io/<repo>/ci-env:latest  (built by build-ci-image.yml)
+#          ghcr.io/textyre/arch-base:latest
+#          ghcr.io/textyre/ubuntu-base:latest
+# Notes:   Mounts /var/run/docker.sock — requires Docker-in-Docker access on runner.
 ---
 name: "Molecule Test"
 

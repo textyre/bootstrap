@@ -1,3 +1,12 @@
+# Purpose: Reusable workflow — runs molecule test for a single role using Vagrant/KVM.
+#          Provides a realistic systemd environment closer to production than Docker.
+# Triggers: workflow_call only (called by molecule.yml)
+# Uses:    arch-base.box (github.com/textyre/arch-images releases)
+#          ubuntu-base.box (github.com/textyre/ubuntu-images releases)
+# Notes:   KVM is enabled via udev rules. vagrant-libvirt is always reinstalled
+#          fresh (native .so must be compiled against the runner's libvirt).
+#          Pip cache key contains HARDCODED versions — update key when bumping deps.
+#          [KNOWN ISSUE #5] Cache key: pip-vagrant-${{ runner.os }}-ansible-core-2.20.1-molecule-25.12.0
 ---
 name: "Molecule Vagrant (reusable)"
 

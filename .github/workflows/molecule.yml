@@ -1,3 +1,11 @@
+# Purpose: Main CI orchestrator for Molecule tests. Detects which roles changed
+#          and dispatches Docker (fast) and Vagrant/KVM (realistic) test matrices.
+# Triggers: push/PR to master (ansible/roles/**, requirements.txt, workflow files),
+#           workflow_dispatch (role_filter input: specific role name or "all")
+# Uses:    .github/workflows/_molecule.yml (Docker runner)
+#          .github/workflows/_molecule-vagrant.yml (Vagrant runner)
+# Notes:   Only roles with molecule/docker/molecule.yml are CI-ready.
+#          Changes to ansible/roles/common/ trigger ALL CI-ready roles.
 ---
 name: "Molecule"
 
