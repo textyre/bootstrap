@@ -4,6 +4,7 @@
   become: true
   gather_facts: true
   vars_files:
+    - "{{ playbook_dir }}/../../../../inventory/group_vars/all/vault.yml"
     - ../../defaults/main.yml
 
   tasks:
@@ -152,6 +153,11 @@
         that: _ssh_verify_sshd_content is regex('UsePAM\s+yes')
         fail_msg: "UsePAM is not set to 'yes'"
 
+    - name: Assert KbdInteractiveAuthentication no
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('KbdInteractiveAuthentication\s+no')
+        fail_msg: "KbdInteractiveAuthentication is not set to 'no' (replaces deprecated ChallengeResponseAuthentication)"
+
     # ---- Forwarding and tunnels ----
 
     - name: Assert X11Forwarding no
@@ -230,6 +236,31 @@
         that: _ssh_verify_sshd_content is regex('ClientAliveCountMax\s+2')
         fail_msg: "ClientAliveCountMax is not set to 2"
 
+    - name: Assert TCPKeepAlive no
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('TCPKeepAlive\s+no')
+        fail_msg: "TCPKeepAlive is not set to 'no'"
+
+    - name: Assert PrintMotd no
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('PrintMotd\s+no')
+        fail_msg: "PrintMotd is not set to 'no'"
+
+    - name: Assert PrintLastLog yes
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('PrintLastLog\s+yes')
+        fail_msg: "PrintLastLog is not set to 'yes'"
+
+    - name: Assert MaxSessions
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('MaxSessions\s+10')
+        fail_msg: "MaxSessions is not set to 10"
+
+    - name: Assert AcceptEnv configured
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('AcceptEnv\s+LANG')
+        fail_msg: "AcceptEnv LANG LC_* not configured"
+
     # ---- Cryptography -- negative checks ----
 
     - name: Extract Ciphers line
@@ -265,7 +296,7 @@
     - name: Assert no weak KEX
       ansible.builtin.assert:
         that:
-          - "'group1' not in _ssh_verify_kex_line"
+          - "'group1-sha1' not in _ssh_verify_kex_line"
           - "'group14-sha1' not in _ssh_verify_kex_line"
         fail_msg: "Weak KEX algorithm detected in KexAlgorithms line: {{ _ssh_verify_kex_line }}"
 
@@ -286,10 +317,10 @@
         that: _ssh_verify_sshd_content is regex('HostKeyAlgorithms\s+.*ssh-ed25519')
         fail_msg: "ssh-ed25519 not in HostKeyAlgorithms"
 
-    - name: Assert RekeyLimit configured
+    - name: Assert RekeyLimit configured with correct value
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('RekeyLimit\s+')
-        fail_msg: "RekeyLimit directive missing"
+        that: _ssh_verify_sshd_content is regex('RekeyLimit\s+512M\s+1h')
+        fail_msg: "RekeyLimit is not set to '512M 1h'"
 
     - name: Assert hmac-sha2-512-etm in MACs
       ansible.builtin.assert:
@@ -398,6 +429,16 @@
         that: _ssh_verify_sshd_content is regex('Banner\s+/etc/issue.net')
         fail_msg: "Banner directive not found in sshd_config"
 
+    - name: Read banner file content
+      ansible.builtin.slurp:
+        src: /etc/issue.net
+      register: _ssh_verify_banner_content
+
+    - name: Assert banner file contains warning content
+      ansible.builtin.assert:
+        that: "'====' in (_ssh_verify_banner_content.content | b64decode)"
+        fail_msg: "Banner /etc/issue.net does not contain expected warning content (missing '====')"
+
     # ================================================================
     #  SFTP subsystem
     # ================================================================
@@ -426,6 +467,17 @@
       ansible.builtin.assert:
         that: "'Ansible managed' in _ssh_verify_sshd_content"
         fail_msg: "Ansible managed comment not found in sshd_config"
+
+    # ================================================================
+    #  Access control (AllowGroups absent when ssh_allow_groups is empty)
+    # ================================================================
+
+    - name: Assert AllowGroups absent when ssh_allow_groups is empty
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is not search('AllowGroups\s+')
+        fail_msg: >-
+          AllowGroups directive is present in sshd_config but ssh_allow_groups
+          was set to [] in converge — template is not respecting empty list
 
     # ================================================================
     #  Diagnostic

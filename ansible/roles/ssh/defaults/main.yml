@@ -93,8 +93,9 @@ ssh_hostbased_authentication: "no"
 # Игнорировать файлы .rhosts/.shosts (устаревшие файлы доверия)
 ssh_ignore_rhosts: "yes"
 
-# Challenge-Response аутентификация (PAM keyboard-interactive)
-ssh_challenge_response_auth: "no"
+# Keyboard-interactive аутентификация (PAM keyboard-interactive)
+# Примечание: ChallengeResponseAuthentication удалена в OpenSSH 9.5+; используется KbdInteractiveAuthentication
+ssh_kbd_interactive_authentication: "no"
 
 # Методы аутентификации (publickey = только ключи)
 ssh_authentication_methods: "publickey"

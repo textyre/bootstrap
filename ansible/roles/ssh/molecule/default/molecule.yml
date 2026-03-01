@@ -5,7 +5,7 @@ driver:
     managed: false
 
 platforms:
-  - name: Localhost
+  - name: localhost
 
 provisioner:
   name: ansible
@@ -23,7 +23,7 @@ provisioner:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
 
 verifier:
   name: ansible

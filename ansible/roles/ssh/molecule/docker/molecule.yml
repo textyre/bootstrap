@@ -38,10 +38,17 @@ provisioner:
   options:
     skip-tags: report
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
   config_options:
     defaults:
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
       callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      Archlinux-systemd:
+        ansible_user: root
+      Ubuntu-systemd:
+        ansible_user: root
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

@@ -5,7 +5,7 @@ Hardened OpenSSH server configuration based on dev-sec.io, CIS Benchmark, DISA S
 ## What this role does
 
 - [x] Installs OpenSSH server (package name mapped per OS family)
-- [x] Preflight lockout protection: verifies at least one `authorized_keys` exists before applying hardening
+- [x] Preflight lockout protection: verifies user membership in `AllowGroups`/`AllowUsers`/`DenyGroups`/`DenyUsers` before applying hardening; warns if `~user/.ssh/authorized_keys` is absent when password auth is disabled
 - [x] Deploys `sshd_config` from Jinja2 template with modern-only cryptography
 - [x] Removes weak host keys (DSA, ECDSA)
 - [x] Configures modern cryptography: ChaCha20-Poly1305 / AES-GCM ciphers, ETM MACs, Curve25519 KEX
@@ -57,7 +57,7 @@ Hardened OpenSSH server configuration based on dev-sec.io, CIS Benchmark, DISA S
 | `ssh_permit_empty_passwords` | `"no"` | Permit empty passwords (CIS, DISA STIG: must be `no`) |
 | `ssh_hostbased_authentication` | `"no"` | Allow `.rhosts`/`.shosts` host-based authentication |
 | `ssh_ignore_rhosts` | `"yes"` | Ignore `.rhosts` and `.shosts` files |
-| `ssh_challenge_response_auth` | `"no"` | PAM keyboard-interactive challenge-response |
+| `ssh_kbd_interactive_authentication` | `"no"` | PAM keyboard-interactive authentication (replaces deprecated `ChallengeResponseAuthentication` removed in OpenSSH 9.5+) |
 | `ssh_authentication_methods` | `"publickey"` | Required authentication methods |
 | `ssh_permit_user_environment` | `"no"` | Honour `~/.ssh/environment` (blocks `LD_PRELOAD`/`PATH` injection) |
 | `ssh_use_pam` | `"yes"` | Use PAM for account and session management |
@@ -193,12 +193,16 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-### Verify assertions (38 total)
+### Verify assertions (56 total)
 
 Package install, service enabled+running, `sshd_config` permissions (0600/root),
-32 security directive checks, cryptography suite (positive + negative), host key
-presence (ed25519) and absence (DSA, ECDSA), banner, SFTP subsystem,
-`sshd -t` syntax validation, and Ansible managed comment.
+41 security directive checks (all major hardening directives including
+`KbdInteractiveAuthentication`, `TCPKeepAlive`, `PrintMotd`, `PrintLastLog`,
+`MaxSessions`, `AcceptEnv`), cryptography suite (positive + negative),
+host key presence (ed25519+RSA with 0600) and absence (DSA/ECDSA),
+`RekeyLimit 512M 1h` value check, banner file + content + config directive,
+`AllowGroups` absent when empty, SFTP subsystem, `sshd -t` syntax validation,
+and Ansible managed comment.
 
 ## License
 
