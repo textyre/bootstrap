@@ -3,8 +3,14 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "../../defaults/main.yml"
+
+  pre_tasks:
+    # Load role defaults at proper (lowest) precedence so molecule host_vars can override them.
+    # Using include_role instead of vars_files avoids the vars_files > host_vars precedence bug.
+    - name: Load docker role defaults (respects host_vars overrides)
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: noop.yml
 
   tasks:
 
@@ -244,6 +250,47 @@
               userns not found in Docker SecurityOptions:
               {{ _docker_verify_info['SecurityOptions'] }}
           when: docker_userns_remap | length > 0
+
+    # ==========================================================
+    # Negative-path assertions: security settings disabled
+    # ==========================================================
+
+    - name: Assert icc key is ABSENT from daemon.json (when docker_icc is true)
+      ansible.builtin.assert:
+        that:
+          - "'icc' not in _docker_verify_daemon_dict"
+        fail_msg: "'icc' key should be absent in daemon.json when docker_icc is true (Docker default: ICC enabled)"
+      when: docker_icc | default(false) | bool
+
+    - name: Assert userns-remap key is ABSENT from daemon.json (when disabled)
+      ansible.builtin.assert:
+        that:
+          - "'userns-remap' not in _docker_verify_daemon_dict"
+        fail_msg: "'userns-remap' key should be absent in daemon.json when docker_userns_remap is empty"
+      when: docker_userns_remap | default('') | length == 0
+
+    - name: Assert live-restore key is ABSENT from daemon.json (when disabled)
+      ansible.builtin.assert:
+        that:
+          - "'live-restore' not in _docker_verify_daemon_dict"
+        fail_msg: "'live-restore' key should be absent in daemon.json when docker_live_restore is false"
+      when: not (docker_live_restore | default(true) | bool)
+
+    - name: Assert no-new-privileges key is ABSENT from daemon.json (when disabled)
+      ansible.builtin.assert:
+        that:
+          - "'no-new-privileges' not in _docker_verify_daemon_dict"
+        fail_msg: "'no-new-privileges' key should be absent in daemon.json when docker_no_new_privileges is false"
+      when: not (docker_no_new_privileges | default(true) | bool)
+
+    - name: Assert user is NOT in docker group (when add_user_to_group disabled)
+      ansible.builtin.assert:
+        that:
+          - "'docker' not in _docker_verify_user_groups.stdout.split()"
+        fail_msg: >-
+          User should NOT be in docker group when docker_add_user_to_group is false
+          (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
+      when: not (docker_add_user_to_group | default(true) | bool)
 
     # ==========================================================
     # Summary
