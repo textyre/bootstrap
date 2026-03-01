@@ -107,7 +107,7 @@
           - "'icc' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['icc'] == false"
         fail_msg: "icc not set to false in daemon.json"
-      when: not docker_icc
+      when: not (docker_icc | default(false) | bool)
 
     - name: Assert live-restore is true in daemon.json (when enabled)
       ansible.builtin.assert:
@@ -186,7 +186,7 @@
               - "ansible_facts.services['docker.service'].status == 'enabled'"
             fail_msg: >-
               docker.service is not enabled
-              (services: {{ ansible_facts.services.get('docker.service', 'NOT FOUND') }})
+              (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
 
         - name: Assert docker.service is running
           ansible.builtin.assert:
@@ -194,7 +194,7 @@
               - "ansible_facts.services['docker.service'].state == 'running'"
             fail_msg: >-
               docker.service is not running
-              (services: {{ ansible_facts.services.get('docker.service', 'NOT FOUND') }})
+              (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
 
     # ==========================================================
     # Runtime verification via docker info (non-container only)
