@@ -34,7 +34,7 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
+    converge: converge.yml
     verify: ../shared/verify.yml
 
 verifier:
