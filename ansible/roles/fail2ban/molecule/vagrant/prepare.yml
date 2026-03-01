@@ -38,6 +38,31 @@
         state: present
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    - name: Ensure fail2ban action.d directory exists (Arch)
+      ansible.builtin.file:
+        path: /etc/fail2ban/action.d
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Create noop action (Arch) — Arch fail2ban package omits noop.conf
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/action.d/noop.conf
+        content: |
+          # Molecule CI — noop ban action (no iptables/nftables needed)
+          [Definition]
+          actionstart =
+          actionstop =
+          actioncheck =
+          actionban =
+          actionunban =
+        mode: "0644"
+        owner: root
+        group: root
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     - name: Update apt cache (Ubuntu)
       ansible.builtin.apt:
         update_cache: true
