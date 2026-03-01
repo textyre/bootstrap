@@ -9,9 +9,11 @@
         update_cache: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Install docker package (Arch)
+    - name: Install docker and shadow packages (Arch)
       community.general.pacman:
-        name: docker
+        name:
+          - docker
+          - shadow
         state: present
       when: ansible_facts['os_family'] == 'Archlinux'
 
@@ -30,7 +32,27 @@
         state: present
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Start docker service to initialize runtime (creates dockremap user)
+    - name: Create dockremap system user for userns-remap
+      ansible.builtin.user:
+        name: dockremap
+        system: true
+        create_home: false
+
+    - name: Set up /etc/subuid for dockremap
+      ansible.builtin.lineinfile:
+        path: /etc/subuid
+        line: "dockremap:165536:65536"
+        create: true
+        mode: '0644'
+
+    - name: Set up /etc/subgid for dockremap
+      ansible.builtin.lineinfile:
+        path: /etc/subgid
+        line: "dockremap:165536:65536"
+        create: true
+        mode: '0644'
+
+    - name: Start docker service to verify installation
       ansible.builtin.service:
         name: docker
         state: started
