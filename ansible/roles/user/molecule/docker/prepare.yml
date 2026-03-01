@@ -15,6 +15,11 @@
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
 
+    - name: Ensure video group exists (required by testuser_extra)
+      ansible.builtin.group:
+        name: video
+        state: present
+
     - name: Ensure logrotate is installed (for sudo logrotate test)
       ansible.builtin.package:
         name: logrotate

@@ -31,7 +31,7 @@ provisioner:
         ansible_python_interpreter: "{{ ansible_playbook_python }}"
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
+    converge: converge.yml
     verify: ../shared/verify.yml
 
 verifier:

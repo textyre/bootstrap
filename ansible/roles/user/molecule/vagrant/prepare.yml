@@ -4,10 +4,9 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Ensure logrotate is installed (Arch)
-      ansible.builtin.package:
-        name: logrotate
-        state: present
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Update apt cache (Ubuntu)
@@ -15,3 +14,35 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure video group exists (required by testuser_extra)
+      ansible.builtin.group:
+        name: video
+        state: present
+
+    - name: Ensure logrotate is installed (Arch)
+      community.general.pacman:
+        name: logrotate
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Ensure logrotate is installed (Ubuntu)
+      ansible.builtin.apt:
+        name: logrotate
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # The user role deploys /etc/sudoers.d/wheel which requires a password for
+    # %wheel group. On Arch, this file sorts AFTER the vagrant user's NOPASSWD
+    # rule (alphabetically w > v), causing subsequent become tasks to fail.
+    # This file (zz-* prefix sorts after wheel) preserves passwordless sudo
+    # for the vagrant user throughout converge.
+    - name: Preserve passwordless sudo for vagrant user (Arch CI workaround)
+      ansible.builtin.copy:
+        content: "vagrant ALL=(ALL) NOPASSWD: ALL\n"
+        dest: /etc/sudoers.d/zz-molecule-vagrant-nopasswd
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+      when: ansible_facts['os_family'] == 'Archlinux'

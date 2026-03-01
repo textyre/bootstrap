@@ -1,0 +1,37 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Override owner to a test user (don't modify real running user)
+    user_owner:
+      name: testuser_owner
+      shell: /bin/bash
+      groups:
+        - "{{ user_sudo_group }}"
+      password_hash: ""
+      update_password: on_create
+      umask: "027"
+      password_max_age: 365
+      password_min_age: 1
+      password_warn_age: 7
+    user_additional_users:
+      - name: testuser_extra
+        shell: /bin/bash
+        groups:
+          - video
+        sudo: false
+        password_hash: ""
+        update_password: on_create
+        umask: "077"
+    user_manage_password_aging: false  # chage/shadow interactions vary across VMs
+    user_manage_umask: true
+    user_verify_root_lock: false       # vagrant boxes don't lock root by default
+    user_sudo_logrotate_enabled: true
+    user_sudo_log_input: false
+    user_sudo_log_output: false
+
+  roles:
+    - role: user
