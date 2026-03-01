@@ -134,12 +134,12 @@
 
     - name: Assert Port 22
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('Port\s+22\b')
+        that: _ssh_verify_sshd_content is regex('Port\s+22\\b')
         fail_msg: "Port is not set to 22"
 
     - name: Assert AddressFamily inet
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AddressFamily\s+inet\b')
+        that: _ssh_verify_sshd_content is regex('AddressFamily\s+inet\\b')
         fail_msg: "AddressFamily is not set to 'inet'"
 
     - name: Assert PasswordAuthentication no
@@ -558,25 +558,25 @@
 
     - name: Assert AllowGroups sshusers in config (access-control)
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AllowGroups\s+sshusers\b')
+        that: _ssh_verify_sshd_content is regex('AllowGroups\s+sshusers\\b')
         fail_msg: "AllowGroups sshusers not found in sshd_config"
       when: inventory_hostname is search('access-control')
 
     - name: Assert AllowUsers root in config (access-control)
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AllowUsers\s+root\b')
+        that: _ssh_verify_sshd_content is regex('AllowUsers\s+root\\b')
         fail_msg: "AllowUsers root not found in sshd_config"
       when: inventory_hostname is search('access-control')
 
     - name: Assert DenyGroups badgroup in config (access-control)
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('DenyGroups\s+badgroup\b')
+        that: _ssh_verify_sshd_content is regex('DenyGroups\s+badgroup\\b')
         fail_msg: "DenyGroups badgroup not found in sshd_config"
       when: inventory_hostname is search('access-control')
 
     - name: Assert DenyUsers baduser in config (access-control)
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('DenyUsers\s+baduser\b')
+        that: _ssh_verify_sshd_content is regex('DenyUsers\s+baduser\\b')
         fail_msg: "DenyUsers baduser not found in sshd_config"
       when: inventory_hostname is search('access-control')
 
@@ -586,7 +586,7 @@
 
     - name: Assert ListenAddress 127.0.0.1 in config (features)
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('ListenAddress\s+127\.0\.0\.1\b')
+        that: _ssh_verify_sshd_content is regex('ListenAddress\s+127\.0\.0\.1\\b')
         fail_msg: "ListenAddress 127.0.0.1 not found in sshd_config"
       when: inventory_hostname is search('features')
 
