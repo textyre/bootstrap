@@ -9,4 +9,5 @@
       vars:
         fail2ban_sshd_maxretry: 3
         fail2ban_sshd_bantime: 600
-        fail2ban_sshd_backend: auto
+        fail2ban_sshd_backend: polling
+        fail2ban_sshd_banaction: noop
