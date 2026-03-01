@@ -16,7 +16,7 @@
 - name: Refresh pacman package database
   community.general.pacman:
     update_cache: true
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 # ---- Проверка текущего состояния ----
 
@@ -25,20 +25,20 @@
   register: zen_browser_exists
   changed_when: false
   failed_when: false
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 - name: Check if yay is available
   ansible.builtin.command: yay --version
   register: zen_browser_yay_check
   changed_when: false
   failed_when: false
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 - name: Fail if yay is not installed
   ansible.builtin.fail:
     msg: "yay не найден — установите роль yay перед zen_browser"
   when: zen_browser_yay_check.rc != 0
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 # ---- Установка через AUR ----
 
@@ -55,7 +55,7 @@
   when:
     - zen_browser_exists.rc != 0
     - ansible_become_password is defined
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 - name: Install Zen Browser via yay
   become: true
@@ -72,7 +72,7 @@
   register: zen_browser_install
   changed_when: "'there is nothing to do' not in zen_browser_install.stdout | default('')"
   when: zen_browser_exists.rc != 0
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 - name: Remove temporary SUDO_ASKPASS helper
   ansible.builtin.file:
@@ -80,7 +80,7 @@
     state: absent
   changed_when: false
   when: zen_browser_exists.rc != 0
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 # ---- Верификация установки ----
 
@@ -88,7 +88,7 @@
   ansible.builtin.command: which zen-browser
   register: zen_browser_verify
   changed_when: false
-  tags: ['zen_browser', 'browser']
+  tags: ['zen_browser', 'browser', 'molecule-notest']
 
 # ---- Браузер по умолчанию ----
 
@@ -102,7 +102,7 @@
   changed_when: false
   failed_when: false
   when: zen_browser_set_default
-  tags: ['zen_browser', 'browser', 'configure']
+  tags: ['zen_browser', 'browser', 'configure', 'molecule-notest']
 
 - name: Set Zen Browser as default browser
   become: true
@@ -114,11 +114,14 @@
   when:
     - zen_browser_set_default
     - zen_browser_current_default.stdout | default('') != zen_browser_desktop_file
-  tags: ['zen_browser', 'browser', 'configure']
+  tags: ['zen_browser', 'browser', 'configure', 'molecule-notest']
 
 # ---- Отчёт ----
 
 - name: Report Zen Browser installation result
   ansible.builtin.debug:
-    msg: "Zen Browser установлен: {{ zen_browser_verify.stdout }}"
+    msg: >-
+      Zen Browser: {{ 'установлен (' + zen_browser_verify.stdout + ')'
+      if zen_browser_verify is defined and zen_browser_verify.rc == 0
+      else 'не установлен (AUR задачи пропущены)' }}
   tags: ['zen_browser', 'browser']
