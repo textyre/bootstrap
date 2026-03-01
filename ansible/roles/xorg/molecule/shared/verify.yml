@@ -11,16 +11,16 @@
     - name: Stat /etc/X11/xorg.conf.d/
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d
-      register: xorg_verify_confdir
+      register: _xorg_verify_confdir
 
     - name: Assert /etc/X11/xorg.conf.d/ exists and is a directory
       ansible.builtin.assert:
         that:
-          - xorg_verify_confdir.stat.exists
-          - xorg_verify_confdir.stat.isdir
-          - xorg_verify_confdir.stat.pw_name == 'root'
-          - xorg_verify_confdir.stat.gr_name == 'root'
-          - xorg_verify_confdir.stat.mode == '0755'
+          - _xorg_verify_confdir.stat.exists
+          - _xorg_verify_confdir.stat.isdir
+          - _xorg_verify_confdir.stat.pw_name == 'root'
+          - _xorg_verify_confdir.stat.gr_name == 'root'
+          - _xorg_verify_confdir.stat.mode == '0755'
         fail_msg: "/etc/X11/xorg.conf.d/ missing or wrong permissions (expected root:root 0755)"
 
     # ---- 00-keyboard.conf ----
@@ -28,39 +28,45 @@
     - name: Stat /etc/X11/xorg.conf.d/00-keyboard.conf
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/00-keyboard.conf
-      register: xorg_verify_keyboard
+      register: _xorg_verify_keyboard
 
     - name: Assert 00-keyboard.conf exists with correct permissions
       ansible.builtin.assert:
         that:
-          - xorg_verify_keyboard.stat.exists
-          - xorg_verify_keyboard.stat.isreg
-          - xorg_verify_keyboard.stat.pw_name == 'root'
-          - xorg_verify_keyboard.stat.gr_name == 'root'
-          - xorg_verify_keyboard.stat.mode == '0644'
+          - _xorg_verify_keyboard.stat.exists
+          - _xorg_verify_keyboard.stat.isreg
+          - _xorg_verify_keyboard.stat.pw_name == 'root'
+          - _xorg_verify_keyboard.stat.gr_name == 'root'
+          - _xorg_verify_keyboard.stat.mode == '0644'
         fail_msg: "00-keyboard.conf missing or wrong permissions (expected root:root 0644)"
 
     - name: Read 00-keyboard.conf
       ansible.builtin.slurp:
         src: /etc/X11/xorg.conf.d/00-keyboard.conf
-      register: xorg_verify_keyboard_raw
+      register: _xorg_verify_keyboard_raw
+
+    - name: Assert keyboard config content is present
+      ansible.builtin.assert:
+        that:
+          - "'content' in _xorg_verify_keyboard_raw"
+        fail_msg: "00-keyboard.conf could not be read"
 
     - name: Set keyboard config text fact
       ansible.builtin.set_fact:
-        xorg_verify_keyboard_text: "{{ xorg_verify_keyboard_raw.content | b64decode }}"
+        _xorg_verify_keyboard_text: "{{ _xorg_verify_keyboard_raw.content | b64decode }}"
 
     - name: Assert keyboard config contains XkbLayout with us layout
       ansible.builtin.assert:
         that:
-          - "'XkbLayout' in xorg_verify_keyboard_text"
-          - "'us' in xorg_verify_keyboard_text"
+          - "'XkbLayout' in _xorg_verify_keyboard_text"
+          - "'us' in _xorg_verify_keyboard_text"
         fail_msg: "00-keyboard.conf missing XkbLayout or 'us' layout"
 
     - name: Assert keyboard config contains InputClass section structure
       ansible.builtin.assert:
         that:
-          - "'Section \"InputClass\"' in xorg_verify_keyboard_text"
-          - "'EndSection' in xorg_verify_keyboard_text"
+          - _xorg_verify_keyboard_text is regex('Section "InputClass"')
+          - _xorg_verify_keyboard_text is regex('EndSection')
         fail_msg: "00-keyboard.conf missing Section/EndSection structure"
 
     # ---- 10-monitor.conf ----
@@ -68,47 +74,73 @@
     - name: Stat /etc/X11/xorg.conf.d/10-monitor.conf
       ansible.builtin.stat:
         path: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: xorg_verify_monitor
+      register: _xorg_verify_monitor
 
     - name: Assert 10-monitor.conf exists with correct permissions
       ansible.builtin.assert:
         that:
-          - xorg_verify_monitor.stat.exists
-          - xorg_verify_monitor.stat.isreg
-          - xorg_verify_monitor.stat.pw_name == 'root'
-          - xorg_verify_monitor.stat.gr_name == 'root'
-          - xorg_verify_monitor.stat.mode == '0644'
+          - _xorg_verify_monitor.stat.exists
+          - _xorg_verify_monitor.stat.isreg
+          - _xorg_verify_monitor.stat.pw_name == 'root'
+          - _xorg_verify_monitor.stat.gr_name == 'root'
+          - _xorg_verify_monitor.stat.mode == '0644'
         fail_msg: "10-monitor.conf missing or wrong permissions (expected root:root 0644)"
 
     - name: Read 10-monitor.conf
       ansible.builtin.slurp:
         src: /etc/X11/xorg.conf.d/10-monitor.conf
-      register: xorg_verify_monitor_raw
+      register: _xorg_verify_monitor_raw
+
+    - name: Assert monitor config content is present
+      ansible.builtin.assert:
+        that:
+          - "'content' in _xorg_verify_monitor_raw"
+        fail_msg: "10-monitor.conf could not be read"
 
     - name: Set monitor config text fact
       ansible.builtin.set_fact:
-        xorg_verify_monitor_text: "{{ xorg_verify_monitor_raw.content | b64decode }}"
+        _xorg_verify_monitor_text: "{{ _xorg_verify_monitor_raw.content | b64decode }}"
 
     - name: Assert monitor config contains Monitor section with Monitor0
       ansible.builtin.assert:
         that:
-          - "'Section \"Monitor\"' in xorg_verify_monitor_text"
-          - "'Monitor0' in xorg_verify_monitor_text"
+          - _xorg_verify_monitor_text is regex('Section "Monitor"')
+          - "'Monitor0' in _xorg_verify_monitor_text"
         fail_msg: "10-monitor.conf missing Monitor section or Monitor0 identifier"
 
     - name: Assert monitor config contains Device section with modesetting driver
       ansible.builtin.assert:
         that:
-          - "'Section \"Device\"' in xorg_verify_monitor_text"
-          - "'modesetting' in xorg_verify_monitor_text"
+          - _xorg_verify_monitor_text is regex('Section "Device"')
+          - "'modesetting' in _xorg_verify_monitor_text"
         fail_msg: "10-monitor.conf missing Device section or modesetting driver"
 
     - name: Assert monitor config contains Screen section with Screen0
       ansible.builtin.assert:
         that:
-          - "'Section \"Screen\"' in xorg_verify_monitor_text"
-          - "'Screen0' in xorg_verify_monitor_text"
+          - _xorg_verify_monitor_text is regex('Section "Screen"')
+          - "'Screen0' in _xorg_verify_monitor_text"
         fail_msg: "10-monitor.conf missing Screen section or Screen0 identifier"
+
+    - name: Assert monitor config contains resolution modeline
+      ansible.builtin.assert:
+        that:
+          - _xorg_verify_monitor_text is regex('Modeline.*2560x1440')
+        fail_msg: "10-monitor.conf missing 2560x1440 modeline"
+
+    # ---- File count matches defaults ----
+
+    - name: Find all files in /etc/X11/xorg.conf.d/
+      ansible.builtin.find:
+        paths: /etc/X11/xorg.conf.d
+        file_type: file
+      register: _xorg_verify_file_count
+
+    - name: Assert exactly 2 config files deployed
+      ansible.builtin.assert:
+        that:
+          - _xorg_verify_file_count.matched == 2
+        fail_msg: "Expected 2 files in /etc/X11/xorg.conf.d/, found {{ _xorg_verify_file_count.matched }}"
 
     # ---- Summary ----
 
@@ -117,4 +149,5 @@
         msg: >-
           Xorg verify passed: /etc/X11/xorg.conf.d/ exists (root:root 0755),
           00-keyboard.conf deployed (root:root 0644, XkbLayout present),
-          10-monitor.conf deployed (root:root 0644, Monitor/Device/Screen sections present).
+          10-monitor.conf deployed (root:root 0644, Monitor/Device/Screen sections present),
+          2 config files total.
