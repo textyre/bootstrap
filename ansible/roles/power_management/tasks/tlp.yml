@@ -14,14 +14,24 @@
       register: power_management_tlp_existing
       tags: ['power', 'tlp']
 
-    - name: Backup existing TLP config
+    - name: Read existing TLP config to check if already Ansible-managed
+      ansible.builtin.slurp:
+        src: /etc/tlp.conf
+      register: power_management_tlp_existing_content
+      when: power_management_tlp_existing.stat.exists
+      tags: ['power', 'tlp']
+
+    - name: Backup existing TLP config (skip if already Ansible-managed)
       ansible.builtin.copy:
         src: /etc/tlp.conf
         dest: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: '0644'
       register: power_management_tlp_backup
-      when: power_management_tlp_existing.stat.exists
+      when:
+        - power_management_tlp_existing.stat.exists
+        - not ('content' in power_management_tlp_existing_content and
+               'Managed by Ansible' in (power_management_tlp_existing_content.content | b64decode))
       tags: ['power', 'tlp']
 
     - name: Deploy TLP configuration
@@ -50,7 +60,7 @@
         dest: /etc/tlp.conf
         remote_src: true
         mode: '0644'
-      when: power_management_tlp_backup is defined and power_management_tlp_backup is not failed
+      when: power_management_tlp_backup is defined and power_management_tlp_backup.changed | default(false)
       failed_when: false
       tags: ['power', 'tlp']
 
@@ -58,7 +68,7 @@
       ansible.builtin.fail:
         msg: >-
           TLP configuration deployment failed.
-          {% if power_management_tlp_backup is defined and power_management_tlp_backup is not failed %}
+          {% if power_management_tlp_backup is defined and power_management_tlp_backup.changed | default(false) %}
           Previous config restored from /etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}.
           {% else %}
           No previous config existed (first run) — nothing to restore.
