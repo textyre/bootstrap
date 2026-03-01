@@ -8,5 +8,8 @@
   # --system = читает все /etc/sysctl.d/*.conf (не зависит от init, но применяется
   #            systemd-sysctl.service при boot на Arch/Debian)
   # changed_when: false — изменение репортит template-таск (notify), не handler
+  # when: пропустить в Docker — kernel params read-only (EPERM) даже с privileged:true.
+  #       Tier 2 verify тоже пропускает live-checks в контейнерах.
   ansible.builtin.command: sysctl -e --system
   changed_when: false
+  when: ansible_virtualization_type | default('') != 'docker'
