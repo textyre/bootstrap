@@ -5,6 +5,7 @@
   register: fail2ban_verify_status
   changed_when: false
   failed_when: fail2ban_verify_status.rc != 0
+  when: ansible_virtualization_type | default('') not in ['docker', 'container']
   tags: [fail2ban]
 
 - name: "Verify SSH jail is active"
@@ -13,7 +14,9 @@
   register: fail2ban_verify_sshd
   changed_when: false
   failed_when: fail2ban_verify_sshd.rc != 0
-  when: fail2ban_sshd_enabled | bool
+  when:
+    - fail2ban_sshd_enabled | bool
+    - ansible_virtualization_type | default('') not in ['docker', 'container']
   tags: [fail2ban]
 
 - name: "Assert SSH jail reports correctly"
@@ -21,5 +24,7 @@
     that:
       - "'sshd' in fail2ban_verify_sshd.stdout"
     fail_msg: "fail2ban sshd jail is not active"
-  when: fail2ban_sshd_enabled | bool
+  when:
+    - fail2ban_sshd_enabled | bool
+    - ansible_virtualization_type | default('') not in ['docker', 'container']
   tags: [fail2ban]

@@ -73,6 +73,11 @@
         that: "'[sshd]' in _fail2ban_verify_jail_text"
         fail_msg: "[sshd] section not found in jail config"
 
+    - name: Assert port directive is present
+      ansible.builtin.assert:
+        that: _fail2ban_verify_jail_text is regex('(?m)^port = ')
+        fail_msg: "port directive missing from jail config"
+
     - name: Assert jail is enabled
       ansible.builtin.assert:
         that: "'enabled = true' in _fail2ban_verify_jail_text"
@@ -125,60 +130,48 @@
 
     # ---- Service state ----
 
-    - name: Check fail2ban service is enabled
-      ansible.builtin.command: systemctl is-enabled fail2ban.service
-      register: _fail2ban_verify_svc_enabled
-      changed_when: false
-      failed_when: false
+    - name: Gather service facts
+      ansible.builtin.service_facts:
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert fail2ban service is enabled
       ansible.builtin.assert:
-        that: "'enabled' in _fail2ban_verify_svc_enabled.stdout"
+        that: ansible_facts.services['fail2ban.service'].status == 'enabled'
         fail_msg: >-
           fail2ban.service is not enabled
-          (got '{{ _fail2ban_verify_svc_enabled.stdout | default("unknown") }}')
+          (got '{{ ansible_facts.services.get("fail2ban.service", {}).get("status", "unknown") }}')
       when: ansible_facts['service_mgr'] == 'systemd'
 
-    # ---- Runtime checks (guarded for Docker) ----
+    # ---- Runtime checks (guarded for Docker/container) ----
     # fail2ban-client requires the server to be running.
     # In Docker, the service may fail to start due to missing
     # iptables kernel modules or log sources.
 
-    - name: Check fail2ban service is active
-      ansible.builtin.command: systemctl is-active fail2ban.service
-      register: _fail2ban_verify_svc_active
-      changed_when: false
-      failed_when: false
-      when: ansible_facts['service_mgr'] == 'systemd'
-
     - name: Assert fail2ban service is active
       ansible.builtin.assert:
-        that: _fail2ban_verify_svc_active.stdout == 'active'
+        that: ansible_facts.services['fail2ban.service'].state == 'running'
         fail_msg: >-
-          fail2ban.service is not active
-          (got '{{ _fail2ban_verify_svc_active.stdout | default("unknown") }}')
+          fail2ban.service is not running
+          (got '{{ ansible_facts.services.get("fail2ban.service", {}).get("state", "unknown") }}')
       when:
         - ansible_facts['service_mgr'] == 'systemd'
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
 
-    - name: Warn if fail2ban not active in Docker
+    - name: Warn — fail2ban runtime checks skipped in container
       ansible.builtin.debug:
         msg: >-
-          WARNING: fail2ban.service is not active
-          (got '{{ _fail2ban_verify_svc_active.stdout | default("unknown") }}').
-          This may be expected in Docker -- iptables backend needs kernel netfilter modules.
+          WARNING: Running in container environment ({{ ansible_virtualization_type | default('unknown') }}).
+          fail2ban-server runtime checks skipped — iptables backend needs kernel netfilter modules.
       when:
         - ansible_facts['service_mgr'] == 'systemd'
-        - ansible_virtualization_type | default('') == 'docker'
-        - _fail2ban_verify_svc_active.stdout | default('') != 'active'
+        - ansible_virtualization_type | default('') in ['docker', 'container']
 
     - name: Check fail2ban-client status
       ansible.builtin.command: fail2ban-client status
       register: _fail2ban_verify_client_status
       changed_when: false
       failed_when: false
-      when: ansible_virtualization_type | default('') != 'docker'
+      when: ansible_virtualization_type | default('') not in ['docker', 'container']
 
     - name: Assert fail2ban-client reports healthy
       ansible.builtin.assert:
@@ -186,7 +179,7 @@
         fail_msg: >-
           fail2ban-client status failed (rc={{ _fail2ban_verify_client_status.rc }}).
           stderr: {{ _fail2ban_verify_client_status.stderr | default('') }}
-      when: ansible_virtualization_type | default('') != 'docker'
+      when: ansible_virtualization_type | default('') not in ['docker', 'container']
 
     - name: Assert sshd jail is listed
       ansible.builtin.assert:
@@ -196,7 +189,7 @@
           stdout: {{ _fail2ban_verify_client_status.stdout }}
       when:
         - fail2ban_sshd_enabled | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
 
     - name: Check fail2ban-client status sshd
       ansible.builtin.command: fail2ban-client status sshd
@@ -205,7 +198,7 @@
       failed_when: false
       when:
         - fail2ban_sshd_enabled | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
 
     - name: Assert sshd jail is active
       ansible.builtin.assert:
@@ -218,45 +211,45 @@
           stdout: {{ _fail2ban_verify_sshd_status.stdout | default('') }}
       when:
         - fail2ban_sshd_enabled | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
 
-    # ---- Docker-safe runtime check ----
-    # In Docker, try fail2ban-client ping to check if server is reachable.
+    # ---- Container-safe runtime check ----
+    # In Docker/container, try fail2ban-client ping to check if server is reachable.
     # If it responds, run additional checks.
 
-    - name: Try fail2ban-client ping (Docker)
+    - name: Try fail2ban-client ping (container)
       ansible.builtin.command: fail2ban-client ping
       register: _fail2ban_verify_ping
       changed_when: false
       failed_when: false
-      when: ansible_virtualization_type | default('') == 'docker'
+      when: ansible_virtualization_type | default('') in ['docker', 'container']
 
-    - name: Check fail2ban-client status (Docker, server reachable)
+    - name: Check fail2ban-client status (container, server reachable)
       ansible.builtin.command: fail2ban-client status
       register: _fail2ban_verify_client_status_docker
       changed_when: false
       failed_when: false
       when:
-        - ansible_virtualization_type | default('') == 'docker'
+        - ansible_virtualization_type | default('') in ['docker', 'container']
         - _fail2ban_verify_ping.rc | default(1) == 0
 
-    - name: Assert fail2ban-client reports healthy (Docker, server reachable)
+    - name: Assert fail2ban-client reports healthy (container, server reachable)
       ansible.builtin.assert:
         that: _fail2ban_verify_client_status_docker.rc == 0
         fail_msg: >-
-          fail2ban-client status failed in Docker despite server being reachable.
+          fail2ban-client status failed in container despite server being reachable.
           stderr: {{ _fail2ban_verify_client_status_docker.stderr | default('') }}
       when:
-        - ansible_virtualization_type | default('') == 'docker'
+        - ansible_virtualization_type | default('') in ['docker', 'container']
         - _fail2ban_verify_ping.rc | default(1) == 0
 
-    - name: Warn if fail2ban server unreachable in Docker
+    - name: Warn if fail2ban server unreachable in container
       ansible.builtin.debug:
         msg: >-
-          WARNING: fail2ban-server not reachable in Docker (ping rc={{ _fail2ban_verify_ping.rc | default('?') }}).
+          WARNING: fail2ban-server not reachable in container (ping rc={{ _fail2ban_verify_ping.rc | default('?') }}).
           Runtime checks skipped. Config file assertions still valid.
       when:
-        - ansible_virtualization_type | default('') == 'docker'
+        - ansible_virtualization_type | default('') in ['docker', 'container']
         - _fail2ban_verify_ping.rc | default(1) != 0
 
     # ---- Diagnostic (informational, no assertions) ----
@@ -265,7 +258,7 @@
       ansible.builtin.debug:
         var: _fail2ban_verify_client_status.stdout_lines
       when:
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
         - _fail2ban_verify_client_status.rc | default(1) == 0
 
     - name: Diagnostic -- sshd jail status output
@@ -273,7 +266,7 @@
         var: _fail2ban_verify_sshd_status.stdout_lines
       when:
         - fail2ban_sshd_enabled | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_virtualization_type | default('') not in ['docker', 'container']
         - _fail2ban_verify_sshd_status.rc | default(1) == 0
 
     - name: Show verify result
@@ -281,6 +274,6 @@
         msg: >-
           fail2ban verify passed: package installed, jail config deployed
           (root:root 0644) with correct directives (maxretry, bantime, findtime,
-          backend, bantime.increment, ignoreip), service enabled{{ (ansible_virtualization_type | default('') != 'docker')
+          backend, bantime.increment, ignoreip), service enabled{{ (ansible_virtualization_type | default('') not in ['docker', 'container'])
           | ternary(' and active, fail2ban-client reports sshd jail active',
-          ' (runtime checks guarded for Docker)') }}.
+          ' (runtime checks guarded for container)') }}.

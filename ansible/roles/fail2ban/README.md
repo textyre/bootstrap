@@ -58,7 +58,7 @@ systemd, runit, openrc, s6, dinit
 
 ## Testing
 
-Three Molecule scenarios are provided. All share `molecule/shared/converge.yml` and `molecule/shared/verify.yml` (20 assertions covering package, config permissions, all template directives, service enabled/active, and `fail2ban-client` runtime checks).
+Three Molecule scenarios are provided. All share `molecule/shared/converge.yml` and `molecule/shared/verify.yml` (assertions covering package, config permissions, all template directives, service enabled/active, port directive, and `fail2ban-client` runtime checks).
 
 | Scenario | Driver | Platforms | Requirements |
 |----------|--------|-----------|-------------|
