@@ -4,7 +4,6 @@
   become: true
   gather_facts: true
   vars_files:
-    - "{{ playbook_dir }}/../../../../inventory/group_vars/all/vault.yml"
     - ../../defaults/main.yml
 
   tasks:
@@ -16,6 +15,9 @@
     - name: Gather package facts
       ansible.builtin.package_facts:
         manager: auto
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
 
     - name: Assert openssh package installed (Arch)
       ansible.builtin.assert:
@@ -33,31 +35,19 @@
     #  Service enabled
     # ================================================================
 
-    - name: Check sshd service enabled state (Arch)
-      ansible.builtin.command:
-        cmd: systemctl is-enabled sshd
-      register: _ssh_verify_svc_enabled_arch
-      changed_when: false
-      failed_when: false
-      when: ansible_os_family == 'Archlinux'
-
     - name: Assert sshd is enabled (Arch)
       ansible.builtin.assert:
-        that: "'enabled' in _ssh_verify_svc_enabled_arch.stdout"
+        that:
+          - ansible_facts.services['sshd.service'] is defined
+          - ansible_facts.services['sshd.service'].status == 'enabled'
         fail_msg: "sshd.service is not enabled on Archlinux"
       when: ansible_os_family == 'Archlinux'
 
-    - name: Check ssh service enabled state (Debian)
-      ansible.builtin.command:
-        cmd: systemctl is-enabled ssh
-      register: _ssh_verify_svc_enabled_deb
-      changed_when: false
-      failed_when: false
-      when: ansible_os_family == 'Debian'
-
     - name: Assert ssh is enabled (Debian)
       ansible.builtin.assert:
-        that: "'enabled' in _ssh_verify_svc_enabled_deb.stdout"
+        that:
+          - ansible_facts.services['ssh.service'] is defined
+          - ansible_facts.services['ssh.service'].status == 'enabled'
         fail_msg: "ssh.service is not enabled on Debian/Ubuntu"
       when: ansible_os_family == 'Debian'
 

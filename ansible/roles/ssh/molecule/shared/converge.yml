@@ -3,9 +3,6 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ playbook_dir }}/../../../../inventory/group_vars/all/vault.yml"
-
   roles:
     - role: ssh
       vars:
