@@ -32,29 +32,29 @@
       when: fail2ban_sshd_enabled | bool
 
   rescue:
-    - name: "DIAGNOSTICS — collect fail2ban journal (startup failure)"
+    - name: "Collect fail2ban journal (startup failure diagnostics)"
       ansible.builtin.command:
         cmd: "journalctl -u fail2ban.service --no-pager -n 80"
       register: _fail2ban_rescue_journal
       changed_when: false
       ignore_errors: true
 
-    - name: "DIAGNOSTICS — show fail2ban journal"
+    - name: "Show fail2ban journal"
       ansible.builtin.debug:
         msg: "{{ _fail2ban_rescue_journal.stdout_lines | default(['no journal output']) }}"
 
-    - name: "DIAGNOSTICS — fail2ban service status"
+    - name: "Collect fail2ban service status"
       ansible.builtin.command:
         cmd: "systemctl status fail2ban.service --no-pager -l"
       register: _fail2ban_rescue_status
       changed_when: false
       ignore_errors: true
 
-    - name: "DIAGNOSTICS — show service status"
+    - name: "Show service status"
       ansible.builtin.debug:
         msg: "{{ _fail2ban_rescue_status.stdout_lines | default(['no status']) }}"
 
-    - name: "Re-raise: fail2ban verification failed — see DIAGNOSTICS above"
+    - name: "Fail — fail2ban verification failed (see diagnostics above)"
       ansible.builtin.fail:
-        msg: "fail2ban failed to start or verify. See DIAGNOSTICS tasks above for journal/status output."
+        msg: "fail2ban failed to start or verify. See journal/status output above."
 
