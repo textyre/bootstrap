@@ -91,44 +91,86 @@
       ansible.builtin.slurp:
         src: /etc/sysctl.d/99-z-ansible.conf
       register: _sysctl_verify_content_raw
+      failed_when: false
+
+    - name: Assert slurp succeeded (content key present)
+      ansible.builtin.assert:
+        that: "'content' in _sysctl_verify_content_raw"
+        fail_msg: "slurp failed — /etc/sysctl.d/99-z-ansible.conf could not be read"
+        success_msg: "drop-in file content read successfully"
 
     - name: Set config content fact
       ansible.builtin.set_fact:
         _sysctl_verify_content: "{{ _sysctl_verify_content_raw.content | b64decode }}"
+      when: "'content' in _sysctl_verify_content_raw"
 
     - name: Assert performance parameters present in config
       ansible.builtin.assert:
         that:
-          - "'vm.swappiness' in _sysctl_verify_content"
-          - "'fs.inotify.max_user_watches' in _sysctl_verify_content"
-          - "'net.core.somaxconn' in _sysctl_verify_content"
+          - "'vm.swappiness = 10' in _sysctl_verify_content"
+          - "'vm.vfs_cache_pressure = 50' in _sysctl_verify_content"
+          - "'vm.dirty_ratio = 10' in _sysctl_verify_content"
+          - "'vm.dirty_background_ratio = 5' in _sysctl_verify_content"
+          - "'fs.inotify.max_user_watches = 524288' in _sysctl_verify_content"
+          - "'fs.inotify.max_user_instances = 1024' in _sysctl_verify_content"
+          - "'fs.file-max = 2097152' in _sysctl_verify_content"
+          - "'net.core.somaxconn = 4096' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_fastopen = 3' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_tw_reuse = 0' in _sysctl_verify_content"
         fail_msg: "Required performance parameters missing from config file"
-        success_msg: "Performance parameters present in config"
+        success_msg: "Performance parameters present in config with correct values"
+      when: _sysctl_verify_content is defined
 
     - name: Assert security kernel hardening parameters present in config
       ansible.builtin.assert:
         that:
-          - "'kernel.randomize_va_space' in _sysctl_verify_content"
-          - "'kernel.kptr_restrict' in _sysctl_verify_content"
-          - "'kernel.yama.ptrace_scope' in _sysctl_verify_content"
+          - "'kernel.randomize_va_space = 2' in _sysctl_verify_content"
+          - "'kernel.kptr_restrict = 2' in _sysctl_verify_content"
+          - "'kernel.dmesg_restrict = 1' in _sysctl_verify_content"
+          - "'kernel.yama.ptrace_scope = 1' in _sysctl_verify_content"
+          - "'kernel.perf_event_paranoid = 3' in _sysctl_verify_content"
+          - "'kernel.unprivileged_bpf_disabled = 1' in _sysctl_verify_content"
+          - "'dev.tty.ldisc_autoload = 0' in _sysctl_verify_content"
+          - "'vm.unprivileged_userfaultfd = 0' in _sysctl_verify_content"
+          - "'vm.mmap_min_addr = 65536' in _sysctl_verify_content"
         fail_msg: "Security kernel hardening parameters missing from config file"
-        success_msg: "Security kernel hardening parameters present in config"
+        success_msg: "Security kernel hardening parameters present in config with correct values"
+      when: _sysctl_verify_content is defined
 
     - name: Assert security network hardening parameters present in config
       ansible.builtin.assert:
         that:
-          - "'net.ipv4.tcp_syncookies' in _sysctl_verify_content"
-          - "'net.ipv4.tcp_timestamps' in _sysctl_verify_content"
+          - "'net.core.bpf_jit_harden = 2' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.rp_filter = 1' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_syncookies = 1' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_rfc1337 = 1' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.accept_redirects = 0' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.send_redirects = 0' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.accept_source_route = 0' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.log_martians = 1' in _sysctl_verify_content"
+          - "'net.ipv4.icmp_echo_ignore_broadcasts = 1' in _sysctl_verify_content"
+          - "'net.ipv4.icmp_ignore_bogus_error_responses = 1' in _sysctl_verify_content"
+          - "'net.ipv4.tcp_timestamps = 0' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.arp_filter = 1' in _sysctl_verify_content"
+          - "'net.ipv4.conf.all.arp_ignore = 1' in _sysctl_verify_content"
+          - "'net.ipv6.conf.all.accept_redirects = 0' in _sysctl_verify_content"
+          - "'net.ipv6.conf.all.accept_source_route = 0' in _sysctl_verify_content"
+          - "'net.ipv6.conf.all.accept_ra = 1' in _sysctl_verify_content"
         fail_msg: "Security network hardening parameters missing from config file"
-        success_msg: "Security network hardening parameters present in config"
+        success_msg: "Security network hardening parameters present in config with correct values"
+      when: _sysctl_verify_content is defined
 
     - name: Assert filesystem hardening parameters present in config
       ansible.builtin.assert:
         that:
-          - "'fs.protected_hardlinks' in _sysctl_verify_content"
-          - "'fs.suid_dumpable' in _sysctl_verify_content"
+          - "'fs.protected_hardlinks = 1' in _sysctl_verify_content"
+          - "'fs.protected_symlinks = 1' in _sysctl_verify_content"
+          - "'fs.protected_fifos = 2' in _sysctl_verify_content"
+          - "'fs.protected_regular = 2' in _sysctl_verify_content"
+          - "'fs.suid_dumpable = 0' in _sysctl_verify_content"
         fail_msg: "Filesystem hardening parameters missing from config file"
-        success_msg: "Filesystem hardening parameters present in config"
+        success_msg: "Filesystem hardening parameters present in config with correct values"
+      when: _sysctl_verify_content is defined
 
     - name: Assert IPv6 disable directives NOT present when toggle is false (default)
       ansible.builtin.assert:
@@ -136,6 +178,7 @@
           - "'net.ipv6.conf.all.disable_ipv6' not in _sysctl_verify_content"
         fail_msg: "IPv6 disable is in config but sysctl_security_ipv6_disable is false"
         success_msg: "IPv6 disable directives correctly absent"
+      when: _sysctl_verify_content is defined
 
     - name: Gather package facts
       ansible.builtin.package_facts:
