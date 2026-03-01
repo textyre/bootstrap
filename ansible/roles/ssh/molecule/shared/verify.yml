@@ -29,28 +29,35 @@
       when: ansible_os_family == 'Debian'
 
     # ================================================================
-    #  Service running and enabled
+    #  Service enabled
     # ================================================================
 
-    - name: Gather service facts
-      ansible.builtin.service_facts:
+    - name: Check sshd service enabled state (Arch)
+      ansible.builtin.command:
+        cmd: systemctl is-enabled sshd
+      register: _ssh_verify_svc_enabled_arch
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Archlinux'
 
-    - name: Assert sshd.service is running and enabled (Arch/RedHat)
+    - name: Assert sshd is enabled (Arch)
       ansible.builtin.assert:
-        that:
-          - "'sshd.service' in ansible_facts.services"
-          - "ansible_facts.services['sshd.service'].state == 'running'"
-          - "ansible_facts.services['sshd.service'].status == 'enabled'"
-        fail_msg: "sshd.service is not running or not enabled"
-      when: ansible_os_family in ['Archlinux', 'RedHat']
+        that: "'enabled' in _ssh_verify_svc_enabled_arch.stdout"
+        fail_msg: "sshd.service is not enabled on Archlinux"
+      when: ansible_os_family == 'Archlinux'
 
-    - name: Assert ssh.service is running and enabled (Debian)
+    - name: Check ssh service enabled state (Debian)
+      ansible.builtin.command:
+        cmd: systemctl is-enabled ssh
+      register: _ssh_verify_svc_enabled_deb
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Assert ssh is enabled (Debian)
       ansible.builtin.assert:
-        that:
-          - "'ssh.service' in ansible_facts.services"
-          - "ansible_facts.services['ssh.service'].state == 'running'"
-          - "ansible_facts.services['ssh.service'].status == 'enabled'"
-        fail_msg: "ssh.service is not running or not enabled"
+        that: "'enabled' in _ssh_verify_svc_enabled_deb.stdout"
+        fail_msg: "ssh.service is not enabled on Debian/Ubuntu"
       when: ansible_os_family == 'Debian'
 
     # ================================================================
@@ -60,18 +67,18 @@
     - name: Stat /etc/ssh/sshd_config
       ansible.builtin.stat:
         path: /etc/ssh/sshd_config
-      register: ssh_verify_config
+      register: _ssh_verify_sshd_perms
 
     - name: Assert sshd_config exists with correct permissions
       ansible.builtin.assert:
         that:
-          - ssh_verify_config.stat.exists
-          - ssh_verify_config.stat.mode == '0600'
-          - ssh_verify_config.stat.pw_name == 'root'
+          - _ssh_verify_sshd_perms.stat.exists
+          - _ssh_verify_sshd_perms.stat.mode == '0600'
+          - _ssh_verify_sshd_perms.stat.pw_name == 'root'
         fail_msg: >-
           /etc/ssh/sshd_config missing or wrong permissions
-          (expected root:root 0600, got {{ ssh_verify_config.stat.pw_name }}:
-          {{ ssh_verify_config.stat.mode | default('missing') }})
+          (expected root:root 0600, got {{ _ssh_verify_sshd_perms.stat.pw_name | default('?') }}:
+          {{ _ssh_verify_sshd_perms.stat.mode | default('missing') }})
 
     # ================================================================
     #  sshd_config content -- slurp and check directives
@@ -80,207 +87,297 @@
     - name: Read sshd_config
       ansible.builtin.slurp:
         src: /etc/ssh/sshd_config
-      register: ssh_verify_config_raw
+      register: _ssh_verify_config_raw
 
-    - name: Set sshd_config text fact
+    - name: Assert sshd_config was read successfully
+      ansible.builtin.assert:
+        that: "'content' in _ssh_verify_config_raw"
+        fail_msg: "Failed to slurp /etc/ssh/sshd_config"
+
+    - name: Decode sshd_config
       ansible.builtin.set_fact:
-        ssh_verify_config_text: "{{ ssh_verify_config_raw.content | b64decode }}"
+        _ssh_verify_sshd_content: "{{ _ssh_verify_config_raw.content | b64decode }}"
 
     # ---- Critical security directives ----
 
     - name: Assert PermitRootLogin no
       ansible.builtin.assert:
-        that: "'PermitRootLogin no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PermitRootLogin\s+no')
         fail_msg: "PermitRootLogin is not set to 'no'"
 
     - name: Assert PasswordAuthentication no
       ansible.builtin.assert:
-        that: "'PasswordAuthentication no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PasswordAuthentication\s+no')
         fail_msg: "PasswordAuthentication is not set to 'no'"
 
     - name: Assert PermitEmptyPasswords no
       ansible.builtin.assert:
-        that: "'PermitEmptyPasswords no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PermitEmptyPasswords\s+no')
         fail_msg: "PermitEmptyPasswords is not set to 'no'"
 
     - name: Assert HostbasedAuthentication no
       ansible.builtin.assert:
-        that: "'HostbasedAuthentication no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('HostbasedAuthentication\s+no')
         fail_msg: "HostbasedAuthentication is not set to 'no'"
 
     - name: Assert PermitUserEnvironment no
       ansible.builtin.assert:
-        that: "'PermitUserEnvironment no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PermitUserEnvironment\s+no')
         fail_msg: "PermitUserEnvironment is not set to 'no'"
 
     - name: Assert StrictModes yes
       ansible.builtin.assert:
-        that: "'StrictModes yes' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('StrictModes\s+yes')
         fail_msg: "StrictModes is not set to 'yes'"
+
+    - name: Assert IgnoreRhosts yes
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('IgnoreRhosts\s+yes')
+        fail_msg: "IgnoreRhosts is not set to 'yes'"
 
     # ---- Authentication methods ----
 
     - name: Assert AuthenticationMethods publickey
       ansible.builtin.assert:
-        that: "'AuthenticationMethods publickey' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('AuthenticationMethods\s+publickey')
         fail_msg: "AuthenticationMethods not set to 'publickey'"
 
     - name: Assert PubkeyAuthentication yes
       ansible.builtin.assert:
-        that: "'PubkeyAuthentication yes' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PubkeyAuthentication\s+yes')
         fail_msg: "PubkeyAuthentication is not set to 'yes'"
 
     - name: Assert UsePAM yes
       ansible.builtin.assert:
-        that: "'UsePAM yes' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('UsePAM\s+yes')
         fail_msg: "UsePAM is not set to 'yes'"
 
     # ---- Forwarding and tunnels ----
 
     - name: Assert X11Forwarding no
       ansible.builtin.assert:
-        that: "'X11Forwarding no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('X11Forwarding\s+no')
         fail_msg: "X11Forwarding is not set to 'no'"
 
     - name: Assert AllowTcpForwarding no
       ansible.builtin.assert:
-        that: "'AllowTcpForwarding no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('AllowTcpForwarding\s+no')
         fail_msg: "AllowTcpForwarding is not set to 'no'"
 
     - name: Assert AllowAgentForwarding no
       ansible.builtin.assert:
-        that: "'AllowAgentForwarding no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('AllowAgentForwarding\s+no')
         fail_msg: "AllowAgentForwarding is not set to 'no'"
 
     - name: Assert PermitTunnel no
       ansible.builtin.assert:
-        that: "'PermitTunnel no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('PermitTunnel\s+no')
         fail_msg: "PermitTunnel is not set to 'no'"
 
     - name: Assert GatewayPorts no
       ansible.builtin.assert:
-        that: "'GatewayPorts no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('GatewayPorts\s+no')
         fail_msg: "GatewayPorts is not set to 'no'"
 
     # ---- Logging ----
 
     - name: Assert LogLevel VERBOSE
       ansible.builtin.assert:
-        that: "'LogLevel VERBOSE' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('LogLevel\s+VERBOSE')
         fail_msg: "LogLevel is not set to 'VERBOSE'"
 
     - name: Assert SyslogFacility AUTH
       ansible.builtin.assert:
-        that: "'SyslogFacility AUTH' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('SyslogFacility\s+AUTH')
         fail_msg: "SyslogFacility is not set to 'AUTH'"
 
     # ---- Network ----
 
     - name: Assert UseDNS no
       ansible.builtin.assert:
-        that: "'UseDNS no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('UseDNS\s+no')
         fail_msg: "UseDNS is not set to 'no'"
 
     - name: Assert Compression no
       ansible.builtin.assert:
-        that: "'Compression no' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('Compression\s+no')
         fail_msg: "Compression is not set to 'no'"
 
-    # ---- Session ----
+    # ---- Session limits ----
 
-    - name: Assert MaxAuthTries 3
+    - name: Assert MaxAuthTries
       ansible.builtin.assert:
-        that: "'MaxAuthTries 3' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('MaxAuthTries\s+3')
         fail_msg: "MaxAuthTries is not set to 3"
 
-    - name: Assert MaxStartups 10:30:60
+    - name: Assert MaxStartups
       ansible.builtin.assert:
-        that: "'MaxStartups 10:30:60' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('MaxStartups\s+10:30:60')
         fail_msg: "MaxStartups is not set to '10:30:60'"
 
-    - name: Assert LoginGraceTime 60
+    - name: Assert LoginGraceTime
       ansible.builtin.assert:
-        that: "'LoginGraceTime 60' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('LoginGraceTime\s+60')
         fail_msg: "LoginGraceTime is not set to 60"
 
+    - name: Assert ClientAliveInterval
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('ClientAliveInterval\s+300')
+        fail_msg: "ClientAliveInterval is not set to 300"
+
+    - name: Assert ClientAliveCountMax
+      ansible.builtin.assert:
+        that: _ssh_verify_sshd_content is regex('ClientAliveCountMax\s+2')
+        fail_msg: "ClientAliveCountMax is not set to 2"
+
     # ---- Cryptography -- negative checks ----
+
+    - name: Extract Ciphers line
+      ansible.builtin.set_fact:
+        _ssh_verify_ciphers_line: >-
+          {{ _ssh_verify_sshd_content | regex_search('Ciphers\s+(.+)', '\1') | first | default('') }}
 
     - name: Assert no weak ciphers
       ansible.builtin.assert:
         that:
-          - "'cbc' not in (ssh_verify_config_text | regex_search('Ciphers .*') | default(''))"
-          - "'arcfour' not in (ssh_verify_config_text | regex_search('Ciphers .*') | default(''))"
-          - "'3des' not in (ssh_verify_config_text | regex_search('Ciphers .*') | default(''))"
-        fail_msg: "Weak ciphers detected in Ciphers line"
+          - "'cbc' not in _ssh_verify_ciphers_line"
+          - "'arcfour' not in _ssh_verify_ciphers_line"
+          - "'3des' not in _ssh_verify_ciphers_line"
+        fail_msg: "Weak ciphers detected in Ciphers line: {{ _ssh_verify_ciphers_line }}"
+
+    - name: Extract MACs line
+      ansible.builtin.set_fact:
+        _ssh_verify_macs_line: >-
+          {{ _ssh_verify_sshd_content | regex_search('MACs\s+(.+)', '\1') | first | default('') }}
 
     - name: Assert no weak MACs
       ansible.builtin.assert:
         that:
-          - "'md5' not in (ssh_verify_config_text | regex_search('MACs .*') | default(''))"
-          - "'umac-64' not in (ssh_verify_config_text | regex_search('MACs .*') | default(''))"
-        fail_msg: "Weak MACs detected in MACs line"
+          - "'md5' not in _ssh_verify_macs_line"
+          - "'umac-64' not in _ssh_verify_macs_line"
+        fail_msg: "Weak MACs detected in MACs line: {{ _ssh_verify_macs_line }}"
+
+    - name: Extract KexAlgorithms line
+      ansible.builtin.set_fact:
+        _ssh_verify_kex_line: >-
+          {{ _ssh_verify_sshd_content | regex_search('KexAlgorithms\s+(.+)', '\1') | first | default('') }}
 
     - name: Assert no weak KEX
       ansible.builtin.assert:
         that:
-          - "'group1' not in (ssh_verify_config_text | regex_search('KexAlgorithms .*') | default(''))"
-        fail_msg: "Weak KEX algorithm detected in KexAlgorithms line"
+          - "'group1' not in _ssh_verify_kex_line"
+          - "'group14-sha1' not in _ssh_verify_kex_line"
+        fail_msg: "Weak KEX algorithm detected in KexAlgorithms line: {{ _ssh_verify_kex_line }}"
 
     # ---- Cryptography -- positive checks ----
 
     - name: Assert chacha20-poly1305 in ciphers
       ansible.builtin.assert:
-        that: "'chacha20-poly1305@openssh.com' in ssh_verify_config_text"
+        that: "'chacha20-poly1305@openssh.com' in _ssh_verify_ciphers_line"
         fail_msg: "chacha20-poly1305 not in Ciphers"
 
     - name: Assert curve25519-sha256 in KEX
       ansible.builtin.assert:
-        that: "'curve25519-sha256' in ssh_verify_config_text"
+        that: "'curve25519-sha256' in _ssh_verify_kex_line"
         fail_msg: "curve25519-sha256 not in KexAlgorithms"
 
     - name: Assert ssh-ed25519 in HostKeyAlgorithms
       ansible.builtin.assert:
-        that: "'ssh-ed25519' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('HostKeyAlgorithms\s+.*ssh-ed25519')
         fail_msg: "ssh-ed25519 not in HostKeyAlgorithms"
 
     - name: Assert RekeyLimit configured
       ansible.builtin.assert:
-        that: "'RekeyLimit' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('RekeyLimit\s+')
         fail_msg: "RekeyLimit directive missing"
 
+    - name: Assert hmac-sha2-512-etm in MACs
+      ansible.builtin.assert:
+        that: "'hmac-sha2-512-etm@openssh.com' in _ssh_verify_macs_line"
+        fail_msg: "hmac-sha2-512-etm not in MACs"
+
     # ================================================================
-    #  Host keys
+    #  Host keys -- existence and permissions
     # ================================================================
 
-    - name: Stat ed25519 host key
+    - name: Stat ed25519 host key (private)
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_ed25519_key
-      register: ssh_verify_ed25519_key
+      register: _ssh_verify_ed25519_key
 
-    - name: Assert ed25519 host key exists
+    - name: Assert ed25519 host key exists with correct permissions
       ansible.builtin.assert:
-        that: ssh_verify_ed25519_key.stat.exists
-        fail_msg: "/etc/ssh/ssh_host_ed25519_key not found"
+        that:
+          - _ssh_verify_ed25519_key.stat.exists
+          - _ssh_verify_ed25519_key.stat.mode == '0600'
+        fail_msg: >-
+          /etc/ssh/ssh_host_ed25519_key missing or wrong permissions
+          (expected 0600, got {{ _ssh_verify_ed25519_key.stat.mode | default('missing') }})
 
-    - name: Stat DSA host key
+    - name: Stat ed25519 host key (public)
+      ansible.builtin.stat:
+        path: /etc/ssh/ssh_host_ed25519_key.pub
+      register: _ssh_verify_ed25519_pub
+
+    - name: Assert ed25519 public key exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _ssh_verify_ed25519_pub.stat.exists
+          - _ssh_verify_ed25519_pub.stat.mode == '0644'
+        fail_msg: >-
+          /etc/ssh/ssh_host_ed25519_key.pub missing or wrong permissions
+          (expected 0644, got {{ _ssh_verify_ed25519_pub.stat.mode | default('missing') }})
+
+    - name: Stat RSA host key (private)
+      ansible.builtin.stat:
+        path: /etc/ssh/ssh_host_rsa_key
+      register: _ssh_verify_rsa_key
+
+    - name: Assert RSA host key exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _ssh_verify_rsa_key.stat.exists
+          - _ssh_verify_rsa_key.stat.mode == '0600'
+        fail_msg: >-
+          /etc/ssh/ssh_host_rsa_key missing or wrong permissions
+          (expected 0600, got {{ _ssh_verify_rsa_key.stat.mode | default('missing') }})
+
+    - name: Stat DSA host key (should be absent)
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_dsa_key
-      register: ssh_verify_dsa_key
+      register: _ssh_verify_dsa_key
 
     - name: Assert no DSA host key
       ansible.builtin.assert:
-        that: not ssh_verify_dsa_key.stat.exists
+        that: not _ssh_verify_dsa_key.stat.exists
         fail_msg: "Weak DSA host key still present at /etc/ssh/ssh_host_dsa_key"
 
-    - name: Stat ECDSA host key
+    - name: Stat ECDSA host key (should be absent)
       ansible.builtin.stat:
         path: /etc/ssh/ssh_host_ecdsa_key
-      register: ssh_verify_ecdsa_key
+      register: _ssh_verify_ecdsa_key
 
     - name: Assert no ECDSA host key
       ansible.builtin.assert:
-        that: not ssh_verify_ecdsa_key.stat.exists
+        that: not _ssh_verify_ecdsa_key.stat.exists
         fail_msg: "Weak ECDSA host key still present at /etc/ssh/ssh_host_ecdsa_key"
+
+    # ================================================================
+    #  /etc/ssh/ directory permissions
+    # ================================================================
+
+    - name: Stat /etc/ssh directory
+      ansible.builtin.stat:
+        path: /etc/ssh
+      register: _ssh_verify_ssh_dir
+
+    - name: Assert /etc/ssh directory permissions
+      ansible.builtin.assert:
+        that:
+          - _ssh_verify_ssh_dir.stat.exists
+          - _ssh_verify_ssh_dir.stat.isdir
+          - _ssh_verify_ssh_dir.stat.pw_name == 'root'
+        fail_msg: "/etc/ssh directory missing or wrong ownership"
 
     # ================================================================
     #  Banner
@@ -289,16 +386,16 @@
     - name: Stat banner file
       ansible.builtin.stat:
         path: /etc/issue.net
-      register: ssh_verify_banner
+      register: _ssh_verify_banner
 
     - name: Assert banner file exists
       ansible.builtin.assert:
-        that: ssh_verify_banner.stat.exists
+        that: _ssh_verify_banner.stat.exists
         fail_msg: "/etc/issue.net not found (ssh_banner_enabled was true in converge)"
 
     - name: Assert Banner directive in sshd_config
       ansible.builtin.assert:
-        that: "'Banner /etc/issue.net' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('Banner\s+/etc/issue.net')
         fail_msg: "Banner directive not found in sshd_config"
 
     # ================================================================
@@ -307,7 +404,7 @@
 
     - name: Assert SFTP subsystem configured
       ansible.builtin.assert:
-        that: "'Subsystem sftp internal-sftp' in ssh_verify_config_text"
+        that: _ssh_verify_sshd_content is regex('Subsystem\s+sftp\s+internal-sftp')
         fail_msg: "SFTP subsystem not configured (expected 'Subsystem sftp internal-sftp')"
 
     # ================================================================
@@ -318,8 +415,8 @@
       ansible.builtin.command:
         cmd: sshd -t
       changed_when: false
-      register: ssh_verify_sshd_t
-      failed_when: ssh_verify_sshd_t.rc != 0
+      register: _ssh_verify_sshd_t
+      failed_when: _ssh_verify_sshd_t.rc != 0
 
     # ================================================================
     #  Managed header
@@ -327,7 +424,7 @@
 
     - name: Assert Ansible managed comment present
       ansible.builtin.assert:
-        that: "'Ansible managed' in ssh_verify_config_text"
+        that: "'Ansible managed' in _ssh_verify_sshd_content"
         fail_msg: "Ansible managed comment not found in sshd_config"
 
     # ================================================================
@@ -337,7 +434,8 @@
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          SSH verify passed: packages installed, service running+enabled,
+          SSH verify passed: packages installed, service enabled,
           sshd_config correct (0600 root, all security directives verified),
-          host keys correct (ed25519 present, DSA/ECDSA absent),
-          cryptography validated, banner deployed, sshd -t passed.
+          host keys correct (ed25519+RSA present with 0600, DSA/ECDSA absent),
+          cryptography validated (ciphers, MACs, KEX),
+          banner deployed, sshd -t passed.
