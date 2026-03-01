@@ -43,26 +43,53 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   inventory:
-    group_vars:
-      all:
-        packages_base: [git, curl, htop, tmux, unzip, rsync]
-        packages_editors: [vim]
-        packages_docker: []
-        packages_xorg: []
-        packages_wm: []
-        packages_filemanager: []
-        packages_network: []
-        packages_media: []
-        packages_desktop: []
-        packages_graphics: []
-        packages_session: []
-        packages_terminal: []
-        packages_fonts: []
-        packages_theming: []
+    host_vars:
+      Archlinux-systemd:
+        # Full production package list (mirrors ansible/inventory/group_vars/all/packages.yml)
+        packages_base: [git, curl, htop, tmux, unzip, rsync, openssh, chezmoi, nftables, cronie, sqlite]
+        packages_editors: [vim, neovim]
+        packages_docker: [docker, docker-compose, python-requests]
+        packages_xorg: [xorg, xorg-apps, xorg-xinit, xorg-drivers]
+        packages_wm: [picom, dmenu, rofi, dunst, feh, flameshot, gsimplecal]
+        packages_filemanager: [thunar, thunar-volman, tumbler, gvfs]
+        packages_network: [networkmanager, network-manager-applet]
+        packages_media: [playerctl, pamixer, brightnessctl]
+        packages_desktop: [xdg-utils, xdg-user-dirs, xss-lock, maim, imagemagick, lxappearance, arandr]
+        packages_graphics: [mesa]
+        packages_session: [lightdm]
+        packages_terminal: [alacritty, starship]
+        packages_fonts:
+          - ttf-jetbrains-mono-nerd
+          - ttf-firacode-nerd
+          - ttf-hack-nerd
+          - ttf-iosevka-nerd
+          - ttf-nerd-fonts-symbols
+          - ttf-font-awesome
+          - noto-fonts
+          - terminus-font
+        packages_theming: [papirus-icon-theme]
         packages_search: [fzf, ripgrep]
-        packages_viewers: [jq]
+        packages_viewers: [bat, jq]
         packages_distro:
-          Archlinux: [base-devel]
+          Archlinux: [base-devel, pacman-contrib, perl]
+
+      Ubuntu-systemd:
+        # Ubuntu-compatible equivalents (different names where needed, Arch-only packages excluded)
+        packages_base: [git, curl, htop, tmux, unzip, rsync, openssh-client, openssh-server, nftables, cron, sqlite3]
+        packages_editors: [vim, neovim]
+        packages_docker: [docker.io, python3-requests]
+        packages_xorg: [xorg, xinit]
+        packages_wm: [picom, suckless-tools, rofi, dunst, feh, flameshot]
+        packages_filemanager: [thunar, thunar-volman, tumbler, gvfs]
+        packages_network: [network-manager, network-manager-gnome]
+        packages_media: [playerctl, brightnessctl]
+        packages_desktop: [xdg-utils, xdg-user-dirs, xss-lock, imagemagick, lxappearance, arandr]
+        packages_session: [lightdm]
+        packages_fonts: [fonts-font-awesome, fonts-noto, xfonts-terminus]
+        packages_theming: [papirus-icon-theme]
+        packages_search: [fzf, ripgrep]
+        packages_viewers: [bat, jq]
+        packages_distro:
           Debian: [build-essential]
   playbooks:
     prepare: prepare.yml
