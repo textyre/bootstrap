@@ -22,7 +22,11 @@ provisioner:
   name: ansible
   options:
     skip-tags: molecule-notest
-    extra-vars: "docker_enable_service=false caddy_enabled=false"
+  inventory:
+    group_vars:
+      all:
+        docker_enable_service: false
+        caddy_enabled: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
