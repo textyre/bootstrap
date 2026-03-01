@@ -5,12 +5,13 @@
   listen: "reload sysctl"
   # -e = игнорировать ошибки неизвестных параметров (например kernel.unprivileged_userns_clone
   #      отсутствует на стандартном upstream ядре — distro-agnostic поведение)
-  # -p = применить ТОЛЬКО наш файл, не --system (который читает все sysctl.d/* по порядку
-  #      и может быть перезаписан файлом, идущим лексикографически после 99-ansible.conf,
-  #      например Ubuntu's 99-sysctl.conf symlink → /etc/sysctl.conf)
+  # -p = применить ТОЛЬКО наш файл. Имя 99-z-ansible.conf выбрано намеренно:
+  #      'z' > 's' лексикографически, поэтому файл сортируется ПОСЛЕ Ubuntu's
+  #      99-sysctl.conf → /etc/sysctl.conf и выигрывает при sysctl --system
+  #      (systemd-sysctl при загрузке).
   # changed_when: false — изменение репортит template-таск (notify), не handler
   # when: пропустить в Docker — kernel params read-only (EPERM) даже с privileged:true.
-  #       Tier 2 verify тоже пропускает live-checks в контейнерах.
-  ansible.builtin.command: sysctl -e -p /etc/sysctl.d/99-ansible.conf
+  #       Tier 2 / Tier 2b verify тоже пропускает live-checks в контейнерах.
+  ansible.builtin.command: sysctl -e -p /etc/sysctl.d/99-z-ansible.conf
   changed_when: false
   when: ansible_virtualization_type | default('') != 'docker'

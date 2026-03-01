@@ -2,9 +2,16 @@
 
 **Дата:** 2026-03-01
 **Статус:** Завершено — CI зелёный (Docker + vagrant arch-vm + vagrant ubuntu-base)
-**Итерации CI (vagrant):** 2 запуска, 1 уникальная ошибка
-**Коммиты:** `919d1df` → `8a7b5dc` (5 коммитов)
-**PR:** [#10 fix(user): fix molecule tests for Docker + Vagrant](https://github.com/textyre/bootstrap/pull/10)
+
+**PR #10** — первичный фикс тестов:
+- Итерации CI: 2 запуска, 1 уникальная ошибка
+- Коммиты: `919d1df` → `8a7b5dc` (5 коммитов)
+- [fix(user): fix molecule tests for Docker + Vagrant](https://github.com/textyre/bootstrap/pull/10)
+
+**PR #13** — полное покрытие тестов (вторая сессия):
+- Итерации CI: 3 запуска, 3 уникальные ошибки
+- Коммиты: `03bab57` → `2562f73` (7 коммитов)
+- [test(user): full molecule coverage — shadow lock, aging, sudo:true, absent user, logrotate](https://github.com/textyre/bootstrap/pull/13)
 
 ---
 
@@ -283,10 +290,148 @@ last-match: vagrant ALL=(ALL) NOPASSWD: ALL ✓
 
 ---
 
-## 3. Временная шкала
+## 3. Инциденты — PR #13 (полное покрытие)
+
+После PR #10 была проведена аудит-сессия: тесты проверяли только часть того, что роль
+реально делает. PR #13 закрыл все пробелы.
+
+### Инцидент #4 — `regex_search()` возвращает строку, не bool (все среды)
+
+**Коммит:** `ca4127b`
+**Прогон:** первый CI в PR #13 (run `22538183040`)
+**Этап:** verify (Docker), converge (Vagrant ubuntu-base)
+**Ошибки:**
+
+Docker — `verify.yml:56`:
+```
+fatal: [Archlinux-systemd]: FAILED! => {"msg": "Task failed: Conditional result (True)
+was derived from value of type 'str' at '.../verify.yml:56:13'.
+Conditionals must have a boolean result."}
+```
+
+Vagrant ubuntu-base — `security.yml:16` (роль, converge):
+```
+fatal: [ubuntu-base]: FAILED! => {"msg": "Task failed: Conditional result (True)
+was derived from value of type 'str' at '.../tasks/security.yml:16:9'.
+Conditionals must have a boolean result."}
+```
+
+**Анализ:**
+
+Jinja2 фильтр `regex_search()` возвращает matched substring (строку) при совпадении
+или `None` при несовпадении — но НЕ boolean. В `ansible.builtin.assert that:` Ansible
+2.15+ требует строго boolean результат:
+
+```yaml
+# ПЛОХО — возвращает '!' (str) при совпадении
+- _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][0] | regex_search('^[!*]')
+
+# ХОРОШО — Jinja2 test 'is regex()' возвращает True/False
+- _user_verify_owner_shadow.ansible_facts.getent_shadow['testuser_owner'][0] is regex('^[!*]')
+```
+
+Проблема была в двух местах одновременно:
+1. `ansible/roles/user/tasks/security.yml:16` — проверка root shadow (роль)
+2. `ansible/roles/user/molecule/shared/verify.yml:56,159` — проверки shadow в verify
+
+В Docker `security.yml` не запускался (`user_verify_root_lock: false`), поэтому Docker
+упал только на `verify.yml`. В Vagrant `user_verify_root_lock: true`, поэтому Vagrant
+упал на `security.yml` в converge ещё до verify.
+
+**Фикс:** заменить `| regex_search('^pattern')` на `is regex('^pattern')` везде в
+`assert that:` условиях. Применимо к любым assertion в role tasks и verify.yml.
+
+**Урок:** `regex_search()` — фильтр для извлечения данных (возвращает строку).
+`is regex()` — тест для проверки совпадения (возвращает bool). В `assert that:` всегда
+использовать тест, не фильтр.
+
+---
+
+### Инцидент #5 — arch-base box не блокирует root (vagrant arch-vm только)
+
+**Коммит:** `2562f73`
+**Прогон:** третий CI в PR #13 (run `22538351517`)
+**Этап:** converge (arch-vm only; ubuntu-base прошла)
+**Ошибка:**
+
+```json
+{
+  "assertion": "user_root_shadow.ansible_facts.getent_shadow['root'][0] is regex('^[!*]')",
+  "evaluated_to": false,
+  "msg": "CIS 5.4.3 FAIL: root account has a usable password."
+}
+```
+
+**Анализ:**
+
+`user_verify_root_lock: true` в `vagrant/converge.yml` заставляет роль вызывать
+`security.yml`, который проверяет что root shadow field начинается с `!` или `*`.
+
+Наш `arch-base` Vagrant box поставляется без заблокированного root (shadow field не
+начинается с `!` или `*`). `ubuntu-base` box поставляется с root `*` в shadow
+(locked by default).
+
+Это поведение коробки (box), не роли. Роль только ПРОВЕРЯЕТ что root заблокирован —
+она его не блокирует (это задача для отдельной hardening роли).
+
+**Фикс:** добавить `passwd -l root` в `vagrant/prepare.yml` для Arch перед converge:
+
+```yaml
+- name: Lock root account (Arch — box ships without locked root)
+  ansible.builtin.command:
+    cmd: passwd -l root
+  changed_when: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+```
+
+`passwd -l` устанавливает shadow password field в `!<hash>` — начинается с `!`,
+`is regex('^[!*]')` → True.
+
+**Урок:** Тестовое окружение (box) должно соответствовать production-контракту который
+проверяет роль. Если роль проверяет `user_verify_root_lock`, prepare.yml обязан
+гарантировать заблокированный root на платформах, где box его не блокирует.
+
+---
+
+### Инцидент #6 — vars_files переопределяет molecule group_vars (потенциальная проблема)
+
+**Коммит:** `685a963` (превентивный фикс)
+**Этап:** проектирование, не CI-ошибка
+
+**Проблема:**
+
+`shared/verify.yml` загружает `vars_files: - "../../defaults/main.yml"`. В defaults:
+`user_manage_password_aging: true`. Это play-level vars — приоритет выше чем у
+inventory `group_vars` в molecule. Если бы Docker использовал `provisioner.inventory.
+group_vars.all.user_manage_password_aging: false` — это НЕ переопределило бы значение
+из vars_files в verify.yml.
+
+**Решение:** использовать `provisioner.options.extra-vars:` вместо `group_vars`:
+
+```yaml
+# docker/molecule.yml
+provisioner:
+  name: ansible
+  options:
+    skip-tags: report
+    extra-vars: "user_manage_password_aging=false"
+```
+
+`extra-vars` имеют наивысший приоритет в Ansible (выше play vars_files) и применяются
+ко всем playbook'ам сценария (prepare, converge, verify).
+
+Это позволяет: Docker — `false` через extra-vars; Vagrant — `true` через converge vars
++ `true` в defaults для verify.yml.
+
+**Урок:** Для переопределения переменных в `shared/verify.yml` который загружает
+defaults через `vars_files` — только `extra-vars`, не `group_vars`.
+
+---
+
+## 4. Временная шкала
 
 ```
-── Сессия (2026-03-01) ──────────────────────────────────────────────────────────
+── Сессия 1 (2026-03-01) — PR #10 ──────────────────────────────────────────────
 
 [Статический анализ роли и molecule файлов]
   → Выявлены: video group, logrotate Ubuntu, update_cache Arch
@@ -298,7 +443,7 @@ f295602  fix(user/molecule): add vagrant-specific converge.yml
 775c6b5  fix(user/molecule): point vagrant scenario to local converge.yml
          ↓ PR #10 открыт
 
-         ↓ Vagrant run 22537661748 (первый):
+         ↓ Run 22537661748 (первый):
          ↓   Ansible Lint:                          PASS ✓
          ↓   YAML Lint:                             PASS ✓
          ↓   Docker (Arch+Ubuntu systemd):          PASS ✓
@@ -312,7 +457,7 @@ f295602  fix(user/molecule): add vagrant-specific converge.yml
 8a7b5dc  fix(user/molecule): preserve vagrant NOPASSWD sudo on Arch after sudoers hardening
          ↓ PR #10 обновлён
 
-         ↓ Vagrant run 22537756596 (второй):
+         ↓ Run 22537756596 (второй):
          ↓   Ansible Lint:                          PASS ✓
          ↓   YAML Lint:                             PASS ✓
          ↓   Docker (Arch+Ubuntu systemd):          PASS ✓
@@ -321,40 +466,107 @@ f295602  fix(user/molecule): add vagrant-specific converge.yml
 
          ↓ PR #10 merged (squash) → master
          ↓ Worktree .claude/worktrees/fix-user-molecule удалён
+
+── Сессия 2 (2026-03-01) — PR #13 ──────────────────────────────────────────────
+
+[Аудит покрытия: анализ role tasks vs verify.yml]
+  → Выявлены 7 пробелов: shadow lock, password aging, root lock,
+    sudo:true user, state:absent user, logrotate directives,
+    password_warn_age dead variable
+
+03bab57  docs(user): document password_expire_warn ansible-core 2.17 limitation
+685a963  test(user): update shared/converge.yml — add testuser_with_sudo, aging fields
+         test(user): update vagrant/converge.yml — enable password_aging:true, root_lock:true
+         test(user): add extra-vars to docker/molecule.yml for user_manage_password_aging=false
+         test(user): add testuser_toberemoved to prepare files (docker + vagrant)
+         test(user): rewrite shared/verify.yml — full coverage
+         ↓ PR #13 открыт
+
+         ↓ Run 22538183040 (первый):
+         ↓   Ansible Lint:                          PASS ✓
+         ↓   YAML Lint:                             PASS ✓
+         ↓   Docker (Arch+Ubuntu systemd):          FAIL ✗
+         ↓     verify.yml:56 — regex_search() returns str not bool (Инцидент #4)
+         ↓   Vagrant ubuntu-base:                   FAIL ✗
+         ↓     security.yml:16 — same: regex_search() in assert (Инцидент #4)
+         ↓   Vagrant arch-vm:                       FAIL ✗
+         ↓     security.yml:16 — same (Инцидент #4)
+
+[Диагностика: | regex_search() → str; is regex() → bool]
+  → заменить везде в assert that: условиях
+
+ca4127b  fix(user): replace regex_search() with is regex() test in assert conditions
+         ↓ PR #13 обновлён
+
+         ↓ Run 22538351517 (второй):
+         ↓   Ansible Lint:                          PASS ✓
+         ↓   YAML Lint:                             PASS ✓
+         ↓   Docker (Arch+Ubuntu systemd):          PASS ✓
+         ↓   Vagrant ubuntu-base:                   PASS ✓
+         ↓   Vagrant arch-vm:                       FAIL ✗
+         ↓     verify:  root[0] is regex('^[!*]') → false (Инцидент #5)
+
+[Диагностика: arch-base box поставляется без заблокированного root]
+  → passwd -l root в prepare.yml для Arch
+
+2562f73  fix(user/molecule): lock root in Arch vagrant prepare (box ships unlocked)
+         ↓ PR #13 обновлён
+
+         ↓ Run 22538431092 (третий):
+         ↓   Ansible Lint:                          PASS ✓
+         ↓   YAML Lint:                             PASS ✓
+         ↓   Docker (Arch+Ubuntu systemd):          PASS ✓
+         ↓   Vagrant arch-vm:                       PASS ✓  (4m22s)
+         ↓   Vagrant ubuntu-base:                   PASS ✓  (3m51s)
+
+         ↓ PR #13 merged (squash) → master
+         ↓ Worktree .worktrees/fix/user-molecule-coverage удалён
 ```
 
 ---
 
-## 4. Финальная структура
+## 5. Финальная структура
 
 ```
 ansible/roles/user/molecule/
 ├── shared/
-│   ├── converge.yml     ← role: user; test users; managed_password_aging: false
-│   └── verify.yml       ← owner/extra user assertions; sudoers; logrotate; sudo pkg
+│   ├── converge.yml     ← role: user; testuser_owner, testuser_extra (aging fields),
+│   │                       testuser_with_sudo; accounts (testuser_toberemoved absent);
+│   │                       user_manage_password_aging: false (Docker override via extra-vars)
+│   └── verify.yml       ← полное покрытие: owner/extra/sudo-user assertions;
+│                           shadow lock (is regex); password aging (when: user_manage_password_aging);
+│                           root lock (when: user_verify_root_lock); absent user; sudoers; logrotate
 ├── docker/
 │   ├── molecule.yml     ← Archlinux-systemd + Ubuntu-systemd, privileged, cgroupns
-│   └── prepare.yml      ← update_cache (Arch/Ubuntu); video group; logrotate pkg
+│   │                       extra-vars: "user_manage_password_aging=false"
+│   └── prepare.yml      ← update_cache (Arch/Ubuntu); video group; logrotate pkg;
+│                           testuser_toberemoved (создаётся, роль удалит)
 └── vagrant/
     ├── molecule.yml     ← arch-vm (arch-base box) + ubuntu-base (ubuntu-base box)
     │                       converge: converge.yml  ← local, не ../shared/
     ├── prepare.yml      ← update_cache (Arch/Ubuntu); video group; logrotate pkg;
-    │                       zz-molecule-vagrant-nopasswd (Arch only)
-    └── converge.yml     ← vagrant-specific vars (копия shared, изолирована от Docker)
+    │                       zz-molecule-vagrant-nopasswd (Arch only);
+    │                       testuser_toberemoved; passwd -l root (Arch only)
+    └── converge.yml     ← vagrant-specific vars: user_manage_password_aging: true;
+                            user_verify_root_lock: true; testuser_extra с aging;
+                            testuser_with_sudo; accounts с absent user
 ```
 
 **Ключевые изменения относительно исходного состояния:**
 
-| Файл | До | После |
-|------|----|-------|
-| `docker/prepare.yml` | нет video group | добавлено `ansible.builtin.group: video` |
-| `vagrant/prepare.yml` | logrotate только Arch; нет update_cache для Arch; нет video group | исправлено всё + guard для vagrant sudo |
-| `vagrant/converge.yml` | не существовал | создан (isolates vagrant от docker vars) |
-| `vagrant/molecule.yml` | `converge: ../shared/converge.yml` | `converge: converge.yml` |
+| Файл | PR #10 | PR #13 |
+|------|--------|--------|
+| `docker/prepare.yml` | добавлено `ansible.builtin.group: video` | добавлен `testuser_toberemoved` |
+| `docker/molecule.yml` | без изменений | добавлен `extra-vars: user_manage_password_aging=false` |
+| `vagrant/prepare.yml` | исправлены logrotate/update_cache/video; guard для vagrant sudo | добавлены `testuser_toberemoved`, `passwd -l root` (Arch) |
+| `vagrant/converge.yml` | создан (изоляция от Docker vars) | расширен: aging/root_lock/with_sudo/absent user |
+| `vagrant/molecule.yml` | `converge: converge.yml` (local) | без изменений |
+| `shared/converge.yml` | baseline | добавлены testuser_with_sudo, aging fields, accounts |
+| `shared/verify.yml` | базовые проверки owner/sudoers/logrotate | полное покрытие (shadow lock, aging, root lock, sudo:true, absent user, все logrotate directives) |
 
 ---
 
-## 5. Ключевые паттерны
+## 6. Ключевые паттерны
 
 ### Sudoers-safe prepare для ролей с sudoers hardening
 
@@ -415,65 +627,196 @@ NOPASSWD правило сохраняет приоритет.
 - name: Install required packages
   when: os_family == X
 
-# 4. CI-специфичные гарантии (sudoers guards, etc.)
+# 4. Фикс окружения для соответствия production-контракту
+- name: Lock root account (Arch — box ships without locked root)
+  ansible.builtin.command:
+    cmd: passwd -l root
+  changed_when: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+
+# 5. CI-специфичные гарантии (sudoers guards, etc.)
 - name: CI workarounds
   when: relevant condition
+
+# 6. Предварительное состояние для тестов (absent users, etc.)
+- name: Create user that role must remove
+  ansible.builtin.user:
+    name: testuser_toberemoved
+    state: present
+    create_home: false
+```
+
+### is regex() vs regex_search() в assert that:
+
+Для boolean-проверок в `ansible.builtin.assert that:` всегда использовать Jinja2 тест,
+не фильтр:
+
+```yaml
+# ПЛОХО — regex_search() возвращает строку (или None), не bool:
+assert:
+  that:
+    - shadow_field | regex_search('^[!*]')   # → str '!' при совпадении → FAIL в assert
+
+# ХОРОШО — is regex() возвращает True/False:
+assert:
+  that:
+    - shadow_field is regex('^[!*]')          # → bool → OK в assert
+```
+
+**Правило:** `regex_search()` — для извлечения данных (→ str/None). `is regex()` — для
+проверки совпадения в условиях (→ bool). В `assert that:` и `when:` использовать только
+Jinja2 tests (`is`/`is not`), не фильтры.
+
+### extra-vars для переопределения vars_files в shared/verify.yml
+
+Если `shared/verify.yml` загружает `vars_files: ["../../defaults/main.yml"]`, только
+`extra-vars` гарантированно переопределит значения (highest Ansible precedence):
+
+```yaml
+# docker/molecule.yml — ПРАВИЛЬНО:
+provisioner:
+  name: ansible
+  options:
+    extra-vars: "user_manage_password_aging=false"
+
+# НЕ РАБОТАЕТ для переопределения vars_files:
+provisioner:
+  inventory:
+    group_vars:
+      all:
+        user_manage_password_aging: false   # group_vars < play vars_files → игнорируется
+```
+
+### Условная проверка в verify.yml для Docker vs Vagrant
+
+Когда одна переменная меняет поведение проверок между средами:
+
+```yaml
+# В verify.yml:
+- name: Assert password aging configured
+  ansible.builtin.assert:
+    that:
+      - shadow['testuser_owner'][3] | int == 365
+  when: user_manage_password_aging | bool
+
+- name: Assert root is locked
+  ansible.builtin.assert:
+    that:
+      - root_shadow[0] is regex('^[!*]')
+  when: user_verify_root_lock | bool
+```
+
+Docker передаёт `extra-vars: "user_manage_password_aging=false"` → проверки пропускаются.
+Vagrant задаёт `user_manage_password_aging: true` в converge.yml → проверки выполняются.
+
+### Безопасная проверка absent users
+
+`ansible.builtin.getent` падает с ошибкой если ключ не найден. Используем `ignore_errors`
++ отдельный `assert` вместо `failed_when`:
+
+```yaml
+# ПРАВИЛЬНО — явное разделение:
+- name: Try to get absent user from passwd
+  ansible.builtin.getent:
+    database: passwd
+    key: testuser_toberemoved
+  register: result
+  ignore_errors: true
+
+- name: Assert absent user not found
+  ansible.builtin.assert:
+    that:
+      - result is failed   # True если getent вернул ошибку = пользователь не существует
+
+# ПЛОХО — self-referential:
+- name: Get user
+  ansible.builtin.getent:
+    database: passwd
+    key: testuser_toberemoved
+  register: result
+  failed_when: result is not failed   # противоречиво; getent считает успех успехом
 ```
 
 ---
 
-## 6. Сравнение инцидентов с историей проекта
+## 7. Сравнение инцидентов с историей проекта
 
-| Дата | Роль | Ошибка | Класс |
-|------|------|--------|-------|
-| 2026-02-28 | pam_hardening | pacman task без when → crash на Ubuntu | missing platform guard |
-| 2026-03-01 | gpu_drivers | logrotate не установлен в prepare | missing prepare dependency |
-| 2026-03-01 | **user** | video group не создана в prepare | missing prepare dependency |
-| 2026-03-01 | **user** | logrotate только для Arch в vagrant | incomplete cross-platform prepare |
-| 2026-03-01 | **user** | sudoers hardening ломает become (Arch) | role side-effect on test runner |
+| Дата | Роль | PR | Ошибка | Класс |
+|------|------|----|--------|-------|
+| 2026-02-28 | pam_hardening | — | pacman task без when → crash на Ubuntu | missing platform guard |
+| 2026-03-01 | gpu_drivers | — | logrotate не установлен в prepare | missing prepare dependency |
+| 2026-03-01 | **user** | #10 | video group не создана в prepare | missing prepare dependency |
+| 2026-03-01 | **user** | #10 | logrotate только для Arch в vagrant | incomplete cross-platform prepare |
+| 2026-03-01 | **user** | #10 | sudoers hardening ломает become (Arch) | role side-effect on test runner |
+| 2026-03-01 | **user** | #13 | `regex_search()` → str в assert (все среды) | wrong jinja2 construct type |
+| 2026-03-01 | **user** | #13 | arch-base box не блокирует root (arch-vm only) | box state ≠ production contract |
+| 2026-03-01 | **user** | #13 | `group_vars` не переопределяет `vars_files` | ansible variable precedence |
 
-Инцидент #3 этой сессии — принципиально новый класс проблем для проекта. Все
-предыдущие molecule-проблемы были связаны с отсутствием зависимостей или неправильными
-platform guards. Здесь впервые тестируемая роль изменяет системное поведение таким
-образом, что это влияет на механизм выполнения самих тестов (become через sudo).
+Инцидент #3 (PR #10) — принципиально новый класс: роль ломает механизм выполнения
+собственных тестов. Инцидент #4 (PR #13) — типичная путаница filter vs test в Jinja2.
+Инцидент #5 — бокс не отражает production-контракт (нужен explicit prepare-шаг).
 
-Это возможно только для ролей, которые изменяют:
-- `/etc/sudoers` или `/etc/sudoers.d/`
-- `/etc/pam.d/` (может заблокировать PAM auth)
-- `/etc/ssh/sshd_config` (может разорвать SSH-соединение Ansible)
-- Network configuration (может потерять connectivity)
+Полный реестр классов проблем в molecule:
+- `missing platform guard` — задача без `when:` для платформо-специфичного действия
+- `missing prepare dependency` — converge зависит от чего-то чего нет в образе
+- `incomplete cross-platform prepare` — зависимость установлена только для одной платформы
+- `role side-effect on test runner` — роль меняет механизм `become`/SSH/сеть
+- `wrong jinja2 construct type` — фильтр там где нужен тест (или наоборот)
+- `box state ≠ production contract` — box не соответствует ожидаемому baseline
 
-Такие роли требуют отдельного анализа prepare-шага на предмет CI self-consistency.
-
----
-
-## 7. Ретроспективные выводы
-
-| # | Урок | Применимость |
-|---|------|-------------|
-| 1 | Роли, изменяющие sudoers, потенциально ломают become для последующих задач в том же play. Docker это не показывает (нет sudo). | Любая роль с sudoers/PAM задачами |
-| 2 | sudoers last-match-wins + alphabetical read order = порядок имён файлов важен. `wheel` (`w`) > `vagrant` (`v`) → breaking. `sudo` (`s`) < `vagrant` (`v`) → safe. | Vagrant тесты ролей с `/etc/sudoers.d/` |
-| 3 | Asymmetric failure (Ubuntu pass, Arch fail) при одинаковой роли почти всегда означает разницу в box-специфичных defaults, а не в самой роли. | CI debugging heuristics |
-| 4 | prepare.yml должен явно создавать все группы, которые нужны для converge. Полагаться на "скорее всего присутствует в образе" — implicit dependency. | Все molecule сценарии |
-| 5 | Порядок в prepare.yml: update_cache → create groups → install packages → CI guards. Нарушение порядка (установка пакета до update_cache) работает случайно, не надёжно. | Все prepare.yml |
-| 6 | `validate: "/usr/sbin/visudo -cf %s"` обязательна для любого файла в `/etc/sudoers.d/`. Невалидный sudoers = система без sudo = недоступная VM. | Все задачи с sudoers |
-| 7 | Vagrant-specific converge.yml изолирует docker и vagrant конфигурации. Shared converge удобен, но при появлении divergence (password aging, root lock) лучше иметь отдельные файлы сразу. | Любая роль с Docker+Vagrant |
+Роли, требующие особого внимания CI self-consistency:
+- Роли с `/etc/sudoers` или `/etc/sudoers.d/`
+- Роли с `/etc/pam.d/` (может заблокировать PAM auth)
+- Роли с `/etc/ssh/sshd_config` (может разорвать SSH-соединение Ansible)
+- Роли с network configuration (может потерять connectivity)
 
 ---
 
-## 8. Known gaps
+## 8. Ретроспективные выводы
 
-- **password aging не тестируется:** `user_manage_password_aging: false` в обоих
-  converge (docker + vagrant). В Docker это правильно (chage в контейнерах
-  ненадёжен). В Vagrant VMs password aging должен работать, но требует проверки
-  что `chage` корректно устанавливает shadow-поля. Деферировано.
+| # | Урок | PR | Применимость |
+|---|------|-----|-------------|
+| 1 | Роли, изменяющие sudoers, потенциально ломают become для последующих задач в том же play. Docker это не показывает (нет sudo). | #10 | Любая роль с sudoers/PAM задачами |
+| 2 | sudoers last-match-wins + alphabetical read order = порядок имён файлов важен. `wheel` (`w`) > `vagrant` (`v`) → breaking. `sudo` (`s`) < `vagrant` (`v`) → safe. | #10 | Vagrant тесты ролей с `/etc/sudoers.d/` |
+| 3 | Asymmetric failure (Ubuntu pass, Arch fail) при одинаковой роли почти всегда означает разницу в box-специфичных defaults, а не в самой роли. | #10 | CI debugging heuristics |
+| 4 | prepare.yml должен явно создавать все группы и предварительные состояния, которые нужны для converge. Полагаться на "скорее всего присутствует" — implicit dependency. | #10/#13 | Все molecule сценарии |
+| 5 | Порядок в prepare.yml: update_cache → create groups → install packages → box state fixes → CI guards → pre-state for tests. | #10/#13 | Все prepare.yml |
+| 6 | `validate: "/usr/sbin/visudo -cf %s"` обязательна для любого файла в `/etc/sudoers.d/`. Невалидный sudoers = система без sudo = недоступная VM. | #10 | Все задачи с sudoers |
+| 7 | Vagrant-specific converge.yml изолирует docker и vagrant конфигурации. При появлении divergence (password aging, root lock) отдельные файлы — правильный выбор. | #10/#13 | Любая роль с Docker+Vagrant |
+| 8 | `regex_search()` (filter) → str/None; `is regex()` (test) → bool. В `assert that:` и `when:` всегда использовать тест, не фильтр. | #13 | Все verify.yml и role tasks с assert |
+| 9 | Box baseline ≠ production-контракт. Если роль проверяет состояние (root locked) — prepare.yml должен это состояние гарантировать, а не полагаться на box. | #13 | Все Vagrant сценарии с state assertions |
+| 10 | Только `extra-vars` переопределяет `vars_files` в shared/verify.yml. `group_vars` имеет более низкий приоритет, чем play `vars_files`. | #13 | Все сценарии с shared/verify.yml загружающим defaults |
+| 11 | Аудит покрытия после первой итерации — стандартный шаг. "Тесты зелёные" ≠ "тесты полные". После первого CI pass — сравнить role tasks с verify assertions. | #13 | Все molecule сценарии |
 
-- **root lock не тестируется:** `user_verify_root_lock: false` в обоих converge.
-  На реальной системе (production) root должен быть заблокирован. В vagrant boxes
-  root обычно не заблокирован. Для полного покрытия нужен отдельный тест или
-  prepare-шаг, который блокирует root и потом проверяет assert.
+---
 
-- **Idempotence с umask-файлами:** `verify.yml` не проверяет идемпотентность
-  отдельно — это делает molecule. Если `ansible.builtin.template` не сохраняет
-  trailing newline или меняет encoding — может быть flaky idempotence. Не наблюдалось,
-  но стоит иметь в виду при изменении шаблонов.
+## 9. Known gaps
+
+### Закрытые в PR #13 (были открыты после PR #10)
+
+- ~~**password aging не тестируется**~~ — **ЗАКРЫТО:** Vagrant тестирует `chage`
+  через shadow-поля (max/min days). Docker пропускает через `user_manage_password_aging=false`
+  extra-var. Условная проверка в verify.yml.
+
+- ~~**root lock не тестируется**~~ — **ЗАКРЫТО:** Vagrant тестирует. arch-base box
+  теперь блокируется в prepare.yml (`passwd -l root`). Docker пропускает через
+  `user_verify_root_lock: false`.
+
+- ~~**shadow lock не проверяется**~~ — **ЗАКРЫТО:** `is regex('^[!*]')` в verify.yml
+  для locked users.
+
+- ~~**sudo: true user путь не тестируется**~~ — **ЗАКРЫТО:** `testuser_with_sudo`
+  в converge; verify проверяет членство в sudo-группе.
+
+- ~~**state: absent не тестируется**~~ — **ЗАКРЫТО:** `testuser_toberemoved` создаётся
+  в prepare; роль удаляет; verify проверяет отсутствие в passwd.
+
+- ~~**logrotate directives (delaycompress, missingok, notifempty, create 0640) не тестируются**~~
+  — **ЗАКРЫТО:** все четыре директивы проверяются в verify.yml.
+
+### Открытые gaps
+
+- **`password_warn_age` не применяется:** Переменная `password_warn_age: 7` в
+  defaults/main.yml. Параметр `password_expire_warn` модуля `ansible.builtin.user`
+  требует ansible-core ≥ 2.17. Проект использует 2.15. Значение задокументировано
+  в defaults как "для будущего использования". Тест станет возможен после апгрейда.
