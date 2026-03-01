@@ -16,6 +16,5 @@
 
 - name: Generate locales
   ansible.builtin.command: locale-gen
-  changed_when: true
-  when: _locale_gen_enabled is changed
+  changed_when: _locale_gen_enabled is changed
   tags: ['locale']
