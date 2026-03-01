@@ -47,6 +47,20 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   inventory:
+    group_vars:
+      all:
+        # Role defaults for verify.yml assertions (group_vars precedence < host_vars)
+        docker_log_driver: "journald"
+        docker_log_max_size: "10m"
+        docker_log_max_file: "3"
+        docker_storage_driver: ""
+        docker_userns_remap: "default"
+        docker_icc: false
+        docker_live_restore: true
+        docker_no_new_privileges: true
+        docker_add_user_to_group: true
+        docker_enable_service: true
+        docker_user: "root"
     host_vars:
       # Default security settings (all CIS features enabled)
       # docker_add_user_to_group=false to avoid usermod in containers (unstable in DinD)
