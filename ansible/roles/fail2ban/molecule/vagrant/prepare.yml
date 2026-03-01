@@ -63,6 +63,18 @@
         group: root
       when: ansible_facts['os_family'] == 'Archlinux'
 
+    # Arch uses journald exclusively — no /var/log/auth.log exists by default.
+    # Create a dummy file so fail2ban's sshd jail (backend=polling) can start.
+    - name: Create dummy auth.log for fail2ban polling backend (Arch)
+      ansible.builtin.copy:
+        content: ""
+        dest: /var/log/auth.log
+        owner: root
+        group: root
+        mode: "0640"
+        force: false
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     - name: Update apt cache (Ubuntu)
       ansible.builtin.apt:
         update_cache: true
