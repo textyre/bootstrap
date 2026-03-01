@@ -6,7 +6,7 @@
 
   tasks:
 
-    # ---- Package installed ----
+    # ---- Пакет установлен ----
 
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -17,156 +17,177 @@
         that: "'lightdm' in ansible_facts.packages"
         fail_msg: "lightdm package not found"
 
-    # ---- Config directory ----
+    # ---- Директория конфигов ----
 
     - name: Stat /etc/lightdm/lightdm.conf.d directory
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d
-      register: lightdm_verify_confdir
+      register: _lightdm_verify_confdir
 
     - name: Assert config directory exists
       ansible.builtin.assert:
         that:
-          - lightdm_verify_confdir.stat.exists
-          - lightdm_verify_confdir.stat.isdir
+          - _lightdm_verify_confdir.stat.exists
+          - _lightdm_verify_confdir.stat.isdir
         fail_msg: "/etc/lightdm/lightdm.conf.d directory missing"
 
-    # ---- 10-config.conf existence and permissions ----
+    # ---- 10-config.conf: существование и права ----
 
     - name: Stat /etc/lightdm/lightdm.conf.d/10-config.conf
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/10-config.conf
-      register: lightdm_verify_config
+      register: _lightdm_verify_config
 
     - name: Assert 10-config.conf exists with correct owner and mode
       ansible.builtin.assert:
         that:
-          - lightdm_verify_config.stat.exists
-          - lightdm_verify_config.stat.isreg
-          - lightdm_verify_config.stat.pw_name == 'root'
-          - lightdm_verify_config.stat.gr_name == 'root'
-          - lightdm_verify_config.stat.mode == '0644'
+          - _lightdm_verify_config.stat.exists
+          - _lightdm_verify_config.stat.isreg
+          - _lightdm_verify_config.stat.pw_name == 'root'
+          - _lightdm_verify_config.stat.gr_name == 'root'
+          - _lightdm_verify_config.stat.mode == '0644'
         fail_msg: >-
           /etc/lightdm/lightdm.conf.d/10-config.conf missing or wrong permissions
-          (expected root:root 0644, got {{ lightdm_verify_config.stat.pw_name | default('?') }}:{{ lightdm_verify_config.stat.gr_name | default('?') }} {{ lightdm_verify_config.stat.mode | default('?') }})
+          (expected root:root 0644, got
+          {{ _lightdm_verify_config.stat.pw_name | default('?') }}:{{ _lightdm_verify_config.stat.gr_name | default('?') }}
+          {{ _lightdm_verify_config.stat.mode | default('?') }})
 
-    # ---- 10-config.conf content ----
+    # ---- 10-config.conf: содержимое ----
 
     - name: Read 10-config.conf content
       ansible.builtin.slurp:
         src: /etc/lightdm/lightdm.conf.d/10-config.conf
-      register: lightdm_verify_config_raw
+      register: _lightdm_verify_config_raw
+      failed_when: false
+
+    - name: Assert 10-config.conf was readable
+      ansible.builtin.assert:
+        that: "'content' in _lightdm_verify_config_raw"
+        fail_msg: "Failed to read 10-config.conf"
 
     - name: Set config text fact
       ansible.builtin.set_fact:
-        lightdm_verify_config_text: "{{ lightdm_verify_config_raw.content | b64decode }}"
+        _lightdm_verify_config_text: "{{ _lightdm_verify_config_raw.content | b64decode }}"
 
     - name: Assert config contains Seat section
       ansible.builtin.assert:
-        that: "'[Seat:*]' in lightdm_verify_config_text"
+        that: "'[Seat:*]' in _lightdm_verify_config_text"
         fail_msg: "'[Seat:*]' section header missing from 10-config.conf"
 
     - name: Assert config specifies greeter-session
       ansible.builtin.assert:
-        that: "'greeter-session=' in lightdm_verify_config_text"
-        fail_msg: "'greeter-session' directive missing from 10-config.conf"
+        that: >-
+          _lightdm_verify_config_text is regex('greeter-session=\S+')
+        fail_msg: "'greeter-session' directive missing or empty in 10-config.conf"
 
     - name: Assert config specifies display-setup-script
       ansible.builtin.assert:
-        that: "'display-setup-script=' in lightdm_verify_config_text"
-        fail_msg: "'display-setup-script' directive missing from 10-config.conf"
+        that: >-
+          _lightdm_verify_config_text is regex('display-setup-script=\S+')
+        fail_msg: "'display-setup-script' directive missing or empty in 10-config.conf"
 
     - name: Assert display-setup-script points to resolution script
       ansible.builtin.assert:
-        that: "'add-and-set-resolution.sh' in lightdm_verify_config_text"
+        that: "'add-and-set-resolution.sh' in _lightdm_verify_config_text"
         fail_msg: "display-setup-script does not reference add-and-set-resolution.sh"
 
-    # ---- add-and-set-resolution.sh existence and permissions ----
+    # ---- add-and-set-resolution.sh: существование и права ----
 
     - name: Stat add-and-set-resolution.sh
       ansible.builtin.stat:
         path: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
-      register: lightdm_verify_script
+      register: _lightdm_verify_script
 
     - name: Assert resolution script exists and is executable
       ansible.builtin.assert:
         that:
-          - lightdm_verify_script.stat.exists
-          - lightdm_verify_script.stat.isreg
-          - lightdm_verify_script.stat.mode == '0755'
+          - _lightdm_verify_script.stat.exists
+          - _lightdm_verify_script.stat.isreg
+          - _lightdm_verify_script.stat.mode == '0755'
         fail_msg: >-
           add-and-set-resolution.sh missing or not executable
-          (expected mode 0755, got {{ lightdm_verify_script.stat.mode | default('?') }})
+          (expected mode 0755, got {{ _lightdm_verify_script.stat.mode | default('?') }})
 
     - name: Assert resolution script ownership (lightdm:lightdm)
       ansible.builtin.assert:
         that:
-          - lightdm_verify_script.stat.pw_name == 'lightdm'
-          - lightdm_verify_script.stat.gr_name == 'lightdm'
+          - _lightdm_verify_script.stat.pw_name == 'lightdm'
+          - _lightdm_verify_script.stat.gr_name == 'lightdm'
         fail_msg: >-
           add-and-set-resolution.sh ownership wrong
-          (expected lightdm:lightdm, got {{ lightdm_verify_script.stat.pw_name | default('?') }}:{{ lightdm_verify_script.stat.gr_name | default('?') }}).
+          (expected lightdm:lightdm, got
+          {{ _lightdm_verify_script.stat.pw_name | default('?') }}:{{ _lightdm_verify_script.stat.gr_name | default('?') }}).
           The lightdm user/group may not exist if the lightdm package was not properly installed.
       when: "'lightdm' in ansible_facts.packages"
 
-    # ---- add-and-set-resolution.sh content ----
+    # ---- add-and-set-resolution.sh: содержимое ----
 
     - name: Read resolution script content
       ansible.builtin.slurp:
         src: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
-      register: lightdm_verify_script_raw
+      register: _lightdm_verify_script_raw
+      failed_when: false
+
+    - name: Assert resolution script was readable
+      ansible.builtin.assert:
+        that: "'content' in _lightdm_verify_script_raw"
+        fail_msg: "Failed to read add-and-set-resolution.sh"
 
     - name: Set script text fact
       ansible.builtin.set_fact:
-        lightdm_verify_script_text: "{{ lightdm_verify_script_raw.content | b64decode }}"
+        _lightdm_verify_script_text: "{{ _lightdm_verify_script_raw.content | b64decode }}"
 
     - name: Assert script has bash shebang
       ansible.builtin.assert:
-        that: "lightdm_verify_script_text is match('#!/bin/bash')"
+        that: >-
+          _lightdm_verify_script_text is regex('^#!/bin/bash')
         fail_msg: "Resolution script missing #!/bin/bash shebang"
 
     - name: Assert script uses xrandr
       ansible.builtin.assert:
-        that: "'xrandr' in lightdm_verify_script_text"
+        that: "'xrandr' in _lightdm_verify_script_text"
         fail_msg: "Resolution script does not contain xrandr commands"
 
     - name: Assert script always exits 0 (prevents LightDM restart loop)
       ansible.builtin.assert:
-        that: "'exit 0' in lightdm_verify_script_text"
+        that: "'exit 0' in _lightdm_verify_script_text"
         fail_msg: >-
           Resolution script does not contain 'exit 0'.
           Non-zero exit causes LightDM infinite restart loop.
 
-    # ---- Service state (enabled only, NOT running) ----
+    # ---- Сервис (только вне Docker) ----
 
     - name: Check lightdm service is enabled
-      ansible.builtin.command: systemctl is-enabled lightdm.service
-      register: lightdm_verify_svc_enabled
+      ansible.builtin.command:
+        cmd: systemctl is-enabled lightdm.service
+      register: _lightdm_verify_svc_enabled
       changed_when: false
       failed_when: false
+      when:
+        - lightdm_enable_service | default(true) | bool
+        - ansible_virtualization_type | default('') != 'docker'
 
     - name: Assert lightdm service is enabled
       ansible.builtin.assert:
-        that: lightdm_verify_svc_enabled.stdout == 'enabled'
+        that: _lightdm_verify_svc_enabled.stdout is regex('^enabled')
         fail_msg: >-
-          lightdm.service is not enabled (got '{{ lightdm_verify_svc_enabled.stdout }}').
-          Note: the service is expected to be enabled but NOT running in test environments
-          (no display server available).
-      when: lightdm_enable_service | default(true)
+          lightdm.service is not enabled
+          (got '{{ _lightdm_verify_svc_enabled.stdout | default('') }}').
+      when:
+        - lightdm_enable_service | default(true) | bool
+        - ansible_virtualization_type | default('') != 'docker'
 
-    - name: Check lightdm service is NOT running (expected in headless test)
-      ansible.builtin.command: systemctl is-active lightdm.service
-      register: lightdm_verify_svc_active
-      changed_when: false
-      failed_when: false
-
-    - name: Confirm service inactive is expected
+    - name: Service check skipped info
       ansible.builtin.debug:
         msg: >-
-          lightdm.service is '{{ lightdm_verify_svc_active.stdout }}' -- this is expected.
-          LightDM requires a display server (X11/Wayland) which is not available in test environments.
+          Service enabled/active checks skipped —
+          {% if not (lightdm_enable_service | default(true) | bool) %}lightdm_enable_service is false{% endif %}
+          {% if ansible_virtualization_type | default('') == 'docker' %}running inside Docker container{% endif %}
+      when: >-
+        not (lightdm_enable_service | default(true) | bool)
+        or ansible_virtualization_type | default('') == 'docker'
 
-    # ---- Summary ----
+    # ---- Итог ----
 
     - name: Show verify result
       ansible.builtin.debug:
@@ -175,5 +196,3 @@
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
           Config files deployed: 10-config.conf (root:root 0644),
           add-and-set-resolution.sh (0755).
-          Service enabled: {{ lightdm_verify_svc_enabled.stdout | default('unknown') }}.
-          Service running: {{ lightdm_verify_svc_active.stdout | default('unknown') }} (expected: inactive).
