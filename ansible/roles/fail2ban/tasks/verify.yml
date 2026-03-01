@@ -1,37 +1,60 @@
 ---
-- name: "Wait for fail2ban socket"
-  ansible.builtin.wait_for:
-    path: /var/run/fail2ban/fail2ban.sock
-    timeout: 60
+- name: "Runtime checks (guarded — skip in Docker/container)"
   when: ansible_virtualization_type | default('') not in ['docker', 'container']
   tags: [fail2ban]
+  block:
 
-- name: "Verify fail2ban is running"
-  ansible.builtin.command:
-    cmd: "fail2ban-client status"
-  register: fail2ban_verify_status
-  changed_when: false
-  failed_when: fail2ban_verify_status.rc != 0
-  when: ansible_virtualization_type | default('') not in ['docker', 'container']
-  tags: [fail2ban]
+    - name: "Wait for fail2ban socket"
+      ansible.builtin.wait_for:
+        path: /var/run/fail2ban/fail2ban.sock
+        timeout: 60
 
-- name: "Verify SSH jail is active"
-  ansible.builtin.command:
-    cmd: "fail2ban-client status sshd"
-  register: fail2ban_verify_sshd
-  changed_when: false
-  failed_when: fail2ban_verify_sshd.rc != 0
-  when:
-    - fail2ban_sshd_enabled | bool
-    - ansible_virtualization_type | default('') not in ['docker', 'container']
-  tags: [fail2ban]
+    - name: "Verify fail2ban is running"
+      ansible.builtin.command:
+        cmd: "fail2ban-client status"
+      register: fail2ban_verify_status
+      changed_when: false
+      failed_when: fail2ban_verify_status.rc != 0
 
-- name: "Assert SSH jail reports correctly"
-  ansible.builtin.assert:
-    that:
-      - "'sshd' in fail2ban_verify_sshd.stdout"
-    fail_msg: "fail2ban sshd jail is not active"
-  when:
-    - fail2ban_sshd_enabled | bool
-    - ansible_virtualization_type | default('') not in ['docker', 'container']
-  tags: [fail2ban]
+    - name: "Verify SSH jail is active"
+      ansible.builtin.command:
+        cmd: "fail2ban-client status sshd"
+      register: fail2ban_verify_sshd
+      changed_when: false
+      failed_when: fail2ban_verify_sshd.rc != 0
+      when: fail2ban_sshd_enabled | bool
+
+    - name: "Assert SSH jail reports correctly"
+      ansible.builtin.assert:
+        that:
+          - "'sshd' in fail2ban_verify_sshd.stdout"
+        fail_msg: "fail2ban sshd jail is not active"
+      when: fail2ban_sshd_enabled | bool
+
+  rescue:
+    - name: "DIAGNOSTICS — collect fail2ban journal (startup failure)"
+      ansible.builtin.command:
+        cmd: "journalctl -u fail2ban.service --no-pager -n 80"
+      register: _fail2ban_rescue_journal
+      changed_when: false
+      ignore_errors: true
+
+    - name: "DIAGNOSTICS — show fail2ban journal"
+      ansible.builtin.debug:
+        msg: "{{ _fail2ban_rescue_journal.stdout_lines | default(['no journal output']) }}"
+
+    - name: "DIAGNOSTICS — fail2ban service status"
+      ansible.builtin.command:
+        cmd: "systemctl status fail2ban.service --no-pager -l"
+      register: _fail2ban_rescue_status
+      changed_when: false
+      ignore_errors: true
+
+    - name: "DIAGNOSTICS — show service status"
+      ansible.builtin.debug:
+        msg: "{{ _fail2ban_rescue_status.stdout_lines | default(['no status']) }}"
+
+    - name: "Re-raise: fail2ban verification failed — see DIAGNOSTICS above"
+      ansible.builtin.fail:
+        msg: "fail2ban failed to start or verify. See DIAGNOSTICS tasks above for journal/status output."
+
