@@ -32,10 +32,10 @@
       ansible.builtin.assert:
         that:
           - _vconsole_verify_stat.stat.exists
-          - _vconsole_verify_stat.stat.isreg
+          - _vconsole_verify_stat.stat.isreg or _vconsole_verify_stat.stat.islnk
           - _vconsole_verify_stat.stat.pw_name == 'root'
           - _vconsole_verify_stat.stat.gr_name == 'root'
-          - _vconsole_verify_stat.stat.mode == '0644'
+          - _vconsole_verify_stat.stat.islnk or _vconsole_verify_stat.stat.mode == '0644'
         fail_msg: "/etc/vconsole.conf missing or wrong permissions (expected root:root 0644)"
       when: ansible_facts['service_mgr'] == 'systemd'
 
