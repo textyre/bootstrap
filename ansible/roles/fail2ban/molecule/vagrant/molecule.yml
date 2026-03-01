@@ -28,8 +28,11 @@ provisioner:
   inventory:
     host_vars:
       arch-vm:
-        # Arch vagrant box: use noop banaction to avoid iptables-nft/KVM incompatibility.
-        # Ubuntu uses real iptables (works fine without override).
+        # backend=auto picks 'polling' on Arch (auto doesn't try systemd).
+        # Polling requires /var/log/auth.log which doesn't exist (journald-only).
+        # Force systemd backend — python-systemd is installed in prepare.yml.
+        fail2ban_sshd_backend: systemd
+        # Arch fail2ban package omits noop.conf; created in prepare.yml.
         fail2ban_sshd_banaction: noop
   playbooks:
     prepare: prepare.yml
