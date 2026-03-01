@@ -66,8 +66,12 @@ jobs:
             vagrant-gems-${{ runner.os }}-
 
       - name: Install vagrant-libvirt plugin
-        if: steps.vagrant-gems-cache.outputs.cache-hit != 'true'
-        run: vagrant plugin install vagrant-libvirt
+        run: |
+          # Always uninstall + reinstall so native extensions are compiled fresh
+          # against this runner's libvirt. The gems cache speeds up the download
+          # (.gem files in ~/.vagrant.d/gems/cache/) but extensions must be rebuilt.
+          vagrant plugin uninstall vagrant-libvirt 2>/dev/null || true
+          vagrant plugin install vagrant-libvirt
 
       - name: Resolve box version
         id: box
