@@ -6,6 +6,12 @@
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['firewall', 'install']
 
+- name: Reload systemd daemon after nftables install
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] | default('') == 'systemd'
+  tags: ['firewall', 'install']
+
 - name: Deploy nftables configuration
   ansible.builtin.template:
     src: nftables.conf.j2
@@ -14,19 +20,67 @@
     group: root
     mode: '0644'
   notify: Restart nftables
-  when: firewall_enabled
+  when: firewall_enabled | bool
   tags: ['firewall', 'configure']
 
 - name: Enable nftables service
   ansible.builtin.service:
     name: nftables
     enabled: true
-  when: firewall_enabled and firewall_enable_service
+  when: (firewall_enabled | bool) and (firewall_enable_service | bool)
   tags: ['firewall', 'service']
 
 - name: Start nftables service
   ansible.builtin.service:
     name: nftables
     state: started
-  when: firewall_enabled and firewall_start_service
+  when: (firewall_enabled | bool) and (firewall_start_service | bool)
   tags: ['firewall', 'service']
+
+# ---- Отчёт о выполнении ----
+
+- name: "Report: firewall — install"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Install nftables"
+    common_rpt_detail: "{{ ansible_facts['os_family'] | lower }}"
+  tags: ['firewall', 'report']
+
+- name: "Report: firewall — configure"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Deploy nftables config"
+    common_rpt_status: "{{ 'done' if firewall_enabled else 'skip' }}"
+    common_rpt_detail: >-
+      ssh={{ firewall_allow_ssh | string }}
+      rl={{ firewall_ssh_rate_limit_enabled | string }}
+      docker={{ firewall_docker_enabled | string }}
+  tags: ['firewall', 'report']
+
+- name: "Report: firewall — service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Enable/start nftables"
+    common_rpt_status: "{{ 'done' if (firewall_enabled and firewall_enable_service) else 'skip' }}"
+    common_rpt_detail: >-
+      enabled={{ firewall_enable_service | string }}
+      started={{ firewall_start_service | string }}
+  tags: ['firewall', 'report']
+
+- name: "Firewall — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_title: "firewall"
+  tags: ['firewall', 'report']

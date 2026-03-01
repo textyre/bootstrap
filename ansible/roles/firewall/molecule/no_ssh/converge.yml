@@ -1,0 +1,11 @@
+---
+- name: Converge — SSH disabled
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: firewall
+      vars:
+        firewall_allow_ssh: false
+        firewall_ssh_rate_limit_enabled: false

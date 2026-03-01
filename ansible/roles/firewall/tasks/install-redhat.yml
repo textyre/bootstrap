@@ -1,0 +1,8 @@
+---
+# === Fedora / RHEL / CentOS: установка nftables ===
+
+- name: Ensure nftables is installed (Fedora/RHEL)
+  ansible.builtin.package:
+    name: nftables
+    state: present
+  tags: ['firewall', 'install']

@@ -3,5 +3,4 @@
   ansible.builtin.service:
     name: nftables
     state: restarted
-  listen: "restart nftables"
-  when: firewall_start_service | default(true)
+  when: firewall_start_service | default(true) | bool

@@ -1,47 +1,50 @@
 # firewall
 
-Minimal nftables-based workstation firewall with default-drop input policy, SSH protection, and per-source-IP brute-force rate limiting (CRIT-01).
+Minimal nftables-based workstation firewall with default-drop input policy, SSH
+protection, and per-source-IP brute-force rate limiting for **both IPv4 and IPv6**
+(CRIT-01).
 
 ## What this role does
 
-- [x] Installs `nftables` (OS-specific: Arch via pacman, Debian/Ubuntu via apt)
+- [x] Installs `nftables` using `ansible.builtin.package` (OS-specific task files)
 - [x] Deploys `/etc/nftables.conf` from Jinja2 template
 - [x] Sets default-drop input policy (`type filter hook input priority 0; policy drop;`)
 - [x] Allows loopback, established/related connections, and ICMP with rate limiting
-- [x] Optionally allows SSH (port 22) with per-source-IP rate limiting (`ssh_ratelimit` dynamic set — CRIT-01)
+- [x] Optionally allows SSH (port 22) with per-source-IP rate limiting for **IPv4 and IPv6** (`ssh_ratelimit` + `ssh6_ratelimit` dynamic sets — CRIT-01)
 - [x] Allows additional TCP/UDP ports via variables
-- [x] Forward chain allows established/related (Docker bridge compatibility)
+- [x] Forward chain allows established/related; optional Docker bridge support
 - [x] Output chain defaults to accept
 - [x] Catch-all log+drop rule for unmatched inbound traffic
-- [x] Enables and starts `nftables` service
+- [x] Enables and optionally starts `nftables` service
+- [x] Emits execution report via `common` role (`report_phase.yml` + `report_render.yml`)
 
 ## Requirements
 
 - Ansible 2.15+
-- `become: true` (root required for nftables and systemd)
-- Supported OS: Arch Linux, Debian, Ubuntu
-- Kernel with `nf_tables` module (standard in all supported distros)
+- `become: true` (root required for nftables and service management)
+- Supported OS in role tasks: Arch Linux, Debian/Ubuntu, Fedora/RHEL, Void Linux, Gentoo
+- Kernel with `nf_tables` module
 
 ## Role Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `firewall_enabled` | `true` | Deploy the nftables config and manage the service |
-| `firewall_enable_service` | `true` | Enable and start `nftables.service` |
-| `firewall_allow_ssh` | `true` | Allow inbound SSH (TCP port 22) |
-| `firewall_ssh_rate_limit_enabled` | `true` | Enable per-source-IP SSH rate limiting (brute-force protection) |
-| `firewall_ssh_rate_limit` | `"4/minute"` | Rate limit threshold per source IP |
-| `firewall_ssh_rate_limit_burst` | `2` | Burst allowance for SSH rate limiting |
-| `firewall_allow_tcp_ports` | `[]` | Additional TCP ports to allow inbound |
-| `firewall_allow_udp_ports` | `[]` | Additional UDP ports to allow inbound |
+| `firewall_enabled` | `true` | Deploy nftables config and manage service |
+| `firewall_enable_service` | `true` | Enable `nftables.service` at boot |
+| `firewall_start_service` | `true` | Start `nftables.service` now |
+| `firewall_allow_ssh` | `true` | Allow inbound SSH (TCP 22) |
+| `firewall_ssh_rate_limit_enabled` | `true` | Enable per-source-IP SSH rate limiting for IPv4+IPv6 |
+| `firewall_ssh_rate_limit` | `"4/minute"` | SSH rate limit per source IP |
+| `firewall_ssh_rate_limit_burst` | `2` | Burst packets for SSH limiter |
+| `firewall_docker_enabled` | `false` | Add Docker bridge forward rules (`docker0`) |
+| `firewall_allow_tcp_ports` | `[]` | Extra inbound TCP ports |
+| `firewall_allow_udp_ports` | `[]` | Extra inbound UDP ports |
 
 ## Dependencies
 
-None.
+No external role dependencies. Reporting uses `common` role from this repository.
 
 ## Example Playbook
-
-Minimal — defaults only (SSH allowed, rate limiting enabled):
 
 ```yaml
 - hosts: workstations
@@ -50,7 +53,7 @@ Minimal — defaults only (SSH allowed, rate limiting enabled):
     - role: firewall
 ```
 
-With extra ports (e.g., Syncthing and a custom UDP service):
+With Docker and extra ports:
 
 ```yaml
 - hosts: workstations
@@ -58,11 +61,12 @@ With extra ports (e.g., Syncthing and a custom UDP service):
   roles:
     - role: firewall
       vars:
+        firewall_docker_enabled: true
         firewall_allow_tcp_ports: [8384, 22000]
         firewall_allow_udp_ports: [22000, 21027]
 ```
 
-Disable SSH rate limiting (not recommended):
+SSH disabled:
 
 ```yaml
 - hosts: workstations
@@ -70,6 +74,7 @@ Disable SSH rate limiting (not recommended):
   roles:
     - role: firewall
       vars:
+        firewall_allow_ssh: false
         firewall_ssh_rate_limit_enabled: false
 ```
 
@@ -78,9 +83,10 @@ Disable SSH rate limiting (not recommended):
 | Tag | Effect |
 |-----|--------|
 | `firewall` | All tasks |
-| `firewall,install` | Package installation only |
-| `firewall,configure` | Config template deployment only |
-| `firewall,service` | Service enable/start only |
+| `firewall,install` | Package installation |
+| `firewall,configure` | Config deployment |
+| `firewall,service` | Service enable/start |
+| `firewall,report` | Execution report |
 
 ## Testing
 
@@ -88,64 +94,37 @@ Disable SSH rate limiting (not recommended):
 
 | Scenario | Driver | Platforms | Use case |
 |----------|--------|-----------|----------|
-| `default` | localhost (delegated) | Current host | Fast local syntax + idempotence check |
-| `docker` | Docker | `arch-systemd` container | CI — full service test in systemd container |
-| `vagrant` | Vagrant (libvirt) | Arch Linux VM, Ubuntu 24.04 VM | Full VM test with real nf_tables kernel |
+| `default` | localhost (delegated) | Current host | Fast local syntax checks |
+| `docker` | Docker | Arch systemd container | CI smoke test for converge+verify |
+| `no_ssh` | Docker | Arch systemd container | Negative SSH assertions |
+| `vagrant` | Vagrant (libvirt) | Arch Linux VM, Ubuntu VM | Full VM test with real kernel |
 
 ### Running molecule tests
 
 ```bash
-# From the role directory
 cd ansible/roles/firewall
 
-# --- Default scenario (local, no containers) ---
-molecule test -s default
-
-# --- Docker scenario (requires Docker daemon) ---
 molecule test -s docker
-
-# --- Vagrant scenario (requires libvirt + vagrant-libvirt) ---
+molecule test -s no_ssh
 molecule test -s vagrant
-
-# Run only converge (no destroy) for debugging
-molecule converge -s docker
-molecule verify -s docker
-molecule destroy -s docker
 ```
 
 ### What verify checks
 
-The shared `verify.yml` validates:
+`docker/shared/verify.yml` checks:
+1. package installed
+2. config exists with owner/group/mode
+3. core chains and drop policy
+4. ICMP rate limiting (IPv4+IPv6)
+5. SSH allow rule + CRIT-01 sets/rules for IPv4 and IPv6
+6. configured rate + burst values
+7. expected custom TCP/UDP ports are present
+8. Docker forward rules presence/absence based on config
+9. service enabled
+10. runtime checks skipped in Docker with explicit notice
 
-1. **Package** — `nftables` installed
-2. **Config file** — `/etc/nftables.conf` exists, `root:root 0644`
-3. **Table structure** — `inet filter` table present, input chain has `policy drop`
-4. **Core rules** — loopback accept, established/related accept, `ct state invalid drop`
-5. **ICMP** — rate limiting for IPv4 and IPv6
-6. **SSH** — accept rule present when `firewall_allow_ssh: true`
-7. **CRIT-01 (SSH rate limiting)** — `ssh_ratelimit` dynamic set with `type ipv4_addr`, `flags dynamic`, per-source-IP rule using `add @ssh_ratelimit { ip saddr limit rate over ... }`
-8. **Rate limit values** — configured rate and burst match defaults
-9. **Chains** — `forward` and `output` chains present
-10. **Catch-all** — `log prefix` drop rule exists
-11. **Ansible marker** — template-generated marker in config
-12. **Service state** — `nftables.service` enabled and active (with `systemctl`)
-13. **Runtime rules** — `nft list tables` confirms `inet filter` loaded (skipped gracefully in containers without netfilter)
-14. **Runtime CRIT-01** — `nft list set inet filter ssh_ratelimit` confirms dynamic set loaded at runtime
-
-### CRIT-01: SSH per-source-IP rate limiting
-
-A common misconfiguration is using a global rate limit that applies across all source IPs instead of per-source. This role implements per-source-IP rate limiting using a named dynamic set:
-
-```nftables
-set ssh_ratelimit {
-    type ipv4_addr
-    flags dynamic,timeout
-    timeout 1m
-}
-
-# In input chain:
-tcp dport 22 ct state new add @ssh_ratelimit { ip saddr limit rate over 4/minute burst 2 packets } log prefix "[nftables] ssh-rate: " drop
-tcp dport 22 ct state new accept
-```
-
-This ensures each source IP gets its own rate limit bucket, not a shared counter. The verify playbook treats the absence of this pattern as a test failure (CRIT-01).
+`no_ssh/verify.yml` checks:
+1. `tcp dport 22` absent
+2. `ssh_ratelimit` and `ssh6_ratelimit` absent
+3. core protection rules remain present
+4. service enabled

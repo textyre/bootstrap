@@ -5,6 +5,9 @@
   gather_facts: true
   vars_files:
     - ../../defaults/main.yml
+  vars:
+    firewall_expected_tcp_ports: [8080, 9090]
+    firewall_expected_udp_ports: [53]
 
   tasks:
 
@@ -96,29 +99,54 @@
         fail_msg: "SSH accept rule missing from nftables.conf"
       when: firewall_allow_ssh
 
-    # ---- CRIT-01 validation: per-source-IP rate limiting ----
+    - name: Assert SSH accept rule NOT present when disabled
+      ansible.builtin.assert:
+        that: "'tcp dport 22' not in _firewall_verify_conf_text"
+        fail_msg: "SSH rule found in config but firewall_allow_ssh is false"
+      when: not firewall_allow_ssh
 
-    - name: Assert ssh_ratelimit dynamic set defined
+    # ---- CRIT-01: per-source-IP rate limiting — IPv4 ----
+
+    - name: Assert ssh_ratelimit IPv4 dynamic set defined
       ansible.builtin.assert:
         that:
           - "'set ssh_ratelimit' in _firewall_verify_conf_text"
           - "'type ipv4_addr' in _firewall_verify_conf_text"
           - "'flags dynamic' in _firewall_verify_conf_text"
         fail_msg: >-
-          CRIT-01: ssh_ratelimit dynamic set not found in config.
+          CRIT-01: ssh_ratelimit dynamic set (IPv4) not found in config.
           Per-source-IP rate limiting requires a named set with type ipv4_addr and flags dynamic.
       when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
 
-    - name: Assert SSH rate limit rule uses per-source-IP pattern (add @ssh_ratelimit)
+    - name: Assert SSH rate limit rule uses per-source-IP pattern — IPv4
       ansible.builtin.assert:
         that: "'add @ssh_ratelimit { ip saddr limit rate over' in _firewall_verify_conf_text"
         fail_msg: >-
-          CRIT-01: SSH rate limit rule does not use per-source-IP pattern.
+          CRIT-01: SSH IPv4 rate limit rule does not use per-source-IP pattern.
           Expected 'add @ssh_ratelimit { ip saddr limit rate over ...' but not found.
-          This means rate limiting is global (shared across all IPs), not per-source.
       when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
 
-    - name: Assert SSH rate limit values match defaults
+    # ---- CRIT-01: per-source-IP rate limiting — IPv6 ----
+
+    - name: Assert ssh6_ratelimit IPv6 dynamic set defined
+      ansible.builtin.assert:
+        that:
+          - "'set ssh6_ratelimit' in _firewall_verify_conf_text"
+          - "'type ipv6_addr' in _firewall_verify_conf_text"
+        fail_msg: >-
+          CRIT-01: ssh6_ratelimit dynamic set (IPv6) not found in config.
+          IPv6 SSH brute-force protection requires a separate set with type ipv6_addr.
+      when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
+
+    - name: Assert SSH rate limit rule uses per-source-IP pattern — IPv6
+      ansible.builtin.assert:
+        that: "'add @ssh6_ratelimit { ip6 saddr limit rate over' in _firewall_verify_conf_text"
+        fail_msg: >-
+          CRIT-01: SSH IPv6 rate limit rule does not use per-source-IP pattern.
+          Expected 'add @ssh6_ratelimit { ip6 saddr limit rate over ...' but not found.
+      when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
+
+    - name: Assert SSH rate limit values match configuration
       ansible.builtin.assert:
         that:
           - "firewall_ssh_rate_limit in _firewall_verify_conf_text"
@@ -128,12 +156,48 @@
           Expected rate '{{ firewall_ssh_rate_limit }}' and burst '{{ firewall_ssh_rate_limit_burst }}'.
       when: firewall_allow_ssh and firewall_ssh_rate_limit_enabled
 
+    - name: Assert ssh_ratelimit sets NOT present when rate limiting disabled
+      ansible.builtin.assert:
+        that:
+          - "'set ssh_ratelimit' not in _firewall_verify_conf_text"
+          - "'set ssh6_ratelimit' not in _firewall_verify_conf_text"
+        fail_msg: "ssh_ratelimit sets found in config but firewall_ssh_rate_limit_enabled is false"
+      when: not firewall_ssh_rate_limit_enabled
+
+    # ---- Custom TCP/UDP ports ----
+
+    - name: Assert custom TCP ports are present in config
+      ansible.builtin.assert:
+        that: "('tcp dport ' ~ item ~ ' accept') in _firewall_verify_conf_text"
+        fail_msg: "TCP port {{ item }} not found in nftables.conf (expected from firewall_allow_tcp_ports)"
+      loop: "{{ firewall_expected_tcp_ports }}"
+      when: firewall_expected_tcp_ports | length > 0
+
+    - name: Assert custom UDP ports are present in config
+      ansible.builtin.assert:
+        that: "('udp dport ' ~ item ~ ' accept') in _firewall_verify_conf_text"
+        fail_msg: "UDP port {{ item }} not found in nftables.conf (expected from firewall_allow_udp_ports)"
+      loop: "{{ firewall_expected_udp_ports }}"
+      when: firewall_expected_udp_ports | length > 0
+
     # ---- Forward chain ----
 
     - name: Assert forward chain exists
       ansible.builtin.assert:
         that: "'chain forward' in _firewall_verify_conf_text"
         fail_msg: "Forward chain missing from nftables.conf"
+
+    - name: Assert Docker forward rules present when docker enabled
+      ansible.builtin.assert:
+        that: "'iifname \"docker0\"' in _firewall_verify_conf_text"
+        fail_msg: "Docker forward rule missing but firewall_docker_enabled is true"
+      when: firewall_docker_enabled | default(false)
+
+    - name: Assert Docker forward rules NOT present when docker disabled
+      ansible.builtin.assert:
+        that: "'iifname \"docker0\"' not in _firewall_verify_conf_text"
+        fail_msg: "Docker forward rule found but firewall_docker_enabled is false"
+      when: not (firewall_docker_enabled | default(false))
 
     # ---- Output chain ----
 
@@ -169,7 +233,7 @@
         that: "'enabled' in _firewall_verify_svc_enabled.stdout"
         fail_msg: >-
           nftables.service is not enabled (got '{{ _firewall_verify_svc_enabled.stdout }}').
-      when: firewall_enable_service
+      when: firewall_enable_service | bool
 
     # ---- Service active state (skip in Docker -- nftables needs kernel nf_tables) ----
 
@@ -187,10 +251,10 @@
           nftables.service is not active (got '{{ _firewall_verify_svc_active.stdout | trim }}').
       when:
         - not _firewall_verify_in_docker
-        - firewall_enable_service
-        - firewall_start_service | default(true)
+        - firewall_enable_service | bool
+        - firewall_start_service | default(true) | bool
 
-    # ---- Runtime rules loaded (requires nft binary and kernel nf_tables) ----
+    # ---- Runtime rules loaded ----
 
     - name: List loaded nftables tables
       ansible.builtin.command: nft list tables
@@ -210,7 +274,7 @@
         - not _firewall_verify_in_docker
         - _firewall_verify_nft_tables.rc == 0
 
-    - name: Warn if nft command failed (non-Docker environment)
+    - name: Warn if nft command failed
       ansible.builtin.debug:
         msg: >-
           WARNING: 'nft list tables' failed (rc={{ _firewall_verify_nft_tables.rc }}).
@@ -219,11 +283,11 @@
         - not _firewall_verify_in_docker
         - _firewall_verify_nft_tables.rc != 0
 
-    # ---- Runtime: verify dynamic set loaded (CRIT-01 runtime validation) ----
+    # ---- Runtime: CRIT-01 dynamic sets ----
 
-    - name: List ssh_ratelimit set in runtime
+    - name: List ssh_ratelimit IPv4 set in runtime
       ansible.builtin.command: nft list set inet filter ssh_ratelimit
-      register: _firewall_verify_nft_set
+      register: _firewall_verify_nft_set_v4
       changed_when: false
       failed_when: false
       when:
@@ -233,15 +297,14 @@
         - _firewall_verify_nft_tables is not skipped
         - _firewall_verify_nft_tables.rc == 0
 
-    - name: Assert ssh_ratelimit set exists in runtime
+    - name: Assert ssh_ratelimit IPv4 set exists in runtime
       ansible.builtin.assert:
         that:
-          - _firewall_verify_nft_set.rc == 0
-          - "'ssh_ratelimit' in _firewall_verify_nft_set.stdout"
+          - _firewall_verify_nft_set_v4.rc == 0
+          - "'ssh_ratelimit' in _firewall_verify_nft_set_v4.stdout"
         fail_msg: >-
-          CRIT-01 runtime: ssh_ratelimit set not loaded.
-          Expected per-source-IP dynamic set but nft returned:
-          {{ _firewall_verify_nft_set.stderr | default('') }}
+          CRIT-01 runtime: ssh_ratelimit (IPv4) set not loaded.
+          nft returned: {{ _firewall_verify_nft_set_v4.stderr | default('') }}
       when:
         - not _firewall_verify_in_docker
         - firewall_allow_ssh
@@ -249,7 +312,34 @@
         - _firewall_verify_nft_tables is not skipped
         - _firewall_verify_nft_tables.rc == 0
 
-    # ---- Runtime: full ruleset dump (diagnostic, non-Docker only) ----
+    - name: List ssh6_ratelimit IPv6 set in runtime
+      ansible.builtin.command: nft list set inet filter ssh6_ratelimit
+      register: _firewall_verify_nft_set_v6
+      changed_when: false
+      failed_when: false
+      when:
+        - not _firewall_verify_in_docker
+        - firewall_allow_ssh
+        - firewall_ssh_rate_limit_enabled
+        - _firewall_verify_nft_tables is not skipped
+        - _firewall_verify_nft_tables.rc == 0
+
+    - name: Assert ssh6_ratelimit IPv6 set exists in runtime
+      ansible.builtin.assert:
+        that:
+          - _firewall_verify_nft_set_v6.rc == 0
+          - "'ssh6_ratelimit' in _firewall_verify_nft_set_v6.stdout"
+        fail_msg: >-
+          CRIT-01 runtime: ssh6_ratelimit (IPv6) set not loaded.
+          nft returned: {{ _firewall_verify_nft_set_v6.stderr | default('') }}
+      when:
+        - not _firewall_verify_in_docker
+        - firewall_allow_ssh
+        - firewall_ssh_rate_limit_enabled
+        - _firewall_verify_nft_tables is not skipped
+        - _firewall_verify_nft_tables.rc == 0
+
+    # ---- Diagnostic: dump full ruleset ----
 
     - name: Diagnostic -- full nftables ruleset
       ansible.builtin.command: nft list ruleset
@@ -281,6 +371,9 @@
       ansible.builtin.debug:
         msg: >-
           Firewall verify passed: nftables installed, /etc/nftables.conf deployed
-          (root:root 0644), inet filter table with drop policy, SSH per-source-IP
-          rate limiting (CRIT-01 validated{{ ' in config' if _firewall_verify_in_docker else ' in config + runtime' }}),
+          (root:root 0644), inet filter table with drop policy, lo/established/invalid
+          rules OK, ICMP rate limiting OK, SSH per-source-IP rate limiting IPv4+IPv6
+          (CRIT-01 validated{{ ' in config' if _firewall_verify_in_docker else ' in config + runtime' }}),
+          custom TCP ports={{ firewall_expected_tcp_ports }},
+          custom UDP ports={{ firewall_expected_udp_ports }},
           service enabled{{ ' (active check skipped in Docker)' if _firewall_verify_in_docker else ' and active' }}.

@@ -6,3 +6,6 @@
 
   roles:
     - role: firewall
+      vars:
+        firewall_allow_tcp_ports: [8080, 9090]
+        firewall_allow_udp_ports: [53]

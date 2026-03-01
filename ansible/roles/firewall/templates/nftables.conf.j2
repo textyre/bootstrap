@@ -6,13 +6,21 @@ flush ruleset
 
 table inet filter {
 {% if firewall_allow_ssh and firewall_ssh_rate_limit_enabled %}
+    # CRIT-01: per-source-IP SSH rate limiting — IPv4
     set ssh_ratelimit {
         type ipv4_addr
         flags dynamic,timeout
         timeout 1m
     }
-{% endif %}
 
+    # CRIT-01: per-source-IP SSH rate limiting — IPv6
+    set ssh6_ratelimit {
+        type ipv6_addr
+        flags dynamic,timeout
+        timeout 1m
+    }
+
+{% endif %}
     chain input {
         type filter hook input priority 0; policy drop;
 
@@ -31,8 +39,10 @@ table inet filter {
 
 {% if firewall_allow_ssh %}
 {% if firewall_ssh_rate_limit_enabled %}
-        # SSH с per-source-IP rate limiting (защита от brute-force)
+        # SSH с per-source-IP rate limiting IPv4 (CRIT-01)
         tcp dport 22 ct state new add @ssh_ratelimit { ip saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } log prefix "[nftables] ssh-rate: " drop
+        # SSH с per-source-IP rate limiting IPv6 (CRIT-01)
+        tcp dport 22 ct state new add @ssh6_ratelimit { ip6 saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } log prefix "[nftables] ssh6-rate: " drop
 {% endif %}
         # SSH — разрешить
         tcp dport 22 ct state new accept
@@ -51,8 +61,14 @@ table inet filter {
     chain forward {
         type filter hook forward priority 0; policy drop;
 
-        # Docker bridge forwarding
+        # Разрешить установленные/связанные (общее правило)
         ct state established,related accept
+
+{% if firewall_docker_enabled %}
+        # Docker bridge — разрешить новые соединения для опубликованных портов
+        iifname "docker0" ct state new accept
+        oifname "docker0" ct state new accept
+{% endif %}
     }
 
     chain output {

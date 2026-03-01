@@ -4,13 +4,9 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Update pacman package cache (Arch)
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Update apt cache (Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
+    - name: Wait for systemd to reach multi-user target
+      ansible.builtin.command: systemctl is-system-running --wait
+      register: _prepare_systemd_state
+      changed_when: false
+      failed_when: false
+      timeout: 30

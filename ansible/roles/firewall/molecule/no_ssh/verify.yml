@@ -1,0 +1,86 @@
+---
+- name: Verify firewall role — SSH disabled scenario
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert nftables package is installed
+      ansible.builtin.assert:
+        that: "'nftables' in ansible_facts.packages"
+        fail_msg: "nftables package not found"
+
+    - name: Read nftables.conf content
+      ansible.builtin.slurp:
+        src: /etc/nftables.conf
+      register: _firewall_verify_conf_raw
+
+    - name: Set nftables.conf text fact
+      ansible.builtin.set_fact:
+        _firewall_conf_text: "{{ _firewall_verify_conf_raw.content | b64decode }}"
+
+    # ---- Core structure must still be present ----
+
+    - name: Assert inet filter table present
+      ansible.builtin.assert:
+        that: "'table inet filter' in _firewall_conf_text"
+        fail_msg: "'table inet filter' not found"
+
+    - name: Assert input chain drop policy present
+      ansible.builtin.assert:
+        that: "'policy drop' in _firewall_conf_text"
+        fail_msg: "Input chain policy drop missing"
+
+    # ---- SSH must be absent ----
+
+    - name: Assert port 22 NOT in config
+      ansible.builtin.assert:
+        that: "'tcp dport 22' not in _firewall_conf_text"
+        fail_msg: "SSH rule (tcp dport 22) found in config but firewall_allow_ssh: false"
+
+    - name: Assert ssh_ratelimit IPv4 set NOT in config
+      ansible.builtin.assert:
+        that: "'set ssh_ratelimit' not in _firewall_conf_text"
+        fail_msg: "ssh_ratelimit set found in config but firewall_allow_ssh: false"
+
+    - name: Assert ssh6_ratelimit IPv6 set NOT in config
+      ansible.builtin.assert:
+        that: "'set ssh6_ratelimit' not in _firewall_conf_text"
+        fail_msg: "ssh6_ratelimit set found in config but firewall_allow_ssh: false"
+
+    # ---- ICMP and established/related must still work ----
+
+    - name: Assert established/related accept still present
+      ansible.builtin.assert:
+        that: "'ct state established,related accept' in _firewall_conf_text"
+        fail_msg: "established/related accept rule missing"
+
+    - name: Assert catch-all log+drop still present
+      ansible.builtin.assert:
+        that: "'log prefix' in _firewall_conf_text"
+        fail_msg: "Catch-all log+drop rule missing"
+
+    # ---- Service enabled ----
+
+    - name: Check nftables service is enabled
+      ansible.builtin.command: systemctl is-enabled nftables.service
+      register: _firewall_verify_svc_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Assert nftables service is enabled
+      ansible.builtin.assert:
+        that: "'enabled' in _firewall_verify_svc_enabled.stdout"
+        fail_msg: "nftables.service is not enabled"
+
+    - name: Show verify result
+      ansible.builtin.debug:
+        msg: >-
+          Firewall no_ssh verify passed: nftables installed, config deployed,
+          policy drop OK, no port-22 rules, no ssh_ratelimit/ssh6_ratelimit sets,
+          established/related and catch-all present, service enabled.

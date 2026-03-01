@@ -1,0 +1,8 @@
+---
+# === Gentoo: установка nftables ===
+
+- name: Ensure nftables is installed (Gentoo)
+  ansible.builtin.package:
+    name: net-firewall/nftables
+    state: present
+  tags: ['firewall', 'install']
