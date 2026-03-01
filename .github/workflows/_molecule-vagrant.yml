@@ -12,6 +12,11 @@ on:
         required: true
         type: string
         description: "Vagrant platform name (arch-vm or ubuntu-base)"
+      scenario:
+        required: false
+        type: string
+        default: 'vagrant'
+        description: "Molecule scenario name (default: vagrant)"
 
 jobs:
   test:
@@ -143,5 +148,5 @@ jobs:
             "import os, molecule_plugins.vagrant; \
              print(os.path.join(os.path.dirname(molecule_plugins.vagrant.__file__), 'modules'))")
           export ANSIBLE_LIBRARY="$VAGRANT_MODULES"
-          molecule test -s vagrant --platform-name ${{ inputs.platform }}
+          molecule test -s ${{ inputs.scenario }} --platform-name ${{ inputs.platform }}
         working-directory: "ansible/roles/${{ inputs.role_name }}"

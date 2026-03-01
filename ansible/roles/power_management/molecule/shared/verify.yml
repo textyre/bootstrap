@@ -17,8 +17,9 @@
     - name: Set laptop detection fact
       ansible.builtin.set_fact:
         pm_verify_is_laptop: >-
-          {{ 'content' in pm_verify_chassis and
-             (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32'] }}
+          {{ pm_verify_force_laptop | default(false) or
+             ('content' in pm_verify_chassis and
+              (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32']) }}
 
     - name: Check if cpufreq is available
       ansible.builtin.stat:
@@ -46,6 +47,31 @@
         fail_msg: "Neither linux-cpupower nor linux-tools-common installed"
         success_msg: "cpupower tooling installed (Debian)"
       when: ansible_facts['os_family'] == 'Debian'
+
+    # ---- TLP (laptop path) ----
+
+    - name: Assert TLP package is installed (laptop)
+      ansible.builtin.assert:
+        that: "'tlp' in ansible_facts.packages"
+        fail_msg: "TLP not installed on laptop"
+        success_msg: "TLP package installed"
+      when: pm_verify_is_laptop
+
+    - name: Check TLP service state (laptop)
+      ansible.builtin.command: systemctl is-active tlp.service
+      register: pm_verify_tlp_active
+      changed_when: false
+      failed_when: false
+      when: pm_verify_is_laptop
+
+    - name: Assert TLP service is active (laptop)
+      ansible.builtin.assert:
+        that: pm_verify_tlp_active.stdout | trim == 'active'
+        fail_msg: "TLP service is not active (got: {{ pm_verify_tlp_active.stdout | trim }})"
+        success_msg: "TLP service is active"
+      when:
+        - pm_verify_is_laptop
+        - pm_verify_tlp_active is not skipped
 
     # ==== Config File Deployment Checks ====
 
@@ -401,6 +427,7 @@
           - "cpufreq available: {{ pm_verify_cpufreq_available.stat.exists | default(false) }}"
           - "Configs: sleep.conf, logind.conf deployed with correct content"
           - "Udev rule: {{ 'deployed' if not pm_verify_is_laptop else 'skipped (laptop)' }}"
-          - "Audit: script + service + timer deployed and enabled"
+          - "Audit: script + service + timer deployed, enabled and active"
+          - "TLP: {{ 'active' if pm_verify_is_laptop else 'not applicable (desktop)' }}"
           - "Drift: state directory and file present with correct permissions"
           - "Conflicts: power-profiles-daemon + auto-cpufreq masked/absent"
