@@ -92,14 +92,6 @@
 # ---- Сервис ----
 # ======================================================================
 
-# Flush any pending restart handler before starting the service.
-# If daemon.json changed and docker is not yet running, state: restarted acts
-# as a clean start rather than a stop+start cycle that can fail due to
-# iptables/nftables state conflicts on certain platforms.
-- name: Apply pending handlers before service start
-  ansible.builtin.meta: flush_handlers
-  tags: ['docker', 'docker:service']
-
 - name: Enable and start docker service
   ansible.builtin.service:
     name: "{{ _docker_service_name }}"
