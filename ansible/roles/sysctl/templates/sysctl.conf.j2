@@ -173,9 +173,6 @@ fs.suid_dumpable = {{ sysctl_fs_suid_dumpable }}
 {% if sysctl_custom_params | length > 0 %}
 # ---- Custom parameters ----
 {% for param in sysctl_custom_params %}
-{%   if param.name is not defined or param.value is not defined %}
-{%     raise "sysctl_custom_params entry missing 'name' or 'value': " ~ (param | string) %}
-{%   endif %}
-{{ param.name }} = {{ param.value }}
+{{ param.name | mandatory("sysctl_custom_params[" ~ loop.index0 ~ "] is missing 'name'") }} = {{ param.value | mandatory("sysctl_custom_params[" ~ loop.index0 ~ "] is missing 'value'") }}
 {% endfor %}
 {% endif %}
