@@ -817,10 +817,6 @@ Vagrant задаёт `user_manage_password_aging: true` в converge.yml → пр
 ### Открытые gaps
 
 - **`password_warn_age` не применяется:** Переменная `password_warn_age: 7` в
-  defaults/main.yml. Модуль `ansible.builtin.user.password_expire_warn` требует
-  ansible-core ≥ 2.17. Проект использует 2.15. Значение задокументировано в
-  defaults как "для будущего использования". Тест будет возможен после апгрейда.
-
-- **Idempotence с umask-файлами:** Molecule запускает `idempotence` шаг автоматически.
-  Если `ansible.builtin.template` не сохраняет trailing newline или меняет encoding —
-  может быть flaky. Не наблюдалось, но стоит проверить при изменении шаблонов umask.
+  defaults/main.yml. Параметр `password_expire_warn` модуля `ansible.builtin.user`
+  требует ansible-core ≥ 2.17. Проект использует 2.15. Значение задокументировано
+  в defaults как "для будущего использования". Тест станет возможен после апгрейда.
