@@ -75,13 +75,25 @@
   register: ntp_audit_zipapp_stat
   tags: ['ntp_audit', 'ntp_audit_script']
 
+- name: Validate existing ntp-audit zipapp archive
+  ansible.builtin.command:
+    cmd: >-
+      python3 -c
+      "import zipfile; zipfile.ZipFile('/usr/local/bin/ntp-audit').testzip()"
+  register: ntp_audit_zipapp_validate
+  changed_when: false
+  failed_when: false
+  when: ntp_audit_zipapp_stat.stat.exists
+  tags: ['ntp_audit', 'ntp_audit_script']
+
 - name: Build ntp-audit zipapp on first deploy
   ansible.builtin.command:
     cmd: >-
       python3 -m zipapp /usr/local/src/ntp-audit
       -o /usr/local/bin/ntp-audit
       -p "/usr/bin/env python3"
-  when: not ntp_audit_zipapp_stat.stat.exists
+  when:
+    - not ntp_audit_zipapp_stat.stat.exists or (ntp_audit_zipapp_validate.rc | default(1)) != 0
   changed_when: true
   tags: ['ntp_audit', 'ntp_audit_script']
 

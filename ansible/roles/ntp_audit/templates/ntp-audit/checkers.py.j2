@@ -8,12 +8,14 @@ from pathlib import Path
 def check_conflicts(services: list) -> str:
     """Detect active competing NTP services.
 
-    Returns '<service>_active' for the first active conflict found,
-    or 'none' if no conflicts detected.
+    Returns a comma-separated list of all active conflicts found
+    (e.g. 'systemd-timesyncd_active,ntpd_active'), or 'none' if no
+    conflicts detected. Reports ALL active conflicts, not just the first.
     Skips check silently if systemctl is not available.
     """
     if not shutil.which('systemctl'):
         return "none"
+    active = []
     for svc in services:
         try:
             r = subprocess.run(
@@ -22,10 +24,10 @@ def check_conflicts(services: list) -> str:
                 timeout=3,
             )
             if r.returncode == 0:
-                return f"{svc}_active"
+                active.append(f"{svc}_active")
         except (subprocess.TimeoutExpired, OSError):
             continue
-    return "none"
+    return ",".join(active) if active else "none"
 
 
 def check_phc(devices: list) -> tuple:

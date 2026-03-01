@@ -17,6 +17,17 @@
           - not ntp_audit_disabled_zipapp.stat.exists
         fail_msg: "/usr/local/bin/ntp-audit was deployed despite ntp_audit_enabled: false"
 
+    - name: Assert Python source staging directory NOT created
+      ansible.builtin.stat:
+        path: /usr/local/src/ntp-audit
+      register: ntp_audit_disabled_src
+
+    - name: Verify staging dir absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_src.stat.exists
+        fail_msg: "/usr/local/src/ntp-audit was created despite ntp_audit_enabled: false"
+
     - name: Assert audit log directory NOT created
       ansible.builtin.stat:
         path: /var/log/ntp-audit
@@ -28,17 +39,82 @@
           - not ntp_audit_disabled_logdir.stat.exists
         fail_msg: "/var/log/ntp-audit was created despite ntp_audit_enabled: false"
 
-    - name: Collect service facts (systemd)
-      ansible.builtin.service_facts:
-      when: ansible_facts['service_mgr'] == 'systemd'
+    - name: Assert logrotate config NOT deployed
+      ansible.builtin.stat:
+        path: /etc/logrotate.d/ntp-audit
+      register: ntp_audit_disabled_logrotate
 
-    - name: Assert ntp-audit.timer NOT deployed when disabled
+    - name: Verify logrotate config absent
       ansible.builtin.assert:
         that:
-          - "'ntp-audit.timer' not in ansible_facts.services"
-        fail_msg: "ntp-audit.timer was deployed despite ntp_audit_enabled: false"
+          - not ntp_audit_disabled_logrotate.stat.exists
+        fail_msg: "/etc/logrotate.d/ntp-audit was deployed despite ntp_audit_enabled: false"
+
+    - name: Assert systemd service unit NOT deployed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/ntp-audit.service
+      register: ntp_audit_disabled_service
       when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify service unit absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_service.stat.exists
+        fail_msg: "/etc/systemd/system/ntp-audit.service was deployed despite ntp_audit_enabled: false"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert systemd timer unit NOT deployed
+      ansible.builtin.stat:
+        path: /etc/systemd/system/ntp-audit.timer
+      register: ntp_audit_disabled_timer
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Verify timer unit absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_timer.stat.exists
+        fail_msg: "/etc/systemd/system/ntp-audit.timer was deployed despite ntp_audit_enabled: false"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert cron entry NOT deployed (non-systemd)
+      ansible.builtin.command:
+        cmd: crontab -l -u root
+      register: ntp_audit_disabled_cron
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['service_mgr'] != 'systemd'
+
+    - name: Verify cron entry absent (non-systemd)
+      ansible.builtin.assert:
+        that:
+          - "'ntp-audit' not in ntp_audit_disabled_cron.stdout"
+        fail_msg: "ntp-audit cron job was deployed despite ntp_audit_enabled: false"
+      when: ansible_facts['service_mgr'] != 'systemd'
+
+    - name: Assert Alloy config NOT deployed
+      ansible.builtin.stat:
+        path: /etc/alloy/conf.d/ntp-audit.alloy
+      register: ntp_audit_disabled_alloy
+
+    - name: Verify Alloy config absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_alloy.stat.exists
+        fail_msg: "/etc/alloy/conf.d/ntp-audit.alloy was deployed despite ntp_audit_enabled: false"
+
+    - name: Assert Loki rules NOT deployed
+      ansible.builtin.stat:
+        path: /etc/loki/rules/fake/ntp-audit-rules.yaml
+      register: ntp_audit_disabled_loki
+
+    - name: Verify Loki rules absent
+      ansible.builtin.assert:
+        that:
+          - not ntp_audit_disabled_loki.stat.exists
+        fail_msg: "/etc/loki/rules/fake/ntp-audit-rules.yaml was deployed despite ntp_audit_enabled: false"
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "ntp_audit disabled verify passed: no zipapp, no log dir, no timer"
+        msg: >-
+          ntp_audit disabled verify passed: no zipapp, no staging dir, no log dir,
+          no logrotate, no systemd units, no cron, no alloy config, no loki rules.

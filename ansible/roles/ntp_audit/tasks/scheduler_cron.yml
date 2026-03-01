@@ -1,15 +1,17 @@
 ---
 # === ntp_audit — cron scheduler (non-systemd fallback) ===
+# ntp_audit_interval_cron format: "<minute> <hour> <day> <month> <weekday>"
+# Default: "*/5 * * * *"  (every 5 minutes)
 
 - name: Deploy ntp-audit cron job
   ansible.builtin.cron:
     name: "ntp-audit"
     job: "/usr/local/bin/ntp-audit"
-    minute: "*/5"
-    hour: "*"
-    day: "*"
-    month: "*"
-    weekday: "*"
+    minute: "{{ ntp_audit_interval_cron.split(' ')[0] }}"
+    hour: "{{ ntp_audit_interval_cron.split(' ')[1] }}"
+    day: "{{ ntp_audit_interval_cron.split(' ')[2] }}"
+    month: "{{ ntp_audit_interval_cron.split(' ')[3] }}"
+    weekday: "{{ ntp_audit_interval_cron.split(' ')[4] }}"
     user: root
   when: ansible_facts['service_mgr'] != 'systemd'
   tags: ['ntp_audit', 'ntp_audit_scheduler']
