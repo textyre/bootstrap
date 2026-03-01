@@ -18,8 +18,7 @@
       {
         "hypervisor": "{{ vm_hypervisor }}",
         "is_guest": {{ vm_is_guest | bool | lower }},
-        "is_container": {{ vm_is_container | bool | lower }},
-        "reboot_required": {{ vm_reboot_required | default(false) | bool | lower }}
+        "is_container": {{ vm_is_container | bool | lower }}
       }
     dest: /etc/ansible/facts.d/vm_guest.fact
     mode: '0644'
