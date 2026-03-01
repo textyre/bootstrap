@@ -94,16 +94,16 @@ The `apt-get update -qq` is still required (to update package metadata), but pac
 
 **Extract pip requirements to a file** — create `ansible/requirements-molecule-vagrant.txt`:
 ```
-ansible-core==2.20.1
-molecule==25.12.0
+# Vagrant CI dependencies — extends requirements.txt with vagrant-specific extras.
+-r requirements.txt
 molecule-plugins[vagrant]==25.8.12
-jmespath
-rich
 python-vagrant
 ```
 
-Note: `python-vagrant` is moved here from the implicit `pip install` in the workflow step
-(it was installed by molecule-plugins but not declared explicitly).
+> **Note:** Final structure uses `-r requirements.txt` base include so that shared dep changes
+> (ansible-core, molecule version bumps) automatically invalidate the vagrant pip cache.
+> `python-vagrant` was previously installed implicitly via `molecule-plugins`; it is now declared
+> explicitly.
 
 **Update pip cache step** to use `hashFiles`:
 ```yaml
