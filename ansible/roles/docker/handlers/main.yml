@@ -9,3 +9,4 @@
     name: docker
     state: restarted
   listen: "restart docker"
+  when: docker_enable_service | default(true)
