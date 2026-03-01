@@ -73,6 +73,45 @@
         - pm_verify_is_laptop
         - pm_verify_tlp_active is not skipped
 
+    - name: Stat /etc/tlp.conf (laptop)
+      ansible.builtin.stat:
+        path: /etc/tlp.conf
+      register: pm_verify_tlp_conf
+      when: pm_verify_is_laptop
+
+    - name: Assert /etc/tlp.conf deployed with correct permissions (laptop)
+      ansible.builtin.assert:
+        that:
+          - pm_verify_tlp_conf.stat.exists
+          - pm_verify_tlp_conf.stat.pw_name == 'root'
+          - pm_verify_tlp_conf.stat.gr_name == 'root'
+          - pm_verify_tlp_conf.stat.mode == '0644'
+        fail_msg: "/etc/tlp.conf missing or wrong permissions (mode={{ pm_verify_tlp_conf.stat.mode | default('?') }})"
+        success_msg: "/etc/tlp.conf deployed with correct permissions"
+      when:
+        - pm_verify_is_laptop
+        - pm_verify_tlp_conf is not skipped
+
+    - name: Read /etc/tlp.conf content (laptop)
+      ansible.builtin.slurp:
+        src: /etc/tlp.conf
+      register: pm_verify_tlp_conf_content
+      when:
+        - pm_verify_is_laptop
+        - pm_verify_tlp_conf.stat.exists | default(false)
+
+    - name: Assert /etc/tlp.conf is Ansible-managed with expected CPU directives (laptop)
+      ansible.builtin.assert:
+        that:
+          - "'Managed by Ansible' in (pm_verify_tlp_conf_content.content | b64decode)"
+          - "'CPU_SCALING_GOVERNOR_ON_AC=' in (pm_verify_tlp_conf_content.content | b64decode)"
+          - "'CPU_SCALING_GOVERNOR_ON_BAT=' in (pm_verify_tlp_conf_content.content | b64decode)"
+        fail_msg: "/etc/tlp.conf missing Ansible header or CPU governor directives"
+        success_msg: "/etc/tlp.conf contains Ansible header and CPU directives"
+      when:
+        - pm_verify_is_laptop
+        - pm_verify_tlp_conf_content is not skipped
+
     # ==== Config File Deployment Checks ====
 
     # ---- sleep.conf ----
@@ -230,6 +269,10 @@
         fail_msg: "power-audit.sh missing expected content"
         success_msg: "power-audit.sh contains expected audit checks"
 
+    - name: Verify audit script has valid bash syntax
+      ansible.builtin.command: bash -n /usr/local/bin/power-audit.sh
+      changed_when: false
+
     - name: Stat /etc/systemd/system/power-audit.service
       ansible.builtin.stat:
         path: /etc/systemd/system/power-audit.service
@@ -243,6 +286,17 @@
         fail_msg: "power-audit.service unit missing"
         success_msg: "power-audit.service unit deployed"
 
+    - name: Read power-audit.service content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/power-audit.service
+      register: pm_verify_audit_service_content
+
+    - name: Assert power-audit.service ExecStart points to correct script
+      ansible.builtin.assert:
+        that: "'ExecStart=/usr/local/bin/power-audit.sh' in (pm_verify_audit_service_content.content | b64decode)"
+        fail_msg: "power-audit.service ExecStart does not reference /usr/local/bin/power-audit.sh"
+        success_msg: "power-audit.service ExecStart verified"
+
     - name: Stat /etc/systemd/system/power-audit.timer
       ansible.builtin.stat:
         path: /etc/systemd/system/power-audit.timer
@@ -255,6 +309,20 @@
           - pm_verify_audit_timer.stat.mode == '0644'
         fail_msg: "power-audit.timer unit missing"
         success_msg: "power-audit.timer unit deployed"
+
+    - name: Read power-audit.timer content
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/power-audit.timer
+      register: pm_verify_audit_timer_content
+
+    - name: Assert power-audit.timer contains OnCalendar directive
+      ansible.builtin.assert:
+        that:
+          - "'OnCalendar=daily' in (pm_verify_audit_timer_content.content | b64decode)"
+          - "'RandomizedDelaySec=' in (pm_verify_audit_timer_content.content | b64decode)"
+          - "'Persistent=true' in (pm_verify_audit_timer_content.content | b64decode)"
+        fail_msg: "power-audit.timer missing expected timer directives"
+        success_msg: "power-audit.timer contains OnCalendar=daily + RandomizedDelaySec + Persistent"
 
     - name: Check power-audit.timer is enabled
       ansible.builtin.command: systemctl is-enabled power-audit.timer
@@ -361,6 +429,26 @@
           - pm_verify_drift_json.governor in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative', 'unknown']
         fail_msg: "Drift state has unexpected governor value: '{{ pm_verify_drift_json.governor }}'"
         success_msg: "Drift state governor: '{{ pm_verify_drift_json.governor }}'"
+
+    - name: Assert drift state governor matches deployed value (desktop)
+      ansible.builtin.assert:
+        that: pm_verify_drift_json.governor == 'schedutil'
+        fail_msg: "Drift state governor='{{ pm_verify_drift_json.governor }}', expected 'schedutil' for desktop"
+        success_msg: "Drift state governor matches deployed value: schedutil"
+      when: not pm_verify_is_laptop
+
+    - name: Assert drift state records correct device type (desktop)
+      ansible.builtin.assert:
+        that: not (pm_verify_drift_json.is_laptop | bool)
+        fail_msg: "Drift state is_laptop='{{ pm_verify_drift_json.is_laptop }}', expected false for desktop"
+        success_msg: "Drift state device type: desktop"
+      when: not pm_verify_is_laptop
+
+    - name: Assert drift state records init system
+      ansible.builtin.assert:
+        that: pm_verify_drift_json.init_system == 'systemd'
+        fail_msg: "Drift state init_system='{{ pm_verify_drift_json.init_system }}', expected 'systemd'"
+        success_msg: "Drift state init_system: systemd"
 
     # ==== CPU Governor (hardware-dependent, conditional) ====
 
