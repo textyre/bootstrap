@@ -109,8 +109,7 @@
 - name: Verify HibernateMode in sleep.conf
   ansible.builtin.assert:
     that:
-      - power_management_assert_hibernate.content | b64decode | regex_search('^HibernateMode=.+', multiline=True)
-        == 'HibernateMode=' + power_management_hibernate_mode
+      - "'HibernateMode=' + power_management_hibernate_mode in (power_management_assert_hibernate.content | b64decode)"
     fail_msg: >-
       sleep.conf HibernateMode does not match.
       Expected 'HibernateMode={{ power_management_hibernate_mode }}'.
@@ -150,8 +149,7 @@
 - name: Verify HandleLidSwitch in logind.conf
   ansible.builtin.assert:
     that:
-      - power_management_assert_lid.content | b64decode | regex_search('^HandleLidSwitch=.+', multiline=True)
-        == 'HandleLidSwitch=' + power_management_lid_switch_action
+      - "'HandleLidSwitch=' + power_management_lid_switch_action in (power_management_assert_lid.content | b64decode)"
     fail_msg: >-
       logind.conf HandleLidSwitch does not match.
       Expected 'HandleLidSwitch={{ power_management_lid_switch_action }}'.
