@@ -9,6 +9,6 @@ galaxy_info:
     - name: ArchLinux
       versions: [all]
     - name: Ubuntu
-      versions: ["24.04"]
+      versions: [all]
   galaxy_tags: [docker, container, service]
 dependencies: []
