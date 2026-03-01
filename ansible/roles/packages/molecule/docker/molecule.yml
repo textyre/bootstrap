@@ -49,7 +49,7 @@ provisioner:
         packages_base: [git, curl, htop, tmux, unzip, rsync, openssh, chezmoi, nftables, cronie, sqlite]
         packages_editors: [vim, neovim]
         packages_docker: [docker, docker-compose, python-requests]
-        packages_xorg: [xorg-server, xrandr, xorg-xinit, xf86-input-libinput]
+        packages_xorg: [xorg-server, xorg-xrandr, xorg-xinit, xf86-input-libinput]
         packages_wm: [picom, dmenu, rofi, dunst, feh, flameshot, gsimplecal]
         packages_filemanager: [thunar, thunar-volman, tumbler, gvfs]
         packages_network: [networkmanager, network-manager-applet]
