@@ -112,10 +112,10 @@
       failed_when: false
       when: _yay_verify_binary.stat.exists
 
-    - name: Assert yay version output contains yay
+    - name: Assert yay version output contains version string
       ansible.builtin.assert:
         that:
-          - _yay_verify_version.stdout is regex('^yay')
+          - _yay_verify_version.stdout is regex('yay v\d+\.\d+')
         fail_msg: "yay --version did not produce expected output: {{ _yay_verify_version.stdout }}"
       when: _yay_verify_binary.stat.exists
 

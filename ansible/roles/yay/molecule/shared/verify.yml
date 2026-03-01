@@ -110,7 +110,7 @@
     - name: Assert yay version output is valid
       ansible.builtin.assert:
         that:
-          - _yay_verify_version.stdout is regex('^yay')
+          - _yay_verify_version.stdout is regex('yay v\d+\.\d+')
         fail_msg: "yay --version did not produce expected output: {{ _yay_verify_version.stdout }}"
       when: _yay_verify_binary.stat.exists
 
