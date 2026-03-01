@@ -26,3 +26,10 @@
         content: "archbox\n"
         dest: /etc/hostname
         mode: "0644"
+
+    - name: Seed /etc/hosts with localhost entry (lost after umount)
+      ansible.builtin.copy:
+        content: |
+          127.0.0.1	localhost
+        dest: /etc/hosts
+        mode: "0644"
