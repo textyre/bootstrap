@@ -68,3 +68,28 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Ensure fail2ban action.d directory exists (Ubuntu)
+      ansible.builtin.file:
+        path: /etc/fail2ban/action.d
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Create noop action (Ubuntu) — Ubuntu fail2ban package omits noop.conf
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/action.d/noop.conf
+        content: |
+          # Molecule CI — noop ban action (no iptables/nftables needed)
+          [Definition]
+          actionstart =
+          actionstop =
+          actioncheck =
+          actionban =
+          actionunban =
+        mode: "0644"
+        owner: root
+        group: root
+      when: ansible_facts['os_family'] == 'Debian'
