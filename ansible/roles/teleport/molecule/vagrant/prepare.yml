@@ -19,6 +19,8 @@
           # Mock stub used in molecule vagrant tests
           if [[ "${1:-}" == "version" ]]; then
             echo "Teleport v17.0.0 git:api/v7 go1.21"
+          elif [[ "${1:-}" == "start" ]]; then
+            exec sleep infinity
           fi
         dest: /usr/local/bin/teleport
         owner: root
