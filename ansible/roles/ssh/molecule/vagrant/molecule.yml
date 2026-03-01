@@ -25,6 +25,18 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      arch-vm:
+        ssh_user: vagrant
+        ssh_banner_enabled: true
+        ssh_moduli_cleanup: true
+        ssh_allow_groups: []
+      ubuntu-base:
+        ssh_user: vagrant
+        ssh_banner_enabled: true
+        ssh_moduli_cleanup: true
+        ssh_allow_groups: []
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
