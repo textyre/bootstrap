@@ -16,10 +16,14 @@
       when: ansible_facts['os_family'] == 'Debian'
 
     # ---- fail2ban needs iptables for its default ban action (iptables-multiport) ----
-    - name: Install iptables-nft for fail2ban backend (Arch)
+    # iptables-nft conflicts with iptables. --ask=4 (ALPM_QUESTION_CONFLICT_PKG) makes
+    # pacman auto-confirm the replacement in a single transaction so iproute2's
+    # libxtables.so=12-64 dependency stays satisfied (iptables-nft provides it too).
+    - name: Install iptables-nft for fail2ban backend, replacing iptables (Arch)
       community.general.pacman:
         name: iptables-nft
         state: present
+        extra_args: --ask=4
       when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Install iptables for fail2ban backend (Ubuntu)

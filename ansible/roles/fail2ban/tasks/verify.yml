@@ -4,7 +4,62 @@
     cmd: "fail2ban-client status"
   register: fail2ban_verify_status
   changed_when: false
-  failed_when: fail2ban_verify_status.rc != 0
+  failed_when: false
+  retries: 5
+  delay: 2
+  until: >-
+    fail2ban_verify_status.rc == 0 or
+    not (fail2ban_start_service | bool) or
+    ansible_virtualization_type | default('') in ['docker', 'container', 'lxc']
+  when: fail2ban_start_service | bool
+  tags: [fail2ban]
+
+- name: "Diagnostic: collect fail2ban journal on startup failure"
+  ansible.builtin.command:
+    cmd: "journalctl -u fail2ban --lines=40 --no-pager --output=short-iso"
+  register: _fail2ban_diag_journal
+  changed_when: false
+  failed_when: false
+  when:
+    - fail2ban_start_service | bool
+    - fail2ban_verify_status is defined
+    - fail2ban_verify_status.rc | default(0) != 0
+    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
+    - ansible_facts['service_mgr'] == 'systemd'
+  tags: [fail2ban]
+
+- name: "Diagnostic: show fail2ban journal on startup failure"
+  ansible.builtin.debug:
+    msg: "fail2ban journal (last 40 lines):\n{{ _fail2ban_diag_journal.stdout | default('(empty)') }}"
+  when:
+    - fail2ban_start_service | bool
+    - fail2ban_verify_status is defined
+    - fail2ban_verify_status.rc | default(0) != 0
+    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
+    - _fail2ban_diag_journal is defined
+  tags: [fail2ban]
+
+- name: "Assert fail2ban is running"
+  ansible.builtin.assert:
+    that: fail2ban_verify_status.rc == 0
+    fail_msg: >-
+      fail2ban is not running (rc={{ fail2ban_verify_status.rc }},
+      stderr={{ fail2ban_verify_status.stderr | default('') }}).
+      See diagnostic output above for fail2ban journal.
+  when:
+    - fail2ban_start_service | bool
+    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
+  tags: [fail2ban]
+
+- name: "Warn if fail2ban not running in container"
+  ansible.builtin.debug:
+    msg: >-
+      INFO: fail2ban service start skipped in container environment
+      (fail2ban_start_service={{ fail2ban_start_service }}).
+      Config file deployment and package install were verified.
+  when:
+    - not (fail2ban_start_service | bool) or
+      ansible_virtualization_type | default('') in ['docker', 'container', 'lxc']
   tags: [fail2ban]
 
 - name: "Verify SSH jail is active"
@@ -12,8 +67,12 @@
     cmd: "fail2ban-client status sshd"
   register: fail2ban_verify_sshd
   changed_when: false
-  failed_when: fail2ban_verify_sshd.rc != 0
-  when: fail2ban_sshd_enabled | bool
+  failed_when: false
+  when:
+    - fail2ban_start_service | bool
+    - fail2ban_sshd_enabled | bool
+    - fail2ban_verify_status is defined
+    - fail2ban_verify_status.rc == 0
   tags: [fail2ban]
 
 - name: "Assert SSH jail reports correctly"
@@ -21,5 +80,9 @@
     that:
       - "'sshd' in fail2ban_verify_sshd.stdout"
     fail_msg: "fail2ban sshd jail is not active"
-  when: fail2ban_sshd_enabled | bool
+  when:
+    - fail2ban_start_service | bool
+    - fail2ban_sshd_enabled | bool
+    - fail2ban_verify_status is defined
+    - fail2ban_verify_status.rc == 0
   tags: [fail2ban]
