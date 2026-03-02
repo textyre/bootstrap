@@ -132,7 +132,7 @@ jobs:
 
       - name: Install libvirt + vagrant
         run: |
-          wget --fail --retry-connrefused --tries=3 -O- https://apt.releases.hashicorp.com/gpg | \
+          curl -fsSL --retry 3 --retry-connrefused https://apt.releases.hashicorp.com/gpg | \
             sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
             https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
