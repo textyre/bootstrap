@@ -8,14 +8,25 @@
     # -----------------------------------------------------------------------
     # 1. Teleport binary
     # -----------------------------------------------------------------------
-    - name: Check teleport binary is in PATH
-      ansible.builtin.command: which teleport
+    - name: Check teleport binary is in PATH (POSIX command -v)
+      ansible.builtin.shell:
+        cmd: command -v teleport
+        executable: /bin/bash
       register: _teleport_verify_which
       changed_when: false
       failed_when: _teleport_verify_which.rc != 0
 
+    - name: Assert teleport binary path is /usr/local/bin/teleport
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_which.stdout | trim == '/usr/local/bin/teleport'
+        fail_msg: >
+          Expected teleport binary at /usr/local/bin/teleport, got:
+          '{{ _teleport_verify_which.stdout | trim }}'
+
     - name: Run teleport version
-      ansible.builtin.command: teleport version
+      ansible.builtin.command:
+        cmd: teleport version
       register: _teleport_verify_version
       changed_when: false
       failed_when: false
@@ -77,90 +88,100 @@
       register: _teleport_verify_conf_raw
       when: _teleport_verify_conf_stat.stat.exists
 
-    - name: Assert slurp succeeded
-      ansible.builtin.assert:
-        that:
-          - "'content' in _teleport_verify_conf_raw"
-        fail_msg: "Failed to slurp /etc/teleport.yaml"
-      when: _teleport_verify_conf_stat.stat.exists
-
-    - name: Decode teleport config
+    - name: Decode teleport config content
       ansible.builtin.set_fact:
         _teleport_verify_conf_content: "{{ _teleport_verify_conf_raw.content | b64decode }}"
       when:
         - _teleport_verify_conf_stat.stat.exists
-        - "'content' in _teleport_verify_conf_raw"
+        - _teleport_verify_conf_raw.content is defined
 
-    - name: Assert config contains version v3
+    - name: Assert config contains Ansible managed header
       ansible.builtin.assert:
         that:
-          - "'version: v3' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'version: v3'"
+          - _teleport_verify_conf_content is regex('(?i)(ansible.managed|managed.by.ansible)')
+        fail_msg: "Config does not contain Ansible managed header"
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert config contains auth_server address
+    - name: Assert config schema version is v3
       ansible.builtin.assert:
         that:
-          - "'auth_server: localhost:3025' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'auth_server: localhost:3025'"
+          - _teleport_verify_conf_content is regex('(?m)^version:\s+v3\s*$')
+        fail_msg: >
+          Config does not contain 'version: v3' at start of line.
+          Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert config contains nodename
+    - name: Assert config contains nodename molecule-test
       ansible.builtin.assert:
         that:
-          - "'nodename: molecule-test' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain expected nodename"
+          - _teleport_verify_conf_content is regex('(?m)^\s+nodename:\s+["\x27]?molecule-test["\x27]?\s*$')
+        fail_msg: >
+          Config does not contain nodename 'molecule-test'.
+          Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert config contains data_dir /var/lib/teleport
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('(?m)^\s+data_dir:\s+/var/lib/teleport\s*$')
+        fail_msg: >
+          Config does not contain 'data_dir: /var/lib/teleport'.
+          Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
     - name: Assert config contains auth_token
       ansible.builtin.assert:
         that:
-          - "'auth_token:' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'auth_token:'"
-      when: _teleport_verify_conf_content is defined
-
-    - name: Assert config contains data_dir
-      ansible.builtin.assert:
-        that:
-          - "'data_dir: /var/lib/teleport' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'data_dir: /var/lib/teleport'"
-      when: _teleport_verify_conf_content is defined
-
-    - name: Assert ssh_service section present
-      ansible.builtin.assert:
-        that:
-          - "'ssh_service:' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'ssh_service:' section"
-      when: _teleport_verify_conf_content is defined
-
-    - name: Assert proxy_service section present
-      ansible.builtin.assert:
-        that:
-          - "'proxy_service:' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'proxy_service:' section"
-      when: _teleport_verify_conf_content is defined
-
-    - name: Assert auth_service section present
-      ansible.builtin.assert:
-        that:
-          - "'auth_service:' in _teleport_verify_conf_content"
-        fail_msg: "Config does not contain 'auth_service:' section"
-      when: _teleport_verify_conf_content is defined
-
-    - name: Assert session_recording mode
-      ansible.builtin.assert:
-        that:
-          - _teleport_verify_conf_content is regex('mode:\s*["\x27]?node["\x27]?')
+          - _teleport_verify_conf_content is regex('(?m)^\s+auth_token:\s+\S+')
         fail_msg: >
-          Config does not contain session recording mode 'node'.
+          Config does not contain 'auth_token:' with a value.
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert Ansible managed header
+    - name: Assert config contains auth_server localhost:3025
       ansible.builtin.assert:
         that:
-          - _teleport_verify_conf_content is regex('(?i)(ansible.managed|managed.by.ansible)')
-        fail_msg: "Config does not contain Ansible managed header"
+          - _teleport_verify_conf_content is regex('(?m)^\s+auth_server:\s+["\x27]?localhost:3025["\x27]?\s*$')
+        fail_msg: >
+          Config does not contain 'auth_server: localhost:3025'.
+          Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert ssh_service section is present and enabled
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('(?m)^ssh_service:\s*$')
+          - _teleport_verify_conf_content is regex('(?m)^\s+enabled:\s+true\s*$')
+        fail_msg: >
+          Config does not contain 'ssh_service:' section with 'enabled: true'.
+          Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert proxy_service section is present
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('(?m)^proxy_service:\s*$')
+        fail_msg: >
+          Config does not contain 'proxy_service:' section.
+          Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert auth_service section is present
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('(?m)^auth_service:\s*$')
+        fail_msg: >
+          Config does not contain 'auth_service:' section.
+          Content: {{ _teleport_verify_conf_content }}
+      when: _teleport_verify_conf_content is defined
+
+    - name: Assert session_recording mode is node
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_conf_content is regex('(?m)^\s+mode:\s+["\x27]?node["\x27]?\s*$')
+        fail_msg: >
+          Config does not contain session recording mode 'node'.
+          Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
     # -----------------------------------------------------------------------
@@ -191,41 +212,96 @@
           mode={{ _teleport_verify_datadir.stat.mode }}
 
     # -----------------------------------------------------------------------
-    # 5. Service enabled state (non-Docker only)
+    # 5. Systemd unit file
     # -----------------------------------------------------------------------
-    - name: Check teleport service is enabled
-      ansible.builtin.command:
-        cmd: systemctl is-enabled teleport
-      register: _teleport_verify_svc_enabled
-      changed_when: false
-      failed_when: false
-      when: ansible_virtualization_type | default('') != 'docker'
+    - name: Stat /etc/systemd/system/teleport.service
+      ansible.builtin.stat:
+        path: /etc/systemd/system/teleport.service
+      register: _teleport_verify_unit_stat
 
-    - name: Assert teleport service is enabled
+    - name: Assert teleport.service unit file exists
       ansible.builtin.assert:
         that:
-          - "'enabled' in _teleport_verify_svc_enabled.stdout"
+          - _teleport_verify_unit_stat.stat.exists
+          - _teleport_verify_unit_stat.stat.isreg
         fail_msg: >
-          teleport service is not enabled:
-          {{ _teleport_verify_svc_enabled.stdout | default('') }}
+          /etc/systemd/system/teleport.service does not exist.
+          The binary install path must deploy a systemd unit file.
+
+    - name: Assert teleport.service unit file permissions
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_unit_stat.stat.mode == '0644'
+        fail_msg: >
+          /etc/systemd/system/teleport.service has wrong mode:
+          {{ _teleport_verify_unit_stat.stat.mode }} (expected 0644)
+      when: _teleport_verify_unit_stat.stat.exists
+
+    - name: Slurp /etc/systemd/system/teleport.service
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/teleport.service
+      register: _teleport_verify_unit_raw
+      when: _teleport_verify_unit_stat.stat.exists
+
+    - name: Decode teleport unit file content
+      ansible.builtin.set_fact:
+        _teleport_verify_unit_content: "{{ _teleport_verify_unit_raw.content | b64decode }}"
       when:
-        - ansible_virtualization_type | default('') != 'docker'
-        - _teleport_verify_svc_enabled is defined
+        - _teleport_verify_unit_stat.stat.exists
+        - _teleport_verify_unit_raw.content is defined
+
+    - name: Assert unit file contains [Unit] section
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_unit_content is regex('(?m)^\[Unit\]\s*$')
+        fail_msg: >
+          teleport.service does not contain [Unit] section.
+          Content: {{ _teleport_verify_unit_content }}
+      when: _teleport_verify_unit_content is defined
+
+    - name: Assert unit file Description is correct
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_unit_content is regex('(?m)^Description=Teleport')
+        fail_msg: >
+          teleport.service Description line not found or incorrect.
+          Content: {{ _teleport_verify_unit_content }}
+      when: _teleport_verify_unit_content is defined
+
+    - name: Assert unit file ExecStart points to /usr/local/bin/teleport
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_unit_content is regex('(?m)^ExecStart=/usr/local/bin/teleport\s+start\s+--config=/etc/teleport\.yaml')
+        fail_msg: >
+          teleport.service ExecStart does not reference
+          /usr/local/bin/teleport start --config=/etc/teleport.yaml.
+          Content: {{ _teleport_verify_unit_content }}
+      when: _teleport_verify_unit_content is defined
+
+    - name: Assert unit file contains [Install] section with WantedBy
+      ansible.builtin.assert:
+        that:
+          - _teleport_verify_unit_content is regex('(?m)^\[Install\]\s*$')
+          - _teleport_verify_unit_content is regex('(?m)^WantedBy=multi-user\.target\s*$')
+        fail_msg: >
+          teleport.service [Install] section or WantedBy=multi-user.target not found.
+          Content: {{ _teleport_verify_unit_content }}
+      when: _teleport_verify_unit_content is defined
 
     # -----------------------------------------------------------------------
-    # 6. Diagnostic notes for Docker-skipped items
+    # 6. Diagnostic notes
     # -----------------------------------------------------------------------
-    - name: Note -- service start/connectivity not tested in Docker
+    - name: Note -- service start skipped in all molecule scenarios
       ansible.builtin.debug:
         msg: >
-          teleport service start and cluster connectivity are skipped in
-          Docker molecule (skip-tags: service). Runtime connectivity
-          requires a live Teleport auth cluster -- not tested here.
-      when: ansible_virtualization_type | default('') == 'docker'
+          teleport service start is skipped in all molecule scenarios
+          (skip-tags: service). Service enabled state and runtime
+          connectivity require a live Teleport auth cluster and are
+          not tested here.
 
     - name: Note -- CA export not tested (requires live cluster)
       ansible.builtin.debug:
         msg: >
-          teleport_export_ca_key=false in converge vars, so CA export is
-          not exercised. CA export requires tctl access to a running auth
-          server -- out of scope for offline molecule tests.
+          teleport_export_ca_key=false in converge vars, so CA export
+          is not exercised. CA export requires tctl access to a running
+          auth server -- out of scope for offline molecule tests.
