@@ -162,8 +162,8 @@
           - _ntp_verify_logdir.stat.exists
           - _ntp_verify_logdir.stat.isdir
           - _ntp_verify_logdir.stat.pw_name == _ntp_verify_user
-          - _ntp_verify_logdir.stat.mode == '0755'
-        fail_msg: "/var/log/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0755)"
+          - _ntp_verify_logdir.stat.mode == '0750'
+        fail_msg: "/var/log/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0750)"
 
     - name: Stat /var/lib/chrony (dumpdir)
       ansible.builtin.stat:
