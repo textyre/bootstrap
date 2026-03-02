@@ -30,6 +30,8 @@ provisioner:
     host_vars:
       arch-vm:
         teleport_install_method: binary
+      ubuntu-base:
+        teleport_install_method: binary
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
