@@ -1,6 +1,10 @@
 ---
 # Arch Linux: Install official packages via pacman
 
+- name: Update pacman package database
+  community.general.pacman:
+    update_cache: true
+
 - name: Install packages (pacman)
   community.general.pacman:
     name: "{{ packages_all }}"
