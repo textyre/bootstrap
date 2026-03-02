@@ -9,6 +9,12 @@ teleport_supported_os:
   - Void
   - Gentoo
 
+# Installation method: package (Arch AUR), repo (Debian/RedHat APT/YUM), binary (CDN tarball)
+# In defaults/ so molecule host_vars can override (include_vars has higher priority)
+teleport_install_method: >-
+  {{ {'Archlinux': 'package', 'Debian': 'repo', 'RedHat': 'repo'}[ansible_facts['os_family']]
+     | default('binary') }}
+
 # Core configuration
 teleport_enabled: true
 teleport_version: "17.0.0"
