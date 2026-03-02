@@ -132,6 +132,10 @@
     # ---- Проверка ----
     # ======================================================================
 
+    - name: Flush handlers to apply new chrony config before verification
+      ansible.builtin.meta: flush_handlers
+      tags: ['ntp']
+
     - name: Verify NTP
       ansible.builtin.include_tasks: verify.yml
       tags: ['ntp']
