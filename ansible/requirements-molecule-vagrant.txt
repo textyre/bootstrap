@@ -1,0 +1,5 @@
+# Vagrant CI dependencies — extends requirements.txt with vagrant-specific extras.
+# Install with: pip install -r ansible/requirements-molecule-vagrant.txt
+-r requirements.txt
+molecule-plugins[vagrant]==25.8.12
+python-vagrant
