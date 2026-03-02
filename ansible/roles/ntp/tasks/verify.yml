@@ -48,6 +48,12 @@
     quiet: true
   tags: ['ntp']
 
+- name: Wait for chronyd to synchronize (up to 60s)
+  ansible.builtin.command:
+    cmd: chronyc waitsync 30 0 0 2
+  changed_when: false
+  tags: ['ntp']
+
 - name: Check chrony has a synced source
   ansible.builtin.command:
     cmd: chronyc -n sources
@@ -62,6 +68,6 @@
       - ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
     fail_msg: >-
       No synchronized NTP source (no '^*' marker in chronyc -n sources).
-      Chrony is running but not synced — check internet connectivity and NTP server reachability.
+      Chrony is running but not synced after 60s — check internet connectivity and NTP server reachability.
     quiet: true
   tags: ['ntp']
