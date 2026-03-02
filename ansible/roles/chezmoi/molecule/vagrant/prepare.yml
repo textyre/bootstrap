@@ -1,24 +1,12 @@
 ---
-- name: Prepare
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (role-specific)
   hosts: all
   become: true
   gather_facts: true
   tasks:
-    # Ubuntu-specific prep
-    - name: Update apt cache (Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Install curl and git (Ubuntu)
-      ansible.builtin.apt:
-        name:
-          - curl
-          - git
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'
-
     # Fixture dotfiles -- minimal source so chezmoi init --source /opt/dotfiles succeeds.
     # Owner must be vagrant (the chezmoi_user in this scenario) because
     # chezmoi init creates .git inside the source directory.

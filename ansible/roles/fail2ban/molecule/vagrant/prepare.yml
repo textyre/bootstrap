@@ -1,20 +1,12 @@
 ---
-- name: Prepare
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (role-specific)
   hosts: all
   become: true
   gather_facts: true
   tasks:
-    - name: Update pacman package cache (Arch)
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Update apt cache (Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
-
     # ---- fail2ban needs iptables for its default ban action (iptables-multiport) ----
     # iptables-nft conflicts with iptables. --ask=4 (ALPM_QUESTION_CONFLICT_PKG) makes
     # pacman auto-confirm the replacement in a single transaction so iproute2's

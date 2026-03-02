@@ -1,4 +1,7 @@
 ---
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
 - name: Prepare Vagrant VM
   hosts: all
   become: true
@@ -6,11 +9,6 @@
 
   tasks:
     # ---- Arch Linux ----
-
-    - name: Update pacman package cache (Arch)
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Install Docker and prerequisites (Arch)
       community.general.pacman:
@@ -24,12 +22,6 @@
       when: ansible_facts['os_family'] == 'Archlinux'
 
     # ---- Debian/Ubuntu ----
-
-    - name: Update apt cache (Debian)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
 
     - name: Install Docker and prerequisites (Debian)
       ansible.builtin.apt:

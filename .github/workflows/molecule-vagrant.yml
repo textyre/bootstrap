@@ -237,6 +237,16 @@ jobs:
           molecule test -s vagrant --platform-name ${{ steps.box.outputs.molecule_platform }}
         working-directory: "ansible/roles/${{ matrix.role }}"
 
+      - name: Annotate failure
+        if: failure()
+        run: |
+          echo "::error title=Molecule FAILED (${{ matrix.role }}/${{ matrix.platform }})::Vagrant scenario for role '${{ matrix.role }}' on '${{ matrix.platform }}' failed. Check the log above for details."
+
+      - name: Annotate success
+        if: success()
+        run: |
+          echo "::notice title=Molecule PASSED (${{ matrix.role }}/${{ matrix.platform }})::Vagrant scenario for role '${{ matrix.role }}' on '${{ matrix.platform }}' passed."
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

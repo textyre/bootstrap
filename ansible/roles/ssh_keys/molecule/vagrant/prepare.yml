@@ -1,22 +1,13 @@
 ---
-# ansible/roles/ssh_keys/molecule/vagrant/prepare.yml
-- name: Prepare
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (role-specific)
   hosts: all
   become: true
   gather_facts: true
 
   tasks:
-    - name: Update pacman package cache (Arch)
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Update apt cache (Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
-
     - name: Create test user for ssh_keys converge
       ansible.builtin.user:
         name: testuser

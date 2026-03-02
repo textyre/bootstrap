@@ -118,3 +118,13 @@ jobs:
       - name: Run Molecule
         run: molecule test -s docker
         working-directory: "ansible/roles/${{ matrix.role }}"
+
+      - name: Annotate failure
+        if: failure()
+        run: |
+          echo "::error title=Molecule FAILED (${{ matrix.role }})::Docker scenario for role '${{ matrix.role }}' failed. Check the log above for details."
+
+      - name: Annotate success
+        if: success()
+        run: |
+          echo "::notice title=Molecule PASSED (${{ matrix.role }})::Docker scenario for role '${{ matrix.role }}' passed."
