@@ -178,6 +178,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Cache Vagrant box
+        id: box-cache
         uses: actions/cache@v4
         with:
           path: ~/.vagrant.d/boxes
@@ -185,10 +186,11 @@ jobs:
           restore-keys: vagrant-box-${{ matrix.platform }}-
 
       - name: Add Vagrant box
-        if: steps.box-cache.outputs.cache-hit != 'true'
         run: |
-          vagrant box add ${{ steps.box.outputs.name }} \
-            ${{ steps.box.outputs.url }} --provider libvirt
+          # Idempotent: skip if box already registered (exact cache hit or restored via restore-key)
+          vagrant box list | grep -q "^${{ steps.box.outputs.name }}" || \
+            vagrant box add ${{ steps.box.outputs.name }} \
+              ${{ steps.box.outputs.url }} --provider libvirt
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5

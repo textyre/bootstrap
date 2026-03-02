@@ -55,6 +55,7 @@
   when:
     - not (hostctl_skip_install | bool)
     - ansible_facts['os_family'] == 'Archlinux'
+  tags: ['hostctl', 'molecule-notest']
 
 # ---- GitHub fallback ----
 

@@ -10,11 +10,11 @@
     verify_profiles:
       - name: dev
         entries:
-          - app.local
-          - api.local
+          - { ip: "127.0.0.1", host: "app.local" }
+          - { ip: "127.0.0.1", host: "api.local" }
       - name: registry
         entries:
-          - registry.local
+          - { ip: "172.17.0.1", host: "registry.local" }
 
   tasks:
 
@@ -23,39 +23,41 @@
     - name: Verify hostctl binary exists at install path
       ansible.builtin.stat:
         path: "{{ verify_binary }}"
-      register: hostctl_verify_bin
+      register: _hostctl_verify_bin
 
-    - name: Assert hostctl binary has correct permissions
+    - name: Assert hostctl binary is present and executable
       ansible.builtin.assert:
         that:
-          - hostctl_verify_bin.stat.exists
-          - hostctl_verify_bin.stat.mode == '0755'
-          - hostctl_verify_bin.stat.executable
+          - _hostctl_verify_bin.stat.exists
+          - _hostctl_verify_bin.stat.mode == '0755'
+          - _hostctl_verify_bin.stat.executable
+        fail_msg: "hostctl binary missing or wrong permissions at {{ verify_binary }}"
+
+    # ---- Version ----
+
+    - name: Run hostctl --version
+      ansible.builtin.command: "{{ verify_binary }} --version"
+      register: _hostctl_verify_version
+      changed_when: false
+
+    - name: Assert hostctl version matches expected
+      ansible.builtin.assert:
+        that: verify_version_string in _hostctl_verify_version.stdout
+        fail_msg: "Expected '{{ verify_version_string }}' in: {{ _hostctl_verify_version.stdout }}"
 
     # ---- Profile directory ----
 
     - name: Verify /etc/hostctl directory exists
       ansible.builtin.stat:
         path: /etc/hostctl
-      register: hostctl_verify_dir
+      register: _hostctl_verify_dir
 
     - name: Assert /etc/hostctl is a directory
       ansible.builtin.assert:
         that:
-          - hostctl_verify_dir.stat.exists
-          - hostctl_verify_dir.stat.isdir
-
-    # ---- Version ----
-
-    - name: Run hostctl --version
-      ansible.builtin.command: "{{ verify_binary }} --version"
-      register: hostctl_verify_version
-      changed_when: false
-
-    - name: Assert hostctl version matches expected
-      ansible.builtin.assert:
-        that: verify_version_string in hostctl_verify_version.stdout
-        fail_msg: "Expected '{{ verify_version_string }}' in: {{ hostctl_verify_version.stdout }}"
+          - _hostctl_verify_dir.stat.exists
+          - _hostctl_verify_dir.stat.isdir
+        fail_msg: "/etc/hostctl directory missing or not a directory"
 
     # ---- Profile files ----
 
@@ -63,39 +65,68 @@
       ansible.builtin.stat:
         path: "/etc/hostctl/{{ item.name }}.hosts"
       loop: "{{ verify_profiles }}"
-      register: hostctl_verify_profile_stats
+      register: _hostctl_verify_profile_stats
 
     - name: Assert profile files exist
       ansible.builtin.assert:
         that: item.stat.exists
         fail_msg: "/etc/hostctl/{{ item.item.name }}.hosts was not deployed"
-      loop: "{{ hostctl_verify_profile_stats.results }}"
+      loop: "{{ _hostctl_verify_profile_stats.results }}"
+      loop_control:
+        label: "{{ item.item.name }}.hosts"
 
     - name: Verify profile file contains expected entry
-      ansible.builtin.command: "grep -q '{{ item.1 }}' /etc/hostctl/{{ item.0.name }}.hosts"
+      ansible.builtin.command: "grep -q '{{ item.1.ip }}.*{{ item.1.host }}' /etc/hostctl/{{ item.0.name }}.hosts"
       loop: "{{ verify_profiles | subelements('entries') }}"
       loop_control:
-        label: "{{ item.0.name }}.hosts → {{ item.1 }}"
+        label: "{{ item.0.name }}.hosts -> {{ item.1.host }}"
+      register: _hostctl_verify_profile_content
       changed_when: false
+      failed_when: false
+
+    - name: Assert profile file entries are correct
+      ansible.builtin.assert:
+        that: item.rc == 0
+        fail_msg: "Entry '{{ item.item.1.ip }} {{ item.item.1.host }}' missing from /etc/hostctl/{{ item.item.0.name }}.hosts"
+      loop: "{{ _hostctl_verify_profile_content.results }}"
+      loop_control:
+        label: "{{ item.item.0.name }}.hosts -> {{ item.item.1.host }}"
 
     # ---- /etc/hosts integration ----
 
-    - name: Verify profile entry is applied to /etc/hosts
-      ansible.builtin.command: "grep -q '{{ item.1 }}' /etc/hosts"
+    - name: Check profile entries applied to /etc/hosts
+      ansible.builtin.command: "grep -q '{{ item.1.host }}' /etc/hosts"
       loop: "{{ verify_profiles | subelements('entries') }}"
       loop_control:
-        label: "/etc/hosts → {{ item.1 }}"
+        label: "/etc/hosts -> {{ item.1.host }}"
+      register: _hostctl_verify_hosts_entries
       changed_when: false
+      failed_when: false
 
-    - name: Verify base /etc/hosts entries not overwritten
-      ansible.builtin.command: grep -q "127.0.0.1" /etc/hosts
+    - name: Assert profile entries present in /etc/hosts
+      ansible.builtin.assert:
+        that: item.rc == 0
+        fail_msg: "'{{ item.item.1.host }}' not found in /etc/hosts — hostctl profile not applied"
+      loop: "{{ _hostctl_verify_hosts_entries.results }}"
+      loop_control:
+        label: "/etc/hosts -> {{ item.item.1.host }}"
+
+    - name: Verify base /etc/hosts localhost entry preserved
+      ansible.builtin.command: grep -q '127.0.0.1' /etc/hosts
+      register: _hostctl_verify_hosts_base
       changed_when: false
+      failed_when: false
+
+    - name: Assert base localhost entry in /etc/hosts
+      ansible.builtin.assert:
+        that: _hostctl_verify_hosts_base.rc == 0
+        fail_msg: "Base 127.0.0.1 entry missing from /etc/hosts"
 
     # ---- Summary ----
 
     - name: Show verification results
       ansible.builtin.debug:
         msg:
-          - "hostctl version: {{ hostctl_verify_version.stdout }}"
+          - "hostctl version: {{ _hostctl_verify_version.stdout }}"
           - "Profiles verified: {{ verify_profiles | map(attribute='name') | join(', ') }}"
           - "Base 127.0.0.1 entry in /etc/hosts: intact"
