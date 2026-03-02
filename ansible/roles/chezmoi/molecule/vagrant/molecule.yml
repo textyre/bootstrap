@@ -28,11 +28,13 @@ provisioner:
   inventory:
     host_vars:
       arch-vm:
+        chezmoi_user: vagrant
         chezmoi_install_method: pacman
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true
         chezmoi_verify_fixture: true
       ubuntu-base:
+        chezmoi_user: vagrant
         chezmoi_install_method: script
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true

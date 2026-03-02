@@ -3,10 +3,19 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - ../../defaults/main.yml
+
+  # NOTE: Do NOT use vars_files to load ../../defaults/main.yml here.
+  # vars_files (precedence 9) overrides inventory host_vars (precedence 4),
+  # which breaks chezmoi_user set by molecule scenarios.
 
   tasks:
+
+    # ---- Resolve user (fallback when inventory doesn't set chezmoi_user) ----
+
+    - name: Set chezmoi_user default if not provided by inventory
+      ansible.builtin.set_fact:
+        chezmoi_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+      when: chezmoi_user is not defined
 
     # ---- Resolve user home (needed for all checks) ----
 
@@ -59,10 +68,20 @@
           Got: {{ _chezmoi_verify_version.stdout }}
 
     # ---- Tier 1: chezmoi source directory initialized ----
+    # When chezmoi_source_dir is set (fixture scenarios), check that path.
+    # Otherwise check the default ~/.local/share/chezmoi.
+
+    - name: Set expected source directory path
+      ansible.builtin.set_fact:
+        _chezmoi_verify_expected_source: >-
+          {{ chezmoi_source_dir
+             if chezmoi_source_dir is defined
+             else _chezmoi_verify_home ~ '/.local/share/chezmoi' }}
+      when: chezmoi_verify_has_dotfiles | default(false)
 
     - name: Check chezmoi source directory exists
       ansible.builtin.stat:
-        path: "{{ _chezmoi_verify_home }}/.local/share/chezmoi"
+        path: "{{ _chezmoi_verify_expected_source }}"
       register: _chezmoi_verify_source_dir
       when: chezmoi_verify_has_dotfiles | default(false)
 
@@ -71,7 +90,7 @@
         that:
           - _chezmoi_verify_source_dir.stat.exists
           - _chezmoi_verify_source_dir.stat.isdir
-        fail_msg: "chezmoi source directory not found at ~/.local/share/chezmoi"
+        fail_msg: "chezmoi source directory not found at {{ _chezmoi_verify_expected_source }}"
       when: chezmoi_verify_has_dotfiles | default(false)
 
     # ---- Tier 1: chezmoi config file deployed ----
