@@ -21,6 +21,7 @@ fail2ban_sshd_bantime: 3600
 fail2ban_sshd_bantime_increment: true
 fail2ban_sshd_bantime_maxtime: 86400
 fail2ban_sshd_backend: auto
+fail2ban_sshd_banaction: ""
 
 # ---- Белый список ----
 fail2ban_ignoreip:

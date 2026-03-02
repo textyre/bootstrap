@@ -42,6 +42,12 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    group_vars:
+      all:
+        # Docker containers lack kernel netfilter access; use noop banaction
+        # so fail2ban can start and maintain service state for idempotence tests.
+        fail2ban_sshd_banaction: noop
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
