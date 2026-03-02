@@ -104,7 +104,7 @@
   become: true
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command:
-    cmd: find {{ chezmoi_user_home }}/.local/share/chezmoi -mindepth 2 -name '.chezmoidata' -type d
+    cmd: find {{ chezmoi_source_dir }} -mindepth 2 -name '.chezmoidata' -type d
   register: chezmoi_nested_check
   changed_when: false
   failed_when: chezmoi_nested_check.stdout | length > 0

@@ -54,7 +54,9 @@ provisioner:
         chezmoi_verify_fixture: true
         chezmoi_verify_full: false
       Ubuntu-systemd:
-        chezmoi_install_method: apt
+        # chezmoi is not in Debian/Ubuntu repos; install via official script.
+        # Binary lands at ~/.local/bin/chezmoi.
+        chezmoi_install_method: script
         chezmoi_user: testuser
         chezmoi_source_dir: /opt/dotfiles
         chezmoi_verify_has_dotfiles: true
