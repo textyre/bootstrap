@@ -24,6 +24,8 @@ provisioner:
     group_vars:
       all:
         caddy_enabled: false
+        # Handlers skip: containers not started (molecule-notest).
+        vaultwarden_compose_manage: false
         # CI-safe docker overrides: journald log-driver with max-size/
         # max-file log-opts is invalid (those opts are json-file only).
         # CIS defaults (userns-remap, icc, no-new-privileges) also need

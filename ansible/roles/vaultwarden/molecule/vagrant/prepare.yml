@@ -35,6 +35,7 @@
       ansible.builtin.apt:
         name:
           - docker.io
+          - docker-compose-v2
           - openssl
           - cron
           - sqlite3
