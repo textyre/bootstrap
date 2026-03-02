@@ -15,6 +15,14 @@
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
 
+    # NTS (Network Time Security) requires CA certificates for TLS handshake.
+    # Minimal Docker images may not include them.
+    - name: Ensure CA certificates are installed (Debian — required for NTS)
+      ansible.builtin.apt:
+        name: ca-certificates
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
     # Ubuntu chrony.service uses ProtectSystem=strict and other sandboxing
     # that conflicts with Docker's filesystem and namespace model.
     # Chrony runs but cannot make outbound NTP/NTS connections.
