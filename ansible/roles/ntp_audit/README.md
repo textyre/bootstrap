@@ -11,7 +11,7 @@ Read-only NTP health auditing role. Deploys a scheduled Python audit script that
 - [x] Deploys a **Grafana Alloy** config fragment (optional, `ntp_audit_alloy_enabled`)
 - [x] Deploys **Loki ruler alert rules** (optional, `ntp_audit_loki_enabled`)
 - [x] Executes first run immediately on deploy and self-verifies the output
-- [x] Detects competing time sync daemons (`systemd-timesyncd`, `ntpd`, `openntpd`, `vmtoolsd`)
+- [x] Detects competing time sync daemons (`systemd-timesyncd`, `ntpd`, `openntpd`, `vmtoolsd`) — reports **all** active conflicts in `ntp_conflict` field (comma-separated, e.g. `systemd-timesyncd_active,ntpd_active`)
 
 This role is **audit-only** — it does NOT install or configure chrony. Requires chrony to be installed and running.
 

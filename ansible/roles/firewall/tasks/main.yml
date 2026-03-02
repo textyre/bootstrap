@@ -17,10 +17,16 @@
   when: firewall_enabled
   tags: ['firewall', 'configure']
 
-- name: Enable and start nftables service
+- name: Enable nftables service
   ansible.builtin.service:
     name: nftables
     enabled: true
-    state: started
   when: firewall_enabled and firewall_enable_service
+  tags: ['firewall', 'service']
+
+- name: Start nftables service
+  ansible.builtin.service:
+    name: nftables
+    state: started
+  when: firewall_enabled and firewall_start_service
   tags: ['firewall', 'service']

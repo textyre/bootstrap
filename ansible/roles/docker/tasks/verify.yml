@@ -1,0 +1,49 @@
+---
+# === Docker — post-configure self-verification ===
+# Runs after deployment to catch misconfigurations early.
+# Called from tasks/main.yml. Also used standalone by molecule shared/verify.yml.
+
+- name: Stat /etc/docker directory
+  ansible.builtin.stat:
+    path: /etc/docker
+  register: _docker_dir_stat
+
+- name: Assert /etc/docker directory is correct
+  ansible.builtin.assert:
+    that:
+      - _docker_dir_stat.stat.exists
+      - _docker_dir_stat.stat.isdir
+      - _docker_dir_stat.stat.pw_name == 'root'
+      - _docker_dir_stat.stat.gr_name == 'root'
+      - _docker_dir_stat.stat.mode == '0755'
+    fail_msg: "/etc/docker missing or wrong permissions (expected root:root 0755)"
+    success_msg: "/etc/docker exists with correct permissions"
+
+- name: Stat /etc/docker/daemon.json
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: _docker_daemon_json_stat
+
+- name: Assert daemon.json exists with correct permissions
+  ansible.builtin.assert:
+    that:
+      - _docker_daemon_json_stat.stat.exists
+      - _docker_daemon_json_stat.stat.isreg
+      - _docker_daemon_json_stat.stat.pw_name == 'root'
+      - _docker_daemon_json_stat.stat.gr_name == 'root'
+      - _docker_daemon_json_stat.stat.mode == '0644'
+    fail_msg: "/etc/docker/daemon.json missing or wrong permissions"
+    success_msg: "daemon.json exists with correct permissions"
+
+- name: Validate daemon.json is valid JSON  # noqa: command-instead-of-module
+  ansible.builtin.command: python3 -c "import json; json.load(open('/etc/docker/daemon.json'))"
+  register: _docker_json_valid
+  changed_when: false
+  failed_when: _docker_json_valid.rc != 0
+
+- name: Docker verify complete
+  ansible.builtin.debug:
+    msg: >-
+      Docker configuration verified on
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+      daemon.json: OK. Service: {{ 'enabled' if docker_enable_service else 'skipped' }}.

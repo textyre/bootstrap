@@ -1,12 +1,16 @@
 ---
 # Shared verify playbook for gpu_drivers molecule scenarios.
 # Designed for the Intel vendor path (gpu_drivers_vendor: intel, pure Mesa, no DKMS).
-# Asserts:
+#
+# Checks:
 #   - Intel driver packages installed (OS-aware names)
 #   - vulkan-tools installed
-#   - /etc/environment.d/gpu.conf exists with correct content
-#   - NVIDIA-specific configs are ABSENT
-#   - /etc/environment.d/ directory exists with correct permissions
+#   - /etc/environment.d/gpu.conf exists with correct content and permissions
+#   - NVIDIA-specific configs are ABSENT (negative path)
+#   - /etc/modprobe.d/ directory exists
+#   - Hardware-dependent checks (lspci, vulkaninfo) — guarded for Docker
+#
+# Register variables follow ROLE-006: _gpu_drivers_verify_<check>
 
 - name: Verify gpu_drivers role (Intel path)
   hosts: all
@@ -26,10 +30,10 @@
 
     - name: Set vendor facts for verification
       ansible.builtin.set_fact:
-        gpu_verify_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
-        gpu_verify_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
-        gpu_verify_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
-        gpu_verify_has_any: "{{ gpu_drivers_vendor in ['nvidia', 'amd', 'intel'] }}"
+        _gpu_drivers_verify_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
+        _gpu_drivers_verify_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
+        _gpu_drivers_verify_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
+        _gpu_drivers_verify_has_any: "{{ gpu_drivers_vendor in ['nvidia', 'amd', 'intel'] }}"
 
     # ==========================================================
     # Phase 2: Package verification (OS-aware)
@@ -43,25 +47,25 @@
 
     - name: Set Intel verify package names (Arch)
       ansible.builtin.set_fact:
-        gpu_verify_intel_packages:
+        _gpu_drivers_verify_intel_packages:
           - mesa
           - vulkan-intel
           - intel-media-driver
           - vulkan-icd-loader
       when:
-        - gpu_verify_has_intel
+        - _gpu_drivers_verify_has_intel
         - ansible_facts['os_family'] == 'Archlinux'
 
     # ---- Intel packages (Debian/Ubuntu) ----
 
     - name: Set Intel verify package names (Debian)
       ansible.builtin.set_fact:
-        gpu_verify_intel_packages:
+        _gpu_drivers_verify_intel_packages:
           - intel-media-va-driver
           - mesa-vulkan-drivers
           - libgl1-mesa-dri
       when:
-        - gpu_verify_has_intel
+        - _gpu_drivers_verify_has_intel
         - ansible_facts['os_family'] == 'Debian'
 
     - name: Assert Intel driver packages are installed
@@ -69,8 +73,8 @@
         that: "item in ansible_facts.packages"
         fail_msg: "Intel driver package '{{ item }}' not found in installed packages"
         success_msg: "Intel driver package '{{ item }}' is installed"
-      loop: "{{ gpu_verify_intel_packages }}"
-      when: gpu_verify_has_intel
+      loop: "{{ _gpu_drivers_verify_intel_packages }}"
+      when: _gpu_drivers_verify_has_intel
 
     # ---- vulkan-tools ----
 
@@ -79,68 +83,92 @@
         that: "'vulkan-tools' in ansible_facts.packages"
         fail_msg: "vulkan-tools not found in installed packages"
         success_msg: "vulkan-tools is installed"
-      when: gpu_verify_has_any and gpu_drivers_vulkan_tools
+      when: _gpu_drivers_verify_has_any and gpu_drivers_vulkan_tools
 
     # ==========================================================
-    # Phase 3: /etc/environment.d/ directory
+    # Phase 3: /etc/environment.d/ directory and gpu.conf
     # ==========================================================
 
     - name: Stat /etc/environment.d directory
       ansible.builtin.stat:
         path: /etc/environment.d
-      register: gpu_verify_env_dir
+      register: _gpu_drivers_verify_env_dir
 
     - name: Assert /etc/environment.d exists and is a directory
       ansible.builtin.assert:
         that:
-          - gpu_verify_env_dir.stat.exists
-          - gpu_verify_env_dir.stat.isdir
+          - _gpu_drivers_verify_env_dir.stat.exists
+          - _gpu_drivers_verify_env_dir.stat.isdir
         fail_msg: "/etc/environment.d does not exist or is not a directory"
         success_msg: "/etc/environment.d exists as a directory"
-
-    # ==========================================================
-    # Phase 4: VA-API environment config
-    # ==========================================================
+      when: gpu_drivers_vaapi and _gpu_drivers_verify_has_any
 
     - name: Stat /etc/environment.d/gpu.conf
       ansible.builtin.stat:
         path: /etc/environment.d/gpu.conf
-      register: gpu_verify_env_conf
+      register: _gpu_drivers_verify_env_conf
 
     - name: Assert gpu.conf exists with correct permissions (when VA-API enabled and GPU present)
       ansible.builtin.assert:
         that:
-          - gpu_verify_env_conf.stat.exists
-          - gpu_verify_env_conf.stat.mode == '0644'
-          - gpu_verify_env_conf.stat.pw_name == 'root'
-          - gpu_verify_env_conf.stat.gr_name == 'root'
+          - _gpu_drivers_verify_env_conf.stat.exists
+          - _gpu_drivers_verify_env_conf.stat.mode == '0644'
+          - _gpu_drivers_verify_env_conf.stat.pw_name == 'root'
+          - _gpu_drivers_verify_env_conf.stat.gr_name == 'root'
         fail_msg: "/etc/environment.d/gpu.conf missing or has wrong permissions (expected root:root 0644)"
         success_msg: "/etc/environment.d/gpu.conf exists with correct permissions"
-      when: gpu_drivers_vaapi and gpu_verify_has_any
+      when: gpu_drivers_vaapi and _gpu_drivers_verify_has_any
 
     - name: Read gpu.conf content
       ansible.builtin.slurp:
         src: /etc/environment.d/gpu.conf
-      register: gpu_verify_env_conf_content
-      when: gpu_drivers_vaapi and gpu_verify_has_any
+      register: _gpu_drivers_verify_env_conf_content
+      when: gpu_drivers_vaapi and _gpu_drivers_verify_has_any
+
+    - name: Assert gpu.conf contains Ansible-managed header
+      ansible.builtin.assert:
+        that: >-
+          'Managed by Ansible' in (_gpu_drivers_verify_env_conf_content.content | b64decode)
+        fail_msg: "/etc/environment.d/gpu.conf missing Ansible-managed header"
+        success_msg: "gpu.conf has Ansible-managed header"
+      when:
+        - gpu_drivers_vaapi
+        - _gpu_drivers_verify_has_any
 
     - name: Assert gpu.conf contains correct LIBVA_DRIVER_NAME for Intel
       ansible.builtin.assert:
-        that: "'LIBVA_DRIVER_NAME=iHD' in (gpu_verify_env_conf_content.content | b64decode)"
+        that: "'LIBVA_DRIVER_NAME=iHD' in (_gpu_drivers_verify_env_conf_content.content | b64decode)"
         fail_msg: >
           /etc/environment.d/gpu.conf does not contain 'LIBVA_DRIVER_NAME=iHD'.
-          Content: {{ gpu_verify_env_conf_content.content | b64decode | trim }}
+          Content: {{ _gpu_drivers_verify_env_conf_content.content | b64decode | trim }}
         success_msg: "gpu.conf contains LIBVA_DRIVER_NAME=iHD"
       when:
         - gpu_drivers_vaapi
-        - gpu_verify_has_intel
+        - _gpu_drivers_verify_has_intel
 
     - name: Assert gpu.conf is absent when VA-API disabled or no GPU
       ansible.builtin.assert:
-        that: not gpu_verify_env_conf.stat.exists
+        that: not _gpu_drivers_verify_env_conf.stat.exists
         fail_msg: "/etc/environment.d/gpu.conf exists but should be absent (VA-API disabled or no GPU)"
         success_msg: "/etc/environment.d/gpu.conf is correctly absent"
-      when: not gpu_drivers_vaapi or not gpu_verify_has_any
+      when: not gpu_drivers_vaapi or not _gpu_drivers_verify_has_any
+
+    # ==========================================================
+    # Phase 4: /etc/modprobe.d/ directory exists
+    # ==========================================================
+
+    - name: Stat /etc/modprobe.d directory
+      ansible.builtin.stat:
+        path: /etc/modprobe.d
+      register: _gpu_drivers_verify_modprobe_dir
+
+    - name: Assert /etc/modprobe.d exists
+      ansible.builtin.assert:
+        that:
+          - _gpu_drivers_verify_modprobe_dir.stat.exists
+          - _gpu_drivers_verify_modprobe_dir.stat.isdir
+        fail_msg: "/etc/modprobe.d does not exist or is not a directory"
+        success_msg: "/etc/modprobe.d exists as a directory"
 
     # ==========================================================
     # Phase 5: NVIDIA-specific configs must be ABSENT (Intel path)
@@ -149,64 +177,122 @@
     - name: Stat /etc/modprobe.d/nvidia.conf
       ansible.builtin.stat:
         path: /etc/modprobe.d/nvidia.conf
-      register: gpu_verify_nvidia_modprobe
+      register: _gpu_drivers_verify_nvidia_modprobe
 
     - name: Assert nvidia.conf is absent when vendor is not NVIDIA
       ansible.builtin.assert:
-        that: not gpu_verify_nvidia_modprobe.stat.exists
+        that: not _gpu_drivers_verify_nvidia_modprobe.stat.exists
         fail_msg: "/etc/modprobe.d/nvidia.conf exists but should be absent for non-NVIDIA vendor"
         success_msg: "/etc/modprobe.d/nvidia.conf is correctly absent"
-      when: not gpu_verify_has_nvidia
+      when: not _gpu_drivers_verify_has_nvidia
 
     - name: Stat /etc/modprobe.d/nvidia-blacklist.conf
       ansible.builtin.stat:
         path: /etc/modprobe.d/nvidia-blacklist.conf
-      register: gpu_verify_nvidia_blacklist
+      register: _gpu_drivers_verify_nvidia_blacklist
 
     - name: Assert nvidia-blacklist.conf is absent when vendor is not NVIDIA
       ansible.builtin.assert:
-        that: not gpu_verify_nvidia_blacklist.stat.exists
+        that: not _gpu_drivers_verify_nvidia_blacklist.stat.exists
         fail_msg: "/etc/modprobe.d/nvidia-blacklist.conf exists but should be absent for non-NVIDIA vendor"
         success_msg: "/etc/modprobe.d/nvidia-blacklist.conf is correctly absent"
-      when: not gpu_verify_has_nvidia
+      when: not _gpu_drivers_verify_has_nvidia
 
     # ---- NVIDIA initramfs drop-ins (must be ABSENT for Intel) ----
 
     - name: Stat mkinitcpio NVIDIA drop-in
       ansible.builtin.stat:
         path: /etc/mkinitcpio.conf.d/nvidia.conf
-      register: gpu_verify_mkinitcpio_nvidia
+      register: _gpu_drivers_verify_mkinitcpio_nvidia
 
     - name: Assert mkinitcpio nvidia.conf is absent when vendor is not NVIDIA
       ansible.builtin.assert:
-        that: not gpu_verify_mkinitcpio_nvidia.stat.exists
+        that: not _gpu_drivers_verify_mkinitcpio_nvidia.stat.exists
         fail_msg: "/etc/mkinitcpio.conf.d/nvidia.conf exists but should be absent for non-NVIDIA vendor"
         success_msg: "/etc/mkinitcpio.conf.d/nvidia.conf is correctly absent"
-      when: not gpu_verify_has_nvidia
+      when: not _gpu_drivers_verify_has_nvidia
 
     - name: Stat dracut NVIDIA drop-in
       ansible.builtin.stat:
         path: /etc/dracut.conf.d/nvidia.conf
-      register: gpu_verify_dracut_nvidia
+      register: _gpu_drivers_verify_dracut_nvidia
 
     - name: Assert dracut nvidia.conf is absent when vendor is not NVIDIA
       ansible.builtin.assert:
-        that: not gpu_verify_dracut_nvidia.stat.exists
+        that: not _gpu_drivers_verify_dracut_nvidia.stat.exists
         fail_msg: "/etc/dracut.conf.d/nvidia.conf exists but should be absent for non-NVIDIA vendor"
         success_msg: "/etc/dracut.conf.d/nvidia.conf is correctly absent"
-      when: not gpu_verify_has_nvidia
+      when: not _gpu_drivers_verify_has_nvidia
 
     - name: Stat initramfs-tools NVIDIA hook
       ansible.builtin.stat:
         path: /etc/initramfs-tools/hooks/nvidia-ansible
-      register: gpu_verify_initramfs_nvidia
+      register: _gpu_drivers_verify_initramfs_nvidia
 
     - name: Assert initramfs-tools nvidia hook is absent when vendor is not NVIDIA
       ansible.builtin.assert:
-        that: not gpu_verify_initramfs_nvidia.stat.exists
+        that: not _gpu_drivers_verify_initramfs_nvidia.stat.exists
         fail_msg: "/etc/initramfs-tools/hooks/nvidia-ansible exists but should be absent for non-NVIDIA vendor"
         success_msg: "/etc/initramfs-tools/hooks/nvidia-ansible is correctly absent"
-      when: not gpu_verify_has_nvidia
+      when: not _gpu_drivers_verify_has_nvidia
+
+    # ==========================================================
+    # Phase 6: Hardware-dependent checks (require real GPU)
+    # These checks CANNOT run in Docker — no GPU passthrough,
+    # no PCI bus, no kernel modules. Each is guarded with
+    # when: ansible_virtualization_type != 'docker'
+    # ==========================================================
+
+    # NOTE: Cannot test in Docker — lspci requires access to /sys/bus/pci
+    # which is not available in containers. On real hardware or VMs,
+    # lspci should return VGA-class devices.
+    - name: Check GPU is detected via lspci (requires real hardware)
+      ansible.builtin.command:
+        cmd: lspci
+      register: _gpu_drivers_verify_lspci
+      changed_when: false
+      failed_when: false
+      when: ansible_virtualization_type != 'docker'
+
+    - name: Assert lspci ran successfully (real hardware only)
+      ansible.builtin.assert:
+        that: _gpu_drivers_verify_lspci.rc == 0
+        fail_msg: "lspci failed with rc={{ _gpu_drivers_verify_lspci.rc }}"
+        success_msg: "lspci ran successfully"
+      when:
+        - ansible_virtualization_type != 'docker'
+        - _gpu_drivers_verify_lspci is not skipped
+
+    # NOTE: Cannot test in Docker — vulkaninfo requires a GPU device
+    # and a working Vulkan ICD loader connected to real hardware.
+    - name: Check vulkaninfo runs (requires real GPU hardware)
+      ansible.builtin.command:
+        cmd: vulkaninfo --summary
+      register: _gpu_drivers_verify_vulkaninfo
+      changed_when: false
+      failed_when: false
+      when:
+        - ansible_virtualization_type != 'docker'
+        - gpu_drivers_vulkan_tools
+
+    # NOTE: Cannot test in Docker — kernel modules require a real
+    # kernel with module loading support, not available in containers.
+    - name: Check kernel module loading works (requires real hardware)
+      ansible.builtin.command:
+        cmd: lsmod
+      register: _gpu_drivers_verify_lsmod
+      changed_when: false
+      failed_when: false
+      when: ansible_virtualization_type != 'docker'
+
+    - name: Assert lsmod ran successfully (real hardware only)
+      ansible.builtin.assert:
+        that: _gpu_drivers_verify_lsmod.rc == 0
+        fail_msg: "lsmod failed with rc={{ _gpu_drivers_verify_lsmod.rc }}"
+        success_msg: "lsmod ran successfully — kernel module subsystem available"
+      when:
+        - ansible_virtualization_type != 'docker'
+        - _gpu_drivers_verify_lsmod is not skipped
 
     # ==========================================================
     # Summary
@@ -217,7 +303,8 @@
         msg: >
           gpu_drivers verify complete.
           vendor={{ gpu_drivers_vendor }},
-          has_intel={{ gpu_verify_has_intel }},
-          has_nvidia={{ gpu_verify_has_nvidia }},
-          has_amd={{ gpu_verify_has_amd }},
-          vaapi={{ gpu_drivers_vaapi }}
+          has_intel={{ _gpu_drivers_verify_has_intel }},
+          has_nvidia={{ _gpu_drivers_verify_has_nvidia }},
+          has_amd={{ _gpu_drivers_verify_has_amd }},
+          vaapi={{ gpu_drivers_vaapi }},
+          virtualization={{ ansible_virtualization_type | default('unknown') }}

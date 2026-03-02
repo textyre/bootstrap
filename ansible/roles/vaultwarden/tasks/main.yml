@@ -42,6 +42,7 @@
     regexp: '.*\s{{ vaultwarden_domain | regex_escape }}$'
     line: "127.0.0.1 {{ vaultwarden_domain }}"
     state: present
+    unsafe_writes: true
   when: vaultwarden_enabled
   tags: ['vaultwarden', 'secrets']
 

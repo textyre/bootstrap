@@ -17,7 +17,7 @@
       {{
         (power_management_device_type == 'laptop') or
         (power_management_device_type == 'auto' and
-         power_management_chassis_raw is succeeded and
+         'content' in power_management_chassis_raw and
          (power_management_chassis_raw.content | b64decode | trim) in power_management_laptop_chassis_types)
       }}
   tags: ['power', 'detect']

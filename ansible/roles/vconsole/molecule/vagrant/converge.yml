@@ -14,6 +14,9 @@
       {{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux' else '' }}
     vconsole_console_font_package: >-
       {{ 'terminus-font' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+    vconsole_console_font_map: >-
+      {{ '8859-2' if ansible_facts['os_family'] == 'Archlinux' else '' }}
+    vconsole_console_font_unimap: ""
 
   roles:
     - role: vconsole

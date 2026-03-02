@@ -31,6 +31,14 @@
   when: chezmoi_install_method == 'script'
   tags: ['chezmoi', 'dotfiles', 'install']
 
+- name: Resolve chezmoi binary path
+  ansible.builtin.set_fact:
+    _chezmoi_bin: >-
+      {{ '/usr/bin/chezmoi'
+         if chezmoi_install_method == 'pacman'
+         else chezmoi_user_home ~ '/.local/bin/chezmoi' }}
+  tags: ['chezmoi', 'dotfiles']
+
 # ---- Validate source ----
 
 - name: Resolve chezmoi source directory
@@ -82,7 +90,7 @@
   become: true
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command: >
-    chezmoi init
+    {{ _chezmoi_bin }} init
     --source "{{ chezmoi_source_dir }}"
     --promptChoice "Choose color theme={{ chezmoi_theme_name }}"
     --apply

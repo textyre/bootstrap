@@ -5,6 +5,16 @@
   gather_facts: true
 
   tasks:
+    # Debian/Ubuntu: install locales package (provides locale-gen)
+    - name: Install locales package (Ubuntu)
+      ansible.builtin.apt:
+        name: locales
+        state: present
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # Debian/Ubuntu: ensure SUPPORTED file has locale entries
+    # (locale_gen module reads this file to validate locale names)
     - name: Ensure locale entries exist in /usr/share/i18n/SUPPORTED
       ansible.builtin.lineinfile:
         path: /usr/share/i18n/SUPPORTED
@@ -14,7 +24,9 @@
       loop:
         - "en_US.UTF-8 UTF-8"
         - "ru_RU.UTF-8 UTF-8"
+      when: ansible_facts['os_family'] == 'Debian'
 
+    # Both Arch and Debian use /etc/locale.gen for locale generation
     - name: Ensure locale entries exist in /etc/locale.gen
       ansible.builtin.lineinfile:
         path: /etc/locale.gen

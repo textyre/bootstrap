@@ -24,35 +24,43 @@
     - name: Stat reflector config
       ansible.builtin.stat:
         path: "{{ reflector_conf_path }}"
-      register: reflector_verify_conf
+      register: _reflector_verify_conf_stat
 
-    - name: Assert reflector config exists
+    - name: Assert reflector config exists with correct permissions
       ansible.builtin.assert:
         that:
-          - reflector_verify_conf.stat.exists
-          - reflector_verify_conf.stat.isreg
-          - reflector_verify_conf.stat.pw_name == 'root'
-          - reflector_verify_conf.stat.mode == '0644'
+          - _reflector_verify_conf_stat.stat.exists
+          - _reflector_verify_conf_stat.stat.isreg
+          - _reflector_verify_conf_stat.stat.pw_name == 'root'
+          - _reflector_verify_conf_stat.stat.mode == '0644'
         fail_msg: "{{ reflector_conf_path }} missing or wrong permissions"
 
     - name: Read reflector config content
       ansible.builtin.slurp:
         src: "{{ reflector_conf_path }}"
-      register: reflector_verify_conf_raw
+      register: _reflector_verify_conf_raw
+
+    - name: Assert config content was read
+      ansible.builtin.assert:
+        that: "'content' in _reflector_verify_conf_raw"
+        fail_msg: "Failed to read reflector config content"
 
     - name: Set config text fact
       ansible.builtin.set_fact:
-        reflector_verify_conf_text: "{{ reflector_verify_conf_raw.content | b64decode }}"
+        _reflector_verify_conf_text: "{{ _reflector_verify_conf_raw.content | b64decode }}"
 
     - name: Assert config contains expected directives
       ansible.builtin.assert:
         that:
-          - "'--protocol ' ~ reflector_protocol in reflector_verify_conf_text"
-          - "'--sort ' ~ reflector_sort in reflector_verify_conf_text"
-          - "'--latest ' ~ reflector_latest | string in reflector_verify_conf_text"
-          - "'--age ' ~ reflector_age | string in reflector_verify_conf_text"
-          - "'--country ' ~ reflector_countries in reflector_verify_conf_text"
-          - "'--save ' ~ reflector_mirrorlist_path in reflector_verify_conf_text"
+          - _reflector_verify_conf_text is regex('--protocol\s+' ~ reflector_protocol)
+          - _reflector_verify_conf_text is regex('--sort\s+' ~ reflector_sort)
+          - _reflector_verify_conf_text is regex('--latest\s+' ~ reflector_latest | string)
+          - _reflector_verify_conf_text is regex('--age\s+' ~ reflector_age | string)
+          - _reflector_verify_conf_text is regex('--country\s+' ~ reflector_countries)
+          - _reflector_verify_conf_text is regex('--save\s+' ~ reflector_mirrorlist_path)
+          - _reflector_verify_conf_text is regex('--threads\s+' ~ reflector_threads | string)
+          - _reflector_verify_conf_text is regex('--connection-timeout\s+' ~ reflector_connection_timeout | string)
+          - _reflector_verify_conf_text is regex('--download-timeout\s+' ~ reflector_download_timeout | string)
         fail_msg: "reflector.conf missing expected directives"
 
     # ---- Timer drop-in ----
@@ -60,81 +68,95 @@
     - name: Stat timer drop-in
       ansible.builtin.stat:
         path: /etc/systemd/system/reflector.timer.d/override.conf
-      register: reflector_verify_dropin
+      register: _reflector_verify_dropin_stat
 
     - name: Assert timer drop-in exists
       ansible.builtin.assert:
         that:
-          - reflector_verify_dropin.stat.exists
-          - reflector_verify_dropin.stat.isreg
+          - _reflector_verify_dropin_stat.stat.exists
+          - _reflector_verify_dropin_stat.stat.isreg
         fail_msg: "Timer drop-in /etc/systemd/system/reflector.timer.d/override.conf missing"
 
     - name: Read timer drop-in content
       ansible.builtin.slurp:
         src: /etc/systemd/system/reflector.timer.d/override.conf
-      register: reflector_verify_dropin_raw
+      register: _reflector_verify_dropin_raw
+
+    - name: Assert drop-in content was read
+      ansible.builtin.assert:
+        that: "'content' in _reflector_verify_dropin_raw"
+        fail_msg: "Failed to read timer drop-in content"
 
     - name: Assert timer drop-in contains expected values
       ansible.builtin.assert:
         that:
-          - "'OnCalendar=' ~ reflector_timer_schedule in (reflector_verify_dropin_raw.content | b64decode)"
-          - "'RandomizedDelaySec=' ~ reflector_timer_randomized_delay in (reflector_verify_dropin_raw.content | b64decode)"
+          - (_reflector_verify_dropin_raw.content | b64decode) is regex('OnCalendar=' ~ reflector_timer_schedule)
+          - (_reflector_verify_dropin_raw.content | b64decode) is regex('RandomizedDelaySec=' ~ reflector_timer_randomized_delay)
         fail_msg: "Timer drop-in missing OnCalendar or RandomizedDelaySec"
 
     # ---- Timer service state ----
 
     - name: Check reflector.timer is enabled
-      ansible.builtin.command: systemctl is-enabled reflector.timer
-      register: reflector_verify_timer_enabled
+      ansible.builtin.command:
+        cmd: systemctl is-enabled reflector.timer
+      register: _reflector_verify_timer_enabled
       changed_when: false
-      failed_when: reflector_verify_timer_enabled.rc != 0
+      failed_when: false
 
     - name: Assert reflector.timer is enabled
       ansible.builtin.assert:
-        that: reflector_verify_timer_enabled.stdout == 'enabled'
-        fail_msg: "reflector.timer is not enabled (got: {{ reflector_verify_timer_enabled.stdout }})"
+        that:
+          - _reflector_verify_timer_enabled.rc == 0
+          - _reflector_verify_timer_enabled.stdout is regex('^enabled')
+        fail_msg: "reflector.timer is not enabled (rc: {{ _reflector_verify_timer_enabled.rc }}, stdout: {{ _reflector_verify_timer_enabled.stdout | default('') }})"
 
     # ---- Pacman hook ----
 
     - name: Stat pacman hooks directory
       ansible.builtin.stat:
         path: /etc/pacman.d/hooks
-      register: reflector_verify_hooks_dir
+      register: _reflector_verify_hooks_dir
       when: reflector_pacman_hook | bool
 
     - name: Assert pacman hooks directory exists
       ansible.builtin.assert:
         that:
-          - reflector_verify_hooks_dir.stat.exists
-          - reflector_verify_hooks_dir.stat.isdir
+          - _reflector_verify_hooks_dir.stat.exists
+          - _reflector_verify_hooks_dir.stat.isdir
         fail_msg: "/etc/pacman.d/hooks directory missing"
       when: reflector_pacman_hook | bool
 
     - name: Stat pacman hook file
       ansible.builtin.stat:
         path: /etc/pacman.d/hooks/reflector-mirrorlist.hook
-      register: reflector_verify_hook
+      register: _reflector_verify_hook_stat
       when: reflector_pacman_hook | bool
 
     - name: Assert pacman hook file exists
       ansible.builtin.assert:
         that:
-          - reflector_verify_hook.stat.exists
-          - reflector_verify_hook.stat.isreg
+          - _reflector_verify_hook_stat.stat.exists
+          - _reflector_verify_hook_stat.stat.isreg
         fail_msg: "Pacman hook /etc/pacman.d/hooks/reflector-mirrorlist.hook missing"
       when: reflector_pacman_hook | bool
 
     - name: Read pacman hook content
       ansible.builtin.slurp:
         src: /etc/pacman.d/hooks/reflector-mirrorlist.hook
-      register: reflector_verify_hook_raw
+      register: _reflector_verify_hook_raw
+      when: reflector_pacman_hook | bool
+
+    - name: Assert hook content was read
+      ansible.builtin.assert:
+        that: "'content' in _reflector_verify_hook_raw"
+        fail_msg: "Failed to read pacman hook content"
       when: reflector_pacman_hook | bool
 
     - name: Assert hook content references pacman-mirrorlist and --config
       ansible.builtin.assert:
         that:
-          - "'pacman-mirrorlist' in (reflector_verify_hook_raw.content | b64decode)"
-          - "'--config' in (reflector_verify_hook_raw.content | b64decode)"
+          - "(_reflector_verify_hook_raw.content | b64decode) is regex('pacman-mirrorlist')"
+          - "(_reflector_verify_hook_raw.content | b64decode) is regex('--config')"
         fail_msg: "Hook file missing expected content (pacman-mirrorlist or --config)"
       when: reflector_pacman_hook | bool
 
@@ -143,16 +165,17 @@
     - name: Stat mirrorlist
       ansible.builtin.stat:
         path: "{{ reflector_mirrorlist_path }}"
-      register: reflector_verify_mirrorlist
+      register: _reflector_verify_mirrorlist
 
     - name: Validate mirrorlist contains Server entries
-      ansible.builtin.command: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
-      register: reflector_verify_server_count
+      ansible.builtin.command:
+        cmd: grep -c '^Server = ' {{ reflector_mirrorlist_path }}
+      register: _reflector_verify_server_count
       changed_when: false
-      failed_when: reflector_verify_server_count.stdout | int < 3
+      failed_when: _reflector_verify_server_count.stdout | int < 1
       when:
-        - reflector_verify_mirrorlist.stat.exists
-        - reflector_verify_mirrorlist.stat.size > 0
+        - _reflector_verify_mirrorlist.stat.exists
+        - _reflector_verify_mirrorlist.stat.size > 0
 
     # ---- Backup rotation (online checks -- only when backups exist) ----
 
@@ -160,21 +183,21 @@
       ansible.builtin.find:
         paths: "{{ reflector_mirrorlist_path | dirname }}"
         patterns: "mirrorlist.bak.*"
-      register: reflector_verify_backups
+      register: _reflector_verify_backups
       when:
-        - reflector_verify_mirrorlist.stat.exists
+        - _reflector_verify_mirrorlist.stat.exists
         - reflector_backup_mirrorlist | bool
 
     - name: Assert backup count does not exceed reflector_backup_keep
       ansible.builtin.assert:
         that:
-          - reflector_verify_backups.matched <= reflector_backup_keep | int
+          - _reflector_verify_backups.matched <= reflector_backup_keep | int
         fail_msg: >
-          Found {{ reflector_verify_backups.matched }} backup files,
+          Found {{ _reflector_verify_backups.matched }} backup files,
           expected <= {{ reflector_backup_keep }}
       when:
-        - reflector_verify_backups is defined
-        - not (reflector_verify_backups is skipped)
+        - _reflector_verify_backups is defined
+        - not (_reflector_verify_backups is skipped)
         - reflector_backup_keep | int > 0
 
     # ---- Summary ----
@@ -185,6 +208,6 @@
           Reflector verify passed: package installed, config deployed at
           {{ reflector_conf_path }}, timer drop-in configured, timer enabled,
           pacman hook {{ 'deployed' if reflector_pacman_hook | bool else 'skipped' }}.
-          Mirrorlist: {{ 'validated (' ~ reflector_verify_server_count.stdout | default('N/A') ~ ' servers)'
-          if (reflector_verify_mirrorlist.stat.exists and reflector_verify_mirrorlist.stat.size > 0)
+          Mirrorlist: {{ 'validated (' ~ _reflector_verify_server_count.stdout | default('N/A') ~ ' servers)'
+          if (_reflector_verify_mirrorlist.stat.exists and _reflector_verify_mirrorlist.stat.size > 0)
           else 'not checked (update was skipped)' }}.

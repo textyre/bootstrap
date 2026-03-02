@@ -17,7 +17,7 @@
 - name: Set console font (OpenRC)
   ansible.builtin.lineinfile:
     path: /etc/conf.d/consolefont
-    regexp: '^CONSOLEFONT='
+    regexp: '^#?\s*CONSOLEFONT='
     line: 'CONSOLEFONT="{{ vconsole_console_font }}"'
     create: true
     owner: root
@@ -25,4 +25,12 @@
     mode: '0644'
   when: vconsole_console_font | default('') | length > 0
   notify: apply vconsole
+  tags: ['vconsole']
+
+- name: Remove CONSOLEFONT when unset (openrc)
+  ansible.builtin.lineinfile:
+    path: /etc/conf.d/consolefont
+    regexp: '^#?\s*CONSOLEFONT='
+    state: absent
+  when: vconsole_console_font | default('') | length == 0
   tags: ['vconsole']

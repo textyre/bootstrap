@@ -7,6 +7,10 @@
   ansible.builtin.import_tasks: packages.yml
   when: ansible_facts['os_family'] in _sysctl_supported_os
 
+- name: Manage services that conflict with sysctl hardening
+  ansible.builtin.import_tasks: services.yml
+  when: ansible_facts['os_family'] in _sysctl_supported_os
+
 - name: Deploy kernel parameter configuration
   ansible.builtin.import_tasks: deploy.yml
   when: ansible_facts['os_family'] in _sysctl_supported_os

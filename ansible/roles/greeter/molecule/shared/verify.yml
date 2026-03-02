@@ -1,10 +1,13 @@
 ---
-# NOTE: Known bug in the greeter role — tasks register variables as greeter_*
-# (e.g. greeter_timezone, greeter_systemd_ver) but system-info.json.j2
-# references them as _greeter_* (e.g. _greeter_timezone). This means all
-# system-info fields populated by shell commands render as their default
-# fallback values ("unknown", "UTC", etc.). Verification of system-info.json
-# is limited to JSON validity and required key presence until the bug is fixed.
+# === Verify greeter role ===
+# Checks ACTUAL system state: config files, theme deployment, permissions,
+# system-info.json content validity.
+#
+# NOTE: Known variable naming bug — tasks register greeter_* but
+# system-info.json.j2 references _greeter_* (with underscore prefix).
+# Shell-sourced fields (timezone, display_name, etc.) render as fallback
+# values. We verify those fields exist with non-empty values but do NOT
+# assert specific shell output until the bug is fixed.
 
 - name: Verify greeter role
   hosts: all
@@ -37,6 +40,12 @@
         src: /etc/lightdm/web-greeter.yml
       register: _greeter_verify_config_raw
 
+    - name: Assert slurp returned content for web-greeter.yml
+      ansible.builtin.assert:
+        that:
+          - "'content' in _greeter_verify_config_raw"
+        fail_msg: "Failed to read web-greeter.yml content"
+
     - name: Set web-greeter.yml text fact
       ansible.builtin.set_fact:
         _greeter_verify_config_text: "{{ _greeter_verify_config_raw.content | b64decode }}"
@@ -59,6 +68,18 @@
           - "'background_images_dir:' in _greeter_verify_config_text"
         fail_msg: "web-greeter.yml missing background_images_dir directive"
 
+    - name: Assert web-greeter.yml contains debug_mode directive
+      ansible.builtin.assert:
+        that:
+          - "'debug_mode:' in _greeter_verify_config_text"
+        fail_msg: "web-greeter.yml missing debug_mode directive"
+
+    - name: Assert web-greeter.yml contains secure_mode directive
+      ansible.builtin.assert:
+        that:
+          - "'secure_mode:' in _greeter_verify_config_text"
+        fail_msg: "web-greeter.yml missing secure_mode directive"
+
     # ---- Theme directory ----
 
     - name: Stat ctOS theme directory
@@ -76,6 +97,36 @@
         fail_msg: >-
           Theme directory /usr/share/web-greeter/themes/{{ greeter_theme }}
           missing or wrong permissions (expected root 0755)
+
+    # ---- Theme content deployed ----
+
+    - name: Stat index.html inside theme directory
+      ansible.builtin.stat:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}/index.html"
+      register: _greeter_verify_theme_index_html
+
+    - name: Assert index.html deployed to theme directory
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_theme_index_html.stat.exists
+          - _greeter_verify_theme_index_html.stat.isreg
+          - _greeter_verify_theme_index_html.stat.pw_name == 'root'
+          - _greeter_verify_theme_index_html.stat.mode == '0644'
+        fail_msg: "index.html missing or wrong permissions inside theme directory"
+
+    - name: Stat assets subdirectory inside theme
+      ansible.builtin.stat:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}/assets"
+      register: _greeter_verify_theme_assets
+
+    - name: Assert assets directory deployed to theme
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_theme_assets.stat.exists
+          - _greeter_verify_theme_assets.stat.isdir
+          - _greeter_verify_theme_assets.stat.pw_name == 'root'
+          - _greeter_verify_theme_assets.stat.mode == '0755'
+        fail_msg: "assets/ directory missing or wrong permissions inside theme directory"
 
     # ---- system-info.json ----
 
@@ -95,9 +146,6 @@
         fail_msg: "system-info.json missing or wrong permissions (expected root:root 0644)"
 
     - name: Validate system-info.json is valid JSON
-      # NOTE: value correctness is not asserted here due to the known variable
-      # naming bug (see header comment). Fields like timezone, display_name,
-      # and ssh_fingerprint will contain fallback values until the bug is fixed.
       ansible.builtin.command: >
         python3 -m json.tool
         "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
@@ -108,11 +156,17 @@
         src: "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
       register: _greeter_verify_sysinfo_raw
 
+    - name: Assert slurp returned content for system-info.json
+      ansible.builtin.assert:
+        that:
+          - "'content' in _greeter_verify_sysinfo_raw"
+        fail_msg: "Failed to read system-info.json content"
+
     - name: Parse system-info.json
       ansible.builtin.set_fact:
         _greeter_verify_sysinfo_data: "{{ _greeter_verify_sysinfo_raw.content | b64decode | from_json }}"
 
-    - name: Assert system-info.json contains required keys
+    - name: Assert system-info.json contains all required keys
       ansible.builtin.assert:
         that:
           - "'kernel' in _greeter_verify_sysinfo_data"
@@ -121,7 +175,35 @@
           - "'ip_address' in _greeter_verify_sysinfo_data"
           - "'timezone' in _greeter_verify_sysinfo_data"
           - "'machine_id' in _greeter_verify_sysinfo_data"
+          - "'virtualization_type' in _greeter_verify_sysinfo_data"
+          - "'region_prefix' in _greeter_verify_sysinfo_data"
+          - "'systemd_version' in _greeter_verify_sysinfo_data"
+          - "'display_output' in _greeter_verify_sysinfo_data"
+          - "'display_resolution' in _greeter_verify_sysinfo_data"
+          - "'ssh_fingerprint' in _greeter_verify_sysinfo_data"
         fail_msg: "system-info.json missing one or more required keys"
+
+    - name: Assert project_version matches greeter_ctos_version
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.project_version == greeter_ctos_version
+        fail_msg: >-
+          system-info.json project_version '{{ _greeter_verify_sysinfo_data.project_version }}'
+          does not match greeter_ctos_version '{{ greeter_ctos_version }}'
+
+    - name: Assert kernel field is populated from ansible_kernel
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.kernel | length > 0
+          - _greeter_verify_sysinfo_data.kernel != 'unknown'
+        fail_msg: "system-info.json kernel field is empty or 'unknown'"
+
+    - name: Assert hostname field is populated
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.hostname | length > 0
+          - _greeter_verify_sysinfo_data.hostname != 'unknown'
+        fail_msg: "system-info.json hostname field is empty or 'unknown'"
 
     # ---- index.yml ----
 
@@ -138,11 +220,44 @@
           - _greeter_verify_index.stat.mode == '0644'
         fail_msg: "index.yml missing or wrong permissions in theme directory"
 
+    - name: Read index.yml content
+      ansible.builtin.slurp:
+        src: "/usr/share/web-greeter/themes/{{ greeter_theme }}/index.yml"
+      register: _greeter_verify_index_raw
+
+    - name: Assert slurp returned content for index.yml
+      ansible.builtin.assert:
+        that:
+          - "'content' in _greeter_verify_index_raw"
+        fail_msg: "Failed to read index.yml content"
+
+    - name: Assert index.yml contains primary_html directive
+      ansible.builtin.assert:
+        that:
+          - "'primary_html' in (_greeter_verify_index_raw.content | b64decode)"
+        fail_msg: "index.yml missing primary_html directive"
+
+    # ---- /etc/lightdm directory ----
+
+    - name: Stat /etc/lightdm directory
+      ansible.builtin.stat:
+        path: /etc/lightdm
+      register: _greeter_verify_lightdm_dir
+
+    - name: Assert /etc/lightdm directory exists
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_lightdm_dir.stat.exists
+          - _greeter_verify_lightdm_dir.stat.isdir
+        fail_msg: "/etc/lightdm directory does not exist"
+
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
           Greeter offline verify passed: web-greeter.yml deployed (root:root 0644,
-          theme={{ greeter_theme }}), theme directory exists with correct permissions,
-          system-info.json valid with required keys, index.yml present.
+          theme={{ greeter_theme }}, debug_mode/secure_mode/screensaver_timeout present),
+          theme directory with index.html and assets/ deployed (correct perms),
+          system-info.json valid JSON with all 12 keys (project_version={{ greeter_ctos_version }}),
+          index.yml present with primary_html directive.

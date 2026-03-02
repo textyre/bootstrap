@@ -1,13 +1,30 @@
 ---
-# Проверка keymap (systemd — localectl доступен)
+# Verify keymap (systemd)
 
-- name: Verify console keymap (systemd)
+- name: Slurp vconsole.conf (systemd)
+  ansible.builtin.slurp:
+    src: /etc/vconsole.conf
+  register: vconsole_vconsole_content
+  tags: ['vconsole']
+
+- name: Assert KEYMAP is set in vconsole.conf (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'KEYMAP=' + vconsole_value in (vconsole_vconsole_content.content | b64decode)"
+    fail_msg: >-
+      KEYMAP={{ vconsole_value }} not found in /etc/vconsole.conf.
+      Content: {{ vconsole_vconsole_content.content | b64decode }}
+    quiet: true
+  tags: ['vconsole']
+
+- name: Verify console keymap with localectl (systemd, Archlinux)
   ansible.builtin.command: localectl status
   register: vconsole_check
   changed_when: false
+  when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['vconsole']
 
-- name: Assert keymap is set (systemd)
+- name: Assert keymap is set in localectl (systemd, Archlinux)
   ansible.builtin.assert:
     that:
       - "vconsole_check.stdout is search('VC Keymap:\\s+' + vconsole_value + '(\\s|$)')"
@@ -15,13 +32,7 @@
       Keymap '{{ vconsole_value }}' not found as VC Keymap in localectl status.
       Output: {{ vconsole_check.stdout }}
     quiet: true
-  tags: ['vconsole']
-
-- name: Slurp vconsole.conf (systemd)
-  ansible.builtin.slurp:
-    src: /etc/vconsole.conf
-  register: vconsole_vconsole_content
-  when: vconsole_console_font | default('') | length > 0
+  when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['vconsole']
 
 - name: Assert FONT is set in vconsole.conf (systemd)

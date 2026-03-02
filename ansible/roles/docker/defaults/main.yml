@@ -2,6 +2,14 @@
 # === Конфигурация Docker ===
 # Daemon, сервис, группа пользователя
 
+# Supported OS families (ROLE-003)
+_docker_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Целевой пользователь (добавляется в группу docker)
 docker_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 

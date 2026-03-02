@@ -11,12 +11,19 @@ provisioner:
   name: ansible
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/../../vault-pass.sh
       callbacks_enabled: profile_tasks
   inventory:
     host_vars:
-      localhost:
+      Localhost:
         ansible_connection: local
+        ansible_become_password: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') + '/.vault-pass') }}"
+    group_vars:
+      all:
+        timezone_name: "Asia/Almaty"
+        timezone_packages_tzdata:
+          Gentoo: "timezone-data"
+          default: "tzdata"
   playbooks:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
@@ -30,4 +37,5 @@ scenario:
   test_sequence:
     - syntax
     - converge
+    - idempotence
     - verify

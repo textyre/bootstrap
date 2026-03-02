@@ -8,16 +8,24 @@
     - name: Update pacman package cache
       community.general.pacman:
         update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Install openssl (needed for admin token generation)
+    - name: Install openssl and cronie (Arch)
       community.general.pacman:
-        name: openssl
+        name:
+          - openssl
+          - cronie
         state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Install cronie (needed for backup cron)
-      community.general.pacman:
-        name: cronie
+    - name: Install openssl and cron (Debian)
+      ansible.builtin.apt:
+        name:
+          - openssl
+          - cron
         state: present
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'
 
     - name: Create Caddy directories (stub for caddy role)
       ansible.builtin.file:

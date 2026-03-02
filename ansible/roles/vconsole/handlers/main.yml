@@ -1,15 +1,33 @@
 ---
 # === Console keymap handlers ===
 
+- name: Probe systemd-vconsole-setup service (systemd)
+  ansible.builtin.command: systemctl status systemd-vconsole-setup.service
+  register: vconsole_systemd_vconsole_setup_probe
+  failed_when: false
+  changed_when: false
+  listen: "apply vconsole"
+  when: ansible_facts['service_mgr'] == 'systemd'
+
 - name: Apply vconsole settings (systemd)
   ansible.builtin.systemd:
     name: systemd-vconsole-setup.service
     state: restarted
   listen: "apply vconsole"
-  when: ansible_facts['service_mgr'] == 'systemd'
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - vconsole_systemd_vconsole_setup_probe.rc == 0
+
+- name: Skip apply vconsole when systemd-vconsole-setup service is missing (systemd)
+  ansible.builtin.debug:
+    msg: "Skipping vconsole apply: systemd-vconsole-setup.service not found on this host"
+  listen: "apply vconsole"
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - vconsole_systemd_vconsole_setup_probe.rc != 0
 
 - name: Apply keymap (openrc/runit)
-  ansible.builtin.command: "loadkeys {{ vconsole_value }}"
+  ansible.builtin.command: "loadkeys {{ vconsole_value | default(vconsole_console) }}"
   listen: "apply vconsole"
   when: ansible_facts['service_mgr'] in ['openrc', 'runit']
   changed_when: false

@@ -4,31 +4,42 @@
   become: true
   gather_facts: true
 
-  vars:
-    _tz_verify_expected: "Asia/Almaty"
-
   tasks:
 
-    # ---- /etc/localtime symlink (all platforms) ----
+    # ---- /etc/localtime is a symlink ----
 
-    - name: Check /etc/localtime symlink target
+    - name: Stat /etc/localtime
+      ansible.builtin.stat:
+        path: /etc/localtime
+      register: _timezone_verify_localtime_stat
+
+    - name: Assert /etc/localtime exists and is a symlink
+      ansible.builtin.assert:
+        that:
+          - _timezone_verify_localtime_stat.stat.exists
+          - _timezone_verify_localtime_stat.stat.islnk
+        fail_msg: "/etc/localtime does not exist or is not a symlink"
+
+    # ---- /etc/localtime points to correct timezone ----
+
+    - name: Read /etc/localtime symlink target
       ansible.builtin.command: readlink -f /etc/localtime
-      register: _tz_verify_localtime
+      register: _timezone_verify_localtime_target
       changed_when: false
 
     - name: Assert /etc/localtime points to expected timezone
       ansible.builtin.assert:
         that:
-          - _tz_verify_expected in _tz_verify_localtime.stdout
+          - timezone_name in _timezone_verify_localtime_target.stdout
         fail_msg: >-
-          Expected '{{ _tz_verify_expected }}' in symlink target,
-          got '{{ _tz_verify_localtime.stdout }}'
+          Expected '{{ timezone_name }}' in symlink target,
+          got '{{ _timezone_verify_localtime_target.stdout }}'
 
     # ---- timedatectl (systemd hosts only) ----
 
     - name: Check timezone via timedatectl (systemd)
       ansible.builtin.command: timedatectl show --property=Timezone --value
-      register: _tz_verify_timedatectl
+      register: _timezone_verify_timedatectl
       changed_when: false
       failed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
@@ -36,13 +47,13 @@
     - name: Assert timedatectl reports expected timezone (systemd)
       ansible.builtin.assert:
         that:
-          - _tz_verify_timedatectl.stdout == _tz_verify_expected
+          - _timezone_verify_timedatectl.stdout == timezone_name
         fail_msg: >-
-          timedatectl expected '{{ _tz_verify_expected }}',
-          got '{{ _tz_verify_timedatectl.stdout }}'
+          timedatectl expected '{{ timezone_name }}',
+          got '{{ _timezone_verify_timedatectl.stdout }}'
       when:
         - ansible_facts['service_mgr'] == 'systemd'
-        - _tz_verify_timedatectl.rc == 0
+        - _timezone_verify_timedatectl.rc == 0
 
     # ---- tzdata package installed ----
 
@@ -53,30 +64,58 @@
     - name: Assert tzdata package is installed
       ansible.builtin.assert:
         that:
-          - "'tzdata' in ansible_facts.packages"
-        fail_msg: "tzdata package not found in installed packages"
+          - >-
+            (timezone_packages_tzdata[ansible_facts['os_family']]
+             | default(timezone_packages_tzdata.get('default', 'tzdata')))
+            in ansible_facts.packages
+        fail_msg: >-
+          tzdata package '{{ timezone_packages_tzdata[ansible_facts['os_family']]
+            | default(timezone_packages_tzdata.get('default', 'tzdata')) }}'
+          not found in installed packages
+      when: timezone_packages_tzdata is defined
 
-    # ---- /etc/timezone file (Debian/Ubuntu only) ----
+    # ---- /etc/timezone file (Debian/Ubuntu, non-systemd only) ----
+    # NOTE: community.general.timezone on systemd hosts uses timedatectl
+    # which updates /etc/localtime but does NOT update /etc/timezone.
+    # We verify /etc/timezone only on non-systemd hosts where the module
+    # manages it directly. On systemd, timedatectl assertion above covers this.
 
     - name: Stat /etc/timezone
       ansible.builtin.stat:
         path: /etc/timezone
-      register: _tz_verify_etc_timezone
+      register: _timezone_verify_etc_timezone_stat
+      when: ansible_facts['service_mgr'] != 'systemd'
 
     - name: Read /etc/timezone content
       ansible.builtin.slurp:
         src: /etc/timezone
-      register: _tz_verify_etc_timezone_raw
-      when: _tz_verify_etc_timezone.stat.exists
+      register: _timezone_verify_etc_timezone_raw
+      when:
+        - ansible_facts['service_mgr'] != 'systemd'
+        - _timezone_verify_etc_timezone_stat.stat.exists | default(false)
 
-    - name: Assert /etc/timezone matches expected value (Debian/Ubuntu)
+    - name: Assert /etc/timezone matches expected value (Debian/Ubuntu, non-systemd)
       ansible.builtin.assert:
         that:
-          - (_tz_verify_etc_timezone_raw.content | b64decode | trim) == _tz_verify_expected
+          - "'content' in _timezone_verify_etc_timezone_raw"
+          - (_timezone_verify_etc_timezone_raw.content | b64decode | trim) == timezone_name
         fail_msg: >-
-          /etc/timezone expected '{{ _tz_verify_expected }}',
-          got '{{ _tz_verify_etc_timezone_raw.content | b64decode | trim }}'
-      when: _tz_verify_etc_timezone.stat.exists
+          /etc/timezone expected '{{ timezone_name }}',
+          got '{{ _timezone_verify_etc_timezone_raw.content | b64decode | trim }}'
+      when:
+        - ansible_facts['service_mgr'] != 'systemd'
+        - _timezone_verify_etc_timezone_stat.stat.exists | default(false)
+
+    # ---- date command confirms timezone offset ----
+
+    - name: Get current date output
+      ansible.builtin.command: date +%Z
+      register: _timezone_verify_date_output
+      changed_when: false
+
+    - name: Show timezone abbreviation from date
+      ansible.builtin.debug:
+        msg: "System date reports timezone abbreviation: {{ _timezone_verify_date_output.stdout }}"
 
     # ---- Summary ----
 
@@ -85,5 +124,6 @@
         msg: >-
           timezone verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          /etc/localtime -> {{ _tz_verify_localtime.stdout }},
-          tzdata installed
+          /etc/localtime -> {{ _timezone_verify_localtime_target.stdout }},
+          tzdata installed,
+          date TZ={{ _timezone_verify_date_output.stdout }}

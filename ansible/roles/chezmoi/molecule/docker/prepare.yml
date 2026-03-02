@@ -15,13 +15,21 @@
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Install curl and git
+    - name: Install curl and git (Arch)
       community.general.pacman:
         name:
           - curl
           - git
         state: present
       when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Install curl and git (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - curl
+          - git
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
 
     - name: Create test user
       ansible.builtin.user:

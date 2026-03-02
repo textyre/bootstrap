@@ -13,16 +13,16 @@
     - name: Stat base directory
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}"
-      register: _vw_verify_base_dir
+      register: _vaultwarden_verify_base_dir
 
     - name: Assert base directory exists with correct ownership
       ansible.builtin.assert:
         that:
-          - _vw_verify_base_dir.stat.exists
-          - _vw_verify_base_dir.stat.isdir
-          - _vw_verify_base_dir.stat.pw_name == 'root'
-          - _vw_verify_base_dir.stat.gr_name == 'root'
-          - _vw_verify_base_dir.stat.mode == '0755'
+          - _vaultwarden_verify_base_dir.stat.exists
+          - _vaultwarden_verify_base_dir.stat.isdir
+          - _vaultwarden_verify_base_dir.stat.pw_name == 'root'
+          - _vaultwarden_verify_base_dir.stat.gr_name == 'root'
+          - _vaultwarden_verify_base_dir.stat.mode == '0755'
         fail_msg: >-
           {{ vaultwarden_base_dir }} missing or wrong permissions
           (expected root:root 0755)
@@ -30,16 +30,16 @@
     - name: Stat data directory
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/data"
-      register: _vw_verify_data_dir
+      register: _vaultwarden_verify_data_dir
 
     - name: Assert data directory exists with mode 0700
       ansible.builtin.assert:
         that:
-          - _vw_verify_data_dir.stat.exists
-          - _vw_verify_data_dir.stat.isdir
-          - _vw_verify_data_dir.stat.pw_name == 'root'
-          - _vw_verify_data_dir.stat.gr_name == 'root'
-          - _vw_verify_data_dir.stat.mode == '0700'
+          - _vaultwarden_verify_data_dir.stat.exists
+          - _vaultwarden_verify_data_dir.stat.isdir
+          - _vaultwarden_verify_data_dir.stat.pw_name == 'root'
+          - _vaultwarden_verify_data_dir.stat.gr_name == 'root'
+          - _vaultwarden_verify_data_dir.stat.mode == '0700'
         fail_msg: >-
           {{ vaultwarden_base_dir }}/data missing or wrong permissions
           (expected root:root 0700)
@@ -47,48 +47,54 @@
     - name: Stat backup directory
       ansible.builtin.stat:
         path: "{{ vaultwarden_backup_dir }}"
-      register: _vw_verify_backup_dir
+      register: _vaultwarden_verify_backup_dir
 
-    - name: Assert backup directory exists
+    - name: Assert backup directory exists with correct ownership
       ansible.builtin.assert:
         that:
-          - _vw_verify_backup_dir.stat.exists
-          - _vw_verify_backup_dir.stat.isdir
-          - _vw_verify_backup_dir.stat.mode == '0755'
+          - _vaultwarden_verify_backup_dir.stat.exists
+          - _vaultwarden_verify_backup_dir.stat.isdir
+          - _vaultwarden_verify_backup_dir.stat.pw_name == 'root'
+          - _vaultwarden_verify_backup_dir.stat.gr_name == 'root'
+          - _vaultwarden_verify_backup_dir.stat.mode == '0755'
         fail_msg: >-
           {{ vaultwarden_backup_dir }} missing or wrong permissions
-          (expected 0755)
+          (expected root:root 0755)
 
     # ---- DNS ----
 
-    - name: Read /etc/hosts
-      ansible.builtin.slurp:
-        src: /etc/hosts
-      register: _vw_verify_hosts_raw
+    - name: Check /etc/hosts for vaultwarden domain
+      ansible.builtin.command:
+        cmd: "grep -F '{{ vaultwarden_domain }}' /etc/hosts"
+      register: _vaultwarden_verify_hosts
+      changed_when: false
+      failed_when: false
 
-    - name: Assert domain is in /etc/hosts
+    - name: Assert domain is in /etc/hosts with correct IP
       ansible.builtin.assert:
         that:
-          - "vaultwarden_domain in (_vw_verify_hosts_raw.content | b64decode)"
+          - _vaultwarden_verify_hosts.rc == 0
+          - _vaultwarden_verify_hosts.stdout is regex('^127\.0\.0\.1\s+' ~ vaultwarden_domain)
         fail_msg: >-
-          {{ vaultwarden_domain }} not found in /etc/hosts
+          Expected '127.0.0.1 {{ vaultwarden_domain }}' in /etc/hosts.
+          Got: {{ _vaultwarden_verify_hosts.stdout | default('not found') }}
 
     # ---- Admin token ----
 
     - name: Stat admin token file
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/.admin_token"
-      register: _vw_verify_token
+      register: _vaultwarden_verify_token
       when: vaultwarden_admin_enabled
 
     - name: Assert admin token file exists with correct permissions
       ansible.builtin.assert:
         that:
-          - _vw_verify_token.stat.exists
-          - _vw_verify_token.stat.isreg
-          - _vw_verify_token.stat.pw_name == 'root'
-          - _vw_verify_token.stat.gr_name == 'root'
-          - _vw_verify_token.stat.mode == '0600'
+          - _vaultwarden_verify_token.stat.exists
+          - _vaultwarden_verify_token.stat.isreg
+          - _vaultwarden_verify_token.stat.pw_name == 'root'
+          - _vaultwarden_verify_token.stat.gr_name == 'root'
+          - _vaultwarden_verify_token.stat.mode == '0600'
         fail_msg: >-
           {{ vaultwarden_base_dir }}/.admin_token missing or wrong
           permissions (expected root:root 0600)
@@ -97,14 +103,16 @@
     - name: Read admin token file
       ansible.builtin.slurp:
         src: "{{ vaultwarden_base_dir }}/.admin_token"
-      register: _vw_verify_token_content
+      register: _vaultwarden_verify_token_content
       when: vaultwarden_admin_enabled
 
-    - name: Assert admin token is non-empty
+    - name: Assert admin token is non-empty and has expected length
       ansible.builtin.assert:
         that:
-          - (_vw_verify_token_content.content | b64decode | trim) | length > 0
-        fail_msg: "Admin token file is empty"
+          - (_vaultwarden_verify_token_content.content | b64decode | trim) | length > 32
+        fail_msg: >-
+          Admin token is empty or too short
+          (expected >32 chars from openssl rand -base64 48)
       when: vaultwarden_admin_enabled
 
     # ---- Docker Compose file ----
@@ -112,111 +120,151 @@
     - name: Stat docker-compose.yml
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/docker-compose.yml"
-      register: _vw_verify_compose
+      register: _vaultwarden_verify_compose
 
     - name: Assert docker-compose.yml exists with correct permissions
       ansible.builtin.assert:
         that:
-          - _vw_verify_compose.stat.exists
-          - _vw_verify_compose.stat.isreg
-          - _vw_verify_compose.stat.mode == '0644'
+          - _vaultwarden_verify_compose.stat.exists
+          - _vaultwarden_verify_compose.stat.isreg
+          - _vaultwarden_verify_compose.stat.pw_name == 'root'
+          - _vaultwarden_verify_compose.stat.gr_name == 'root'
+          - _vaultwarden_verify_compose.stat.mode == '0644'
         fail_msg: >-
           {{ vaultwarden_base_dir }}/docker-compose.yml missing or
-          wrong permissions (expected 0644)
+          wrong permissions (expected root:root 0644)
 
     - name: Read docker-compose.yml
       ansible.builtin.slurp:
         src: "{{ vaultwarden_base_dir }}/docker-compose.yml"
-      register: _vw_verify_compose_raw
+      register: _vaultwarden_verify_compose_raw
 
     - name: Set compose text fact
       ansible.builtin.set_fact:
-        _vw_verify_compose_text: "{{ _vw_verify_compose_raw.content | b64decode }}"
+        _vaultwarden_verify_compose_text: "{{ _vaultwarden_verify_compose_raw.content | b64decode }}"
 
-    - name: Assert docker-compose.yml contains expected content
+    - name: Assert docker-compose.yml has Ansible managed header
       ansible.builtin.assert:
         that:
-          - "'vaultwarden/server:latest' in _vw_verify_compose_text"
-          - "'DOMAIN' in _vw_verify_compose_text"
-          - "vaultwarden_domain in _vw_verify_compose_text"
-          - "'PASSWORD_ITERATIONS' in _vw_verify_compose_text"
-          - "'proxy' in _vw_verify_compose_text"
+          - _vaultwarden_verify_compose_text is regex('^# Ansible managed')
+        fail_msg: "docker-compose.yml missing '# Ansible managed' header"
+
+    - name: Assert docker-compose.yml contains expected service config
+      ansible.builtin.assert:
+        that:
+          - "'vaultwarden/server:latest' in _vaultwarden_verify_compose_text"
+          - "'DOMAIN: \"https://' ~ vaultwarden_domain ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'SIGNUPS_ALLOWED: \"' ~ (vaultwarden_signups_allowed | string | lower) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'PASSWORD_ITERATIONS: \"' ~ (vaultwarden_password_iterations | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_login_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_login_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_admin_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_admin_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
         fail_msg: >-
-          docker-compose.yml missing expected content (image, DOMAIN,
-          PASSWORD_ITERATIONS, proxy network)
+          docker-compose.yml missing expected service configuration
+          (image, DOMAIN, SIGNUPS_ALLOWED, PASSWORD_ITERATIONS, rate limits)
+
+    - name: Assert docker-compose.yml has volume mount and network
+      ansible.builtin.assert:
+        that:
+          - "vaultwarden_base_dir ~ '/data:/data' in _vaultwarden_verify_compose_text"
+          - "'name: \"' ~ vaultwarden_docker_network ~ '\"' in _vaultwarden_verify_compose_text"
+        fail_msg: >-
+          docker-compose.yml missing data volume mount or proxy network
 
     # ---- Caddy site config ----
 
     - name: Stat Caddy site config
       ansible.builtin.stat:
         path: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
-      register: _vw_verify_caddy
+      register: _vaultwarden_verify_caddy
 
     - name: Assert Caddy site config exists with correct permissions
       ansible.builtin.assert:
         that:
-          - _vw_verify_caddy.stat.exists
-          - _vw_verify_caddy.stat.isreg
-          - _vw_verify_caddy.stat.mode == '0644'
+          - _vaultwarden_verify_caddy.stat.exists
+          - _vaultwarden_verify_caddy.stat.isreg
+          - _vaultwarden_verify_caddy.stat.pw_name == 'root'
+          - _vaultwarden_verify_caddy.stat.gr_name == 'root'
+          - _vaultwarden_verify_caddy.stat.mode == '0644'
         fail_msg: >-
-          Caddy site config missing or wrong permissions (expected 0644)
+          Caddy site config missing or wrong permissions
+          (expected root:root 0644)
 
     - name: Read Caddy site config
       ansible.builtin.slurp:
         src: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
-      register: _vw_verify_caddy_raw
+      register: _vaultwarden_verify_caddy_raw
 
     - name: Set caddy config text fact
       ansible.builtin.set_fact:
-        _vw_verify_caddy_text: "{{ _vw_verify_caddy_raw.content | b64decode }}"
+        _vaultwarden_verify_caddy_text: "{{ _vaultwarden_verify_caddy_raw.content | b64decode }}"
+
+    - name: Assert Caddy config has Ansible managed header
+      ansible.builtin.assert:
+        that:
+          - _vaultwarden_verify_caddy_text is regex('^# Ansible managed')
+        fail_msg: "Caddy site config missing '# Ansible managed' header"
 
     - name: Assert Caddy config contains security headers and reverse proxy
       ansible.builtin.assert:
         that:
-          - "vaultwarden_domain in _vw_verify_caddy_text"
-          - "'Strict-Transport-Security' in _vw_verify_caddy_text"
-          - "'X-Content-Type-Options' in _vw_verify_caddy_text"
-          - "'X-Frame-Options' in _vw_verify_caddy_text"
-          - "'reverse_proxy vaultwarden:80' in _vw_verify_caddy_text"
+          - "vaultwarden_domain in _vaultwarden_verify_caddy_text"
+          - "'Strict-Transport-Security' in _vaultwarden_verify_caddy_text"
+          - "'X-Content-Type-Options' in _vaultwarden_verify_caddy_text"
+          - "'X-Frame-Options' in _vaultwarden_verify_caddy_text"
+          - "'Referrer-Policy' in _vaultwarden_verify_caddy_text"
+          - "'reverse_proxy vaultwarden:80' in _vaultwarden_verify_caddy_text"
         fail_msg: >-
           Caddy site config missing expected content (domain, security
-          headers, reverse_proxy directive)
+          headers: HSTS, X-Content-Type-Options, X-Frame-Options,
+          Referrer-Policy, reverse_proxy directive)
 
     # ---- Backup script ----
 
     - name: Stat backup script
       ansible.builtin.stat:
         path: "{{ vaultwarden_base_dir }}/backup.sh"
-      register: _vw_verify_backup_script
+      register: _vaultwarden_verify_backup_script
       when: vaultwarden_backup_enabled
 
     - name: Assert backup script exists and is executable
       ansible.builtin.assert:
         that:
-          - _vw_verify_backup_script.stat.exists
-          - _vw_verify_backup_script.stat.isreg
-          - _vw_verify_backup_script.stat.executable
-          - _vw_verify_backup_script.stat.mode == '0700'
+          - _vaultwarden_verify_backup_script.stat.exists
+          - _vaultwarden_verify_backup_script.stat.isreg
+          - _vaultwarden_verify_backup_script.stat.executable
+          - _vaultwarden_verify_backup_script.stat.pw_name == 'root'
+          - _vaultwarden_verify_backup_script.stat.gr_name == 'root'
+          - _vaultwarden_verify_backup_script.stat.mode == '0700'
         fail_msg: >-
-          {{ vaultwarden_base_dir }}/backup.sh missing or not
-          executable (expected mode 0700)
+          {{ vaultwarden_base_dir }}/backup.sh missing or wrong
+          permissions (expected root:root 0700)
       when: vaultwarden_backup_enabled
 
     - name: Read backup script
       ansible.builtin.slurp:
         src: "{{ vaultwarden_base_dir }}/backup.sh"
-      register: _vw_verify_backup_raw
+      register: _vaultwarden_verify_backup_raw
+      when: vaultwarden_backup_enabled
+
+    - name: Set backup script text fact
+      ansible.builtin.set_fact:
+        _vaultwarden_verify_backup_text: "{{ _vaultwarden_verify_backup_raw.content | b64decode }}"
       when: vaultwarden_backup_enabled
 
     - name: Assert backup script contains expected content
       ansible.builtin.assert:
         that:
-          - "'sqlite3' in (_vw_verify_backup_raw.content | b64decode)"
-          - "'.backup' in (_vw_verify_backup_raw.content | b64decode)"
-          - "'set -euo pipefail' in (_vw_verify_backup_raw.content | b64decode)"
+          - "'set -euo pipefail' in _vaultwarden_verify_backup_text"
+          - "'sqlite3' in _vaultwarden_verify_backup_text"
+          - "'.backup' in _vaultwarden_verify_backup_text"
+          - "'BACKUP_DIR=\"' ~ vaultwarden_backup_dir ~ '\"' in _vaultwarden_verify_backup_text"
+          - "'DATA_DIR=\"' ~ vaultwarden_base_dir ~ '/data\"' in _vaultwarden_verify_backup_text"
+          - "'KEEP_DAYS=\"' ~ (vaultwarden_backup_keep_days | string) ~ '\"' in _vaultwarden_verify_backup_text"
         fail_msg: >-
           Backup script missing expected content (sqlite3, .backup,
-          pipefail)
+          pipefail, or rendered variable values)
       when: vaultwarden_backup_enabled
 
     # ---- Cron job ----
@@ -224,25 +272,28 @@
     - name: Check crontab for backup job
       ansible.builtin.command:
         cmd: crontab -l
-      register: _vw_verify_cron
+      register: _vaultwarden_verify_cron
       changed_when: false
       failed_when: false
       when: vaultwarden_backup_enabled
 
-    - name: Assert backup cron job exists
+    - name: Assert backup cron job exists with correct schedule
       ansible.builtin.assert:
         that:
-          - "'backup.sh' in _vw_verify_cron.stdout"
+          - _vaultwarden_verify_cron.rc == 0
+          - "'backup.sh' in _vaultwarden_verify_cron.stdout"
+          - "vaultwarden_base_dir ~ '/backup.sh' in _vaultwarden_verify_cron.stdout"
         fail_msg: >-
-          Vaultwarden backup cron job not found in root crontab
+          Vaultwarden backup cron job not found in root crontab.
+          Output: {{ _vaultwarden_verify_cron.stdout | default('empty') }}
       when: vaultwarden_backup_enabled
 
     # ---- Docker containers (VM only, skipped inside Docker) ----
 
     - name: Check vaultwarden container is running
       ansible.builtin.command:
-        cmd: docker ps --filter name=vaultwarden --filter status=running
-      register: _vw_verify_container
+        cmd: docker ps --filter name=vaultwarden --filter status=running --format '{% raw %}{{ .Names }}{% endraw %}'
+      register: _vaultwarden_verify_container
       changed_when: false
       failed_when: false
       when: ansible_facts['virtualization_type'] | default('') != 'docker'
@@ -250,20 +301,21 @@
     - name: Assert vaultwarden container is running
       ansible.builtin.assert:
         that:
-          - "'vaultwarden' in _vw_verify_container.stdout"
+          - "'vaultwarden' in _vaultwarden_verify_container.stdout"
         fail_msg: >-
-          Vaultwarden container is not running. Output:
-          {{ _vw_verify_container.stdout | default('empty') }}
+          Vaultwarden container is not running.
+          Output: {{ _vaultwarden_verify_container.stdout | default('empty') }}
       when:
         - ansible_facts['virtualization_type'] | default('') != 'docker'
-        - _vw_verify_container is defined
+        - _vaultwarden_verify_container is defined
 
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          Vaultwarden verify passed: directories exist (base 0755, data 0700,
-          backup 0755), domain in /etc/hosts, admin token generated (0600),
-          docker-compose.yml deployed with correct content, Caddy site config
-          has security headers, backup script executable, cron job configured.
+          Vaultwarden verify passed: directories (base 0755, data 0700,
+          backup 0755), domain in /etc/hosts, admin token (0600, >32 chars),
+          docker-compose.yml (rendered variables, volume, network),
+          Caddy config (security headers, reverse_proxy), backup script
+          (rendered paths, sqlite3), cron job configured.

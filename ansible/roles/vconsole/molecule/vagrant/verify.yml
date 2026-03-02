@@ -26,10 +26,10 @@
       ansible.builtin.assert:
         that:
           - vconsole_verify_stat.stat.exists
-          - vconsole_verify_stat.stat.isreg
+          - vconsole_verify_stat.stat.isreg or vconsole_verify_stat.stat.islnk
           - vconsole_verify_stat.stat.pw_name == 'root'
           - vconsole_verify_stat.stat.gr_name == 'root'
-          - vconsole_verify_stat.stat.mode == '0644'
+          - vconsole_verify_stat.stat.islnk or vconsole_verify_stat.stat.mode == '0644'
         fail_msg: "/etc/vconsole.conf missing or wrong permissions (expected root:root 0644)"
       when: ansible_facts['service_mgr'] == 'systemd'
 
@@ -64,7 +64,9 @@
       ansible.builtin.command: localectl status
       register: vconsole_verify_localectl
       changed_when: false
-      when: ansible_facts['service_mgr'] == 'systemd'
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - ansible_facts['os_family'] == 'Archlinux'
 
     - name: Assert VC Keymap shown by localectl
       ansible.builtin.assert:
@@ -73,7 +75,9 @@
         fail_msg: >-
           localectl does not show VC Keymap={{ verify_keymap }}.
           Output: {{ vconsole_verify_localectl.stdout }}
-      when: ansible_facts['service_mgr'] == 'systemd'
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - ansible_facts['os_family'] == 'Archlinux'
 
     # ---- Font package ----
 

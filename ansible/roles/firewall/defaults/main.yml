@@ -5,8 +5,11 @@
 # Включить firewall
 firewall_enabled: true
 
-# Включить и запустить сервис nftables
+# Включить сервис nftables (enabled при загрузке)
 firewall_enable_service: true
+
+# Запустить сервис nftables сейчас (state: started)
+firewall_start_service: true
 
 # Разрешить SSH (порт 22)
 firewall_allow_ssh: true

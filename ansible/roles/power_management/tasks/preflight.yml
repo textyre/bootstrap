@@ -34,7 +34,7 @@
     success_msg: "Swap detected, hibernate is viable"
   when:
     - power_management_hibernate_in_use | bool
-    - power_management_swap_check is succeeded
+    - "'content' in power_management_swap_check"
   tags: ['power', 'preflight']
 
 # ---- SSH lockout warning for idle suspend/hibernate ----

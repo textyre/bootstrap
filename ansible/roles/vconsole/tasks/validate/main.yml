@@ -24,3 +24,13 @@
     (vconsole_console_font_map | default('') | length > 0) or
     (vconsole_console_font_unimap | default('') | length > 0)
   tags: ['vconsole']
+
+- name: Assert vconsole_console_map_src file exists if provided
+  ansible.builtin.assert:
+    that:
+      - vconsole_console_map_src is file
+    fail_msg: >-
+      vconsole_console_map_src is set to '{{ vconsole_console_map_src }}' but the file does not exist.
+      Provide a valid path to a .map file in your repository.
+  when: vconsole_console_map_src | default('') | length > 0
+  tags: ['vconsole']
