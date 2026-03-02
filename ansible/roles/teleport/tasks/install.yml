@@ -46,7 +46,7 @@
         name: teleport
         state: present
 
-- name: "Install Teleport via binary download (Void/Gentoo)"
+- name: "Install Teleport via binary download"
   when: teleport_install_method == 'binary'
   tags: [teleport, install]
   block:
@@ -56,15 +56,49 @@
           {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture]
              | default(ansible_architecture) }}
 
+    - name: "Check if teleport binary already installed"
+      ansible.builtin.stat:
+        path: /usr/local/bin/teleport
+      register: _teleport_binary_stat
+
     - name: "Download Teleport binary"
       ansible.builtin.get_url:
         url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ teleport_arch }}-bin.tar.gz"
-        dest: "/tmp/teleport.tar.gz"
+        dest: "/tmp/teleport-{{ teleport_version }}-{{ teleport_arch }}.tar.gz"
         mode: "0644"
+      when: not _teleport_binary_stat.stat.exists
 
     - name: "Extract Teleport binary"
       ansible.builtin.unarchive:
-        src: "/tmp/teleport.tar.gz"
+        src: "/tmp/teleport-{{ teleport_version }}-{{ teleport_arch }}.tar.gz"
         dest: /usr/local/bin/
         remote_src: true
         extra_opts: [--strip-components=1]
+      when: not _teleport_binary_stat.stat.exists
+
+    - name: "Deploy teleport systemd unit for binary install"
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Teleport SSH Access Platform
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/teleport start --config=/etc/teleport.yaml
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/teleport.service
+        mode: "0644"
+      when: ansible_facts['service_mgr'] == 'systemd'
+      register: _teleport_unit_result
+
+    - name: "Reload systemd daemon after unit file change"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_unit_result is changed
