@@ -34,9 +34,11 @@ provisioner:
   name: ansible
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_REMOTE_TMP: /tmp/.ansible/tmp
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+      remote_tmp: /tmp/.ansible/tmp
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

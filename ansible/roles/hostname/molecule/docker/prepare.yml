@@ -3,6 +3,10 @@
 # Atomic rename (used by systemd-hostnamed via hostnamectl and by Ansible's lineinfile)
 # fails across mount point boundaries with EXDEV. Unmounting restores them as regular
 # overlay files, so hostnamectl and lineinfile work without workarounds.
+#
+# Pattern A: hostname is set via molecule.yml platforms + prepare.yml writes /etc/hostname
+# so the Ansible hostname module sees no change needed. Tests /etc/hosts logic without
+# the kernel syscall that systemd refuses inside containers (EBUSY).
 - name: Prepare
   hosts: all
   become: true
@@ -16,3 +20,15 @@
         - /etc/hosts
       changed_when: true
       failed_when: false
+
+    - name: Write /etc/hostname so hostname module sees no change
+      ansible.builtin.copy:
+        content: "archbox\n"
+        dest: /etc/hostname
+        mode: "0644"
+
+    - name: Seed /etc/hosts with localhost entry (lost after umount)
+      ansible.builtin.copy:
+        content: "127.0.0.1 localhost\n"
+        dest: /etc/hosts
+        mode: "0644"

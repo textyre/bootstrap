@@ -44,8 +44,8 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    converge: converge.yml
+    verify: verify.yml
 
 verifier:
   name: ansible

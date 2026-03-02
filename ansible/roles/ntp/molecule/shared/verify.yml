@@ -51,16 +51,16 @@
     - name: Stat chrony.conf
       ansible.builtin.stat:
         path: "{{ _ntp_verify_conf_path }}"
-      register: ntp_verify_conf
+      register: _ntp_verify_conf_stat
 
     - name: Assert chrony.conf exists with correct owner and mode
       ansible.builtin.assert:
         that:
-          - ntp_verify_conf.stat.exists
-          - ntp_verify_conf.stat.isreg
-          - ntp_verify_conf.stat.pw_name == 'root'
-          - ntp_verify_conf.stat.gr_name == 'root'
-          - ntp_verify_conf.stat.mode == '0644'
+          - _ntp_verify_conf_stat.stat.exists
+          - _ntp_verify_conf_stat.stat.isreg
+          - _ntp_verify_conf_stat.stat.pw_name == 'root'
+          - _ntp_verify_conf_stat.stat.gr_name == 'root'
+          - _ntp_verify_conf_stat.stat.mode == '0644'
         fail_msg: "{{ _ntp_verify_conf_path }} missing or wrong permissions (expected root:root 0644)"
 
     # ---- chrony.conf content ----
@@ -68,75 +68,129 @@
     - name: Read chrony.conf
       ansible.builtin.slurp:
         src: "{{ _ntp_verify_conf_path }}"
-      register: ntp_verify_conf_raw
+      register: _ntp_verify_conf_raw
+
+    - name: Assert chrony.conf was read successfully
+      ansible.builtin.assert:
+        that: "'content' in _ntp_verify_conf_raw"
+        fail_msg: "Failed to slurp {{ _ntp_verify_conf_path }}"
 
     - name: Set chrony.conf text fact
       ansible.builtin.set_fact:
-        ntp_verify_conf_text: "{{ ntp_verify_conf_raw.content | b64decode }}"
+        _ntp_verify_conf_text: "{{ _ntp_verify_conf_raw.content | b64decode }}"
 
-    - name: Assert NTS directive present in at least one server line
+    - name: Assert Managed-by-Ansible header present
       ansible.builtin.assert:
-        that: "'nts' in ntp_verify_conf_text"
-        fail_msg: "No 'nts' keyword found in /etc/chrony.conf — NTS not configured"
-
-    - name: Assert minsources directive present
-      ansible.builtin.assert:
-        that: "'minsources' in ntp_verify_conf_text"
-        fail_msg: "'minsources' directive missing from /etc/chrony.conf"
-
-    - name: Assert driftfile directive present
-      ansible.builtin.assert:
-        that: "'driftfile' in ntp_verify_conf_text"
-        fail_msg: "'driftfile' directive missing from /etc/chrony.conf"
-
-    - name: Assert dumpdir directive present
-      ansible.builtin.assert:
-        that: "'dumpdir' in ntp_verify_conf_text"
-        fail_msg: "'dumpdir' directive missing from /etc/chrony.conf"
-
-    - name: Assert ntsdumpdir directive present
-      ansible.builtin.assert:
-        that: "'ntsdumpdir' in ntp_verify_conf_text"
-        fail_msg: "'ntsdumpdir' directive missing from /etc/chrony.conf"
-
-    - name: Assert log tracking directive present
-      ansible.builtin.assert:
-        that: "'log measurements statistics tracking' in ntp_verify_conf_text"
-        fail_msg: "'log measurements statistics tracking' missing from /etc/chrony.conf"
+        that: _ntp_verify_conf_text is regex('Managed by Ansible')
+        fail_msg: "'Managed by Ansible' header missing from {{ _ntp_verify_conf_path }}"
 
     - name: Assert environment detection comment present
       ansible.builtin.assert:
-        that: "'# Environment:' in ntp_verify_conf_text"
+        that: _ntp_verify_conf_text is regex('# Environment:')
         fail_msg: "'# Environment:' comment missing — template not applying environment detection"
+
+    - name: Assert NTS server lines present
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^server\s+\S+.*\s+nts')
+        fail_msg: "No server line with 'nts' keyword found — NTS not configured"
+
+    - name: Assert time.cloudflare.com server configured
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^server\s+time\.cloudflare\.com')
+        fail_msg: "time.cloudflare.com not found as a server in chrony.conf"
+
+    - name: Assert minsources directive present with value
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^minsources\s+\d+')
+        fail_msg: "'minsources' directive missing or malformed in chrony.conf"
+
+    - name: Assert driftfile directive present with path
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^driftfile\s+/var/lib/chrony/drift')
+        fail_msg: "'driftfile /var/lib/chrony/drift' missing from chrony.conf"
+
+    - name: Assert dumpdir directive present with path
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^dumpdir\s+/var/lib/chrony')
+        fail_msg: "'dumpdir /var/lib/chrony' missing from chrony.conf"
+
+    - name: Assert ntsdumpdir directive present with path
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^ntsdumpdir\s+/var/lib/chrony/nts-data')
+        fail_msg: "'ntsdumpdir /var/lib/chrony/nts-data' missing from chrony.conf"
+
+    - name: Assert makestep directive present with threshold and limit
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^makestep\s+[\d.]+\s+[-\d]+')
+        fail_msg: "'makestep' directive missing or malformed in chrony.conf"
+
+    - name: Assert rtcsync directive present
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^rtcsync')
+        fail_msg: "'rtcsync' directive missing from chrony.conf (expected for bare-metal/Docker)"
+
+    - name: Assert leapsectz directive present
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^leapsectz\s+right/UTC')
+        fail_msg: "'leapsectz right/UTC' missing from chrony.conf"
+
+    - name: Assert logdir directive present with path
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^logdir\s+/var/log/chrony')
+        fail_msg: "'logdir /var/log/chrony' missing from chrony.conf"
+
+    - name: Assert logchange directive present
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^logchange\s+[\d.]+')
+        fail_msg: "'logchange' directive missing from chrony.conf"
+
+    - name: Assert log tracking directive present
+      ansible.builtin.assert:
+        that: _ntp_verify_conf_text is regex('(?m)^log\s+measurements\s+statistics\s+tracking')
+        fail_msg: "'log measurements statistics tracking' missing from chrony.conf"
 
     # ---- Directories ----
 
-    - name: Stat /var/log/chrony
+    - name: Stat /var/log/chrony (logdir)
       ansible.builtin.stat:
         path: /var/log/chrony
-      register: ntp_verify_logdir
+      register: _ntp_verify_logdir
 
     - name: Assert /var/log/chrony exists with correct ownership and mode
       ansible.builtin.assert:
         that:
-          - ntp_verify_logdir.stat.exists
-          - ntp_verify_logdir.stat.isdir
-          - ntp_verify_logdir.stat.pw_name == _ntp_verify_user
-          - ntp_verify_logdir.stat.mode == '0755'
-        fail_msg: "/var/log/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode"
+          - _ntp_verify_logdir.stat.exists
+          - _ntp_verify_logdir.stat.isdir
+          - _ntp_verify_logdir.stat.pw_name == _ntp_verify_user
+          - _ntp_verify_logdir.stat.mode == '0755'
+        fail_msg: "/var/log/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0755)"
 
-    - name: Stat /var/lib/chrony/nts-data
+    - name: Stat /var/lib/chrony (dumpdir)
+      ansible.builtin.stat:
+        path: /var/lib/chrony
+      register: _ntp_verify_dumpdir
+
+    - name: Assert /var/lib/chrony exists with correct ownership and mode
+      ansible.builtin.assert:
+        that:
+          - _ntp_verify_dumpdir.stat.exists
+          - _ntp_verify_dumpdir.stat.isdir
+          - _ntp_verify_dumpdir.stat.pw_name == _ntp_verify_user
+          - _ntp_verify_dumpdir.stat.mode == '0750'
+        fail_msg: "/var/lib/chrony missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0750)"
+
+    - name: Stat /var/lib/chrony/nts-data (ntsdumpdir)
       ansible.builtin.stat:
         path: /var/lib/chrony/nts-data
-      register: ntp_verify_ntsdumpdir
+      register: _ntp_verify_ntsdumpdir
 
     - name: Assert /var/lib/chrony/nts-data exists with correct ownership and mode
       ansible.builtin.assert:
         that:
-          - ntp_verify_ntsdumpdir.stat.exists
-          - ntp_verify_ntsdumpdir.stat.isdir
-          - ntp_verify_ntsdumpdir.stat.pw_name == _ntp_verify_user
-          - ntp_verify_ntsdumpdir.stat.mode == '0700'
+          - _ntp_verify_ntsdumpdir.stat.exists
+          - _ntp_verify_ntsdumpdir.stat.isdir
+          - _ntp_verify_ntsdumpdir.stat.pw_name == _ntp_verify_user
+          - _ntp_verify_ntsdumpdir.stat.mode == '0700'
         fail_msg: "/var/lib/chrony/nts-data missing, not owned by {{ _ntp_verify_user }}, or wrong mode (expected 0700)"
 
     # ---- Competitor services stopped ----
@@ -155,18 +209,20 @@
     - name: Diagnostic — chronyc tracking output
       ansible.builtin.command:
         cmd: chronyc tracking
-      register: ntp_verify_tracking_diag
+      register: _ntp_verify_tracking_diag
       changed_when: false
       failed_when: false
 
     - name: Show chronyc tracking
       ansible.builtin.debug:
-        var: ntp_verify_tracking_diag.stdout_lines
+        var: _ntp_verify_tracking_diag.stdout_lines
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
           NTP offline verify passed: chrony installed,
           {{ _ntp_verify_service }} running,
-          {{ _ntp_verify_conf_path }} correct (root:root 0644), directives present,
+          {{ _ntp_verify_conf_path }} correct (root:root 0644),
+          all directives present (server/nts, minsources, driftfile, dumpdir,
+          ntsdumpdir, makestep, rtcsync, leapsectz, logdir, logchange, log tracking),
           directories exist with correct ownership and mode.

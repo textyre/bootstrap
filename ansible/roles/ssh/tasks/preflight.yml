@@ -61,3 +61,27 @@
     - ssh_deny_users | length > 0
     - ssh_user in ssh_deny_users
   tags: ['ssh', 'security']
+
+# ---- Проверка authorized_keys (предупреждение о возможной блокировке) ----
+
+- name: "Check if authorized_keys exists for {{ ssh_user }}"
+  ansible.builtin.shell:
+    cmd: "test -f ~{{ ssh_user }}/.ssh/authorized_keys && echo found || echo missing"
+  register: _ssh_preflight_authkeys
+  changed_when: false
+  failed_when: false
+  when: ssh_password_authentication == "no"
+  tags: ['ssh', 'security']
+
+- name: "Warn: no authorized_keys found while password auth is disabled for user {{ ssh_user }}"
+  ansible.builtin.debug:
+    msg: >-
+      LOCKOUT RISK WARNING: ssh_password_authentication='no' but
+      ~{{ ssh_user }}/.ssh/authorized_keys was not found.
+      Ensure public key authentication is configured before applying hardening
+      to a production system, or SSH access will be lost.
+  when:
+    - ssh_password_authentication == "no"
+    - _ssh_preflight_authkeys is defined
+    - _ssh_preflight_authkeys.stdout | default('') == 'missing'
+  tags: ['ssh', 'security']

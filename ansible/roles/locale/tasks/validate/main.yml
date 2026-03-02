@@ -4,11 +4,20 @@
 # При любой ошибке: выставляет locale_skip=true + locale_skip_reason,
 # НЕ падает — оборачивающий блок в main.yml проверяет locale_skip.
 
-- name: Check locale_list is not empty
+- name: Check locale_list is defined and not empty
   ansible.builtin.set_fact:
     locale_skip: true
-    locale_skip_reason: "locale_list is empty"
-  when: locale_list | length == 0
+    locale_skip_reason: "locale_list is empty or undefined"
+  when: locale_list is not defined or locale_list | length == 0
+  tags: ['locale']
+
+- name: Check locale_default is defined and non-null
+  ansible.builtin.set_fact:
+    locale_skip: true
+    locale_skip_reason: "locale_default is undefined or null"
+  when:
+    - not (locale_skip | default(false))
+    - locale_default is not defined or locale_default is none
   tags: ['locale']
 
 - name: Check locale_default is in locale_list

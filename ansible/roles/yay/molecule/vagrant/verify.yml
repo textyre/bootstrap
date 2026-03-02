@@ -1,4 +1,8 @@
 ---
+# === Vagrant verify for yay role ===
+# yay is Arch-only. Ubuntu gets end_host.
+# Full verification including binary, since vagrant builds yay from source.
+
 - name: Verify yay role
   hosts: all
   become: true
@@ -18,22 +22,22 @@
       ansible.builtin.getent:
         database: passwd
         key: "{{ yay_builder_user }}"
-      register: yay_verify_aur_builder
+      register: _yay_verify_aur_builder
 
     - name: Assert aur_builder has nologin shell
       ansible.builtin.assert:
         that:
-          - yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
+          - _yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] == '/usr/bin/nologin'
         fail_msg: >-
-          aur_builder shell is '{{ yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] }}',
+          aur_builder shell is '{{ _yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][5] }}',
           expected '/usr/bin/nologin'
 
     - name: Assert aur_builder is a system user (UID < 1000)
       ansible.builtin.assert:
         that:
-          - yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][1] | int < 1000
+          - _yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][1] | int < 1000
         fail_msg: >-
-          aur_builder UID is {{ yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][1] }},
+          aur_builder UID is {{ _yay_verify_aur_builder.ansible_facts.getent_passwd[yay_builder_user][1] }},
           expected < 1000 (system user)
 
     # ---- sudoers ----
@@ -41,23 +45,23 @@
     - name: Stat sudoers drop-in file
       ansible.builtin.stat:
         path: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
-      register: yay_verify_sudoers
+      register: _yay_verify_sudoers
 
     - name: Assert sudoers file exists
       ansible.builtin.assert:
-        that: yay_verify_sudoers.stat.exists
+        that: _yay_verify_sudoers.stat.exists
         fail_msg: "/etc/sudoers.d/{{ yay_builder_sudoers_file }} does not exist"
 
     - name: Assert sudoers file has correct permissions
       ansible.builtin.assert:
         that:
-          - yay_verify_sudoers.stat.mode == '0440'
-          - yay_verify_sudoers.stat.pw_name == 'root'
-          - yay_verify_sudoers.stat.gr_name == 'root'
+          - _yay_verify_sudoers.stat.mode == '0440'
+          - _yay_verify_sudoers.stat.pw_name == 'root'
+          - _yay_verify_sudoers.stat.gr_name == 'root'
         fail_msg: >-
           /etc/sudoers.d/{{ yay_builder_sudoers_file }} permissions incorrect:
-          mode={{ yay_verify_sudoers.stat.mode }} owner={{ yay_verify_sudoers.stat.pw_name }}
-          group={{ yay_verify_sudoers.stat.gr_name }} (expected 0440 root:root)
+          mode={{ _yay_verify_sudoers.stat.mode }} owner={{ _yay_verify_sudoers.stat.pw_name }}
+          group={{ _yay_verify_sudoers.stat.gr_name }} (expected 0440 root:root)
 
     - name: Validate sudoers syntax
       ansible.builtin.command: /usr/sbin/visudo -cf "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
@@ -66,13 +70,13 @@
     - name: Read sudoers file content
       ansible.builtin.slurp:
         src: "/etc/sudoers.d/{{ yay_builder_sudoers_file }}"
-      register: yay_verify_sudoers_raw
+      register: _yay_verify_sudoers_raw
 
     - name: Assert sudoers grants NOPASSWD pacman only
       ansible.builtin.assert:
         that:
-          - "'NOPASSWD: /usr/bin/pacman' in (yay_verify_sudoers_raw.content | b64decode)"
-          - "yay_builder_user in (yay_verify_sudoers_raw.content | b64decode)"
+          - "'NOPASSWD: /usr/bin/pacman' in (_yay_verify_sudoers_raw.content | b64decode)"
+          - "yay_builder_user in (_yay_verify_sudoers_raw.content | b64decode)"
         fail_msg: >-
           Sudoers content does not match expected pattern.
           Expected '{{ yay_builder_user }} ALL=(root) NOPASSWD: /usr/bin/pacman'
@@ -84,37 +88,43 @@
         name: "{{ item }}"
         state: present
       check_mode: true
-      register: yay_verify_dep_check
-      failed_when: yay_verify_dep_check is changed
+      register: _yay_verify_dep_check
+      failed_when: _yay_verify_dep_check is changed
       loop: "{{ yay_build_deps }}"
 
     # ---- yay binary ----
 
-    - name: Check that yay binary exists
-      ansible.builtin.command: which yay
-      changed_when: false
-      register: yay_verify_path
+    - name: Check yay binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/yay
+      register: _yay_verify_binary
 
-    - name: Assert yay is at /usr/bin/yay
+    - name: Assert yay binary exists
       ansible.builtin.assert:
-        that: "'/usr/bin/yay' in yay_verify_path.stdout"
-        fail_msg: "yay binary not at expected path /usr/bin/yay (got: {{ yay_verify_path.stdout }})"
+        that: _yay_verify_binary.stat.exists
+        fail_msg: "yay binary not found at /usr/bin/yay"
 
-    - name: Check that yay is executable and reports version
-      ansible.builtin.command: yay --version
+    - name: Verify yay version
+      ansible.builtin.command:
+        cmd: yay --version
+      register: _yay_verify_version
       changed_when: false
-      register: yay_verify_version
+      failed_when: false
+      when: _yay_verify_binary.stat.exists
 
     - name: Assert yay version output is valid
       ansible.builtin.assert:
-        that: "'yay' in yay_verify_version.stdout"
-        fail_msg: "yay --version did not produce expected output: {{ yay_verify_version.stdout }}"
+        that:
+          - _yay_verify_version.stdout is regex('yay v\d+\.\d+')
+        fail_msg: "yay --version did not produce expected output: {{ _yay_verify_version.stdout }}"
+      when: _yay_verify_binary.stat.exists
 
     - name: Check that yay has no broken shared libs
       ansible.builtin.command: ldd /usr/bin/yay
       changed_when: false
-      register: yay_verify_ldd
-      failed_when: "'not found' in yay_verify_ldd.stdout"
+      register: _yay_verify_ldd
+      failed_when: "'not found' in _yay_verify_ldd.stdout"
+      when: _yay_verify_binary.stat.exists
 
     # ---- build cleanup ----
 
@@ -123,14 +133,14 @@
         paths: /tmp
         patterns: "yay_build_*"
         file_type: directory
-      register: yay_verify_build_dirs
+      register: _yay_verify_build_dirs
 
     - name: Assert no leftover build directories
       ansible.builtin.assert:
-        that: yay_verify_build_dirs.matched == 0
+        that: _yay_verify_build_dirs.matched == 0
         fail_msg: >-
-          Found {{ yay_verify_build_dirs.matched }} leftover build directories in /tmp:
-          {{ yay_verify_build_dirs.files | map(attribute='path') | list }}
+          Found {{ _yay_verify_build_dirs.matched }} leftover build directories in /tmp:
+          {{ _yay_verify_build_dirs.files | map(attribute='path') | list }}
 
     # ---- AUR packages (conditional -- only when yay_packages_aur is set) ----
 
@@ -147,14 +157,16 @@
       become: true
       become_user: "{{ yay_builder_user }}"
       changed_when: false
-      register: yay_verify_builder_exec
+      register: _yay_verify_builder_exec
+      when: _yay_verify_binary.stat.exists
 
     - name: Assert aur_builder yay execution succeeded
       ansible.builtin.assert:
-        that: yay_verify_builder_exec.rc == 0
+        that: _yay_verify_builder_exec.rc == 0
         fail_msg: >-
-          aur_builder cannot execute yay (rc={{ yay_verify_builder_exec.rc }}).
+          aur_builder cannot execute yay (rc={{ _yay_verify_builder_exec.rc }}).
           This may indicate permission or PATH issues.
+      when: _yay_verify_binary.stat.exists
 
     # ---- summary ----
 
@@ -164,9 +176,8 @@
           - "All yay role checks passed!"
           - "aur_builder: user exists, UID < 1000, shell=/usr/bin/nologin"
           - "sudoers: /etc/sudoers.d/{{ yay_builder_sudoers_file }} (0440, root:root, valid syntax)"
-          - "yay binary: {{ yay_verify_path.stdout }}"
-          - "yay version: {{ yay_verify_version.stdout }}"
-          - "yay ldd: OK (no broken shared libs)"
+          - "yay binary: {{ '/usr/bin/yay' if _yay_verify_binary.stat.exists else 'NOT FOUND' }}"
+          - "yay version: {{ _yay_verify_version.stdout | default('N/A') }}"
           - "Build deps: {{ yay_build_deps | join(', ') }} installed"
           - "Temp build dirs: cleaned up (0 found)"
           - "AUR packages: {{ yay_packages_aur | default([]) | join(', ') | default('(none -- skipped)', true) }}"

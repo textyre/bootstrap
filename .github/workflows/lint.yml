@@ -1,3 +1,10 @@
+# Purpose: Fast quality gate — yamllint, ansible-lint, and playbook syntax checks.
+#          Runs before molecule tests to catch formatting and structure errors cheaply.
+# Triggers: push/PR to master (ansible/**), workflow_dispatch
+# Uses:    ghcr.io/<repo>/ci-env-lint:latest  (built by build-lint-image.yml)
+# Notes:   [KNOWN ISSUE #6] Path filter only covers ansible/**. Changes to
+#          .github/workflows/ do NOT trigger this workflow. Workflow YAML itself
+#          is never validated (no actionlint step).
 ---
 name: Ansible Lint & Syntax Check
 

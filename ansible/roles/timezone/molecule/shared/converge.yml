@@ -6,7 +6,3 @@
 
   roles:
     - role: timezone
-      vars:
-        timezone_name: "Asia/Almaty"
-        timezone_packages_tzdata:
-          default: "tzdata"

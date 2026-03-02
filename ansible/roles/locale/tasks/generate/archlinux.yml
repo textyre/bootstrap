@@ -1,10 +1,20 @@
 ---
 # Генерация локалей (Arch Linux)
-# community.general.locale_gen
+# community.general.locale_gen does not reliably enable locales in /etc/locale.gen
+# on Arch Linux. Use lineinfile to directly uncomment/add the locale entry, then
+# run locale-gen to regenerate the locale archive.
+
+- name: Enable locales in /etc/locale.gen
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: "^#?\\s*{{ item | regex_escape }}\\s"
+    line: "{{ item }} UTF-8"
+    create: false
+  loop: "{{ locale_list }}"
+  register: _locale_gen_enabled
+  tags: ['locale']
 
 - name: Generate locales
-  community.general.locale_gen:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ locale_list }}"
+  ansible.builtin.command: locale-gen
+  changed_when: _locale_gen_enabled is changed
   tags: ['locale']

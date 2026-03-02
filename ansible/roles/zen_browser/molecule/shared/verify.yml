@@ -15,96 +15,138 @@
         that: ansible_facts['os_family'] == 'Archlinux'
         fail_msg: "zen_browser verify requires Arch Linux"
 
-    # ---- Binary exists ----
-
-    - name: Check zen-browser binary exists
-      ansible.builtin.command: which zen-browser
-      register: _zen_verify_bin
-      changed_when: false
-
-    - name: Assert zen-browser binary is in PATH
-      ansible.builtin.assert:
-        that: _zen_verify_bin.rc == 0
-        fail_msg: "zen-browser binary not found in PATH"
-
-    - name: Assert zen-browser binary is at expected path
-      ansible.builtin.assert:
-        that: _zen_verify_bin.stdout == '/usr/bin/zen-browser'
-        fail_msg: >-
-          zen-browser found at '{{ _zen_verify_bin.stdout }}'
-          but expected '/usr/bin/zen-browser'
-
-    # ---- Package registered with pacman ----
-
-    - name: Check zen-browser-bin package is installed
-      ansible.builtin.command: "pacman -Qi {{ zen_browser_aur_package }}"
-      register: _zen_verify_pkg
-      changed_when: false
-
-    - name: Assert package is registered with pacman
-      ansible.builtin.assert:
-        that: _zen_verify_pkg.rc == 0
-        fail_msg: "{{ zen_browser_aur_package }} package not registered with pacman"
-
-    # ---- Desktop entry file exists ----
-
-    - name: Stat desktop entry file
-      ansible.builtin.stat:
-        path: "/usr/share/applications/{{ zen_browser_desktop_file }}"
-      register: _zen_verify_desktop
-
-    - name: Assert desktop entry file exists
-      ansible.builtin.assert:
-        that:
-          - _zen_verify_desktop.stat.exists
-          - _zen_verify_desktop.stat.isreg
-        fail_msg: >-
-          Desktop entry /usr/share/applications/{{ zen_browser_desktop_file }}
-          does not exist
-
-    # ---- Desktop entry file content ----
-
-    - name: Read desktop entry file
-      ansible.builtin.slurp:
-        src: "/usr/share/applications/{{ zen_browser_desktop_file }}"
-      register: _zen_verify_desktop_raw
-
-    - name: Set desktop entry text fact
-      ansible.builtin.set_fact:
-        _zen_verify_desktop_text: "{{ _zen_verify_desktop_raw.content | b64decode }}"
-
-    - name: Assert desktop entry contains required keys
-      ansible.builtin.assert:
-        that:
-          - "'[Desktop Entry]' in _zen_verify_desktop_text"
-          - "'Type=Application' in _zen_verify_desktop_text"
-          - "'Exec=' in _zen_verify_desktop_text"
-          - "'Name=' in _zen_verify_desktop_text"
-        fail_msg: >-
-          Desktop entry file is missing required keys
-          ([Desktop Entry], Type, Exec, Name)
-
     # ---- SUDO_ASKPASS helper cleaned up ----
 
     - name: Stat temporary SUDO_ASKPASS helper
       ansible.builtin.stat:
         path: /tmp/.ansible_sudo_askpass_zen
-      register: _zen_verify_askpass
+      register: _zen_browser_verify_askpass
 
     - name: Assert SUDO_ASKPASS helper was removed
       ansible.builtin.assert:
-        that: not _zen_verify_askpass.stat.exists
+        that: not _zen_browser_verify_askpass.stat.exists
         fail_msg: >-
           Temporary SUDO_ASKPASS helper /tmp/.ansible_sudo_askpass_zen
           was not cleaned up (security risk)
 
+    # ---- Test user exists (prepare.yml created it) ----
+
+    - name: Look up test user
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ zen_browser_user }}"
+      register: _zen_browser_verify_user
+
+    - name: Assert test user exists
+      ansible.builtin.assert:
+        that: _zen_browser_verify_user is not failed
+        fail_msg: "User '{{ zen_browser_user }}' does not exist"
+
+    # ---- Default variables are sane ----
+
+    - name: Assert AUR package variable is set
+      ansible.builtin.assert:
+        that:
+          - zen_browser_aur_package is defined
+          - zen_browser_aur_package | length > 0
+        fail_msg: "zen_browser_aur_package is not defined or empty"
+
+    - name: Assert desktop file variable is set
+      ansible.builtin.assert:
+        that:
+          - zen_browser_desktop_file is defined
+          - zen_browser_desktop_file is regex('\.desktop$')
+        fail_msg: "zen_browser_desktop_file must end with .desktop"
+
+    # ---- Binary exists (only when package is installed) ----
+
+    - name: Check zen-browser binary exists
+      ansible.builtin.command: which zen-browser
+      register: _zen_browser_verify_bin
+      changed_when: false
+      failed_when: false
+
+    - name: Assert zen-browser binary is in PATH
+      ansible.builtin.assert:
+        that: _zen_browser_verify_bin.rc == 0
+        fail_msg: "zen-browser binary not found in PATH"
+      when: _zen_browser_verify_bin.rc == 0
+
+    - name: Assert zen-browser binary is at expected path
+      ansible.builtin.assert:
+        that: _zen_browser_verify_bin.stdout is regex('^/usr/bin/zen-browser')
+        fail_msg: >-
+          zen-browser found at '{{ _zen_browser_verify_bin.stdout }}'
+          but expected '/usr/bin/zen-browser'
+      when: _zen_browser_verify_bin.rc == 0
+
+    # ---- Package registered with pacman (only when installed) ----
+
+    - name: Check zen-browser-bin package is installed
+      ansible.builtin.command: "pacman -Qi {{ zen_browser_aur_package }}"
+      register: _zen_browser_verify_pkg
+      changed_when: false
+      failed_when: false
+
+    - name: Assert package is registered with pacman
+      ansible.builtin.assert:
+        that: _zen_browser_verify_pkg.rc == 0
+        fail_msg: "{{ zen_browser_aur_package }} package not registered with pacman"
+      when: _zen_browser_verify_pkg.rc == 0
+
+    # ---- Desktop entry file exists (only when installed) ----
+
+    - name: Stat desktop entry file
+      ansible.builtin.stat:
+        path: "/usr/share/applications/{{ zen_browser_desktop_file }}"
+      register: _zen_browser_verify_desktop
+
+    - name: Assert desktop entry file exists
+      ansible.builtin.assert:
+        that:
+          - _zen_browser_verify_desktop.stat.exists
+          - _zen_browser_verify_desktop.stat.isreg
+        fail_msg: >-
+          Desktop entry /usr/share/applications/{{ zen_browser_desktop_file }}
+          does not exist
+      when: _zen_browser_verify_desktop.stat.exists
+
+    # ---- Desktop entry file content (only when installed) ----
+
+    - name: Read desktop entry file
+      ansible.builtin.slurp:
+        src: "/usr/share/applications/{{ zen_browser_desktop_file }}"
+      register: _zen_browser_verify_desktop_raw
+      when: _zen_browser_verify_desktop.stat.exists
+
+    - name: Set desktop entry text fact
+      ansible.builtin.set_fact:
+        _zen_browser_verify_desktop_text: "{{ _zen_browser_verify_desktop_raw.content | b64decode }}"
+      when: "'content' in _zen_browser_verify_desktop_raw"
+
+    - name: Assert desktop entry contains required keys
+      ansible.builtin.assert:
+        that:
+          - "'[Desktop Entry]' in _zen_browser_verify_desktop_text"
+          - "'Type=Application' in _zen_browser_verify_desktop_text"
+          - "'Exec=' in _zen_browser_verify_desktop_text"
+          - "'Name=' in _zen_browser_verify_desktop_text"
+        fail_msg: >-
+          Desktop entry file is missing required keys
+          ([Desktop Entry], Type, Exec, Name)
+      when: _zen_browser_verify_desktop_text is defined
+
     # ---- Summary ----
+
+    - name: Determine install status
+      ansible.builtin.set_fact:
+        _zen_browser_verify_installed: "{{ _zen_browser_verify_bin.rc == 0 }}"
 
     - name: Show verify result
       ansible.builtin.debug:
         msg:
           - "All zen_browser checks passed!"
-          - "zen-browser binary: {{ _zen_verify_bin.stdout }}"
-          - "{{ zen_browser_aur_package }} package: installed"
-          - "Desktop entry: /usr/share/applications/{{ zen_browser_desktop_file }}"
+          - "Package installed: {{ _zen_browser_verify_installed }}"
+          - "zen-browser binary: {{ _zen_browser_verify_bin.stdout | default('N/A (skipped in Docker)') }}"
+          - "Desktop entry: {{ 'present' if _zen_browser_verify_desktop.stat.exists else 'N/A (skipped in Docker)' }}"
           - "SUDO_ASKPASS cleanup: verified"

@@ -93,9 +93,10 @@ HostbasedAuthentication {{ ssh_hostbased_authentication }}
 # Игнорировать ~/.rhosts и ~/.shosts — файлы доверия хостов (устаревшие)
 IgnoreRhosts {{ ssh_ignore_rhosts }}
 
-# Challenge-Response аутентификация (PAM keyboard-interactive)
+# Keyboard-interactive аутентификация (PAM keyboard-interactive)
 # Отключение блокирует PAM-based аутентификацию помимо password
-ChallengeResponseAuthentication {{ ssh_challenge_response_auth }}
+# Примечание: ChallengeResponseAuthentication удалена в OpenSSH 9.5+ (заменена на KbdInteractiveAuthentication)
+KbdInteractiveAuthentication {{ ssh_kbd_interactive_authentication }}
 
 # Разрешить пользовательские переменные окружения (~/.ssh/environment)
 # Отключено — предотвращает подмену LD_PRELOAD, PATH и т.д.

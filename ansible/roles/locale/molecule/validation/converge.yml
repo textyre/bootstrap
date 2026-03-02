@@ -1,0 +1,65 @@
+---
+# Тестирует soft-fail валидации без root-доступа.
+
+# Тест 1: пустой locale_list — роль должна soft-fail
+- name: "Converge — empty locale_list"
+  hosts: all
+  become: false
+  gather_facts: true
+
+  roles:
+    - role: locale
+      vars:
+        locale_list: []
+        locale_default: "en_US.UTF-8"
+        locale_lc_overrides: {}
+
+  tasks:
+    - name: Assert role soft-failed for empty locale_list
+      ansible.builtin.assert:
+        that:
+          - locale_skip | default(false)
+          - "'locale_list is empty or undefined' in locale_skip_reason"
+
+# Тест 2: locale_default не в locale_list
+- name: "Converge — locale_default not in locale_list"
+  hosts: all
+  become: false
+  gather_facts: true
+
+  roles:
+    - role: locale
+      vars:
+        locale_list:
+          - "en_US.UTF-8"
+        locale_default: "ru_RU.UTF-8"
+        locale_lc_overrides: {}
+
+  tasks:
+    - name: Assert role soft-failed for locale_default not in list
+      ansible.builtin.assert:
+        that:
+          - locale_skip | default(false)
+          - "'not in' in locale_skip_reason"
+
+# Тест 3: значение LC_* не в locale_list
+- name: "Converge — LC_* value not in locale_list"
+  hosts: all
+  become: false
+  gather_facts: true
+
+  roles:
+    - role: locale
+      vars:
+        locale_list:
+          - "en_US.UTF-8"
+        locale_default: "en_US.UTF-8"
+        locale_lc_overrides:
+          LC_TIME: "ru_RU.UTF-8"
+
+  tasks:
+    - name: Assert role soft-failed for LC_* value not in locale_list
+      ansible.builtin.assert:
+        that:
+          - locale_skip | default(false)
+          - "'LC_TIME=ru_RU.UTF-8 not in locale_list' in locale_skip_reason"

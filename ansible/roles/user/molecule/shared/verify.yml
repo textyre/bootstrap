@@ -9,35 +9,51 @@
   tasks:
 
     # ==========================================================
-    # Owner user
+    # Owner user — existence, shell, home, groups
     # ==========================================================
 
     - name: "Owner: check user exists in passwd"
-      ansible.builtin.getent:
-        database: passwd
-        key: testuser_owner
-      register: _user_verify_owner
-      failed_when: _user_verify_owner is failed
-
-    - name: "Owner: check user is in sudo group"
       ansible.builtin.command:
-        cmd: "groups testuser_owner"
-      register: _user_verify_owner_groups
+        cmd: getent passwd testuser_owner
+      register: _user_verify_owner_exists
       changed_when: false
-      failed_when: "user_sudo_group not in _user_verify_owner_groups.stdout"
+      failed_when: false
+
+    - name: "Owner: assert user exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_exists.rc == 0
+        fail_msg: "testuser_owner not found in passwd"
+
+    - name: "Owner: assert shell is /bin/bash"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_exists.stdout is regex(':/bin/bash$')
+        fail_msg: "testuser_owner shell is not /bin/bash"
 
     - name: "Owner: check home directory exists"
       ansible.builtin.stat:
         path: /home/testuser_owner
       register: _user_verify_owner_home
-      failed_when: not _user_verify_owner_home.stat.exists
 
-    - name: "Owner: check shell is /bin/bash"
+    - name: "Owner: assert home directory exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_owner_home.stat.exists
+          - _user_verify_owner_home.stat.isdir
+        fail_msg: "testuser_owner home directory /home/testuser_owner does not exist"
+
+    - name: "Owner: check groups"
       ansible.builtin.command:
-        cmd: "getent passwd testuser_owner"
-      register: _user_verify_owner_shell
+        cmd: groups testuser_owner
+      register: _user_verify_owner_groups
       changed_when: false
-      failed_when: "':/bin/bash' not in _user_verify_owner_shell.stdout"
+
+    - name: "Owner: assert user is in sudo group"
+      ansible.builtin.assert:
+        that:
+          - "user_sudo_group in _user_verify_owner_groups.stdout"
+        fail_msg: "testuser_owner is not in {{ user_sudo_group }} group"
 
     # ==========================================================
     # Owner shadow (account lock + password aging)
@@ -77,6 +93,21 @@
         fail_msg: "testuser_owner shadow warn_age not set to 7"
       when: user_manage_password_aging | bool
 
+    - name: "Owner aging: verify via chage"
+      ansible.builtin.command:
+        cmd: chage -l testuser_owner
+      register: _user_verify_owner_chage
+      changed_when: false
+      when: user_manage_password_aging | bool
+
+    - name: "Owner aging: assert chage output contains expected values"
+      ansible.builtin.assert:
+        that:
+          - "'Maximum number of days between password change' in _user_verify_owner_chage.stdout"
+          - "'365' in _user_verify_owner_chage.stdout"
+        fail_msg: "chage -l testuser_owner does not show expected aging values"
+      when: user_manage_password_aging | bool
+
     # ==========================================================
     # Owner umask
     # ==========================================================
@@ -85,12 +116,23 @@
       ansible.builtin.stat:
         path: /etc/profile.d/umask-testuser_owner.sh
       register: _user_verify_umask_stat
-      failed_when: not _user_verify_umask_stat.stat.exists
+
+    - name: "Umask: assert profile script exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_umask_stat.stat.exists
+        fail_msg: "/etc/profile.d/umask-testuser_owner.sh does not exist"
 
     - name: "Umask: read profile script content"
       ansible.builtin.slurp:
         src: /etc/profile.d/umask-testuser_owner.sh
       register: _user_verify_umask_raw
+
+    - name: "Umask: assert slurp succeeded"
+      ansible.builtin.assert:
+        that:
+          - "'content' in _user_verify_umask_raw"
+        fail_msg: "Failed to slurp owner umask profile"
 
     - name: "Umask: set text fact"
       ansible.builtin.set_fact:
@@ -108,40 +150,86 @@
           - "'Ansible' in _user_verify_umask_text"
         fail_msg: "Owner umask profile missing Ansible managed marker"
 
+    - name: "Umask: assert username guard present"
+      ansible.builtin.assert:
+        that:
+          - "'testuser_owner' in _user_verify_umask_text"
+        fail_msg: "Owner umask profile missing username guard for testuser_owner"
+
     # ==========================================================
     # Additional user (sudo: false, video group)
     # ==========================================================
 
-    - name: "Extra: check user exists"
-      ansible.builtin.getent:
-        database: passwd
-        key: testuser_extra
-      register: _user_verify_extra
-      failed_when: _user_verify_extra is failed
-
-    - name: "Extra: check user is NOT in sudo group"
+    - name: "Extra: check user exists in passwd"
       ansible.builtin.command:
-        cmd: "groups testuser_extra"
+        cmd: getent passwd testuser_extra
+      register: _user_verify_extra_exists
+      changed_when: false
+      failed_when: false
+
+    - name: "Extra: assert user exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_exists.rc == 0
+        fail_msg: "testuser_extra not found in passwd"
+
+    - name: "Extra: assert shell is /bin/bash"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_exists.stdout is regex(':/bin/bash$')
+        fail_msg: "testuser_extra shell is not /bin/bash"
+
+    - name: "Extra: check home directory exists"
+      ansible.builtin.stat:
+        path: /home/testuser_extra
+      register: _user_verify_extra_home
+
+    - name: "Extra: assert home directory exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_home.stat.exists
+          - _user_verify_extra_home.stat.isdir
+        fail_msg: "testuser_extra home directory does not exist"
+
+    - name: "Extra: check groups"
+      ansible.builtin.command:
+        cmd: groups testuser_extra
       register: _user_verify_extra_groups
       changed_when: false
-      failed_when: "user_sudo_group in _user_verify_extra_groups.stdout"
 
-    - name: "Extra: check user is in video group"
+    - name: "Extra: assert user is NOT in sudo group"
+      ansible.builtin.assert:
+        that:
+          - "user_sudo_group not in _user_verify_extra_groups.stdout"
+        fail_msg: "testuser_extra should NOT be in {{ user_sudo_group }} group"
+
+    - name: "Extra: assert user is in video group"
       ansible.builtin.assert:
         that:
           - "'video' in _user_verify_extra_groups.stdout"
-        fail_msg: "Extra user testuser_extra is not in video group"
+        fail_msg: "testuser_extra is not in video group"
 
     - name: "Extra: check umask profile deployed"
       ansible.builtin.stat:
         path: /etc/profile.d/umask-testuser_extra.sh
-      register: _user_verify_extra_umask
-      failed_when: not _user_verify_extra_umask.stat.exists
+      register: _user_verify_extra_umask_stat
+
+    - name: "Extra: assert umask profile exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_extra_umask_stat.stat.exists
+        fail_msg: "/etc/profile.d/umask-testuser_extra.sh does not exist"
 
     - name: "Extra: read umask profile"
       ansible.builtin.slurp:
         src: /etc/profile.d/umask-testuser_extra.sh
       register: _user_verify_extra_umask_raw
+
+    - name: "Extra: assert slurp succeeded"
+      ansible.builtin.assert:
+        that:
+          - "'content' in _user_verify_extra_umask_raw"
+        fail_msg: "Failed to slurp extra user umask profile"
 
     - name: "Extra: assert umask is 077"
       ansible.builtin.assert:
@@ -187,33 +275,118 @@
         fail_msg: "testuser_extra shadow warn_age not set to 7"
       when: user_manage_password_aging | bool
 
-    # ==========================================================
-    # Additional user with sudo: true
-    # ==========================================================
-
-    - name: "Sudo user: check testuser_with_sudo exists"
-      ansible.builtin.getent:
-        database: passwd
-        key: testuser_with_sudo
-      register: _user_verify_with_sudo
-      failed_when: _user_verify_with_sudo is failed
-
-    - name: "Sudo user: check testuser_with_sudo is in sudo group"
+    - name: "Extra aging: verify via chage"
       ansible.builtin.command:
-        cmd: "groups testuser_with_sudo"
-      register: _user_verify_with_sudo_groups
+        cmd: chage -l testuser_extra
+      register: _user_verify_extra_chage
       changed_when: false
-      failed_when: "user_sudo_group not in _user_verify_with_sudo_groups.stdout"
+      when: user_manage_password_aging | bool
+
+    - name: "Extra aging: assert chage output contains expected values"
+      ansible.builtin.assert:
+        that:
+          - "'Maximum number of days between password change' in _user_verify_extra_chage.stdout"
+          - "'90' in _user_verify_extra_chage.stdout"
+        fail_msg: "chage -l testuser_extra does not show expected aging values"
+      when: user_manage_password_aging | bool
+
+    # ==========================================================
+    # Additional user with sudo: true — full coverage
+    # ==========================================================
+
+    - name: "Sudo user: check testuser_with_sudo exists in passwd"
+      ansible.builtin.command:
+        cmd: getent passwd testuser_with_sudo
+      register: _user_verify_sudo_user_exists
+      changed_when: false
+      failed_when: false
+
+    - name: "Sudo user: assert user exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudo_user_exists.rc == 0
+        fail_msg: "testuser_with_sudo not found in passwd"
+
+    - name: "Sudo user: assert shell is /bin/bash"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudo_user_exists.stdout is regex(':/bin/bash$')
+        fail_msg: "testuser_with_sudo shell is not /bin/bash"
+
+    - name: "Sudo user: check home directory exists"
+      ansible.builtin.stat:
+        path: /home/testuser_with_sudo
+      register: _user_verify_sudo_user_home
+
+    - name: "Sudo user: assert home directory exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudo_user_home.stat.exists
+          - _user_verify_sudo_user_home.stat.isdir
+        fail_msg: "testuser_with_sudo home directory does not exist"
+
+    - name: "Sudo user: check groups"
+      ansible.builtin.command:
+        cmd: groups testuser_with_sudo
+      register: _user_verify_sudo_user_groups
+      changed_when: false
+
+    - name: "Sudo user: assert user is in sudo group"
+      ansible.builtin.assert:
+        that:
+          - "user_sudo_group in _user_verify_sudo_user_groups.stdout"
+        fail_msg: "testuser_with_sudo is not in {{ user_sudo_group }} group"
+
+    - name: "Sudo user: get shadow entry"
+      ansible.builtin.getent:
+        database: shadow
+        key: testuser_with_sudo
+      register: _user_verify_sudo_user_shadow
+      no_log: true
+
+    - name: "Sudo user: assert account is locked"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudo_user_shadow.ansible_facts.getent_shadow['testuser_with_sudo'][0] is regex('^[!*]')
+        fail_msg: "testuser_with_sudo shadow password field does not indicate locked account"
+
+    - name: "Sudo user: check umask profile deployed"
+      ansible.builtin.stat:
+        path: /etc/profile.d/umask-testuser_with_sudo.sh
+      register: _user_verify_sudo_user_umask_stat
+
+    - name: "Sudo user: assert umask profile exists"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_sudo_user_umask_stat.stat.exists
+        fail_msg: "/etc/profile.d/umask-testuser_with_sudo.sh does not exist"
+
+    - name: "Sudo user: read umask profile"
+      ansible.builtin.slurp:
+        src: /etc/profile.d/umask-testuser_with_sudo.sh
+      register: _user_verify_sudo_user_umask_raw
+
+    - name: "Sudo user: assert slurp succeeded"
+      ansible.builtin.assert:
+        that:
+          - "'content' in _user_verify_sudo_user_umask_raw"
+        fail_msg: "Failed to slurp sudo user umask profile"
+
+    - name: "Sudo user: assert umask is 077"
+      ansible.builtin.assert:
+        that:
+          - "'umask 077' in (_user_verify_sudo_user_umask_raw.content | b64decode)"
+        fail_msg: "testuser_with_sudo umask profile does not contain 'umask 077'"
 
     # ==========================================================
     # Absent user removed
     # ==========================================================
 
     - name: "Absent: try to get testuser_toberemoved from passwd"
-      ansible.builtin.getent:
-        database: passwd
-        key: testuser_toberemoved
+      ansible.builtin.command:
+        cmd: getent passwd testuser_toberemoved
       register: _user_verify_absent
+      changed_when: false
       ignore_errors: true
 
     - name: "Absent: assert testuser_toberemoved is not in passwd"
@@ -221,6 +394,24 @@
         that:
           - _user_verify_absent is failed
         fail_msg: "testuser_toberemoved still exists in passwd — role should have removed it"
+
+    # ==========================================================
+    # Root lock (conditional — Docker may not lock root)
+    # ==========================================================
+
+    - name: "Root lock: get root shadow entry"
+      ansible.builtin.command:
+        cmd: passwd -S root
+      register: _user_verify_root_lock
+      changed_when: false
+      when: user_verify_root_lock | bool
+
+    - name: "Root lock: assert root account is locked"
+      ansible.builtin.assert:
+        that:
+          - _user_verify_root_lock.stdout is regex(' L ')
+        fail_msg: "Root account is not locked (passwd -S does not show L)"
+      when: user_verify_root_lock | bool
 
     # ==========================================================
     # Sudoers policy
@@ -252,6 +443,12 @@
       ansible.builtin.slurp:
         src: "/etc/sudoers.d/{{ user_sudo_group }}"
       register: _user_verify_sudoers_raw
+
+    - name: "Sudoers: assert slurp succeeded"
+      ansible.builtin.assert:
+        that:
+          - "'content' in _user_verify_sudoers_raw"
+        fail_msg: "Failed to slurp sudoers file"
 
     - name: "Sudoers: set text fact"
       ansible.builtin.set_fact:
@@ -316,6 +513,12 @@
       ansible.builtin.slurp:
         src: /etc/logrotate.d/sudo
       register: _user_verify_logrotate_raw
+
+    - name: "Logrotate: assert slurp succeeded"
+      ansible.builtin.assert:
+        that:
+          - "'content' in _user_verify_logrotate_raw"
+        fail_msg: "Failed to slurp logrotate config"
 
     - name: "Logrotate: set text fact"
       ansible.builtin.set_fact:
@@ -420,11 +623,12 @@
         msg: >-
           user role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          owner exists with sudo group + locked account,
-          extra user with video group (not sudo) + locked account,
-          testuser_with_sudo in sudo group,
+          owner exists with sudo group + locked account + home + shell,
+          extra user with video group (not sudo) + locked account + home + shell,
+          testuser_with_sudo in sudo group + locked account + home + shell + umask,
           testuser_toberemoved absent,
-          password aging (max/min/warn) {{ 'checked' if user_manage_password_aging | bool else 'skipped (disabled)' }},
-          sudoers policy valid ({{ user_sudo_group }}),
+          root lock {{ 'checked' if user_verify_root_lock | bool else 'skipped (disabled)' }},
+          password aging (max/min/warn + chage) {{ 'checked' if user_manage_password_aging | bool else 'skipped (disabled)' }},
+          sudoers policy valid ({{ user_sudo_group }}) with syntax check,
           logrotate config with all directives deployed,
           sudo package installed.

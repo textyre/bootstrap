@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Skip reflector role on non-Arch systems (reflector is Arch only)
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
+
+    - name: Apply reflector role
+      ansible.builtin.include_role:
+        name: reflector

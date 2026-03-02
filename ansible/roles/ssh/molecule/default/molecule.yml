@@ -5,7 +5,7 @@ driver:
     managed: false
 
 platforms:
-  - name: Localhost
+  - name: localhost
 
 provisioner:
   name: ansible
@@ -13,12 +13,15 @@ provisioner:
     skip-tags: report
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
       callbacks_enabled: profile_tasks
   inventory:
     host_vars:
       localhost:
         ansible_connection: local
+        ssh_user: "{{ ansible_user_id }}"
+        ssh_banner_enabled: true
+        ssh_moduli_cleanup: false
+        ssh_allow_groups: []
   playbooks:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml

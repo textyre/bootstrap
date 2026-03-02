@@ -19,7 +19,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,aur
+    skip-tags: report,aur,molecule-notest
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

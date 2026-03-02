@@ -5,7 +5,7 @@
 - name: Enable locales in libc-locales
   ansible.builtin.lineinfile:
     path: /etc/default/libc-locales
-    regexp: '^#?\s*{{ item }}'
+    regexp: '^#?\s*{{ item | regex_escape }}'
     line: "{{ item }} UTF-8"
     state: present
   loop: "{{ locale_list }}"

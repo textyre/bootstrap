@@ -8,7 +8,9 @@
 
   tasks:
 
+    # ================================================================
     # ---- Package installed ----
+    # ================================================================
 
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -19,232 +21,257 @@
         that: "'git' in ansible_facts.packages"
         fail_msg: "git package not found in installed packages"
 
+    # ================================================================
     # ---- git binary works ----
+    # ================================================================
 
     - name: Verify git --version  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: git --version
-      register: git_verify_version
+      register: _git_verify_version
       changed_when: false
-      failed_when: git_verify_version.rc != 0
+      failed_when: _git_verify_version.rc != 0
 
     - name: Assert git version output is sane
       ansible.builtin.assert:
-        that: "'git version' in git_verify_version.stdout"
-        fail_msg: "git --version did not return expected output: {{ git_verify_version.stdout }}"
+        that:
+          - _git_verify_version.stdout is regex('^git version [0-9]+\.')
+        fail_msg: "git --version did not return expected output: {{ _git_verify_version.stdout }}"
 
+    # ================================================================
+    # ---- gitconfig file exists (slurp content guard) ----
+    # ================================================================
+
+    - name: Slurp user gitconfig
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.slurp:
+        src: "~/.gitconfig"
+      register: _git_verify_gitconfig_slurp
+
+    - name: Assert gitconfig has content
+      ansible.builtin.assert:
+        that:
+          - "'content' in _git_verify_gitconfig_slurp"
+          - (_git_verify_gitconfig_slurp.content | b64decode | length) > 0
+        fail_msg: "~/.gitconfig is empty or missing for user {{ git_owner.name }}"
+
+    # ================================================================
     # ---- Base config ----
+    # ================================================================
 
     - name: Check git user.name  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get user.name
-      register: git_verify_username
+      register: _git_verify_username
       changed_when: false
 
     - name: Assert git user.name matches expected
       ansible.builtin.assert:
-        that: git_verify_username.stdout == git_owner.user_name
+        that: _git_verify_username.stdout == git_owner.user_name
         fail_msg: >-
           git user.name mismatch: expected '{{ git_owner.user_name }}',
-          got '{{ git_verify_username.stdout }}'
+          got '{{ _git_verify_username.stdout }}'
       when: (git_owner.user_name | default('')) | length > 0
 
     - name: Check git user.email  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get user.email
-      register: git_verify_email
+      register: _git_verify_email
       changed_when: false
 
     - name: Assert git user.email matches expected
       ansible.builtin.assert:
-        that: git_verify_email.stdout == git_owner.user_email
+        that: _git_verify_email.stdout == git_owner.user_email
         fail_msg: >-
           git user.email mismatch: expected '{{ git_owner.user_email }}',
-          got '{{ git_verify_email.stdout }}'
+          got '{{ _git_verify_email.stdout }}'
       when: (git_owner.user_email | default('')) | length > 0
 
     - name: Check git init.defaultBranch  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get init.defaultBranch
-      register: git_verify_branch
+      register: _git_verify_branch
       changed_when: false
 
     - name: Assert git init.defaultBranch matches expected
       ansible.builtin.assert:
-        that: git_verify_branch.stdout == git_default_branch
+        that: _git_verify_branch.stdout == git_default_branch
         fail_msg: >-
           init.defaultBranch mismatch: expected '{{ git_default_branch }}',
-          got '{{ git_verify_branch.stdout }}'
+          got '{{ _git_verify_branch.stdout }}'
 
     - name: Check git core.editor  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.editor
-      register: git_verify_editor
+      register: _git_verify_editor
       changed_when: false
 
     - name: Assert git core.editor matches expected
       ansible.builtin.assert:
-        that: git_verify_editor.stdout == git_editor
+        that: _git_verify_editor.stdout == git_editor
         fail_msg: >-
           core.editor mismatch: expected '{{ git_editor }}',
-          got '{{ git_verify_editor.stdout }}'
+          got '{{ _git_verify_editor.stdout }}'
 
     - name: Check git pull.rebase  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get pull.rebase
-      register: git_verify_rebase
+      register: _git_verify_rebase
       changed_when: false
 
     - name: Assert git pull.rebase matches expected
       ansible.builtin.assert:
-        that: git_verify_rebase.stdout == (git_pull_rebase | string | lower)
+        that: _git_verify_rebase.stdout == (git_pull_rebase | string | lower)
         fail_msg: >-
           pull.rebase mismatch: expected '{{ git_pull_rebase | string | lower }}',
-          got '{{ git_verify_rebase.stdout }}'
+          got '{{ _git_verify_rebase.stdout }}'
 
     - name: Check git push.autoSetupRemote  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get push.autoSetupRemote
-      register: git_verify_autosetup
+      register: _git_verify_autosetup
       changed_when: false
 
     - name: Assert git push.autoSetupRemote matches expected
       ansible.builtin.assert:
-        that: git_verify_autosetup.stdout == (git_push_autosetup_remote | string | lower)
+        that: _git_verify_autosetup.stdout == (git_push_autosetup_remote | string | lower)
         fail_msg: >-
           push.autoSetupRemote mismatch: expected '{{ git_push_autosetup_remote | string | lower }}',
-          got '{{ git_verify_autosetup.stdout }}'
+          got '{{ _git_verify_autosetup.stdout }}'
 
     - name: Check git core.autocrlf  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.autocrlf
-      register: git_verify_autocrlf
+      register: _git_verify_autocrlf
       changed_when: false
 
     - name: Assert git core.autocrlf matches expected
       ansible.builtin.assert:
-        that: git_verify_autocrlf.stdout == git_core_autocrlf
+        that: _git_verify_autocrlf.stdout == git_core_autocrlf
         fail_msg: >-
           core.autocrlf mismatch: expected '{{ git_core_autocrlf }}',
-          got '{{ git_verify_autocrlf.stdout }}'
+          got '{{ _git_verify_autocrlf.stdout }}'
 
+    # ================================================================
     # ---- Extra config ----
+    # ================================================================
 
     - name: Check extra config entries  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: "git config --global --get {{ item.key }}"
-      register: git_verify_extra
+      register: _git_verify_extra
       changed_when: false
-      failed_when: git_verify_extra.stdout != (item.value | string)
+      failed_when: _git_verify_extra.stdout != (item.value | string)
       loop: "{{ git_config_extra | combine(git_config_overwrite) | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
       when: (git_config_extra | combine(git_config_overwrite)) | length > 0
 
+    # ================================================================
     # ---- Safe directories ----
+    # ================================================================
 
     - name: Check safe.directory entries  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get-all safe.directory
-      register: git_verify_safe_dirs
+      register: _git_verify_safe_dirs
       changed_when: false
       failed_when: false
       when: git_safe_directories | length > 0
 
     - name: Assert safe.directory entries are present
       ansible.builtin.assert:
-        that: item in (git_verify_safe_dirs.stdout_lines | default([]))
+        that: item in (_git_verify_safe_dirs.stdout_lines | default([]))
         fail_msg: "safe.directory '{{ item }}' not found in git config"
       loop: "{{ git_safe_directories }}"
       when: git_safe_directories | length > 0
 
+    # ================================================================
     # ---- Aliases ----
+    # ================================================================
 
-    - name: Check alias.st  # noqa: command-instead-of-module
+    - name: Check all preset aliases  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
-      ansible.builtin.command: git config --global --get alias.st
-      register: git_verify_alias_st
+      ansible.builtin.command: "git config --global --get alias.{{ item.key }}"
+      register: _git_verify_aliases
       changed_when: false
+      loop: "{{ git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
       when: git_manage_aliases | bool
 
-    - name: Assert alias.st is 'status'
+    - name: Assert each alias value matches expected
       ansible.builtin.assert:
-        that: git_verify_alias_st.stdout == 'status'
-        fail_msg: "alias.st mismatch: expected 'status', got '{{ git_verify_alias_st.stdout }}'"
+        that: item.stdout == (git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite))[item.item.key]
+        fail_msg: >-
+          alias.{{ item.item.key }} mismatch: expected
+          '{{ (git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite))[item.item.key] }}',
+          got '{{ item.stdout }}'
+      loop: "{{ _git_verify_aliases.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
       when:
         - git_manage_aliases | bool
-        - "'st' in (git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite))"
+        - _git_verify_aliases is not skipped
 
-    - name: Check alias.lg exists  # noqa: command-instead-of-module
-      become: true
-      become_user: "{{ git_owner.name }}"
-      ansible.builtin.command: git config --global --get alias.lg
-      register: git_verify_alias_lg
-      changed_when: false
-      failed_when: false
-      when: git_manage_aliases | bool
-
-    - name: Assert alias.lg is set
-      ansible.builtin.assert:
-        that: git_verify_alias_lg.rc == 0
-        fail_msg: "alias.lg not found in git config"
-      when:
-        - git_manage_aliases | bool
-        - "'lg' in (git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite))"
-
+    # ================================================================
     # ---- Credential helper ----
+    # ================================================================
 
     - name: Check credential.helper  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get credential.helper
-      register: git_verify_credential
+      register: _git_verify_credential
       changed_when: false
       when: git_manage_credential | bool
 
-    - name: Assert credential.helper contains expected value
+    - name: Assert credential.helper matches expected
       ansible.builtin.assert:
-        that: "'cache' in git_verify_credential.stdout"
+        that: _git_verify_credential.stdout is regex('^cache')
         fail_msg: >-
-          credential.helper mismatch: expected 'cache' substring,
-          got '{{ git_verify_credential.stdout }}'
+          credential.helper mismatch: expected value starting with 'cache',
+          got '{{ _git_verify_credential.stdout }}'
       when:
         - git_manage_credential | bool
-        - git_verify_credential is not skipped
+        - _git_verify_credential is not skipped
 
+    # ================================================================
     # ---- git-lfs ----
+    # ================================================================
 
     - name: Check git-lfs is installed  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: git lfs version
-      register: git_verify_lfs
+      register: _git_verify_lfs
       changed_when: false
       failed_when: false
       when: git_lfs_enabled | bool
 
     - name: Assert git-lfs is installed
       ansible.builtin.assert:
-        that: git_verify_lfs.rc == 0
-        fail_msg: "git lfs version failed (rc={{ git_verify_lfs.rc }})"
+        that: _git_verify_lfs.rc == 0
+        fail_msg: "git lfs version failed (rc={{ _git_verify_lfs.rc }})"
       when: git_lfs_enabled | bool
 
     - name: Assert git-lfs version output is sane
       ansible.builtin.assert:
-        that: "'git-lfs' in git_verify_lfs.stdout"
-        fail_msg: "git lfs version output unexpected: {{ git_verify_lfs.stdout }}"
+        that: _git_verify_lfs.stdout is regex('^git-lfs/')
+        fail_msg: "git lfs version output unexpected: {{ _git_verify_lfs.stdout }}"
       when:
         - git_lfs_enabled | bool
-        - git_verify_lfs.rc == 0
+        - _git_verify_lfs.rc == 0
 
     # ---- LFS filter config (written by `git lfs install --skip-repo`) ----
 
@@ -252,78 +279,96 @@
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get filter.lfs.clean
-      register: git_verify_lfs_filter
+      register: _git_verify_lfs_filter_clean
       changed_when: false
       failed_when: false
       when: git_lfs_enabled | bool
 
-    - name: Assert LFS filter is configured in gitconfig
+    - name: Assert LFS filter.lfs.clean is configured
       ansible.builtin.assert:
-        that: git_verify_lfs_filter.rc == 0
+        that: _git_verify_lfs_filter_clean.rc == 0
         fail_msg: "filter.lfs.clean not found in user gitconfig -- git lfs install may not have run"
       when: git_lfs_enabled | bool
 
+    - name: Check LFS filter.lfs.smudge config  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get filter.lfs.smudge
+      register: _git_verify_lfs_filter_smudge
+      changed_when: false
+      failed_when: false
+      when: git_lfs_enabled | bool
+
+    - name: Assert LFS filter.lfs.smudge is configured
+      ansible.builtin.assert:
+        that: _git_verify_lfs_filter_smudge.rc == 0
+        fail_msg: "filter.lfs.smudge not found in user gitconfig -- git lfs install may not have run"
+      when: git_lfs_enabled | bool
+
+    - name: Check LFS filter.lfs.process config  # noqa: command-instead-of-module
+      become: true
+      become_user: "{{ git_owner.name }}"
+      ansible.builtin.command: git config --global --get filter.lfs.process
+      register: _git_verify_lfs_filter_process
+      changed_when: false
+      failed_when: false
+      when: git_lfs_enabled | bool
+
+    - name: Assert LFS filter.lfs.process is configured
+      ansible.builtin.assert:
+        that: _git_verify_lfs_filter_process.rc == 0
+        fail_msg: "filter.lfs.process not found in user gitconfig -- git lfs install may not have run"
+      when: git_lfs_enabled | bool
+
+    # ================================================================
     # ---- Hooks directory ----
+    # ================================================================
 
     - name: Check hooks directory exists
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.stat:
         path: "{{ git_hooks_path }}"
-      register: git_verify_hooks
+      register: _git_verify_hooks_dir
       when: git_manage_hooks | bool
 
     - name: Assert hooks directory exists
       ansible.builtin.assert:
         that:
-          - git_verify_hooks.stat.exists
-          - git_verify_hooks.stat.isdir
+          - _git_verify_hooks_dir.stat.exists
+          - _git_verify_hooks_dir.stat.isdir
         fail_msg: "Global hooks directory '{{ git_hooks_path }}' does not exist or is not a directory"
       when:
         - git_manage_hooks | bool
-        - git_verify_hooks is not skipped
+        - _git_verify_hooks_dir is not skipped
 
     - name: Check core.hooksPath config  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get core.hooksPath
-      register: git_verify_hookspath
+      register: _git_verify_hookspath
       changed_when: false
       when: git_manage_hooks | bool
 
     - name: Assert core.hooksPath matches expected
       ansible.builtin.assert:
-        that: git_verify_hookspath.stdout == git_hooks_path
+        that: _git_verify_hookspath.stdout == git_hooks_path
         fail_msg: >-
           core.hooksPath mismatch: expected '{{ git_hooks_path }}',
-          got '{{ git_verify_hookspath.stdout }}'
+          got '{{ _git_verify_hookspath.stdout }}'
       when:
         - git_manage_hooks | bool
-        - git_verify_hookspath is not skipped
+        - _git_verify_hookspath is not skipped
 
-    # ---- gitconfig file exists ----
-
-    - name: Stat user gitconfig file
-      become: true
-      become_user: "{{ git_owner.name }}"
-      ansible.builtin.stat:
-        path: "~/.gitconfig"
-      register: git_verify_gitconfig_file
-
-    - name: Assert gitconfig file exists
-      ansible.builtin.assert:
-        that:
-          - git_verify_gitconfig_file.stat.exists
-          - git_verify_gitconfig_file.stat.isreg
-        fail_msg: "~/.gitconfig does not exist for user {{ git_owner.name }}"
-
+    # ================================================================
     # ---- Signing (conditional) ----
+    # ================================================================
 
     - name: Check commit signing config  # noqa: command-instead-of-module
       become: true
       become_user: "{{ git_owner.name }}"
       ansible.builtin.command: git config --global --get commit.gpgSign
-      register: git_verify_signing
+      register: _git_verify_signing
       changed_when: false
       failed_when: false
       when:
@@ -332,32 +377,48 @@
 
     - name: Assert commit signing matches expected
       ansible.builtin.assert:
-        that: git_verify_signing.stdout == (git_commit_sign | string | lower)
+        that: _git_verify_signing.stdout == (git_commit_sign | string | lower)
         fail_msg: >-
           commit.gpgSign mismatch: expected '{{ git_commit_sign | string | lower }}',
-          got '{{ git_verify_signing.stdout }}'
+          got '{{ _git_verify_signing.stdout }}'
       when:
         - git_manage_signing | bool
         - (git_owner.signing_method | default('none')) != 'none'
-        - git_verify_signing is not skipped
+        - _git_verify_signing is not skipped
 
+    # ================================================================
+    # ---- Gitconfig content verification via slurp ----
+    # ================================================================
+
+    - name: Assert gitconfig contains expected sections
+      vars:
+        _git_verify_gitconfig_content: "{{ _git_verify_gitconfig_slurp.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - _git_verify_gitconfig_content is regex('\\[init\\]')
+          - _git_verify_gitconfig_content is regex('\\[core\\]')
+          - _git_verify_gitconfig_content is regex('\\[pull\\]')
+        fail_msg: "~/.gitconfig is missing expected sections ([init], [core], [pull])"
+
+    # ================================================================
     # ---- Summary ----
+    # ================================================================
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
           Git role verify passed on {{ ansible_facts['distribution'] }}
           {{ ansible_facts['distribution_version'] }}:
-          git installed ({{ git_verify_version.stdout }}),
-          user.name={{ git_verify_username.stdout }},
-          user.email={{ git_verify_email.stdout }},
-          init.defaultBranch={{ git_verify_branch.stdout }},
-          core.editor={{ git_verify_editor.stdout }},
-          pull.rebase={{ git_verify_rebase.stdout }},
-          push.autoSetupRemote={{ git_verify_autosetup.stdout }},
-          core.autocrlf={{ git_verify_autocrlf.stdout }},
+          git installed ({{ _git_verify_version.stdout }}),
+          user.name={{ _git_verify_username.stdout }},
+          user.email={{ _git_verify_email.stdout }},
+          init.defaultBranch={{ _git_verify_branch.stdout }},
+          core.editor={{ _git_verify_editor.stdout }},
+          pull.rebase={{ _git_verify_rebase.stdout }},
+          push.autoSetupRemote={{ _git_verify_autosetup.stdout }},
+          core.autocrlf={{ _git_verify_autocrlf.stdout }},
           aliases={{ git_manage_aliases }},
           credential={{ git_manage_credential }},
           lfs={{ git_lfs_enabled }},
           hooks={{ git_manage_hooks }},
-          ~/.gitconfig exists.
+          ~/.gitconfig exists and verified.
