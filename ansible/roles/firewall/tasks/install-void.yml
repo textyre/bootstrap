@@ -1,7 +1,7 @@
 ---
-# === Arch Linux: установка nftables ===
+# === Void Linux: установка nftables ===
 
-- name: Ensure nftables is installed (Arch)
+- name: Ensure nftables is installed (Void)
   ansible.builtin.package:
     name: nftables
     state: present

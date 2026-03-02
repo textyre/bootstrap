@@ -2,7 +2,7 @@
 # === Базовый firewall (nftables) ===
 # Минимальный набор правил для рабочей станции
 
-# Включить firewall
+# Включить firewall (развернуть конфиг и управлять сервисом)
 firewall_enabled: true
 
 # Включить сервис nftables (enabled при загрузке)
@@ -14,10 +14,15 @@ firewall_start_service: true
 # Разрешить SSH (порт 22)
 firewall_allow_ssh: true
 
-# SSH rate limiting (per-source-IP, защита от brute-force)
+# SSH rate limiting (per-source-IP, защита от brute-force — CRIT-01)
+# Защищает оба семейства адресов: IPv4 (ssh_ratelimit) и IPv6 (ssh6_ratelimit)
 firewall_ssh_rate_limit_enabled: true
 firewall_ssh_rate_limit: "4/minute"
 firewall_ssh_rate_limit_burst: 2
+
+# Docker совместимость — разрешить forward для docker0 bridge
+# Включить, если Docker публикует порты через iptables/nftables DNAT
+firewall_docker_enabled: false
 
 # Дополнительные TCP-порты для входящих
 firewall_allow_tcp_ports: []

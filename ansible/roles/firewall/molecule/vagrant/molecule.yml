@@ -20,6 +20,7 @@ provisioner:
   name: ansible
   options:
     skip-tags: report
+  inventory: {}
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
