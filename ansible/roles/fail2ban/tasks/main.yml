@@ -49,6 +49,7 @@
         name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         enabled: true
         state: started
+      when: fail2ban_start_service | bool
       tags: [fail2ban, service]
 
     # ======================================================================

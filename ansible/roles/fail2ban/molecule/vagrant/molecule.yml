@@ -25,6 +25,14 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      arch-vm:
+        # Arch Linux (pure journald) + python-systemd can cause fail2ban to
+        # crash before socket creation in some kernel/version combinations.
+        # Use polling backend for tests: no systemd journal dependency,
+        # /var/log/auth.log created in prepare.yml as a dummy log source.
+        fail2ban_sshd_backend: polling
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

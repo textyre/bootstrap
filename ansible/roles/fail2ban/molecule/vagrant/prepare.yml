@@ -25,3 +25,17 @@
         state: present
         extra_args: --ask=4
       when: ansible_facts['os_family'] == 'Archlinux'
+
+    # fail2ban with polling backend requires a log file to exist at startup.
+    # Arch Linux uses systemd journald by default (no /var/log/auth.log).
+    # Create an empty file so fail2ban can start with backend=polling.
+    - name: Create /var/log/auth.log for fail2ban polling backend (Arch)
+      ansible.builtin.file:
+        path: /var/log/auth.log
+        state: touch
+        owner: root
+        group: root
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+      when: ansible_facts['os_family'] == 'Archlinux'

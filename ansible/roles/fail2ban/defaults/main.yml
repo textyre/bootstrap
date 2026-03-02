@@ -11,6 +11,7 @@ fail2ban_supported_os:
 
 # ---- Главный переключатель ----
 fail2ban_enabled: true
+fail2ban_start_service: true
 
 # ---- SSH jail ----
 fail2ban_sshd_enabled: true
