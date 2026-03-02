@@ -10,11 +10,20 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
+  - name: ubuntu-base
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
+    memory: 2048
+    cpus: 2
 
 provisioner:
   name: ansible
   options:
-    skip-tags: report
+    skip-tags: report,molecule-notest
+  inventory:
+    group_vars:
+      all:
+        caddy_enabled: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

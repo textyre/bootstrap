@@ -1,0 +1,18 @@
+---
+# Docker-specific converge: uses include_role to skip meta dependencies
+# (docker, caddy) that cannot run inside a container without a Docker daemon.
+# The shared converge.yml (with roles: + meta deps) is used by vagrant/default.
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Set test admin token (no vault needed in molecule)
+      ansible.builtin.set_fact:
+        vault_vaultwarden_admin_token: "molecule-test-token-not-for-production"
+
+  tasks:
+    - name: Include vaultwarden role (without meta dependencies)
+      ansible.builtin.include_role:
+        name: vaultwarden
