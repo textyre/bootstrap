@@ -14,3 +14,37 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    # Ubuntu chrony.service uses ProtectSystem=strict and other sandboxing
+    # that conflicts with Docker's filesystem and namespace model.
+    # Chrony runs but cannot make outbound NTP/NTS connections.
+    # Arch chronyd.service has no sandboxing → works in Docker as-is.
+    - name: Create chrony.service.d directory (Debian — Docker workaround)
+      ansible.builtin.file:
+        path: /etc/systemd/system/chrony.service.d
+        state: directory
+        mode: "0755"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Disable chrony sandboxing for Docker (Debian)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/chrony.service.d/docker.conf
+        mode: "0644"
+        content: |
+          # Relax systemd sandboxing — incompatible with Docker
+          [Service]
+          ProtectSystem=
+          ProtectHome=
+          ProtectKernelTunables=
+          ProtectKernelModules=
+          ProtectKernelLogs=
+          ProtectControlGroups=
+          ProtectHostname=
+          ProtectProc=
+          PrivateTmp=
+          MemoryDenyWriteExecute=
+          RestrictNamespaces=
+          RestrictSUIDSGID=
+          LockPersonality=
+          ProcSubset=
+      when: ansible_facts['os_family'] == 'Debian'
