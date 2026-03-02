@@ -16,6 +16,7 @@
       changed_when: false
       failed_when: _teleport_verify_which.rc != 0
 
+    # NOTE: binary install path — all molecule scenarios use teleport_install_method: binary
     - name: Assert teleport binary path is /usr/local/bin/teleport
       ansible.builtin.assert:
         that:
@@ -212,7 +213,7 @@
           mode={{ _teleport_verify_datadir.stat.mode }}
 
     # -----------------------------------------------------------------------
-    # 5. Systemd unit file
+    # 5. Systemd unit file (binary install only — all molecule scenarios use binary)
     # -----------------------------------------------------------------------
     - name: Stat /etc/systemd/system/teleport.service
       ansible.builtin.stat:
