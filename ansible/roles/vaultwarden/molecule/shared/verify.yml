@@ -308,6 +308,17 @@
       when:
         - ansible_facts['virtualization_type'] | default('') != 'docker'
         - _vaultwarden_verify_container is defined
+        - _vaultwarden_verify_container.stdout | default('') | length > 0
+
+    - name: Warn if container check skipped (molecule-notest)
+      ansible.builtin.debug:
+        msg: >-
+          Container check skipped — vaultwarden container was not started
+          (expected when using --skip-tags molecule-notest in molecule).
+      when:
+        - ansible_facts['virtualization_type'] | default('') != 'docker'
+        - _vaultwarden_verify_container is defined
+        - _vaultwarden_verify_container.stdout | default('') | length == 0
 
     # ---- Summary ----
 

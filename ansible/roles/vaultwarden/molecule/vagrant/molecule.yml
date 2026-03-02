@@ -10,11 +10,32 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
+  - name: ubuntu-base
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
+    memory: 2048
+    cpus: 2
 
 provisioner:
   name: ansible
   options:
-    skip-tags: report
+    skip-tags: report,molecule-notest
+  inventory:
+    group_vars:
+      all:
+        caddy_enabled: false
+        # Handlers skip: containers not started (molecule-notest).
+        vaultwarden_compose_manage: false
+        # CI-safe docker overrides: journald log-driver with max-size/
+        # max-file log-opts is invalid (those opts are json-file only).
+        # CIS defaults (userns-remap, icc, no-new-privileges) also need
+        # user namespaces which are not available in Vagrant CI VMs.
+        docker_log_driver: "json-file"
+        docker_userns_remap: ""
+        docker_icc: true
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_storage_driver: ""
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
