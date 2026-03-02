@@ -24,6 +24,16 @@ provisioner:
     group_vars:
       all:
         caddy_enabled: false
+        # CI-safe docker overrides: journald log-driver with max-size/
+        # max-file log-opts is invalid (those opts are json-file only).
+        # CIS defaults (userns-remap, icc, no-new-privileges) also need
+        # user namespaces which are not available in Vagrant CI VMs.
+        docker_log_driver: "json-file"
+        docker_userns_remap: ""
+        docker_icc: true
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_storage_driver: ""
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
