@@ -45,7 +45,7 @@ provisioner:
       all:
         timezone_name: "Asia/Almaty"
         timezone_packages_tzdata:
-          Gentoo: "timezone-data"
+          Gentoo: "sys-libs/timezone-data"
           default: "tzdata"
   playbooks:
     prepare: prepare.yml
