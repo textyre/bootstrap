@@ -2,7 +2,30 @@
 # === Таймзона ===
 # Установка системной таймзоны
 # Дистро-агностик, инит-агностик
-# Действие → Проверка → Логирование
+# Preflight → Действие → Проверка → Логирование
+
+# ======================================================================
+# ---- Preflight (ROLE-003) ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _timezone_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _timezone_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['timezone']
+
+- name: Assert timezone_name is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - timezone_name is defined
+      - timezone_name | length > 0
+    fail_msg: "timezone_name must be a non-empty string (e.g., 'UTC', 'America/New_York')"
+    success_msg: "timezone_name = '{{ timezone_name }}'"
+  tags: ['timezone']
 
 # ======================================================================
 # ---- Установка tzdata ----
@@ -15,6 +38,20 @@
   when: timezone_packages_tzdata is defined
   tags: ['timezone']
 
+- name: "Report: Install tzdata"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_timezone_phases"
+    common_rpt_phase: "Install tzdata"
+    common_rpt_detail: >-
+      {{ (timezone_packages_tzdata[ansible_facts['os_family']]
+          | default(timezone_packages_tzdata.get('default', 'tzdata')))
+         if timezone_packages_tzdata is defined else 'skipped' }}
+    common_rpt_status: "{{ 'skip' if timezone_packages_tzdata is not defined else 'done' }}"
+  tags: ['timezone', 'report']
+
 # ======================================================================
 # ---- Установка таймзоны ----
 # ======================================================================
@@ -26,24 +63,19 @@
   tags: ['timezone']
 
 # ======================================================================
-# ---- Проверка ----
+# ---- Проверка (ROLE-005) ----
 # ======================================================================
 
-- name: Verify timezone symlink
-  ansible.builtin.command: readlink -f /etc/localtime
-  register: timezone_check
-  changed_when: false
+- name: Flush handlers before verification
+  ansible.builtin.meta: flush_handlers
   tags: ['timezone']
 
-- name: Assert timezone matches expected value
-  ansible.builtin.assert:
-    that: timezone_name in timezone_check.stdout
-    fail_msg: "Timezone mismatch: got '{{ timezone_check.stdout }}', expected '{{ timezone_name }}'"
-    quiet: true
+- name: Verify timezone
+  ansible.builtin.include_tasks: verify.yml
   tags: ['timezone']
 
 # ======================================================================
-# ---- Отчёт ----
+# ---- Отчёт (ROLE-008) ----
 # ======================================================================
 
 - name: "Report: Set timezone"
