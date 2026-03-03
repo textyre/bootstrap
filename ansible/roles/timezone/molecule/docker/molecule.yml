@@ -44,6 +44,8 @@ provisioner:
     group_vars:
       all:
         timezone_name: "Asia/Almaty"
+    host_vars:
+      Archlinux-systemd:
         timezone_packages_tzdata:
           Gentoo: "sys-libs/timezone-data"
           default: "tzdata"
