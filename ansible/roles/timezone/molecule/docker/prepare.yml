@@ -26,5 +26,4 @@
         name: crond
         enabled: true
         state: started
-      failed_when: false
       when: ansible_facts['os_family'] == 'Archlinux'
