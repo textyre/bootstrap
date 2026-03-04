@@ -30,8 +30,8 @@
   vars:
     common_rpt_fact: "_locale_phases"
     common_rpt_phase: "Validate config"
-    common_rpt_status: "{{ 'fail' if (locale_skip | default(false)) else 'done' }}"
-    common_rpt_detail: "{{ (locale_skip_reason | default('')) | truncate(24, True) }}"
+    common_rpt_status: "{{ 'fail' if (locale_skip) else 'done' }}"
+    common_rpt_detail: "{{ locale_skip_reason }}"
   tags: ['locale', 'report']
 
 # ======================================================================
@@ -39,7 +39,7 @@
 # ======================================================================
 
 - name: Generate, verify and configure locale
-  when: not (locale_skip | default(false))
+  when: not locale_skip
   block:
 
     # ---- Генерация локалей (дистро-специфик) ----
@@ -71,7 +71,7 @@
         common_rpt_fact: "_locale_phases"
         common_rpt_phase: "Generate locales"
         common_rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in locale_supported_os_families else 'done' }}"
-        common_rpt_detail: "{{ locale_list | join(', ') | truncate(24, True) }}"
+        common_rpt_detail: "{{ locale_list | join(', ') }}"
       tags: ['locale', 'report']
 
     # ---- Проверка (до configure, чтобы не писать сломанный locale.conf) ----
@@ -87,12 +87,12 @@
       vars:
         common_rpt_fact: "_locale_phases"
         common_rpt_phase: "Verify locales"
-        common_rpt_status: "{{ 'fail' if not (locale_verify_ok | default(true)) else 'done' }}"
+        common_rpt_status: "{{ 'fail' if not (locale_verify_ok) else 'done' }}"
         common_rpt_detail: >-
           {{
             (locale_list | length | string) + ' locales OK'
-            if (locale_verify_ok | default(true))
-            else (locale_verify_missing | default([]) | join(', ') | truncate(24, True))
+            if (locale_verify_ok)
+            else (locale_verify_missing | join(', '))
           }}
       tags: ['locale', 'report']
 
@@ -100,7 +100,7 @@
 
     - name: Configure system locale
       ansible.builtin.include_tasks: configure/glibc.yml
-      when: locale_verify_ok | default(true)
+      when: locale_verify_ok
       tags: ['locale']
 
     - name: "Report: Configure locale.conf"
@@ -110,8 +110,8 @@
       vars:
         common_rpt_fact: "_locale_phases"
         common_rpt_phase: "Configure locale.conf"
-        common_rpt_status: "{{ 'skip' if not (locale_verify_ok | default(true)) else 'done' }}"
-        common_rpt_detail: "{{ locale_default if (locale_verify_ok | default(true)) else '' }}"
+        common_rpt_status: "{{ 'skip' if not (locale_verify_ok) else 'done' }}"
+        common_rpt_detail: "{{ locale_default if (locale_verify_ok) else '' }}"
       tags: ['locale', 'report']
 
 # ======================================================================
