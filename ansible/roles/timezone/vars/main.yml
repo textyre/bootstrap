@@ -5,7 +5,6 @@
 timezone_cron_service:
   Archlinux: crond
   Debian: cron
-  Ubuntu: cron
   RedHat: crond
   Void: crond
   Gentoo: crond

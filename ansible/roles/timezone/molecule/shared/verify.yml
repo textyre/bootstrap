@@ -74,6 +74,45 @@
           not found in installed packages
       when: timezone_packages_tzdata is defined
 
+    # ---- cron handler: service running when present ----
+    # Docker: cron on Arch (handler fires), absent on Ubuntu (handler skips)
+    # Vagrant/default: cron may or may not be installed — assertion conditional
+
+    - name: Gather service facts for cron check
+      ansible.builtin.service_facts:
+
+    - name: Determine expected cron service name
+      ansible.builtin.set_fact:
+        _timezone_verify_cron_name: >-
+          {{ 'crond' if ansible_facts['os_family'] in ['Archlinux', 'RedHat', 'Void', 'Gentoo'] else 'cron' }}
+
+    - name: Assert cron service is running (when present)
+      ansible.builtin.assert:
+        that:
+          - >-
+            ansible_facts.services[_timezone_verify_cron_name ~ '.service']['state'] == 'running'
+        fail_msg: >-
+          Cron service '{{ _timezone_verify_cron_name }}' expected running,
+          got {{ ansible_facts.services.get(_timezone_verify_cron_name ~ '.service', {}).get('state', 'not found') }}
+      when:
+        - (_timezone_verify_cron_name ~ '.service') in ansible_facts.services
+
+    - name: Show cron handler skip (when absent)
+      ansible.builtin.debug:
+        msg: "Cron service '{{ _timezone_verify_cron_name }}' not installed — handler skip path confirmed"
+      when:
+        - (_timezone_verify_cron_name ~ '.service') not in ansible_facts.services
+        - _timezone_verify_cron_name not in ansible_facts.services
+
+    # ---- timezone_packages_tzdata undefined path ----
+
+    - name: Show tzdata variable status
+      ansible.builtin.debug:
+        msg: >-
+          timezone_packages_tzdata is {{ 'defined' if timezone_packages_tzdata is defined else 'undefined' }}
+          — {{ 'tzdata install was executed' if timezone_packages_tzdata is defined
+               else 'tzdata install was skipped (expected)' }}
+
     # ---- /etc/timezone file (Debian/Ubuntu, non-systemd only) ----
     # NOTE: community.general.timezone on systemd hosts uses timedatectl
     # which updates /etc/localtime but does NOT update /etc/timezone.
@@ -116,6 +155,37 @@
     - name: Show timezone abbreviation from date
       ansible.builtin.debug:
         msg: "System date reports timezone abbreviation: {{ _timezone_verify_date_output.stdout }}"
+
+    # ---- timezone name validation ----
+
+    - name: Assert timezone zone file exists in tz database
+      ansible.builtin.stat:
+        path: "/usr/share/zoneinfo/{{ timezone_name }}"
+      register: _timezone_verify_zoneinfo
+
+    - name: Assert timezone_name is valid
+      ansible.builtin.assert:
+        that:
+          - _timezone_verify_zoneinfo.stat.exists
+        fail_msg: "Timezone '{{ timezone_name }}' not found in /usr/share/zoneinfo/"
+
+    # ---- negative test: invalid timezone rejected ----
+    # No check_mode — module validates timezone name against tz database
+    # and fails BEFORE making any state change. Invalid name does not
+    # exist in /usr/share/zoneinfo/ so module fails at validation,
+    # never touching /etc/localtime.
+
+    - name: Attempt to set invalid timezone (negative test)
+      community.general.timezone:
+        name: "Invalid/NotATimezone"
+      register: _timezone_verify_invalid
+      ignore_errors: true
+
+    - name: Assert invalid timezone is rejected
+      ansible.builtin.assert:
+        that:
+          - _timezone_verify_invalid is failed
+        fail_msg: "Invalid timezone was NOT rejected by the timezone module"
 
     # ---- Summary ----
 

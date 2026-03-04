@@ -1,16 +1,29 @@
 ---
-- name: Prepare
+- name: Bootstrap Docker container
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+
+- name: Prepare (timezone-specific)
   hosts: all
   become: true
   gather_facts: true
   tasks:
-    - name: Update pacman cache (Archlinux)
+    # Cron installed ONLY on Archlinux to test both handler paths:
+    #   Arch: cron present → handler fires → verify cron running
+    #   Ubuntu: cron absent → handler skips gracefully
+    - name: Install cron for handler testing (Archlinux only)
       community.general.pacman:
-        update_cache: true
+        name: cronie
+        state: present
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Update apt cache (Debian/Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
+    - name: Reload systemd after cronie install (Archlinux only)
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Enable and start cronie (Archlinux only)
+      ansible.builtin.service:
+        name: cronie
+        enabled: true
+        state: started
+      when: ansible_facts['os_family'] == 'Archlinux'

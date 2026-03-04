@@ -1,0 +1,35 @@
+---
+# === Таймзона — in-role verification (ROLE-005) ===
+
+- name: Verify timezone symlink
+  ansible.builtin.command: readlink -f /etc/localtime
+  register: _timezone_verify_symlink
+  changed_when: false
+  tags: ['timezone']
+
+- name: Assert timezone matches expected value
+  ansible.builtin.assert:
+    that:
+      - timezone_name in _timezone_verify_symlink.stdout
+    fail_msg: "Timezone mismatch: got '{{ _timezone_verify_symlink.stdout }}', expected '{{ timezone_name }}'"
+    quiet: true
+  tags: ['timezone']
+
+- name: Verify timezone via timedatectl (systemd only)
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: _timezone_verify_timedatectl
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['timezone']
+
+- name: Assert timedatectl agrees with expected timezone (systemd only)
+  ansible.builtin.assert:
+    that:
+      - _timezone_verify_timedatectl.stdout == timezone_name
+    fail_msg: "timedatectl reports '{{ _timezone_verify_timedatectl.stdout }}', expected '{{ timezone_name }}'"
+    quiet: true
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _timezone_verify_timedatectl.rc == 0
+  tags: ['timezone']

@@ -1,5 +1,13 @@
 ---
 # === Таймзона ===
-# Имя таймзоны в формате tz database (timedatectl list-timezones)
+# Имя таймзоны в формате tz database (ls /usr/share/zoneinfo/)
 # Реальное значение задаётся в group_vars/all/system.yml
 timezone_name: "UTC"
+
+# Поддерживаемые дистрибутивы (ROLE-003)
+_timezone_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
