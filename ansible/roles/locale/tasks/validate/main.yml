@@ -4,6 +4,11 @@
 # При любой ошибке: выставляет locale_skip=true + locale_skip_reason,
 # НЕ падает — оборачивающий блок в main.yml проверяет locale_skip.
 
+- name: Reset locale_skip
+  ansible.builtin.set_fact:
+    locale_skip: false
+  tags: ['locale']
+
 - name: Check locale_list is defined and not empty
   ansible.builtin.set_fact:
     locale_skip: true
@@ -16,7 +21,7 @@
     locale_skip: true
     locale_skip_reason: "locale_default is undefined or null"
   when:
-    - not (locale_skip | default(false))
+    - not (locale_skip)
     - locale_default is not defined or locale_default is none
   tags: ['locale']
 
@@ -27,7 +32,7 @@
       locale_default '{{ locale_default }}' not in
       locale_list {{ locale_list }}
   when:
-    - not (locale_skip | default(false))
+    - not (locale_skip)
     - locale_default not in locale_list
   tags: ['locale']
 
@@ -38,12 +43,12 @@
       {{ item.key }}={{ item.value }} not in locale_list {{ locale_list }}
   loop: "{{ locale_lc_overrides | dict2items }}"
   when:
-    - not (locale_skip | default(false))
+    - not (locale_skip)
     - item.value not in locale_list
   tags: ['locale']
 
 - name: Warn if locale config is invalid
   ansible.builtin.debug:
     msg: "WARNING: locale role skipped — {{ locale_skip_reason }}"
-  when: locale_skip | default(false)
+  when: locale_skip
   tags: ['locale']
