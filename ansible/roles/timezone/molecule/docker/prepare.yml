@@ -21,9 +21,9 @@
         daemon_reload: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Enable and start crond (Archlinux only)
+    - name: Enable and start cronie (Archlinux only)
       ansible.builtin.service:
-        name: crond
+        name: cronie
         enabled: true
         state: started
       when: ansible_facts['os_family'] == 'Archlinux'
