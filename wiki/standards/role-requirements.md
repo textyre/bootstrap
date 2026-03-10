@@ -629,6 +629,169 @@ sysctl_kernel_yama_ptrace_scope: 1   # 1=child-only, 2=root-only
 
 ---
 
+### ROLE-012: Install & Download Quality
+
+**Category:** Quality
+**Priority:** MUST
+**Rationale:** Roles that download binaries from external sources must do so cleanly: no dead install methods, no duplicate tasks, no stale paths. Every install path that exists must actually work today — "future" fallbacks are dead code until they are real.
+**Standards:** ---
+
+**Implementation Pattern:**
+```yaml
+# CORRECT: single URI task with conditional URL — no duplicate tasks
+- name: Query GitHub release
+  ansible.builtin.uri:
+    url: >-
+      {{ hostctl_github_api }}/repos/{{ hostctl_github_repo }}/releases/{{
+        'latest' if hostctl_version == 'latest'
+        else 'tags/v' ~ hostctl_version }}
+    headers:
+      Accept: application/vnd.github+json   # current header per GitHub docs
+
+# CORRECT: single download task — optional checksum via default(omit)
+- name: Download archive
+  ansible.builtin.get_url:
+    url: "{{ _binary_url | trim }}"         # trim trailing whitespace from YAML scalars
+    dest: /tmp/binary.tar.gz
+    checksum: "{{ _binary_checksum | default(omit) }}"
+
+# CORRECT: verify binary via PATH, not hardcoded install dir
+- name: Verify binary is available
+  ansible.builtin.command: command -v hostctl
+  changed_when: false
+  failed_when: _verify.rc != 0
+  register: _verify
+
+# CORRECT: prefer split/select/splitlines over regex for text parsing
+- name: Extract checksum
+  ansible.builtin.set_fact:
+    _checksum: >-
+      sha256:{{ _checksums_content.splitlines()
+        | select('search', _tarball_name)
+        | first | split() | first }}
+```
+
+**Verification Criteria:**
+- One task per logical operation — no pair of tasks that do the same thing with minor conditional differences
+- External API headers match current documentation — verify before writing, not after
+- URL and path variables built from YAML `>-` or `|-` scalars (not bare `>`), or `| trim` applied before use in `get_url` / `uri`
+- Binary availability verified via `command -v <bin>`, not hardcoded install path
+- Text parsing prefers `split` / `splitlines` / `select` over `regex_search` where data is line-structured
+
+**Anti-patterns:**
+- Two `uri` tasks for "latest" and "pinned" versions with duplicate body — merge via conditional URL
+- Two `get_url` tasks for "with checksum" and "without checksum" — use `| default(omit)`
+- `failed_when: false` on package manager install with no downstream assert — silent dead code
+- Install method included "for future use" when no working package currently exists
+- `hostctl_install_dir/hostctl` in final verify when AUR/package manager may place binary elsewhere
+
+---
+
+### ROLE-013: Error Visibility
+
+**Category:** Quality
+**Priority:** MUST
+**Rationale:** Silent failures produce false confidence. A role that swallows errors and falls through to the next method gives no signal when something is genuinely broken. Every failure must be either handled explicitly (with a visible message and a real fallback) or surfaced immediately.
+**Standards:** ---
+
+**Implementation Pattern:**
+```yaml
+# CORRECT: failed_when: false only when fallback exists and is logged
+- name: Try package manager install
+  ansible.builtin.package:
+    name: hostctl
+    state: present
+  register: _pkg_result
+  failed_when: false
+
+- name: Report package install outcome
+  ansible.builtin.debug:
+    msg: >-
+      Package install {{ 'succeeded' if _pkg_result is not failed
+      else 'failed — falling back to GitHub releases' }}
+
+- name: Assert fallback will run if needed
+  ansible.builtin.assert:
+    that: _pkg_result is not failed or _fallback_available | bool
+    fail_msg: "Package install failed and no fallback is configured"
+
+# CORRECT: command tasks always have explicit changed_when and failed_when
+- name: Check installed version
+  ansible.builtin.command: hostctl --version
+  register: _ver
+  changed_when: false        # read-only — never counts as a change
+  failed_when: _ver.rc != 0  # explicit — fail if binary is broken
+```
+
+**Verification Criteria:**
+- `failed_when: false` appears only when there is a visible `debug` or `assert` below it explaining the outcome
+- `ansible.builtin.command` and `ansible.builtin.shell` tasks always declare both `changed_when` and `failed_when` explicitly
+- No task silently produces `ok` when the underlying operation failed
+- Role tests (verify.yml) surface failures via `assert` or `failed_when`, never `ignore_errors: true` without a follow-up assert
+
+**Anti-patterns:**
+- `failed_when: false` with no downstream logging or fallback verification
+- `command` task with default `changed_when` (every run shows yellow `changed`)
+- `command` task with default `failed_when` on a probe command that is expected to fail on first run
+- `ignore_errors: true` without a subsequent `assert` that checks the registered result
+
+---
+
+### ROLE-014: Test Coverage Completeness
+
+**Category:** Testing
+**Priority:** MUST
+**Rationale:** Tests that always pass regardless of actual state are worse than no tests — they create false confidence. Coverage must be driven by role inputs (not hardcoded), must exercise edge cases, and must verify network-dependent tasks as first-class requirements.
+**Standards:** ---
+
+**Implementation Pattern:**
+```yaml
+# CORRECT: verify.yml version driven from converge, not hardcoded
+# converge.yml
+vars:
+  hostctl_version: "1.1.4"
+
+# molecule.yml
+provisioner:
+  options:
+    extra-vars: "verify_version_string=1.1.4"
+
+# verify.yml
+- name: Assert version
+  ansible.builtin.assert:
+    that: verify_version_string in _version_out.stdout
+
+# CORRECT: edge case — empty input must not crash the role
+# converge.yml includes a play with hostctl_profiles: {}
+
+# CORRECT: idempotence in every scenario test_sequence
+scenario:
+  test_sequence:
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence   # second converge run must show zero changed tasks
+    - verify
+    - destroy
+```
+
+**Verification Criteria:**
+- Version strings and configuration values in `verify.yml` are passed via `extra-vars` from the scenario, not hardcoded
+- Edge cases covered: empty inputs (`{}`, `[]`), default-only runs, all `state` variants if the role supports state
+- `idempotence` step present in `test_sequence` for every scenario (docker and vagrant)
+- Network-dependent tasks (downloads, API calls) are exercised in at least one scenario — not skipped in all scenarios
+- Second converge run (idempotence check) produces zero `changed` tasks
+
+**Anti-patterns:**
+- `verify_version_string: "1.1.4"` hardcoded in `verify.yml` — diverges silently when converge version changes
+- No test case for `hostctl_profiles: {}` or other empty-input edge cases
+- `idempotence` missing from `test_sequence`
+- All network tasks skipped in every scenario via `molecule-notest` — no scenario actually exercises the download path
+- Handler with `changed_when: true` that fires on idempotence run, causing false `changed` report
+
+---
+
 ## Post-Creation Checklist
 
 Use this checklist when creating or reviewing a role. One checkbox per requirement.
@@ -661,6 +824,18 @@ Use this checklist when creating or reviewing a role. One checkbox per requireme
 
 - [ ] ROLE-009: Profile-dependent settings guarded with `workstation_profiles` check and safe default
 - [ ] ROLE-010: Per-subsystem toggles, dict-based config for complex settings, `_overwrite` dict for user customization
+
+### Install & Download
+
+- [ ] ROLE-012: No dead install methods; one task per logical operation; `| trim` on URL vars; binary verified via `command -v`; text parsing via `split`/`splitlines` not regex; API headers match current docs
+
+### Error Handling
+
+- [ ] ROLE-013: `failed_when: false` only with downstream debug/assert; `command`/`shell` tasks have explicit `changed_when` and `failed_when`; no silent fallbacks
+
+### Test Coverage
+
+- [ ] ROLE-014: No hardcoded versions in `verify.yml`; edge cases covered (empty inputs, all state variants); `idempotence` in every `test_sequence`; network tasks exercised in at least one scenario
 
 ### Documentation
 
