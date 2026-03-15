@@ -51,43 +51,56 @@ Synchronizes system clock via chrony with encrypted NTS servers.
 ### README-002: Execution Flow
 
 **Priority:** MUST
-**Rationale:** Support needs to know the order of operations. When the role fails at step 5, they need to understand what already ran (1–4) and what didn't (6+). The numbered list must match the phase structure in `tasks/main.yml`.
+**Rationale:** Support needs to know the full order of operations — including nested tasks and handlers. When the role fails at step 5, they need to understand what already ran (1–4) and what didn't (6+). The numbered list must cover the complete execution path: `tasks/main.yml` orchestration, nested task files it includes, and handlers that fire between or after steps.
 
-```markdown
+````markdown
 ## Execution flow
 
-1. **Validate** — checks input variables; fails if no servers configured
-2. **Detect environment** — identifies hypervisor (KVM/VMware/Hyper-V/VirtualBox/bare metal), adapts config
-3. **Disable competitors** — stops systemd-timesyncd, ntpd, openntpd if present
-4. **Install** — installs chrony via package manager
-5. **Configure** — deploys `/etc/chrony.conf` (Arch) or `/etc/chrony/chrony.conf` (Ubuntu) from template
-6. **Start** — enables and starts chrony service
-7. **Verify** — checks chronyc tracking, sources, waits for sync (60s)
-8. **Report** — writes execution report via common/report_phase
-```
+1. **Validate** (`tasks/validate.yml`) — checks input variables; fails if no servers configured, minsources out of range, or threshold invalid
+2. **Detect environment** (`tasks/detect_environment.yml`) — identifies hypervisor (KVM/VMware/Hyper-V/VirtualBox/bare metal), loads environment-specific config from `vars/environments.yml`, resolves refclock list
+3. **Load KVM module** (`tasks/load_ptp_kvm.yml`) — KVM only: loads `ptp_kvm` kernel module, persists in `/etc/modules-load.d/`, verifies `/dev/ptp0` exists. Warns if device not found.
+4. **Disable competitors** (`tasks/disable_systemd.yml`, `disable_ntpd.yml`, `disable_openntpd.yml`, `vmware_disable_timesync.yml`) — stops systemd-timesyncd, ntpd, openntpd if present. VMware: disables periodic timesync via `vmware-toolbox-cmd`. Skips gracefully if service not found.
+5. **Install** — installs chrony via package manager
+6. **Configure** — deploys `/etc/chrony.conf` (Arch) or `/etc/chrony/chrony.conf` (Ubuntu) from template. **Triggers handler:** if config changed, chrony will be restarted before verification.
+7. **Start** — enables and starts chrony service
+8. **Flush handlers** — applies pending restart (from step 6) so verification runs against new config
+9. **Verify** (`tasks/verify.yml`) — checks internet connectivity, chronyc tracking, sources, waits for sync (60s), asserts synced source exists
+10. **Report** — writes execution report via common/report_phase + report_render
+
+### Handlers
+
+| Handler | Triggered by | What it does |
+|---------|-------------|-------------|
+| `restart ntp` | Config file change (step 6) | Restarts chrony service. Flushed before verification (step 8). |
+````
 
 **Verification Criteria:**
 - Numbered list, one step per line
 - Each step: **bold name** + plain-language description of what happens
+- Nested task files named explicitly — support can find the file if they need to dig deeper
+- Steps that trigger handlers explicitly say so ("Triggers handler: ...")
+- Handlers section lists every handler with its trigger and effect
 - Step names match phase comments/separators in `tasks/main.yml`
-- Where a step produces files on the system, the path is mentioned (config, logs)
-- Where a step can fail, the failure behavior is described ("fails if...", "warns if...", "skips if...")
+- Where a step produces files on the system, the path is mentioned (config, logs, modules-load.d)
+- Where a step can fail, the failure behavior is described ("fails if...", "warns if...", "skips gracefully if...")
 
 **Anti-patterns:**
 - Unnumbered bullet list (support can't say "it failed at step 5")
 - Steps that describe Ansible internals (`include_tasks`, `with_first_found`) instead of outcomes
 - Checkbox list (`- [x]`) — implies completion status, not execution flow
+- Omitting nested task files — support sees "Disable competitors" but doesn't know there are 4 separate task files involved
+- Omitting handlers — support doesn't know that a config change triggers a service restart before verification
 
 ---
 
 ### README-003: Variables
 
 **Priority:** MUST
-**Rationale:** Variables are the role's public API. Support must know what each variable does, what value is safe, and what happens if they change it.
+**Rationale:** Variables are the role's public API. Support must know what each variable does, what value is safe, and what happens if they change it. This covers both user-facing variables (`defaults/main.yml`) and internal mappings (`vars/`).
 
-**Structure:** Table with columns: Variable, Default, Safety, Description.
+**Structure:** Two subsections — configurable variables (table with safety levels) and internal variables (summary of what `vars/` files contain and when support might need to look at them).
 
-Safety levels:
+Safety levels for configurable variables:
 
 | Level | Meaning |
 |-------|---------|
@@ -95,8 +108,12 @@ Safety levels:
 | careful | Understand the consequences before changing |
 | internal | Do not change unless you understand chrony/systemd/etc. internals |
 
-```markdown
+````markdown
 ## Variables
+
+### Configurable (`defaults/main.yml`)
+
+Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
 
 | Variable | Default | Safety | Description |
 |----------|---------|--------|-------------|
@@ -104,19 +121,32 @@ Safety levels:
 | `ntp_servers` | 4 NTS servers | safe | NTP servers list. See [Changing servers](#changing-servers) for examples |
 | `ntp_minsources` | `2` | careful | Minimum servers that must agree before clock is adjusted. Must be ≤ number of servers. If set higher than server count, clock will never update |
 | `ntp_ntsdumpdir` | `/var/lib/chrony/nts-data` | internal | NTS session cookie cache. Changing breaks NTS reconnection |
-```
+
+### Internal mappings (`vars/`)
+
+These files contain cross-platform and environment mappings. Do not override via inventory — edit the files directly only when adding new platform or hypervisor support.
+
+| File | What it contains | When to edit |
+|------|-----------------|-------------|
+| `vars/main.yml` | OS-family mappings: service name (`chronyd`/`chrony`), config path, package name, system user per distro | Adding support for a new distro |
+| `vars/environments.yml` | Hypervisor-specific settings: refclocks, rtcsync, makestep per environment (KVM, VMware, Hyper-V, VirtualBox, bare metal) | Adding support for a new hypervisor |
+````
 
 **Verification Criteria:**
-- Every variable from `defaults/main.yml` is listed — no hidden variables
-- Every variable has a safety level
+- Every variable from `defaults/main.yml` is listed in the configurable table — no hidden variables
+- Every configurable variable has a safety level
 - `careful` and `internal` variables explain the consequence of a wrong value
 - Complex types (lists of objects) have a link to an examples section or inline example
 - Variables are grouped by function (core, logging, security, environment) with subheadings if more than 10
+- Every `vars/*.yml` file is listed in the internal mappings table with its purpose and "when to edit"
+- Clear instruction: configurable = override via inventory; internal = edit file directly
 
 **Anti-patterns:**
 - Variables listed without safety level — support doesn't know what's dangerous
 - `List of {host, nts, iburst} objects` — unexplained fields in a complex type
 - Variable present in `defaults/main.yml` but absent from README
+- `vars/` files not mentioned at all — support doesn't know they exist or what they control
+- Mixing configurable and internal variables in one table — different audiences, different edit rules
 
 ---
 
@@ -125,7 +155,7 @@ Safety levels:
 **Priority:** MUST
 **Rationale:** The most common support operation is changing a setting. Examples prevent mistakes by showing the exact YAML to write and where to put it.
 
-```markdown
+````markdown
 ## Examples
 
 ### Changing NTP servers
@@ -156,7 +186,7 @@ ntp_pools:
   - { host: "pool.ntp.org", iburst: true, maxsources: 4 }
 ntp_minsources: 1
 ```
-```
+````
 
 **Verification Criteria:**
 - At least 2 examples covering the most common operations
@@ -175,7 +205,7 @@ ntp_minsources: 1
 **Priority:** MUST (for roles supporting multiple OS families)
 **Rationale:** Paths, service names, and package names differ between distros. Support needs to know which file to check on which system.
 
-```markdown
+````markdown
 ## Cross-platform details
 
 | Aspect | Arch Linux | Ubuntu / Debian | Void Linux |
@@ -183,7 +213,7 @@ ntp_minsources: 1
 | Service name | `chronyd` | `chrony` | `chronyd` |
 | Config path | `/etc/chrony.conf` | `/etc/chrony/chrony.conf` | `/etc/chrony.conf` |
 | System user | `chrony` | `_chrony` | `chrony` |
-```
+````
 
 **Verification Criteria:**
 - Table includes every supported OS family where a difference exists
@@ -201,7 +231,7 @@ ntp_minsources: 1
 **Priority:** MUST
 **Rationale:** Support needs to find logs quickly when investigating issues. They need to know file locations, format, and rotation policy.
 
-```markdown
+````markdown
 ## Logs
 
 ### Log files
@@ -217,7 +247,7 @@ ntp_minsources: 1
 
 - Large clock offset: `chronyc tracking` → look at "System time" line
 - Server reachability: `chronyc sources` → `^*` = synced, `^?` = unreachable
-```
+````
 
 **Verification Criteria:**
 - Every log file the role creates is listed with full path
@@ -238,7 +268,7 @@ ntp_minsources: 1
 **Priority:** MUST
 **Rationale:** Support's primary job is fixing things. A troubleshooting section with symptom→diagnosis→fix triples lets them resolve issues without escalating.
 
-```markdown
+````markdown
 ## Troubleshooting
 
 | Symptom | Diagnosis | Fix |
@@ -248,7 +278,7 @@ ntp_minsources: 1
 | Chrony won't start | `journalctl -u chronyd -n 50` | Usually bad config: `chronyd -p -f /etc/chrony.conf` shows syntax errors |
 | NTS not working | `chronyc ntssources` — all zeros? | Outbound TCP 4460 required. Check firewall. Verify CA certificates installed |
 | "No synchronized source" after 60s | `chronyc sources` — all `^?`? | DNS or firewall blocking UDP 123. Try: `chronyc -n sources` to see IPs |
-```
+````
 
 **Verification Criteria:**
 - At least 5 entries covering: service failure, config error, network issues, sync failure, role execution failure
@@ -328,7 +358,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 **Priority:** MUST
 **Rationale:** Tags enable partial role execution. Support needs to know which tag to use for which operation.
 
-```markdown
+````markdown
 ## Tags
 
 | Tag | What it runs | Use case |
@@ -336,7 +366,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `ntp` | Entire role | Full apply |
 | `ntp:state` | Service enable/start only | Restart chronyd without re-deploying config |
 | `report` | Logging/report tasks only | Re-generate execution report |
-```
+````
 
 **Verification Criteria:**
 - Every tag used in the role is listed
@@ -354,7 +384,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 **Priority:** SHOULD
 **Rationale:** Support opens the role directory and sees 15–30 files. Without a map, they don't know where to look. The map tells them what to read, what to edit, and what to never touch.
 
-```markdown
+````markdown
 ## File map
 
 | File | Purpose | Edit? |
@@ -367,7 +397,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `tasks/verify.yml` | Post-deploy self-check | When changing verification logic |
 | `handlers/main.yml` | Service restart handler | Rarely |
 | `molecule/` | Test scenarios | When changing test coverage |
-```
+````
 
 **Verification Criteria:**
 - Every top-level file and directory listed
