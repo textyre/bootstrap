@@ -4,6 +4,8 @@
 > Implementation patterns: [[Ansible-Patterns]]
 > Security control mappings: [[Security Standards|standards/security-standards]]
 > Profile definitions: [[Workstation Profiles|standards/workstation-profiles]]
+> README structure: [[README Requirements|standards/readme-requirements]]
+> Testing specification: [[Testing Requirements|standards/testing-requirements]]
 
 ## Scope
 
@@ -272,85 +274,23 @@ sysctl_kernel_yama_ptrace_scope: 1   # 1=child-only (dev), 2=root-only (prod)
 **Category:** Testing
 **Priority:** MUST
 **Rationale:** Molecule tests must validate both the role's configuration actions and that the in-role verification logic (ROLE-005) correctly detects misconfigurations. Without negative tests, verification code may pass regardless of actual state.
-**Standards:** ---
+**Standards:** Full testing specification: [[Testing Requirements|standards/testing-requirements]]
 
-**Implementation Pattern:**
-```yaml
-# molecule/default/converge.yml — apply role with standard config
----
-- name: Converge
-  hosts: all
-  become: true
-  gather_facts: true
-  pre_tasks:
-    - name: Assert test environment
-      ansible.builtin.assert:
-        that: ansible_facts['os_family'] == 'Archlinux'
-  roles:
-    - role: <role_name>
+This requirement defines the WHAT — every role must have molecule tests. For the HOW — scenario structure (TEST-002, TEST-003), converge standards (TEST-006), verification depth (TEST-008), and all other testing details — see the Testing Requirements specification.
 
-# molecule/default/verify.yml — verify post-apply state
----
-- name: Verify
-  hosts: all
-  become: true
-  gather_facts: false
-  tasks:
-    # Positive: verify config was applied
-    - name: Check config file exists
-      ansible.builtin.stat:
-        path: /etc/chrony.conf
-      register: _<role>_verify_conf
-      failed_when: not _<role>_verify_conf.stat.exists
-
-    # Positive: verify service state
-    - name: Check service is enabled
-      ansible.builtin.command:
-        cmd: systemctl is-enabled chronyd
-      register: _<role>_verify_svc
-      changed_when: false
-      failed_when: "'enabled' not in _<role>_verify_svc.stdout"
-
-# molecule/default/molecule.yml
----
-driver:
-  name: default
-platforms:
-  - name: instance
-    managed: false
-provisioner:
-  name: ansible
-  inventory:
-    host_vars:
-      instance:
-        ansible_connection: local
-  config_options:
-    defaults:
-      callbacks_enabled: profile_tasks
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
-  env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
-verifier:
-  name: ansible
-scenario:
-  test_sequence:
-    - syntax
-    - converge
-    - verify
-```
-
-**Verification Criteria:**
-- `molecule/default/converge.yml` exercises the role with representative configuration
-- `molecule/default/verify.yml` checks actual system state (files, services, permissions), not just Ansible return codes
-- Register variables in verify.yml follow `_<role>_verify_<check>` naming convention
-- `molecule.yml` uses `driver: default` with `managed: false` for localhost testing
-- Test sequence includes at minimum: `syntax`, `converge`, `verify`
+**Summary Verification Criteria:**
+- `molecule/default/` and `molecule/vagrant/` scenarios both exist (TEST-002)
+- `converge.yml` exercises the role with representative configuration (TEST-006)
+- `verify.yml` checks actual system state with 4+ verification categories (TEST-008)
+- Register variables follow `_<role>_verify_<check>` naming convention
+- `idempotence` in every `test_sequence` (TEST-007)
+- yamllint + ansible-lint pass with zero errors (TEST-005)
 
 **Anti-patterns:**
 - Tests that only check "role ran without errors" (no state verification)
 - Verify.yml that duplicates converge.yml logic instead of checking outcomes
-- Missing `vault_password_file` when role depends on vault variables
-- Using `docker` or `vagrant` drivers (project uses localhost execution)
+- Missing vagrant scenario (only Docker — misses platform-specific bugs)
+- No idempotence step (the #1 bypass — see TEST-007)
 
 ---
 
@@ -742,46 +682,17 @@ sysctl_kernel_yama_ptrace_scope: 1   # 1=child-only, 2=root-only
 **Category:** Testing
 **Priority:** MUST
 **Rationale:** Tests that always pass regardless of actual state are worse than no tests — they create false confidence. Coverage must be driven by role inputs (not hardcoded), must exercise edge cases, and must verify network-dependent tasks as first-class requirements.
-**Standards:** ---
+**Standards:** Full testing specification: [[Testing Requirements|standards/testing-requirements]]
 
-**Implementation Pattern:**
-```yaml
-# CORRECT: verify.yml version driven from converge, not hardcoded
-# converge.yml
-vars:
-  hostctl_version: "1.1.4"
+This requirement defines the WHAT — test coverage must be complete. For the HOW — data-driven verification (TEST-012), edge cases (TEST-011), cross-platform coverage (TEST-013), and dependency management (TEST-010) — see the Testing Requirements specification.
 
-# molecule.yml
-provisioner:
-  options:
-    extra-vars: "verify_version_string=1.1.4"
-
-# verify.yml
-- name: Assert version
-  ansible.builtin.assert:
-    that: verify_version_string in _version_out.stdout
-
-# CORRECT: edge case — empty input must not crash the role
-# converge.yml includes a play with hostctl_profiles: {}
-
-# CORRECT: idempotence in every scenario test_sequence
-scenario:
-  test_sequence:
-    - syntax
-    - create
-    - prepare
-    - converge
-    - idempotence   # second converge run must show zero changed tasks
-    - verify
-    - destroy
-```
-
-**Verification Criteria:**
-- Version strings and configuration values in `verify.yml` are passed via `extra-vars` from the scenario, not hardcoded
-- Edge cases covered: empty inputs (`{}`, `[]`), default-only runs, all `state` variants if the role supports state
-- `idempotence` step present in `test_sequence` for every scenario (docker and vagrant)
-- Network-dependent tasks (downloads, API calls) are exercised in at least one scenario — not skipped in all scenarios
-- Second converge run (idempotence check) produces zero `changed` tasks
+**Summary Verification Criteria:**
+- No hardcoded values in verify.yml — all from extra-vars or vars_files (TEST-012)
+- Edge cases covered: empty inputs, default-only runs, all `state` variants (TEST-011)
+- Both Arch + Ubuntu exercised in both scenarios (TEST-013)
+- Network-dependent tasks exercised in at least one scenario (TEST-013)
+- Role dependencies declared in `requirements.yml` and resolved by molecule (TEST-010)
+- Negative tests present for error handling paths (TEST-011, SHOULD)
 
 **Anti-patterns:**
 - `verify_version_string: "1.1.4"` hardcoded in `verify.yml` — diverges silently when converge version changes
@@ -813,7 +724,7 @@ Use this checklist when creating or reviewing a role. One checkbox per requireme
 
 ### Testing
 
-- [ ] ROLE-006: `molecule/default/verify.yml` tests both applied state and verification logic
+- [ ] ROLE-006: Both `molecule/default/` and `molecule/vagrant/` scenarios present; verify.yml covers 4+ categories (see [[Testing Requirements|standards/testing-requirements]])
 
 ### Observability
 
@@ -835,10 +746,11 @@ Use this checklist when creating or reviewing a role. One checkbox per requireme
 
 ### Test Coverage
 
-- [ ] ROLE-014: No hardcoded versions in `verify.yml`; edge cases covered (empty inputs, all state variants); `idempotence` in every `test_sequence`; network tasks exercised in at least one scenario
+- [ ] ROLE-014: No hardcoded versions in verify.yml; edge cases covered; Arch + Ubuntu in both scenarios; idempotence everywhere (see [[Testing Requirements|standards/testing-requirements]])
 
 ### Documentation
 
+- [ ] README complies with [[README Requirements|standards/readme-requirements]] (README-001 through README-010)
 - [ ] `wiki/roles/<role_name>.md` exists with variables, dependencies, tags, and audit events
 - [ ] `defaults/main.yml` has inline comments explaining each variable and its tradeoffs
 
