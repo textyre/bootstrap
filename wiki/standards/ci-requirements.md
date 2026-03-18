@@ -9,7 +9,7 @@
 ## Scope
 
 This specification applies to all CI workflows that test Ansible roles in `ansible/roles/`.
-CI enforces the testing requirements (TEST-0XX) automatically — no manual prогон should be needed for standard quality gates.
+CI enforces the testing requirements (TEST-0XX) automatically — no manual run should be needed for standard quality gates.
 
 ### Relationship to Other Standards
 

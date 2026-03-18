@@ -414,15 +414,24 @@ scenario:
 
 **Structure:** verify.yml is organized by execution flow steps (matching README-002), and each step covers relevant verification categories.
 
-**Verification Categories (minimum 4 of 5 per role):**
+**Verification Categories:**
 
-| Category | What it checks | Example |
-|----------|---------------|---------|
-| **Packages** | Software is actually installed | `command -v chronyc`, `dpkg -l chrony` |
-| **Config files** | Config exists with correct content | `slurp` + content assert, `lineinfile check_mode` |
-| **Services** | Service is running and enabled | `service_facts`, `systemctl is-enabled` |
-| **Runtime** | Service actually responds/works | `chronyc tracking`, `curl localhost:8080` |
-| **Permissions** | Files have correct owner/mode | `stat` + assert on mode, uid, gid |
+Every category that applies to the role MUST be covered. A category is "applicable" if the role performs the corresponding action. If a category is skipped, it must be listed explicitly in a comment at the top of verify.yml with a one-line justification.
+
+| Category | Applicable when | What it checks | Example |
+|----------|----------------|---------------|---------|
+| **Packages** | Role installs packages | Software is actually installed | `command -v chronyc`, `dpkg -l chrony` |
+| **Config files** | Role writes config files | Config exists with correct content | `slurp` + content assert, `lineinfile check_mode` |
+| **Services** | Role manages a service | Service is running and enabled | `service_facts`, `systemctl is-enabled` |
+| **Runtime** | Role starts a daemon or exposes an interface | Service actually responds/works | `chronyc tracking`, `curl localhost:8080` |
+| **Permissions** | Role creates files/dirs with specific ownership or mode | Files have correct owner/mode | `stat` + assert on mode, uid, gid |
+
+**Skipped category declaration (top of verify.yml):**
+```yaml
+# Verification categories skipped:
+#   services  — role does not manage any service unit
+#   runtime   — no daemon or network interface is started by this role
+```
 
 **Implementation Pattern:**
 ```yaml
@@ -488,7 +497,7 @@ scenario:
 
 **Verification Criteria:**
 - verify.yml contains at least one check per execution flow step (from README-002)
-- At least 4 of 5 verification categories covered
+- All applicable verification categories covered; skipped categories declared with justification at top of verify.yml
 - Every check has explicit `failed_when` — no reliance on default "ok means success"
 - Register variables follow `_<role>_verify_<check>` naming convention
 - All `command`/`shell` verification tasks use `changed_when: false`
@@ -513,6 +522,16 @@ scenario:
 **Rationale:** Test environments are not production. Docker containers lack packages, Vagrant VMs have stale keyrings. The prepare playbook bridges this gap — it makes the test environment look like production BEFORE the role runs. Without it, roles fail for environment reasons, not code reasons.
 
 **Implementation Pattern:**
+
+Cross-platform prepare splits into separate files per OS family. The main `prepare.yml` bootstraps Python (before facts), collects facts, then delegates to a platform-specific file:
+
+```
+molecule/vagrant/
+  prepare.yml              # entry point
+  prepare_archlinux.yml    # Arch-specific tasks
+  prepare_debian.yml       # Ubuntu/Debian-specific tasks
+```
+
 ```yaml
 # molecule/vagrant/prepare.yml
 ---
@@ -521,73 +540,75 @@ scenario:
   become: true
   gather_facts: false
   tasks:
-    # ── Arch Linux bootstrap ──────────────────────────────────
-    - name: "Prepare: install Python (Arch)"
+    - name: "Prepare: install Python (Arch, before facts)"
       ansible.builtin.raw: pacman -Sy --noconfirm python
-      when: ansible_facts['os_family'] | default('') == '' or
-            ansible_facts['os_family'] == 'Archlinux'
+      when: ansible_facts['os_family'] | default('') != 'Debian'
       changed_when: true
 
-    - name: Gather facts after Python install
+    - name: Gather facts
       ansible.builtin.setup:
 
-    - name: "Prepare: refresh Arch keyring"
-      ansible.builtin.shell: |
-        sed -i 's/SigLevel.*/SigLevel = Never/' /etc/pacman.conf
-        pacman -Sy --noconfirm archlinux-keyring
-        sed -i 's/SigLevel.*/SigLevel = Required DatabaseOptional/' /etc/pacman.conf
-        pacman-key --populate archlinux
-      when: ansible_facts['os_family'] == 'Archlinux'
-      changed_when: true
+    - name: Platform-specific preparation
+      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"
+```
 
-    - name: "Prepare: full system upgrade (Arch)"
-      community.general.pacman:
-        update_cache: true
-        upgrade: true
-      when: ansible_facts['os_family'] == 'Archlinux'
+```yaml
+# molecule/vagrant/prepare_archlinux.yml
+---
+- name: "Prepare: refresh keyring"
+  ansible.builtin.shell: |
+    sed -i 's/SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+    pacman -Sy --noconfirm archlinux-keyring
+    sed -i 's/SigLevel.*/SigLevel = Required DatabaseOptional/' /etc/pacman.conf
+    pacman-key --populate archlinux
+  changed_when: true
 
-    - name: "Prepare: fix DNS after upgrade"
-      ansible.builtin.copy:
-        content: |
-          nameserver 8.8.8.8
-          nameserver 1.1.1.1
-        dest: /etc/resolv.conf
-        unsafe_writes: true
-      when: ansible_facts['os_family'] == 'Archlinux'
+- name: "Prepare: full system upgrade"
+  community.general.pacman:
+    update_cache: true
+    upgrade: true
 
-    # ── Ubuntu bootstrap ──────────────────────────────────────
-    - name: "Prepare: install CA certificates (Ubuntu)"
-      ansible.builtin.apt:
-        name: ca-certificates
-        state: present
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Debian'
+- name: "Prepare: fix DNS after upgrade"
+  ansible.builtin.copy:
+    content: |
+      nameserver 8.8.8.8
+      nameserver 1.1.1.1
+    dest: /etc/resolv.conf
+    unsafe_writes: true
 
-    # ── Cross-platform ────────────────────────────────────────
-    - name: "Prepare: lock root account (Arch — match ubuntu-base)"
-      ansible.builtin.command: passwd -l root
-      when: ansible_facts['os_family'] == 'Archlinux'
-      changed_when: true
+- name: "Prepare: lock root account (match ubuntu-base)"
+  ansible.builtin.command: passwd -l root
+  changed_when: true
 
-    - name: "Prepare: CI sudo guard"
-      ansible.builtin.copy:
-        content: "vagrant ALL=(ALL) NOPASSWD: ALL"
-        dest: /etc/sudoers.d/zz-molecule-vagrant-nopasswd
-        mode: "0440"
-      when: ansible_facts['os_family'] == 'Archlinux'
+- name: "Prepare: CI sudo guard"
+  ansible.builtin.copy:
+    content: "vagrant ALL=(ALL) NOPASSWD: ALL"
+    dest: /etc/sudoers.d/zz-molecule-vagrant-nopasswd
+    mode: "0440"
+```
+
+```yaml
+# molecule/vagrant/prepare_debian.yml
+---
+- name: "Prepare: install CA certificates"
+  ansible.builtin.apt:
+    name: ca-certificates
+    state: present
+    update_cache: true
 ```
 
 **Verification Criteria:**
 - Vagrant scenario MUST have `prepare.yml`
 - Docker scenario SHOULD have `prepare.yml` if containers need packages not in base image
 - `gather_facts: false` at start (Python may not be installed), then explicit `setup:` after bootstrap
-- Cross-platform guards: `when: ansible_facts['os_family'] == 'Archlinux'` / `'Debian'`
+- Cross-platform tasks split into `prepare_<os_family>.yml` files, included via `include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"`
 - Task order: update_cache → create groups → install packages → box state fixes → CI guards
 - DNS fix after `pacman -Syu` on Arch (systemd replaces resolv.conf with IPv6 stub)
 - `unsafe_writes: true` for bind-mounted files in Docker (`/etc/hosts`, `/etc/resolv.conf`, `/etc/hostname`)
 
 **Anti-patterns:**
 - Vagrant scenario without `prepare.yml` (generic/arch has no Python, stale keyring)
+- `when: ansible_facts['os_family'] == 'X'` guards on individual tasks in a single file instead of separate platform files
 - Calling `pacman` unconditionally when Ubuntu platforms exist in the scenario
 - `gather_facts: true` before Python is installed (fails on bare Arch)
 - Missing DNS fix after full system upgrade (Go/network tools fail with "connection refused")
@@ -764,19 +785,20 @@ platforms:
     cpus: 1
 
 # molecule/shared/verify.yml — platform-aware checks
-- name: "Verify: service name (platform-specific)"
-  ansible.builtin.service_facts:
-  register: _ntp_verify_services
+- name: Platform-specific verification
+  ansible.builtin.include_tasks: "verify_{{ ansible_facts['os_family'] | lower }}.yml"
+```
 
-- name: "Assert: chrony service running (Arch)"
+```yaml
+# molecule/shared/verify_archlinux.yml
+- name: "Assert: chronyd service running"
   ansible.builtin.assert:
     that: "services['chronyd.service'].state == 'running'"
-  when: ansible_facts['os_family'] == 'Archlinux'
 
-- name: "Assert: chrony service running (Ubuntu)"
+# molecule/shared/verify_debian.yml
+- name: "Assert: chrony service running"
   ansible.builtin.assert:
     that: "services['chrony.service'].state == 'running'"
-  when: ansible_facts['os_family'] == 'Debian'
 ```
 
 ```yaml
@@ -798,13 +820,14 @@ platforms:
 
 **Verification Criteria:**
 - Both scenarios exercise Arch + Ubuntu platforms at minimum
-- Platform-specific verify checks use `when: ansible_facts['os_family']` guards
+- Platform-specific verify checks split into `verify_<os_family>.yml` files, included via `include_tasks: "verify_{{ ansible_facts['os_family'] | lower }}.yml"`
 - Service names, config paths, package names in verify use role variables (from `vars/<os_family>.yml`), not hardcoded
 - Arch-only roles in cross-platform matrix use `meta: end_host` for non-Arch platforms (not excluded from matrix)
 - Network-dependent tasks (downloads, API calls) exercised in at least one scenario — not skipped in all scenarios
 
 **Anti-patterns:**
 - Vagrant scenario with only Arch platform (Ubuntu never tested)
+- `when: ansible_facts['os_family'] == 'X'` guards on individual tasks in verify.yml instead of separate platform files
 - Hardcoded `systemctl is-enabled chronyd` (fails on Ubuntu where service is `chrony`)
 - Arch-only role excluded from Ubuntu matrix entirely ("Instances missing" error in CI)
 - All network tasks tagged `molecule-notest` in every scenario (download path never tested)
