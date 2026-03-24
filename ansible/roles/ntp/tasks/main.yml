@@ -114,6 +114,7 @@
         owner: root
         group: root
         mode: "0644"
+        validate: "chronyd -p -f %s"
       notify: restart ntp
       tags: ['ntp']
 

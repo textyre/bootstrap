@@ -1,7 +1,7 @@
 # ntp
 
 NTP time synchronization via chrony with NTS-enabled servers and full parametrization.
-Supports Arch Linux, Ubuntu/Debian, RedHat/EL, Alpine, and Void Linux.
+Supports Arch Linux, Ubuntu/Debian, RedHat/EL, Gentoo, and Void Linux.
 
 ## What this role does
 
@@ -32,6 +32,10 @@ Supports Arch Linux, Ubuntu/Debian, RedHat/EL, Alpine, and Void Linux.
 | `ntp_pools` | `[]` | Pool-type sources (`pool` directive). Objects: `{host, iburst, maxsources}` |
 | `ntp_allow` | `[]` | ACL for NTP server mode. Empty = client-only. Example: `["192.168.1.0/24"]` |
 | `ntp_ntsdumpdir` | `/var/lib/chrony/nts-data` | NTS cookie cache — speeds up NTS re-handshake after restart |
+| `ntp_auto_detect` | `true` | Auto-detect virtualization environment and adjust refclocks/makestep/rtcsync accordingly |
+| `ntp_refclocks` | `[]` | Manual refclock directives (list of raw chrony refclock strings). Overrides auto-detect if set. |
+| `ntp_disable_competitors` | `true` | Stop and disable ntpd, openntpd, and systemd-timesyncd if found |
+| `ntp_vmware_disable_periodic_sync` | `true` | On VMware guests: disable periodic time sync via `vmware-toolbox-cmd`. Has no effect on non-VMware systems. |
 
 ## Default servers
 
@@ -48,7 +52,7 @@ Three independent providers with NTS (RFC 8915):
 
 ## Supported platforms
 
-Arch Linux, Debian, Ubuntu, RedHat/EL, Alpine, Void Linux
+Arch Linux, Debian, Ubuntu, RedHat/EL, Gentoo, Void Linux
 
 ## Cross-platform details
 
@@ -60,6 +64,33 @@ Arch Linux, Debian, Ubuntu, RedHat/EL, Alpine, Void Linux
 | Package | `chrony` | `chrony` |
 
 These differences are handled by `vars/main.yml` mappings keyed on `ansible_facts['os_family']`.
+
+## Environment Detection
+
+When `ntp_auto_detect: true` (default), the role automatically adapts chrony configuration based on the virtualization environment:
+
+| Environment | Detected Via | Adaptations |
+|-------------|--------------|------------|
+| **Bare Metal** | No virtualization | Standard refclocks (none by default); normal RTC sync |
+| **KVM** | `ansible_facts['virtualization_type'] == 'kvm'` | Load `ptp_kvm` module; refclock PHC on `/dev/ptp0` |
+| **VMware** | vSphere/ESXi guest tools | Refclock PHC on VMware precision clock; disable periodic timesync via `vmware-toolbox-cmd` |
+| **Hyper-V** | Hyper-V integration services | Refclock PHC (if available); high `makestep_threshold` to prevent constant corrections |
+| **Xen** | `ansible_facts['virtualization_type'] == 'xen'` | Conservative `makestep_threshold: 10` due to dom0 time jitter |
+| **QEMU/Bochs** | Generic QEMU or Bochs emulator | No special refclocks; high `makestep_threshold` for stability |
+
+To disable auto-detection and use manual refclocks, set:
+```yaml
+ntp_auto_detect: false
+ntp_refclocks:
+  - "refclock PHC /dev/ptp0 poll 3 dpoll -2 offset 0 stratum 2"
+```
+
+To override auto-detect for a specific environment:
+```yaml
+ntp_auto_detect: true
+ntp_refclocks:
+  - "refclock SHM 0 refid GPS"  # Custom refclock, takes precedence
+```
 
 ## Testing
 

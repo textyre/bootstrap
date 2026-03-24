@@ -18,16 +18,16 @@
 - name: Verify chronyd is running
   ansible.builtin.command:
     cmd: chronyc tracking
-  register: ntp_check
+  register: _ntp_verify_tracking
   changed_when: false
-  failed_when: ntp_check.rc != 0
+  failed_when: _ntp_verify_tracking.rc != 0
   tags: ['ntp']
 
 - name: Assert chrony daemon is functional
   ansible.builtin.assert:
     that:
-      - "'Stratum' in ntp_check.stdout"
-      - "'System time' in ntp_check.stdout"
+      - "'Stratum' in _ntp_verify_tracking.stdout"
+      - "'System time' in _ntp_verify_tracking.stdout"
     fail_msg: "chronyc tracking output invalid — chrony may not be configured correctly"
     quiet: true
   tags: ['ntp']
@@ -35,7 +35,7 @@
 - name: Check chrony has NTP sources
   ansible.builtin.command:
     cmd: chronyc sources
-  register: ntp_sources
+  register: _ntp_verify_sources
   changed_when: false
   failed_when: false
   tags: ['ntp']
@@ -43,7 +43,7 @@
 - name: Assert chrony has at least one source configured
   ansible.builtin.assert:
     that:
-      - ntp_sources.stdout_lines | length > 2
+      - _ntp_verify_sources.stdout_lines | length > 2
     fail_msg: "chrony has no NTP sources configured"
     quiet: true
   tags: ['ntp']
@@ -57,7 +57,7 @@
 - name: Check chrony has a synced source
   ansible.builtin.command:
     cmd: chronyc -n sources
-  register: ntp_synced
+  register: _ntp_verify_synced
   changed_when: false
   failed_when: false
   tags: ['ntp']
@@ -65,7 +65,7 @@
 - name: Assert at least one source is synced (^* marker)
   ansible.builtin.assert:
     that:
-      - ntp_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
+      - _ntp_verify_synced.stdout_lines | select('match', '^\^\*') | list | length > 0
     fail_msg: >-
       No synchronized NTP source (no '^*' marker in chronyc -n sources).
       Chrony is running but not synced after 60s — check internet connectivity and NTP server reachability.

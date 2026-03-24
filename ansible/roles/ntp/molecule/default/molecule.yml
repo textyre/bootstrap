@@ -30,5 +30,5 @@ scenario:
   test_sequence:
     - syntax
     - converge
-    - idempotency
+    - idempotence
     - verify
