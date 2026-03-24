@@ -30,6 +30,14 @@
       tags: ['pam_hardening', 'pam', 'security', 'faillock']
 
     # ======================================================================
+    # ---- Flush handlers before verify ----
+    # ======================================================================
+
+    - name: Flush handlers to apply PAM changes before verification
+      ansible.builtin.meta: flush_handlers
+      tags: ['pam_hardening']
+
+    # ======================================================================
     # ---- Verify ----
     # ======================================================================
 
@@ -54,7 +62,7 @@
           {{ ansible_facts['os_family'] }}
       tags: ['pam_hardening', 'report']
 
-    - name: "pam_hardening — Execution Report"
+    - name: "Pam_hardening — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml
