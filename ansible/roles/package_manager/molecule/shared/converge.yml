@@ -5,4 +5,21 @@
   gather_facts: true
 
   roles:
-    - role: package_manager
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+- name: Converge — edge cases (non-default vars)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Test with paccache and makepkg disabled + multilib enabled (Archlinux)
+      when: ansible_facts['os_family'] == 'Archlinux'
+      block:
+        - name: Apply role with edge case vars
+          ansible.builtin.include_role:
+            name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+          vars:
+            package_manager_pacman_multilib: true
+            package_manager_paccache_enabled: false
+            package_manager_makepkg_enabled: false

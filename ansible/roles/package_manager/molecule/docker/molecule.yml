@@ -33,7 +33,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,aur,mirrors
+    skip-tags: report,aur,mirrors,molecule-notest
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

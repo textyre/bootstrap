@@ -1,13 +1,16 @@
 ---
 # === Конфигурация пакетного менеджера ===
 
-# Поддерживаемые дистрибутивы (ansible_distribution)
-package_manager_supported_distributions:
+# Master toggle — set to false to skip the entire role
+package_manager_enabled: true
+
+# Supported OS families (ansible_facts['os_family'])
+_package_manager_supported_os:
   - Archlinux
   - Debian
-  - Ubuntu
-  - Fedora
+  - RedHat
   - Void
+  - Gentoo
 
 # --- Arch Linux / pacman ---
 package_manager_pacman_parallel_downloads: 5
@@ -27,7 +30,7 @@ package_manager_paccache_keep: 3
 
 # makepkg (оптимизация сборки пакетов из AUR)
 package_manager_makepkg_enabled: true
-package_manager_makepkg_makeflags: "-j{{ ansible_processor_nproc | default(2) }}"
+package_manager_makepkg_makeflags: "-j{{ ansible_processor_vcpus | default(2) }}"
 package_manager_makepkg_pkgext: ".pkg.tar.zst"
 
 # --- Debian / apt ---
@@ -36,10 +39,7 @@ package_manager_apt_retries: 3
 package_manager_apt_dpkg_force_confdef: true
 package_manager_apt_dpkg_force_confold: true
 
-# --- Ubuntu / apt (те же настройки что и Debian) ---
-# Ubuntu использует package_manager_apt_* переменные
-
-# --- Fedora / dnf ---
+# --- RedHat (Fedora) / dnf ---
 package_manager_dnf_parallel_downloads: 5
 package_manager_dnf_fastestmirror: true
 package_manager_dnf_color: "always"
