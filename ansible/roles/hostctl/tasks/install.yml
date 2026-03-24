@@ -40,7 +40,7 @@
 # ---- Final verification ----
 
 - name: Verify hostctl is installed and working
-  ansible.builtin.command: hostctl --version
+  ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
   register: hostctl_version_check
   changed_when: false
   failed_when: hostctl_version_check.rc != 0
