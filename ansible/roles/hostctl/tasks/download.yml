@@ -76,11 +76,7 @@
       ansible.builtin.set_fact:
         hostctl_checksum: >-
           sha256:{{ hostctl_checksums.content
-             | trim
-             | split('\n')
-             | select('search', hostctl_tarball_name)
-             | first
-             | split(' ')
+             | regex_search('([a-f0-9]{64})\s+' ~ hostctl_tarball_name, '\1')
              | first }}
       when: hostctl_checksums is not skipped
 
