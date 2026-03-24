@@ -1,6 +1,18 @@
 ---
 # Handlers for ntp role
 
+# Handler chain: validate config → restart service
+# Validation runs on real deployed file (not temp), so works in all environments
+
+- name: Validate chronyd config syntax
+  ansible.builtin.command:
+    cmd: "chronyd -p -f {{ ntp_conf_path[ansible_facts['os_family']] | default('/etc/chrony.conf') }}"
+  listen: "restart ntp"
+  # Run BEFORE restart, fail if validation fails, don't count as a change
+  register: _ntp_config_check
+  changed_when: false
+  failed_when: _ntp_config_check.rc != 0
+
 - name: Restart chronyd
   ansible.builtin.service:
     name: "{{ ntp_service_name[ansible_facts['os_family']] | default('chronyd') }}"
