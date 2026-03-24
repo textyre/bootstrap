@@ -45,7 +45,7 @@
 
 - name: Read last line of audit log
   ansible.builtin.command:
-    cmd: tail -1 {{ ntp_audit_log_file }}
+    cmd: tail -n 1 "{{ ntp_audit_log_file }}"
   register: ntp_audit_verify_last_line
   changed_when: false
   tags: ['ntp_audit', 'ntp_audit_verify']
@@ -60,6 +60,16 @@
       - (ntp_audit_verify_last_line.stdout | from_json).ntp_conflict is defined
       - (ntp_audit_verify_last_line.stdout | from_json).ntp_phc_status is defined
     fail_msg: "audit.log last line missing required JSON keys"
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
+- name: Assert sync_status is not in error state
+  ansible.builtin.assert:
+    that:
+      - (ntp_audit_verify_last_line.stdout | from_json).sync_status != 'error'
+    fail_msg: >-
+      sync_status is 'error': chrony may not be installed, running, or accessible.
+      Check: systemctl status chrony, systemctl status ntp-audit.timer
+    success_msg: "sync_status is '{{ (ntp_audit_verify_last_line.stdout | from_json).sync_status }}'"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Check ntp-audit.timer is-enabled (systemd)

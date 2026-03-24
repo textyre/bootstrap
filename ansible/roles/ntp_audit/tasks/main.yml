@@ -3,6 +3,20 @@
 # Each import_tasks is one business requirement.
 # To run a single module: ansible-playbook ... --tags ntp_audit_script
 
+# ======================================================================
+# ---- Preflight: OS validation ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ntp_audit_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _ntp_audit_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['ntp_audit']
+
 - name: Ntp_audit role
   when: ntp_audit_enabled | bool
   tags: ['ntp_audit']
