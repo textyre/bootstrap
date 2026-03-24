@@ -93,25 +93,25 @@
 
     - name: Assert Alloy config NOT deployed
       ansible.builtin.stat:
-        path: /etc/alloy/conf.d/ntp-audit.alloy
+        path: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
       register: ntp_audit_disabled_alloy
 
     - name: Verify Alloy config absent
       ansible.builtin.assert:
         that:
           - not ntp_audit_disabled_alloy.stat.exists
-        fail_msg: "/etc/alloy/conf.d/ntp-audit.alloy was deployed despite ntp_audit_enabled: false"
+        fail_msg: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy was deployed despite ntp_audit_enabled: false"
 
     - name: Assert Loki rules NOT deployed
       ansible.builtin.stat:
-        path: /etc/loki/rules/fake/ntp-audit-rules.yaml
+        path: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
       register: ntp_audit_disabled_loki
 
     - name: Verify Loki rules absent
       ansible.builtin.assert:
         that:
           - not ntp_audit_disabled_loki.stat.exists
-        fail_msg: "/etc/loki/rules/fake/ntp-audit-rules.yaml was deployed despite ntp_audit_enabled: false"
+        fail_msg: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml was deployed despite ntp_audit_enabled: false"
 
     - name: Show result
       ansible.builtin.debug:

@@ -53,7 +53,9 @@ def _syslog(level: int, message: str) -> None:
         facility=logging.handlers.SysLogHandler.LOG_DAEMON,
     )
     handler.ident = 'ntp-audit: '
-    logger.addHandler(handler)
-    logger.log(level, message)
-    logger.removeHandler(handler)
-    handler.close()
+    try:
+        logger.addHandler(handler)
+        logger.log(level, message)
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
