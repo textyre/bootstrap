@@ -1,0 +1,16 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    vconsole_console: "custom-test"  # TEST: Custom keymap name
+    vconsole_console_map_src: "/tmp/molecule/files/custom-test.map"  # TEST: Custom .map file
+    vconsole_console_font: ""  # No font for this test
+    vconsole_console_font_map: ""
+    vconsole_console_font_unimap: ""
+    vconsole_gpm_enabled: false
+
+  roles:
+    - role: vconsole
