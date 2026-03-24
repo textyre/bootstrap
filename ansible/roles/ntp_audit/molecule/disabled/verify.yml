@@ -4,6 +4,9 @@
   become: true
   gather_facts: true
 
+  vars_files:
+    - ../../defaults/main.yml
+
   tasks:
 
     - name: Assert ntp-audit zipapp NOT deployed when disabled
