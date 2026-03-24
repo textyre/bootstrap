@@ -20,6 +20,7 @@ provisioner:
   name: ansible
   options:
     skip-tags: report,aur,molecule-notest
+    extra-vars: "hostctl_version=1.1.4"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

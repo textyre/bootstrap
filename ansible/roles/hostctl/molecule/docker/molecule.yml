@@ -34,6 +34,7 @@ provisioner:
   name: ansible
   options:
     skip-tags: report
+    extra-vars: "hostctl_version=1.1.4"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

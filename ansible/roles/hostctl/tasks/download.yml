@@ -1,6 +1,5 @@
 ---
 # === hostctl — download binary from GitHub releases ===
-# Fallback when package manager did not install hostctl.
 # Uses block/always to guarantee cleanup of temp files on success and failure.
 
 - name: Install hostctl from GitHub releases
@@ -8,27 +7,16 @@
 
     # ---- Resolve version ----
 
-    - name: Query latest hostctl release from GitHub API
+    - name: Query hostctl release from GitHub API
       ansible.builtin.uri:
-        url: "{{ hostctl_github_api }}/repos/{{ hostctl_github_repo }}/releases/latest"
+        url: >-
+          {{ hostctl_github_api }}/repos/{{ hostctl_github_repo }}/releases/{{
+            (hostctl_version == 'latest') | ternary('latest', 'tags/v' ~ (hostctl_version | regex_replace('^v', '')))
+          }}
         return_content: true
         headers:
-          Accept: application/vnd.github.v3+json
+          Accept: application/vnd.github+json
       register: hostctl_release
-      when: hostctl_version == "latest"
-
-    - name: Query specific hostctl release from GitHub API
-      ansible.builtin.uri:
-        url: "{{ hostctl_github_api }}/repos/{{ hostctl_github_repo }}/releases/tags/v{{ hostctl_version | regex_replace('^v', '') }}"
-        return_content: true
-        headers:
-          Accept: application/vnd.github.v3+json
-      register: hostctl_release_pinned
-      when: hostctl_version != "latest"
-
-    - name: Set hostctl release facts
-      ansible.builtin.set_fact:
-        hostctl_release_data: "{{ (hostctl_version == 'latest') | ternary(hostctl_release, hostctl_release_pinned) }}"
 
     # ---- Map architecture ----
 
@@ -47,24 +35,24 @@
 
     - name: Find tarball asset URL
       ansible.builtin.set_fact:
-        hostctl_tarball_url: >
-          {{ hostctl_release_data.json.assets
+        hostctl_tarball_url: >-
+          {{ hostctl_release.json.assets
              | selectattr('name', 'match', '.*linux_' ~ hostctl_arch ~ '\.tar\.gz$')
              | map(attribute='browser_download_url')
-             | first }}
-        hostctl_tarball_name: >
-          {{ hostctl_release_data.json.assets
+             | first | trim }}
+        hostctl_tarball_name: >-
+          {{ hostctl_release.json.assets
              | selectattr('name', 'match', '.*linux_' ~ hostctl_arch ~ '\.tar\.gz$')
              | map(attribute='name')
-             | first }}
+             | first | trim }}
 
     - name: Find checksums asset URL
       ansible.builtin.set_fact:
-        hostctl_checksums_url: >
-          {{ hostctl_release_data.json.assets
+        hostctl_checksums_url: >-
+          {{ hostctl_release.json.assets
              | selectattr('name', 'match', '.*checksum.*')
              | map(attribute='browser_download_url')
-             | first | default('') }}
+             | first | default('') | trim }}
 
     # ---- Checksum verification ----
 
@@ -86,28 +74,24 @@
 
     - name: Extract SHA256 checksum for target asset
       ansible.builtin.set_fact:
-        hostctl_checksum: >
+        hostctl_checksum: >-
           sha256:{{ hostctl_checksums.content
-             | regex_search('([a-f0-9]{64})\s+' ~ hostctl_tarball_name, '\1')
+             | trim
+             | splitlines
+             | select('search', hostctl_tarball_name)
+             | first
+             | split(' ')
              | first }}
       when: hostctl_checksums is not skipped
 
     # ---- Download archive ----
 
-    - name: Download hostctl archive (with checksum)
+    - name: Download hostctl archive
       ansible.builtin.get_url:
         url: "{{ hostctl_tarball_url }}"
         dest: /tmp/hostctl.tar.gz
-        checksum: "{{ hostctl_checksum }}"
+        checksum: "{{ hostctl_checksum | default(omit) }}"
         mode: '0644'
-      when: hostctl_checksum is defined
-
-    - name: Download hostctl archive (no checksum available)
-      ansible.builtin.get_url:
-        url: "{{ hostctl_tarball_url }}"
-        dest: /tmp/hostctl.tar.gz
-        mode: '0644'
-      when: hostctl_checksum is not defined
 
     - name: Verify archive was downloaded
       ansible.builtin.stat:
