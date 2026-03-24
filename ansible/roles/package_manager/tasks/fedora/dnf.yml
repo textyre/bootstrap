@@ -9,5 +9,4 @@
     group: root
     mode: '0644'
     backup: true
-    validate: python3 -c "import configparser; c = configparser.ConfigParser(); c.read('%s')"
   tags: ['packages', 'dnf']

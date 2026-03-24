@@ -17,7 +17,7 @@
     group: root
     mode: '0644'
     backup: true
-    validate: pacman-conf --config %s > /dev/null
+    validate: pacman-conf --config %s
   tags: ['packages', 'pacman']
 
 - name: Setup external pacman cache
