@@ -2,9 +2,10 @@
 # === Arch Linux: paccache timer ===
 
 - name: Install pacman-contrib (provides paccache)
-  ansible.builtin.package:
+  community.general.pacman:
     name: pacman-contrib
     state: present
+    update_cache: true
   when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']
 
