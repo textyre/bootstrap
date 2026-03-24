@@ -1,4 +1,17 @@
 ---
+# Bootstrap Python on minimal containers (raw does not require Python)
+- name: Bootstrap Python
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install Python if missing (Fedora minimal)
+      ansible.builtin.raw: |
+        if command -v dnf &>/dev/null && ! command -v python3 &>/dev/null; then
+          dnf install -y python3
+        fi
+      changed_when: true
+
 - name: Prepare
   hosts: all
   become: true
