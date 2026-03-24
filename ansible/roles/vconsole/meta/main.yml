@@ -26,4 +26,3 @@ galaxy_info:
   galaxy_tags: [system, vconsole, console, tty, keymap, font, gpm, mouse]
 dependencies:
   - name: common
-    description: Reporting and common role utilities
