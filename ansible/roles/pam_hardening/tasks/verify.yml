@@ -1,0 +1,93 @@
+---
+# === PAM hardening — in-role verification ===
+# Checks that faillock.conf was deployed and PAM stack is configured
+# Called from tasks/main.yml after faillock configuration
+
+# ---- Config file verification ----
+
+- name: Slurp faillock.conf for verification
+  ansible.builtin.slurp:
+    src: /etc/security/faillock.conf
+  register: _pam_hardening_verify_conf
+  tags: ['pam_hardening']
+
+- name: Assert faillock.conf contains expected deny value
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_pam_hardening_verify_conf.content | b64decode)
+        is search('deny = ' ~ pam_hardening_faillock_deny | string)
+    fail_msg: >-
+      faillock.conf deny value does not match expected
+      {{ pam_hardening_faillock_deny }}
+    success_msg: "faillock.conf deny={{ pam_hardening_faillock_deny }} verified"
+  tags: ['pam_hardening']
+
+# ---- PAM stack verification (platform-specific) ----
+
+# Arch / Void / Gentoo — check /etc/pam.d/system-auth
+- name: Verify pam_faillock in system-auth (Arch/Void/Gentoo)
+  when: ansible_facts['os_family'] in ['Archlinux', 'Void', 'Gentoo']
+  block:
+    - name: Read system-auth for verification
+      ansible.builtin.command:
+        cmd: grep -c 'pam_faillock.so' /etc/pam.d/system-auth
+      register: _pam_hardening_verify_pam_stack
+      changed_when: false
+      failed_when: false
+      tags: ['pam_hardening']
+
+    - name: Assert pam_faillock.so present in system-auth
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_pam_stack.rc == 0
+          - (_pam_hardening_verify_pam_stack.stdout | int) >= 3
+        fail_msg: >-
+          pam_faillock.so not found in /etc/pam.d/system-auth
+          (expected preauth + authfail + account = 3 lines).
+          Got {{ _pam_hardening_verify_pam_stack.stdout | default('0') }} matches.
+        success_msg: "pam_faillock.so active in system-auth"
+      tags: ['pam_hardening']
+
+# Debian / Ubuntu — check common-auth
+- name: Verify pam_faillock in common-auth (Debian)
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Read common-auth for verification
+      ansible.builtin.command:
+        cmd: grep -c 'pam_faillock.so' /etc/pam.d/common-auth
+      register: _pam_hardening_verify_pam_stack
+      changed_when: false
+      failed_when: false
+      tags: ['pam_hardening']
+
+    - name: Assert pam_faillock.so present in common-auth
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_pam_stack.rc == 0
+        fail_msg: >-
+          pam_faillock.so not found in /etc/pam.d/common-auth.
+          pam-auth-update may not have activated the faillock profile.
+        success_msg: "pam_faillock.so active in common-auth"
+      tags: ['pam_hardening']
+
+# RedHat / Fedora — check authselect
+- name: Verify authselect faillock feature (RedHat)
+  when: ansible_facts['os_family'] == 'RedHat'
+  block:
+    - name: Check authselect current profile
+      ansible.builtin.command: authselect current
+      register: _pam_hardening_verify_authselect
+      changed_when: false
+      failed_when: false
+      tags: ['pam_hardening']
+
+    - name: Assert authselect has with-faillock feature
+      ansible.builtin.assert:
+        that:
+          - "'with-faillock' in _pam_hardening_verify_authselect.stdout"
+        fail_msg: >-
+          authselect does not have with-faillock feature enabled.
+          Output: {{ _pam_hardening_verify_authselect.stdout }}
+        success_msg: "authselect with-faillock feature verified"
+      tags: ['pam_hardening']

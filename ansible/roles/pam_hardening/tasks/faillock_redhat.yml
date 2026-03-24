@@ -1,13 +1,19 @@
 ---
 # === PAM faillock — Red Hat family (Fedora) ===
-# authselect управляет PAM симлинками — прямое редактирование /etc/pam.d/ перезапишется
-# Правильный паттерн: authselect enable-feature with-faillock
-# Источник: ansible/product-demos (280★), ansible-lockdown/RHEL9-STIG (30★)
+# authselect manages PAM symlinks — direct /etc/pam.d/ edits are overwritten
+# Pattern: authselect enable-feature with-faillock
+# Source: ansible/product-demos (280+), ansible-lockdown/RHEL9-STIG (30+)
 
-- name: Enable faillock feature via authselect (RedHat)
+- name: "CIS 5.4.2 | Check current authselect features (RedHat)"
+  ansible.builtin.command: authselect current
+  register: _pam_hardening_authselect_current
+  changed_when: false
+  failed_when: false
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
+
+- name: "CIS 5.4.2 | Enable faillock feature via authselect (RedHat)"
   ansible.builtin.command: authselect enable-feature with-faillock
-  register: pam_hardening_authselect_result
-  changed_when: >
-    'already' not in (pam_hardening_authselect_result.stdout | default(''))
+  when: "'with-faillock' not in (_pam_hardening_authselect_current.stdout | default(''))"
+  changed_when: true
   notify: Apply authselect (RedHat)
-  tags: ['pam', 'security', 'faillock']
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']

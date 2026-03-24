@@ -33,8 +33,21 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+  - name: Fedora
+    image: "${MOLECULE_FEDORA_IMAGE:-fedora:latest}"
+    pre_build_image: true
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
 provisioner:
   name: ansible
+  options:
+    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

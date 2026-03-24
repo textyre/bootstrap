@@ -20,3 +20,6 @@ local_users_only
 {% if pam_hardening_faillock_nodelay %}
 nodelay
 {% endif %}
+{% if pam_hardening_faillock_x11_skip %}
+x11_skip
+{% endif %}

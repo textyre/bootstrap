@@ -1,9 +1,9 @@
 ---
 # === PAM faillock — Debian/Ubuntu ===
-# Управление через pam-auth-update (правильный флаг: --package, не --enable)
-# Два отдельных профиля: patten dev-sec (5223★), canonical/core-base
+# Managed via pam-auth-update (correct flag: --package, not --enable)
+# Two separate profiles: pattern from dev-sec (5223+), canonical/core-base
 
-- name: Deploy pam-auth-update faillock preauth profile (Debian)
+- name: "CIS 5.4.2 | Deploy pam-auth-update faillock preauth profile (Debian)"
   ansible.builtin.copy:
     dest: /usr/share/pam-configs/faillock
     content: |
@@ -20,9 +20,9 @@
     group: root
     mode: '0644'
   notify: Update PAM (Debian)
-  tags: ['pam', 'security', 'faillock']
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
 
-- name: Deploy pam-auth-update faillock authfail profile (Debian)
+- name: "CIS 5.4.2 | Deploy pam-auth-update faillock authfail profile (Debian)"
   ansible.builtin.copy:
     dest: /usr/share/pam-configs/faillock-authfail
     content: |
@@ -36,4 +36,4 @@
     group: root
     mode: '0644'
   notify: Update PAM (Debian)
-  tags: ['pam', 'security', 'faillock']
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']

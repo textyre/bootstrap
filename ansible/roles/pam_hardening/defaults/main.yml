@@ -2,6 +2,14 @@
 # === PAM hardening ===
 # Конфигурация PAM-модулей безопасности
 
+# Supported OS families for this role
+_pam_hardening_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # PAM faillock (защита от brute-force)
 pam_hardening_faillock_enabled: true
 pam_hardening_faillock_deny: 3              # Блокировка после N попыток

@@ -1,31 +1,18 @@
 ---
-# === PAM faillock — диспетчер ===
-# 1. Записать faillock.conf (универсально, все платформы)
-# 2. Активировать faillock в PAM стеке (зависит от платформы)
+# === PAM faillock — dispatcher ===
+# 1. Deploy faillock.conf (cross-platform)
+# 2. Activate faillock in PAM stack (platform-specific dispatch)
 
-- name: Configure pam_faillock defaults
+- name: "CIS 5.4.2 | Deploy faillock.conf"
   ansible.builtin.template:
     src: faillock.conf.j2
     dest: /etc/security/faillock.conf
     owner: root
     group: root
     mode: '0644'
-  tags: ['pam', 'security', 'faillock']
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
 
-# Debian / Ubuntu — pam-auth-update
-- name: Configure PAM stack (Debian)
-  ansible.builtin.include_tasks: faillock_debian.yml
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: ['pam', 'security', 'faillock']
-
-# Fedora — authselect
-- name: Configure PAM stack (RedHat/Fedora)
-  ansible.builtin.include_tasks: faillock_redhat.yml
-  when: ansible_facts['os_family'] == 'RedHat'
-  tags: ['pam', 'security', 'faillock']
-
-# Arch Linux / Void Linux — прямой lineinfile
-- name: Configure PAM stack (Arch/Void)
-  ansible.builtin.include_tasks: faillock_arch.yml
-  when: ansible_facts['os_family'] in ['Archlinux', 'Void']
-  tags: ['pam', 'security', 'faillock']
+# Platform-specific PAM stack activation via os_family dispatch
+- name: "Configure PAM stack ({{ ansible_facts['os_family'] }})"
+  ansible.builtin.include_tasks: "faillock_{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['pam_hardening', 'pam', 'security', 'faillock']
