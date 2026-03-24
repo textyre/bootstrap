@@ -7,7 +7,7 @@
     that:
       - ansible_facts['os_family'] in _ntp_supported_os
     fail_msg: >-
-      NTP role is not supported on {{ ansible_facts['os_family']}} OS.
+      NTP role is not supported on {{ ansible_facts['os_family'] }} OS.
       Supported operating systems: {{ _ntp_supported_os | join(', ') }}.
   tags: ['ntp']
 
