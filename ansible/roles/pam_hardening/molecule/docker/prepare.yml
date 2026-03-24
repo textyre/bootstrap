@@ -5,10 +5,10 @@
   become: true
   gather_facts: false
   tasks:
-    - name: Install Python if missing (Fedora minimal)
+    - name: Install Python and dnf5 bindings if missing (Fedora minimal)
       ansible.builtin.raw: |
         if command -v dnf >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
-          dnf install -y python3
+          dnf install -y python3 python3-libdnf5
         fi
       changed_when: true
 
