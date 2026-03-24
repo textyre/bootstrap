@@ -1,0 +1,44 @@
+---
+# Test with Loki enabled but Alloy disabled
+driver:
+  name: docker
+
+platforms:
+  - name: Ubuntu-systemd
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
+  playbooks:
+    converge: converge.yml
+    verify: ../shared/verify.yml
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy
