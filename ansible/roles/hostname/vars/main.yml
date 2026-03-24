@@ -1,10 +1,4 @@
 ---
 # === Внутренние маппинги (не для пользователя) ===
-
-# Стратегия hostname модуля по OS family
-hostname_strategy:
-  Archlinux: systemd
-  Debian: debian
-  RedHat: redhat
-  Alpine: alpine
-  Void: generic       # runit читает /etc/hostname напрямую
+# Per-OS strategy is loaded from vars/{os_family}.yml via include_vars.
+# This file is kept for any shared internal variables.

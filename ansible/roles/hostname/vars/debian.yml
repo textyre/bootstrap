@@ -1,0 +1,4 @@
+---
+# === Debian / Ubuntu specifics ===
+
+_hostname_strategy: debian

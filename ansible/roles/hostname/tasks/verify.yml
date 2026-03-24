@@ -1,0 +1,47 @@
+---
+# === Hostname — in-role verification (ROLE-005) ===
+# Two verification techniques: runtime check + config file assertion
+
+# ---- 1. Runtime: verify hostname via python3 socket (cross-platform, ROLE-002) ----
+
+- name: Verify hostname is set
+  ansible.builtin.command:
+    cmd: python3 -c "import socket; print(socket.gethostname())"
+  register: _hostname_verify_runtime
+  changed_when: false
+  failed_when: _hostname_verify_runtime.rc != 0
+  tags: ['hostname']
+
+- name: Assert hostname matches expected value
+  ansible.builtin.assert:
+    that:
+      - _hostname_verify_runtime.stdout | trim == hostname_name
+    fail_msg: >-
+      Hostname mismatch: got '{{ _hostname_verify_runtime.stdout | trim }}',
+      expected '{{ hostname_name }}'
+    success_msg: "Hostname '{{ hostname_name }}' verified"
+    quiet: true
+  tags: ['hostname']
+
+# ---- 2. Config file: verify /etc/hostname content ----
+
+- name: Verify /etc/hostname contains expected hostname
+  ansible.builtin.lineinfile:
+    path: /etc/hostname
+    line: "{{ hostname_name }}"
+  check_mode: true
+  register: _hostname_verify_config
+  failed_when: _hostname_verify_config is changed
+  tags: ['hostname']
+
+# ---- Report ----
+
+- name: "Report: Verification"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_hostname_phases"
+    common_rpt_phase: "Verify hostname"
+    common_rpt_detail: "runtime={{ _hostname_verify_runtime.stdout | trim }} config=ok"
+  tags: ['hostname', 'report']

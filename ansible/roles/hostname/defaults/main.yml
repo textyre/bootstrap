@@ -3,3 +3,11 @@
 
 hostname_name: ""    # REQUIRED — role will assert this is set
 hostname_domain: ""  # Optional FQDN suffix: "example.com" → 127.0.1.1 host.example.com host
+
+# Supported OS families (ROLE-003)
+_hostname_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
