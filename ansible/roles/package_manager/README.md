@@ -39,7 +39,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
    2. Configure cache cron → `tasks/void/cache.yml` (weekly `xbps-remove -O`)
 7. **Gentoo path** (`tasks/gentoo.yml`) — stub, logs a message
 8. **In-role verification** (`tasks/verify.yml`) — slurp deployed configs, assert expected values
-9. **Handler**: `daemon-reload` (systemd only, guarded by `service_mgr`)
+9. **Handler**: `Reload systemd daemon` (guarded by `service_mgr == 'systemd'`)
 10. **Structured logging** — `report_phase` + `report_render` via common role
 
 ## Variables

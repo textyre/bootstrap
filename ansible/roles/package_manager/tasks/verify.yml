@@ -12,18 +12,18 @@
     - name: Slurp /etc/pacman.conf
       ansible.builtin.slurp:
         src: /etc/pacman.conf
-      register: _pm_verify_pacman_raw
+      register: _package_manager_verify_pacman_raw
 
     - name: Set pacman.conf content fact
       ansible.builtin.set_fact:
-        _pm_verify_pacman_text: "{{ _pm_verify_pacman_raw.content | b64decode }}"
-      when: "'content' in _pm_verify_pacman_raw"
+        _package_manager_verify_pacman_text: "{{ _package_manager_verify_pacman_raw.content | b64decode }}"
+      when: "'content' in _package_manager_verify_pacman_raw"
 
     - name: Assert pacman.conf is managed by Ansible
       ansible.builtin.assert:
         that:
-          - "'Managed by Ansible' in _pm_verify_pacman_text"
-          - "'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads | string in _pm_verify_pacman_text"
+          - "'Managed by Ansible' in _package_manager_verify_pacman_text"
+          - "'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads | string in _package_manager_verify_pacman_text"
         fail_msg: "pacman.conf verification failed — not managed by Ansible or ParallelDownloads mismatch"
         success_msg: "pacman.conf verified: managed by Ansible, ParallelDownloads={{ package_manager_pacman_parallel_downloads }}"
 
@@ -36,14 +36,14 @@
     - name: Stat /etc/makepkg.conf.d/ansible.conf
       ansible.builtin.stat:
         path: /etc/makepkg.conf.d/ansible.conf
-      register: _pm_verify_makepkg_stat
+      register: _package_manager_verify_makepkg_stat
 
     - name: Assert makepkg drop-in exists
       ansible.builtin.assert:
         that:
-          - _pm_verify_makepkg_stat.stat.exists
+          - _package_manager_verify_makepkg_stat.stat.exists
         fail_msg: "/etc/makepkg.conf.d/ansible.conf does not exist"
-        success_msg: "/etc/makepkg.conf.d/ansible.conf exists (mode={{ _pm_verify_makepkg_stat.stat.mode }})"
+        success_msg: "/etc/makepkg.conf.d/ansible.conf exists (mode={{ _package_manager_verify_makepkg_stat.stat.mode }})"
 
 - name: "Verify: paccache.timer enabled"
   when:
@@ -55,14 +55,14 @@
     - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: systemctl is-enabled paccache.timer
-      register: _pm_verify_paccache_timer
+      register: _package_manager_verify_paccache_timer
       changed_when: false
 
     - name: Assert paccache.timer is enabled
       ansible.builtin.assert:
         that:
-          - _pm_verify_paccache_timer.stdout | trim == 'enabled'
-        fail_msg: "paccache.timer is not enabled (got: {{ _pm_verify_paccache_timer.stdout | trim }})"
+          - _package_manager_verify_paccache_timer.stdout | trim == 'enabled'
+        fail_msg: "paccache.timer is not enabled (got: {{ _package_manager_verify_paccache_timer.stdout | trim }})"
         success_msg: "paccache.timer is enabled"
 
 # ---- Debian ----
@@ -74,24 +74,24 @@
     - name: Stat apt parallel config
       ansible.builtin.stat:
         path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
-      register: _pm_verify_apt_stat
+      register: _package_manager_verify_apt_stat
 
     - name: Assert apt parallel config exists
       ansible.builtin.assert:
         that:
-          - _pm_verify_apt_stat.stat.exists
+          - _package_manager_verify_apt_stat.stat.exists
         fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf does not exist"
         success_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf deployed"
 
     - name: Stat dpkg config
       ansible.builtin.stat:
         path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
-      register: _pm_verify_dpkg_stat
+      register: _package_manager_verify_dpkg_stat
 
     - name: Assert dpkg config exists
       ansible.builtin.assert:
         that:
-          - _pm_verify_dpkg_stat.stat.exists
+          - _package_manager_verify_dpkg_stat.stat.exists
         fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf does not exist"
         success_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf deployed"
 
@@ -104,17 +104,17 @@
     - name: Slurp /etc/dnf/dnf.conf
       ansible.builtin.slurp:
         src: /etc/dnf/dnf.conf
-      register: _pm_verify_dnf_raw
+      register: _package_manager_verify_dnf_raw
 
     - name: Set dnf.conf content fact
       ansible.builtin.set_fact:
-        _pm_verify_dnf_text: "{{ _pm_verify_dnf_raw.content | b64decode }}"
-      when: "'content' in _pm_verify_dnf_raw"
+        _package_manager_verify_dnf_text: "{{ _package_manager_verify_dnf_raw.content | b64decode }}"
+      when: "'content' in _package_manager_verify_dnf_raw"
 
     - name: Assert dnf.conf is managed by Ansible
       ansible.builtin.assert:
         that:
-          - "'Managed by Ansible' in _pm_verify_dnf_text"
+          - "'Managed by Ansible' in _package_manager_verify_dnf_text"
         fail_msg: "dnf.conf verification failed — not managed by Ansible"
         success_msg: "dnf.conf verified: managed by Ansible"
 
@@ -127,12 +127,12 @@
     - name: Stat /etc/xbps.d/ansible.conf
       ansible.builtin.stat:
         path: /etc/xbps.d/ansible.conf
-      register: _pm_verify_xbps_stat
+      register: _package_manager_verify_xbps_stat
 
     - name: Assert xbps config exists
       ansible.builtin.assert:
         that:
-          - _pm_verify_xbps_stat.stat.exists
+          - _package_manager_verify_xbps_stat.stat.exists
         fail_msg: "/etc/xbps.d/ansible.conf does not exist"
         success_msg: "/etc/xbps.d/ansible.conf deployed"
 

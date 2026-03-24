@@ -29,7 +29,7 @@
       ExecStart=
       ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
   when: package_manager_paccache_enabled
-  notify: daemon-reload
+  notify: Reload systemd daemon
   tags: ['packages', 'paccache']
 
 - name: Enable and start paccache.timer
