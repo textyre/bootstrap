@@ -14,5 +14,6 @@
 - name: "CIS 5.4.2 | Enable faillock feature via authselect (RedHat)"
   ansible.builtin.command: authselect enable-feature with-faillock
   when: "'with-faillock' not in (_pam_hardening_authselect_current.stdout | default(''))"
+  changed_when: true
   notify: Apply authselect (RedHat)
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
