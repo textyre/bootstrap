@@ -1,8 +1,0 @@
----
-# Role dependencies for package_manager
-# reflector and yay are imported in tasks/archlinux.yml (tagged molecule-notest)
-roles:
-  - name: reflector
-    src: ../reflector
-  - name: yay
-    src: ../yay
