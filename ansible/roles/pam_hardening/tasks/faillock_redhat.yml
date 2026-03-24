@@ -4,13 +4,15 @@
 # Pattern: authselect enable-feature with-faillock
 # Source: ansible/product-demos (280+), ansible-lockdown/RHEL9-STIG (30+)
 
+- name: "CIS 5.4.2 | Check current authselect features (RedHat)"
+  ansible.builtin.command: authselect current
+  register: _pam_hardening_authselect_current
+  changed_when: false
+  failed_when: false
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
+
 - name: "CIS 5.4.2 | Enable faillock feature via authselect (RedHat)"
   ansible.builtin.command: authselect enable-feature with-faillock
-  register: _pam_hardening_authselect_result
-  changed_when: >
-    'already' not in (_pam_hardening_authselect_result.stdout | default(''))
-  failed_when: >
-    _pam_hardening_authselect_result.rc != 0 and
-    'already' not in (_pam_hardening_authselect_result.stderr | default(''))
+  when: "'with-faillock' not in (_pam_hardening_authselect_current.stdout | default(''))"
   notify: Apply authselect (RedHat)
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
