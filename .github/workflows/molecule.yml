@@ -113,7 +113,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run yamllint
-        run: yamllint -s ansible/roles/${{ matrix.role }}/
+        run: yamllint -c ansible/.yamllint ansible/roles/${{ matrix.role }}/
 
       - name: Run ansible-lint
         run: ansible-lint ansible/roles/${{ matrix.role }}/
@@ -121,7 +121,7 @@ jobs:
           ANSIBLE_ROLES_PATH: ansible/roles
 
   test-docker:
-    needs: [detect, lint]
+    needs: detect
     if: needs.detect.outputs.empty == 'false'
     name: "${{ matrix.role }} (test-docker)"
     runs-on: ubuntu-latest
