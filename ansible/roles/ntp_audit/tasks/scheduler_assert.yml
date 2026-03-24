@@ -3,6 +3,11 @@
 # Fails explicitly if neither systemd timer nor cron job is available.
 # Note: uses systemctl directly instead of service_facts because
 # service_facts does not reliably include .timer units on all distros/containers.
+#
+# INTENTIONAL DUPLICATION: timer is-enabled/is-active checks are repeated here
+# (fail-fast during deploy) and in verify.yml (final verification after all tasks).
+# Rationale: early assertion catches scheduler config errors immediately, while
+# final verify confirms no spurious state changes occurred during handlers.
 
 - name: Check ntp-audit timer is enabled (systemd)
   ansible.builtin.command:

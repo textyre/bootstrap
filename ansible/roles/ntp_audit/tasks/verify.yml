@@ -4,78 +4,78 @@
 - name: Assert ntp-audit zipapp exists and is executable
   ansible.builtin.stat:
     path: /usr/local/bin/ntp-audit
-  register: ntp_audit_verify_script
+  register: _ntp_audit_verify_script
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify ntp-audit zipapp
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_script.stat.exists
-      - ntp_audit_verify_script.stat.executable
+      - _ntp_audit_verify_script.stat.exists
+      - _ntp_audit_verify_script.stat.executable
     fail_msg: "/usr/local/bin/ntp-audit missing or not executable"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert audit log directory exists
   ansible.builtin.stat:
     path: "{{ ntp_audit_log_dir }}"
-  register: ntp_audit_verify_logdir
+  register: _ntp_audit_verify_logdir
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify log directory
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_logdir.stat.exists
-      - ntp_audit_verify_logdir.stat.isdir
+      - _ntp_audit_verify_logdir.stat.exists
+      - _ntp_audit_verify_logdir.stat.isdir
     fail_msg: "{{ ntp_audit_log_dir }} missing"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert audit log file was written
   ansible.builtin.stat:
     path: "{{ ntp_audit_log_file }}"
-  register: ntp_audit_verify_logfile
+  register: _ntp_audit_verify_logfile
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify audit log not empty
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_logfile.stat.exists
-      - ntp_audit_verify_logfile.stat.size > 0
+      - _ntp_audit_verify_logfile.stat.exists
+      - _ntp_audit_verify_logfile.stat.size > 0
     fail_msg: "{{ ntp_audit_log_file }} missing or empty — first run failed"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Read last line of audit log
   ansible.builtin.command:
     cmd: tail -n 1 "{{ ntp_audit_log_file }}"
-  register: ntp_audit_verify_last_line
+  register: _ntp_audit_verify_last_line
   changed_when: false
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert audit log contains valid JSON with required keys
   ansible.builtin.assert:
     that:
-      - (ntp_audit_verify_last_line.stdout | from_json).timestamp is defined
-      - (ntp_audit_verify_last_line.stdout | from_json).sync_status is defined
-      - (ntp_audit_verify_last_line.stdout | from_json).stratum is defined
-      - (ntp_audit_verify_last_line.stdout | from_json).current_correction is defined
-      - (ntp_audit_verify_last_line.stdout | from_json).ntp_conflict is defined
-      - (ntp_audit_verify_last_line.stdout | from_json).ntp_phc_status is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).timestamp is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).sync_status is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).stratum is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).current_correction is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).ntp_conflict is defined
+      - (_ntp_audit_verify_last_line.stdout | from_json).ntp_phc_status is defined
     fail_msg: "audit.log last line missing required JSON keys"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert sync_status is not in error state
   ansible.builtin.assert:
     that:
-      - (ntp_audit_verify_last_line.stdout | from_json).sync_status != 'error'
+      - (_ntp_audit_verify_last_line.stdout | from_json).sync_status != 'error'
     fail_msg: >-
       sync_status is 'error': chrony may not be installed, running, or accessible.
       Check: systemctl status chrony, systemctl status ntp-audit.timer
-    success_msg: "sync_status is '{{ (ntp_audit_verify_last_line.stdout | from_json).sync_status }}'"
+    success_msg: "sync_status is '{{ (_ntp_audit_verify_last_line.stdout | from_json).sync_status }}'"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Check ntp-audit.timer is-enabled (systemd)
   ansible.builtin.command:
     cmd: systemctl is-enabled ntp-audit.timer
-  register: ntp_audit_verify_timer_enabled
+  register: _ntp_audit_verify_timer_enabled
   changed_when: false
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
@@ -83,7 +83,7 @@
 - name: Check ntp-audit.timer is-active (systemd)
   ansible.builtin.command:
     cmd: systemctl is-active ntp-audit.timer
-  register: ntp_audit_verify_timer_active
+  register: _ntp_audit_verify_timer_active
   changed_when: false
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
@@ -91,8 +91,8 @@
 - name: Verify ntp-audit.timer is enabled and active
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_timer_enabled.stdout | trim == 'enabled'
-      - ntp_audit_verify_timer_active.stdout | trim == 'active'
+      - _ntp_audit_verify_timer_enabled.stdout | trim == 'enabled'
+      - _ntp_audit_verify_timer_active.stdout | trim == 'active'
     fail_msg: "ntp-audit.timer not enabled or not active"
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['ntp_audit', 'ntp_audit_verify']
@@ -100,35 +100,35 @@
 - name: Assert logrotate config deployed
   ansible.builtin.stat:
     path: /etc/logrotate.d/ntp-audit
-  register: ntp_audit_verify_logrotate
+  register: _ntp_audit_verify_logrotate
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify logrotate config
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_logrotate.stat.exists
-      - ntp_audit_verify_logrotate.stat.size > 0
+      - _ntp_audit_verify_logrotate.stat.exists
+      - _ntp_audit_verify_logrotate.stat.size > 0
     fail_msg: "/etc/logrotate.d/ntp-audit missing"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert Python source staging directory exists
   ansible.builtin.stat:
     path: /usr/local/src/ntp-audit
-  register: ntp_audit_verify_src
+  register: _ntp_audit_verify_src
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Verify staging directory
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_src.stat.exists
-      - ntp_audit_verify_src.stat.isdir
+      - _ntp_audit_verify_src.stat.exists
+      - _ntp_audit_verify_src.stat.isdir
     fail_msg: "/usr/local/src/ntp-audit staging directory missing"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
 - name: Assert Alloy config fragment deployed
   ansible.builtin.stat:
     path: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy"
-  register: ntp_audit_verify_alloy
+  register: _ntp_audit_verify_alloy
   when:
     - ntp_audit_alloy_enabled | bool
     - ntp_audit_alloy_config_dir | length > 0
@@ -137,8 +137,8 @@
 - name: Verify Alloy fragment
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_alloy.stat.exists
-      - ntp_audit_verify_alloy.stat.size > 0
+      - _ntp_audit_verify_alloy.stat.exists
+      - _ntp_audit_verify_alloy.stat.size > 0
     fail_msg: "{{ ntp_audit_alloy_config_dir }}/ntp-audit.alloy missing"
   when:
     - ntp_audit_alloy_enabled | bool
@@ -148,7 +148,7 @@
 - name: Assert Loki rules deployed
   ansible.builtin.stat:
     path: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml"
-  register: ntp_audit_verify_loki
+  register: _ntp_audit_verify_loki
   when:
     - ntp_audit_loki_enabled | bool
     - ntp_audit_loki_rules_dir | length > 0
@@ -157,8 +157,8 @@
 - name: Verify Loki rules
   ansible.builtin.assert:
     that:
-      - ntp_audit_verify_loki.stat.exists
-      - ntp_audit_verify_loki.stat.size > 0
+      - _ntp_audit_verify_loki.stat.exists
+      - _ntp_audit_verify_loki.stat.size > 0
     fail_msg: "{{ ntp_audit_loki_rules_dir }}/ntp-audit-rules.yaml missing"
   when:
     - ntp_audit_loki_enabled | bool
