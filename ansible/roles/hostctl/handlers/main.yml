@@ -1,6 +1,6 @@
 ---
 # Handlers for hostctl role
-# Uses hostctl remove + hostctl add domains to apply profiles idempotently.
+# Uses hostctl remove + hostctl add domains to apply present profiles idempotently.
 # hostctl add domains [profile] [hosts...] --ip IP is the correct API for
 # adding IP-hostname entries (hostctl replace/add --from file do not work
 # for adding entries — they only create empty section markers).
@@ -8,10 +8,12 @@
 - name: Apply hostctl profiles
   ansible.builtin.shell: |
     hostctl remove {{ item.key }} 2>/dev/null || true
-    {% for entry in item.value %}
+    {% for entry in item.value.entries %}
     hostctl add domains {{ item.key }} {{ entry.host }} --ip {{ entry.ip }}
     {% endfor %}
   loop: "{{ hostctl_profiles | dict2items }}"
   listen: "apply hostctl profiles"
   changed_when: true
-  when: hostctl_profiles | length > 0
+  when:
+    - hostctl_profiles | length > 0
+    - (item.value.state | default('present')) == 'present'

@@ -1,4 +1,4 @@
 # Ansible-managed profile: {{ item.key }}
-{% for entry in item.value %}
+{% for entry in item.value.entries %}
 {{ entry.ip }} {{ entry.host }}
 {% endfor %}

@@ -1,5 +1,6 @@
 ---
-- name: Converge
+# Run 1: install hostctl + deploy profiles (present + disabled)
+- name: Converge — install and deploy profiles
   hosts: all
   become: true
   gather_facts: true
@@ -11,12 +12,21 @@
         hostctl_verify_checksum: true
         hostctl_profiles:
           dev:
-            - { ip: "127.0.0.1", host: "app.local" }
-            - { ip: "127.0.0.1", host: "api.local" }
+            state: present
+            entries:
+              - { ip: "127.0.0.1", host: "app.local" }
+              - { ip: "127.0.0.1", host: "api.local" }
           registry:
-            - { ip: "172.17.0.1", host: "registry.local" }
+            state: present
+            entries:
+              - { ip: "172.17.0.1", host: "registry.local" }
+          staging:
+            state: disabled
+            entries:
+              - { ip: "10.0.0.1", host: "staging.local" }
 
-- name: Converge — empty profiles
+# Run 2: remove a profile + keep the rest
+- name: Converge — remove profile and verify state transitions
   hosts: all
   become: true
   gather_facts: true
@@ -26,4 +36,15 @@
       vars:
         hostctl_version: "1.1.4"
         hostctl_verify_checksum: true
-        hostctl_profiles: {}
+        hostctl_profiles:
+          dev:
+            state: present
+            entries:
+              - { ip: "127.0.0.1", host: "app.local" }
+              - { ip: "127.0.0.1", host: "api.local" }
+          registry:
+            state: absent
+          staging:
+            state: disabled
+            entries:
+              - { ip: "10.0.0.1", host: "staging.local" }
