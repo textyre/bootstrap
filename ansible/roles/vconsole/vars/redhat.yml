@@ -1,0 +1,5 @@
+---
+# === Vconsole packages — RedHat/Fedora ===
+
+_vconsole_font_package: "terminus-fonts"
+_vconsole_gpm_package: "gpm"

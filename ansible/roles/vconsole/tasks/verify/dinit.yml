@@ -1,0 +1,7 @@
+---
+# === Verify console keymap — dinit init system (stub) ===
+
+- name: Unsupported init system (dinit) — console keymap verify skipped
+  ansible.builtin.debug:
+    msg: "Console keymap verification skipped: dinit init system is not yet supported by vconsole role."
+  tags: ['vconsole']

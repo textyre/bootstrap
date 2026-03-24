@@ -1,0 +1,5 @@
+---
+# === Vconsole packages — Debian/Ubuntu ===
+
+_vconsole_font_package: "fonts-terminus"
+_vconsole_gpm_package: "gpm"
