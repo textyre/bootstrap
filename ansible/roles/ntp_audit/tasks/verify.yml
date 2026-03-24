@@ -62,13 +62,20 @@
     fail_msg: "audit.log last line missing required JSON keys"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
+- name: Debug audit log last line (diagnose sync_status errors)
+  ansible.builtin.debug:
+    msg: "{{ _ntp_audit_verify_last_line.stdout | from_json }}"
+  when: (_ntp_audit_verify_last_line.stdout | from_json).sync_status == 'error'
+  tags: ['ntp_audit', 'ntp_audit_verify']
+
 - name: Assert sync_status is not in error state
   ansible.builtin.assert:
     that:
       - (_ntp_audit_verify_last_line.stdout | from_json).sync_status != 'error'
     fail_msg: >-
       sync_status is 'error': chrony may not be installed, running, or accessible.
-      Check: systemctl status chrony, systemctl status ntp-audit.timer
+      Check: systemctl status chrony, systemctl status ntp-audit.timer.
+      chrony_error: {{ (_ntp_audit_verify_last_line.stdout | from_json).chrony_error | default('n/a') }}
     success_msg: "sync_status is '{{ (_ntp_audit_verify_last_line.stdout | from_json).sync_status }}'"
   tags: ['ntp_audit', 'ntp_audit_verify']
 
