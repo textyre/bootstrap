@@ -1,0 +1,4 @@
+---
+# === Internal OS-family mappings (not for user override) ===
+# Currently empty — package_manager uses distro-native config paths directly.
+# Add OS-family-specific variables here if needed in the future.

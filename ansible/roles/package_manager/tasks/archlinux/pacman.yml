@@ -17,6 +17,7 @@
     group: root
     mode: '0644'
     backup: true
+    validate: pacman-conf --config %s
   tags: ['packages', 'pacman']
 
 - name: Setup external pacman cache
@@ -41,6 +42,13 @@
         key: alpm
       register: package_manager_alpm_user
       failed_when: false
+
+    - name: Log alpm user lookup result
+      ansible.builtin.debug:
+        msg: >-
+          alpm user {{ (package_manager_alpm_user.ansible_facts.getent_passwd is defined
+          and 'alpm' in package_manager_alpm_user.ansible_facts.getent_passwd)
+          | ternary('found — will set group ownership', 'not found — skipping ownership') }}
 
     - name: Set alpm ownership on pacman cache dirs
       ansible.builtin.file:

@@ -1,8 +1,53 @@
 ---
-# === Конфигурация пакетного менеджера ===
-# Подключает distribution-специфичную конфигурацию
+# === Package Manager — конфигурация пакетного менеджера ===
+# pacman (Archlinux), apt (Debian), dnf (RedHat), xbps (Void), portage (Gentoo)
 
-- name: Include distribution-specific package manager configuration
-  ansible.builtin.include_tasks: "{{ ansible_distribution | lower }}.yml"
-  when: ansible_distribution in package_manager_supported_distributions
+- name: Package Manager role
+  when: package_manager_enabled | bool
   tags: ['packages', 'package-manager']
+  block:
+
+    # ---- Валидация ----
+
+    - name: Assert OS is supported by package_manager role
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in _package_manager_supported_os
+        fail_msg: >-
+          package_manager role is not supported on {{ ansible_facts['os_family'] }}.
+          Supported: {{ _package_manager_supported_os | join(', ') }}.
+      tags: ['packages']
+
+    # ---- Конфигурация ----
+
+    - name: Include OS-family-specific package manager configuration
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['packages']
+
+    # ---- Верификация ----
+
+    - name: Verify package_manager configuration
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['packages']
+
+    # ---- Логирование ----
+
+    - name: "Report: Package Manager"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_package_manager_phases"
+        common_rpt_phase: "Configure package manager"
+        common_rpt_detail: >-
+          os_family={{ ansible_facts['os_family'] }}
+      tags: ['packages', 'report']
+
+    - name: "Package Manager — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_package_manager_phases"
+        common_rpt_title: "package_manager"
+      tags: ['packages', 'report']

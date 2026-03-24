@@ -29,6 +29,10 @@
               - _package_manager_verify_pacman_stat.stat.mode == '0644'
               - _package_manager_verify_pacman_stat.stat.pw_name == 'root'
             fail_msg: "/etc/pacman.conf missing or wrong permissions (expected root 0644)"
+            success_msg: >-
+              /etc/pacman.conf exists
+              (owner={{ _package_manager_verify_pacman_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_pacman_stat.stat.mode }})
 
         - name: Read /etc/pacman.conf
           ansible.builtin.slurp:
@@ -39,6 +43,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_pacman_raw"
             fail_msg: "slurp /etc/pacman.conf returned no content"
+            success_msg: "/etc/pacman.conf content successfully read"
 
         - name: Set pacman.conf text fact
           ansible.builtin.set_fact:
@@ -48,16 +53,19 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_pacman_text"
             fail_msg: "pacman.conf missing Ansible marker — not deployed by role"
+            success_msg: "pacman.conf contains Ansible marker"
 
         - name: Assert HoldPkg directive present
           ansible.builtin.assert:
             that: "'HoldPkg' in _package_manager_verify_pacman_text"
             fail_msg: "HoldPkg directive missing from /etc/pacman.conf"
+            success_msg: "HoldPkg directive present in /etc/pacman.conf"
 
         - name: Assert Architecture directive present
           ansible.builtin.assert:
             that: "'Architecture = auto' in _package_manager_verify_pacman_text"
             fail_msg: "Architecture = auto missing from /etc/pacman.conf"
+            success_msg: "Architecture = auto confirmed in /etc/pacman.conf"
 
         - name: Assert ParallelDownloads value matches variable
           ansible.builtin.assert:
@@ -67,6 +75,7 @@
             fail_msg: >-
               ParallelDownloads not set to {{ package_manager_pacman_parallel_downloads }}
               in /etc/pacman.conf
+            success_msg: "ParallelDownloads = {{ package_manager_pacman_parallel_downloads }} confirmed in /etc/pacman.conf"
 
         - name: Assert SigLevel value matches variable
           ansible.builtin.assert:
@@ -76,50 +85,59 @@
             fail_msg: >-
               SigLevel not set to {{ package_manager_pacman_siglevel }}
               in /etc/pacman.conf
+            success_msg: "SigLevel = {{ package_manager_pacman_siglevel }} confirmed in /etc/pacman.conf"
 
         - name: Assert LocalFileSigLevel directive present
           ansible.builtin.assert:
             that: "'LocalFileSigLevel = Optional' in _package_manager_verify_pacman_text"
             fail_msg: "LocalFileSigLevel = Optional missing from /etc/pacman.conf"
+            success_msg: "LocalFileSigLevel = Optional confirmed in /etc/pacman.conf"
 
         - name: Assert Color directive present (when enabled)
           ansible.builtin.assert:
             that: "'Color' in _package_manager_verify_pacman_text"
             fail_msg: "Color directive missing from /etc/pacman.conf"
+            success_msg: "Color directive present in /etc/pacman.conf"
           when: package_manager_pacman_color | bool
 
         - name: Assert CheckSpace directive present (when enabled)
           ansible.builtin.assert:
             that: "'CheckSpace' in _package_manager_verify_pacman_text"
             fail_msg: "CheckSpace directive missing from /etc/pacman.conf"
+            success_msg: "CheckSpace directive present in /etc/pacman.conf"
           when: package_manager_pacman_check_space | bool
 
         - name: Assert VerbosePkgLists directive present (when enabled)
           ansible.builtin.assert:
             that: "'VerbosePkgLists' in _package_manager_verify_pacman_text"
             fail_msg: "VerbosePkgLists directive missing from /etc/pacman.conf"
+            success_msg: "VerbosePkgLists directive present in /etc/pacman.conf"
           when: package_manager_pacman_verbose_pkg_lists | bool
 
         - name: Assert [core] repository section present
           ansible.builtin.assert:
             that: "'[core]' in _package_manager_verify_pacman_text"
             fail_msg: "[core] repository section missing from /etc/pacman.conf"
+            success_msg: "[core] repository section present in /etc/pacman.conf"
 
         - name: Assert [extra] repository section present
           ansible.builtin.assert:
             that: "'[extra]' in _package_manager_verify_pacman_text"
             fail_msg: "[extra] repository section missing from /etc/pacman.conf"
+            success_msg: "[extra] repository section present in /etc/pacman.conf"
 
         - name: Assert [multilib] section absent (when multilib disabled)
           ansible.builtin.assert:
             that: "'[multilib]' not in _package_manager_verify_pacman_text"
             fail_msg: "[multilib] present in /etc/pacman.conf but package_manager_pacman_multilib is false"
+            success_msg: "[multilib] correctly absent from /etc/pacman.conf (multilib disabled)"
           when: not (package_manager_pacman_multilib | bool)
 
         - name: Assert [multilib] section present (when multilib enabled)
           ansible.builtin.assert:
             that: "'[multilib]' in _package_manager_verify_pacman_text"
             fail_msg: "[multilib] missing from /etc/pacman.conf but package_manager_pacman_multilib is true"
+            success_msg: "[multilib] section present in /etc/pacman.conf (multilib enabled)"
           when: package_manager_pacman_multilib | bool
 
         - name: Verify ParallelDownloads count via grep  # noqa: command-instead-of-module
@@ -134,6 +152,8 @@
             fail_msg: >-
               Expected exactly 1 ParallelDownloads line, found
               {{ _package_manager_verify_pacman_pd_count.stdout | trim }}
+            success_msg: >-
+              Exactly 1 ParallelDownloads line confirmed in /etc/pacman.conf
 
     # ==========================================================
     # Arch Linux — paccache
@@ -155,6 +175,7 @@
           ansible.builtin.assert:
             that: _package_manager_verify_paccache_pkg.rc == 0
             fail_msg: "pacman-contrib package is not installed"
+            success_msg: "pacman-contrib package is installed"
 
         - name: Stat paccache drop-in directory
           ansible.builtin.stat:
@@ -171,6 +192,10 @@
             fail_msg: >-
               /etc/systemd/system/paccache.service.d missing or wrong permissions
               (expected directory root 0755)
+            success_msg: >-
+              /etc/systemd/system/paccache.service.d exists
+              (owner={{ _package_manager_verify_paccache_dir.stat.pw_name }},
+              mode={{ _package_manager_verify_paccache_dir.stat.mode }})
 
         - name: Stat paccache.service drop-in
           ansible.builtin.stat:
@@ -186,6 +211,10 @@
             fail_msg: >-
               /etc/systemd/system/paccache.service.d/keep.conf missing or wrong permissions
               (expected root 0644)
+            success_msg: >-
+              /etc/systemd/system/paccache.service.d/keep.conf exists
+              (owner={{ _package_manager_verify_paccache_dropin.stat.pw_name }},
+              mode={{ _package_manager_verify_paccache_dropin.stat.mode }})
 
         - name: Read paccache drop-in
           ansible.builtin.slurp:
@@ -196,6 +225,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_paccache_raw"
             fail_msg: "slurp paccache.service.d/keep.conf returned no content"
+            success_msg: "paccache.service.d/keep.conf content successfully read"
 
         - name: Set paccache drop-in text fact
           ansible.builtin.set_fact:
@@ -205,6 +235,7 @@
           ansible.builtin.assert:
             that: "'[Service]' in _package_manager_verify_paccache_text"
             fail_msg: "[Service] section header missing from paccache.service.d/keep.conf"
+            success_msg: "[Service] section header present in paccache.service.d/keep.conf"
 
         - name: Assert paccache drop-in resets ExecStart
           ansible.builtin.assert:
@@ -212,11 +243,13 @@
             fail_msg: >-
               ExecStart= reset line missing from paccache.service.d/keep.conf
               (required to override the upstream ExecStart)
+            success_msg: "ExecStart= reset line present in paccache.service.d/keep.conf"
 
         - name: Assert paccache ExecStart uses /usr/bin/paccache -r
           ansible.builtin.assert:
             that: "'/usr/bin/paccache -r' in _package_manager_verify_paccache_text"
             fail_msg: "/usr/bin/paccache -r command not found in paccache drop-in"
+            success_msg: "/usr/bin/paccache -r confirmed in paccache drop-in ExecStart"
 
         - name: Assert paccache keep count in drop-in
           ansible.builtin.assert:
@@ -226,6 +259,7 @@
             fail_msg: >-
               paccache keep count not set to {{ package_manager_paccache_keep }}
               in paccache.service.d/keep.conf
+            success_msg: "paccache keep count -k {{ package_manager_paccache_keep }} confirmed in paccache.service.d/keep.conf"
 
         - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
           ansible.builtin.command:
@@ -240,6 +274,7 @@
             fail_msg: >-
               paccache.timer is not enabled
               (got: {{ _package_manager_verify_paccache_timer.stdout | trim }})
+            success_msg: "paccache.timer is enabled"
           when: ansible_facts['service_mgr'] == 'systemd'
 
     # ==========================================================
@@ -267,6 +302,10 @@
             fail_msg: >-
               /etc/makepkg.conf.d missing or wrong permissions
               (expected directory root 0755)
+            success_msg: >-
+              /etc/makepkg.conf.d exists
+              (owner={{ _package_manager_verify_makepkg_dir.stat.pw_name }},
+              mode={{ _package_manager_verify_makepkg_dir.stat.mode }})
 
         - name: Stat /etc/makepkg.conf.d/ansible.conf
           ansible.builtin.stat:
@@ -280,6 +319,10 @@
               - _package_manager_verify_makepkg_stat.stat.mode == '0644'
               - _package_manager_verify_makepkg_stat.stat.pw_name == 'root'
             fail_msg: "/etc/makepkg.conf.d/ansible.conf missing or wrong permissions"
+            success_msg: >-
+              /etc/makepkg.conf.d/ansible.conf exists
+              (owner={{ _package_manager_verify_makepkg_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_makepkg_stat.stat.mode }})
 
         - name: Read /etc/makepkg.conf.d/ansible.conf
           ansible.builtin.slurp:
@@ -290,6 +333,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_makepkg_raw"
             fail_msg: "slurp /etc/makepkg.conf.d/ansible.conf returned no content"
+            success_msg: "/etc/makepkg.conf.d/ansible.conf content successfully read"
 
         - name: Set makepkg conf text fact
           ansible.builtin.set_fact:
@@ -299,6 +343,7 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_makepkg_text"
             fail_msg: "/etc/makepkg.conf.d/ansible.conf missing Ansible marker"
+            success_msg: "/etc/makepkg.conf.d/ansible.conf contains Ansible marker"
 
         - name: Assert MAKEFLAGS with -j flag present in makepkg conf
           ansible.builtin.assert:
@@ -306,6 +351,7 @@
               - "'MAKEFLAGS=' in _package_manager_verify_makepkg_text"
               - "'-j' in _package_manager_verify_makepkg_text"
             fail_msg: "MAKEFLAGS with -j flag not found in /etc/makepkg.conf.d/ansible.conf"
+            success_msg: "MAKEFLAGS with -j flag confirmed in /etc/makepkg.conf.d/ansible.conf"
 
         - name: Assert PKGEXT value matches variable
           ansible.builtin.assert:
@@ -315,6 +361,7 @@
             fail_msg: >-
               PKGEXT not set to {{ package_manager_makepkg_pkgext }}
               in /etc/makepkg.conf.d/ansible.conf
+            success_msg: "PKGEXT='{{ package_manager_makepkg_pkgext }}' confirmed in /etc/makepkg.conf.d/ansible.conf"
 
     # ==========================================================
     # Debian / Ubuntu — apt parallel config
@@ -336,6 +383,10 @@
               - _package_manager_verify_apt_parallel_stat.stat.mode == '0644'
               - _package_manager_verify_apt_parallel_stat.stat.pw_name == 'root'
             fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf missing or wrong permissions"
+            success_msg: >-
+              /etc/apt/apt.conf.d/10-ansible-parallel.conf exists
+              (owner={{ _package_manager_verify_apt_parallel_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_apt_parallel_stat.stat.mode }})
 
         - name: Read /etc/apt/apt.conf.d/10-ansible-parallel.conf
           ansible.builtin.slurp:
@@ -346,6 +397,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_apt_parallel_raw"
             fail_msg: "slurp 10-ansible-parallel.conf returned no content"
+            success_msg: "10-ansible-parallel.conf content successfully read"
 
         - name: Set apt parallel config text fact
           ansible.builtin.set_fact:
@@ -355,6 +407,7 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_apt_parallel_text"
             fail_msg: "10-ansible-parallel.conf missing Ansible marker"
+            success_msg: "10-ansible-parallel.conf contains Ansible marker"
 
         - name: Assert Queue-Mode value matches variable
           ansible.builtin.assert:
@@ -364,6 +417,7 @@
             fail_msg: >-
               Queue-Mode not set to {{ package_manager_apt_parallel_queue_mode }}
               in 10-ansible-parallel.conf
+            success_msg: "Acquire::Queue-Mode \"{{ package_manager_apt_parallel_queue_mode }}\" confirmed in 10-ansible-parallel.conf"
 
         - name: Assert Retries value matches variable
           ansible.builtin.assert:
@@ -373,6 +427,7 @@
             fail_msg: >-
               Retries not set to {{ package_manager_apt_retries }}
               in 10-ansible-parallel.conf
+            success_msg: "Acquire::Retries \"{{ package_manager_apt_retries }}\" confirmed in 10-ansible-parallel.conf"
 
     # ==========================================================
     # Debian / Ubuntu — dpkg options
@@ -394,6 +449,10 @@
               - _package_manager_verify_dpkg_stat.stat.mode == '0644'
               - _package_manager_verify_dpkg_stat.stat.pw_name == 'root'
             fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf missing or wrong permissions"
+            success_msg: >-
+              /etc/apt/apt.conf.d/20-ansible-dpkg.conf exists
+              (owner={{ _package_manager_verify_dpkg_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_dpkg_stat.stat.mode }})
 
         - name: Read /etc/apt/apt.conf.d/20-ansible-dpkg.conf
           ansible.builtin.slurp:
@@ -404,6 +463,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_dpkg_raw"
             fail_msg: "slurp 20-ansible-dpkg.conf returned no content"
+            success_msg: "20-ansible-dpkg.conf content successfully read"
 
         - name: Set dpkg config text fact
           ansible.builtin.set_fact:
@@ -413,22 +473,26 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_dpkg_text"
             fail_msg: "20-ansible-dpkg.conf missing Ansible marker"
+            success_msg: "20-ansible-dpkg.conf contains Ansible marker"
 
         - name: Assert Dpkg::Options block present
           ansible.builtin.assert:
             that: "'Dpkg::Options' in _package_manager_verify_dpkg_text"
             fail_msg: "Dpkg::Options block missing from 20-ansible-dpkg.conf"
+            success_msg: "Dpkg::Options block present in 20-ansible-dpkg.conf"
 
         - name: Assert dpkg force-confdef option present (when enabled)
           ansible.builtin.assert:
             that: "'--force-confdef' in _package_manager_verify_dpkg_text"
             fail_msg: "--force-confdef missing from 20-ansible-dpkg.conf"
+            success_msg: "--force-confdef present in 20-ansible-dpkg.conf"
           when: package_manager_apt_dpkg_force_confdef | bool
 
         - name: Assert dpkg force-confold option present (when enabled)
           ansible.builtin.assert:
             that: "'--force-confold' in _package_manager_verify_dpkg_text"
             fail_msg: "--force-confold missing from 20-ansible-dpkg.conf"
+            success_msg: "--force-confold present in 20-ansible-dpkg.conf"
           when: package_manager_apt_dpkg_force_confold | bool
 
     # ==========================================================
@@ -451,6 +515,10 @@
               - _package_manager_verify_dnf_stat.stat.mode == '0644'
               - _package_manager_verify_dnf_stat.stat.pw_name == 'root'
             fail_msg: "/etc/dnf/dnf.conf missing or wrong permissions"
+            success_msg: >-
+              /etc/dnf/dnf.conf exists
+              (owner={{ _package_manager_verify_dnf_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_dnf_stat.stat.mode }})
 
         - name: Read /etc/dnf/dnf.conf
           ansible.builtin.slurp:
@@ -461,6 +529,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_dnf_raw"
             fail_msg: "slurp /etc/dnf/dnf.conf returned no content"
+            success_msg: "/etc/dnf/dnf.conf content successfully read"
 
         - name: Set dnf.conf text fact
           ansible.builtin.set_fact:
@@ -470,16 +539,19 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_dnf_text"
             fail_msg: "/etc/dnf/dnf.conf missing Ansible marker"
+            success_msg: "/etc/dnf/dnf.conf contains Ansible marker"
 
         - name: Assert [main] section present
           ansible.builtin.assert:
             that: "'[main]' in _package_manager_verify_dnf_text"
             fail_msg: "[main] section missing from /etc/dnf/dnf.conf"
+            success_msg: "[main] section present in /etc/dnf/dnf.conf"
 
         - name: Assert gpgcheck enabled
           ansible.builtin.assert:
             that: "'gpgcheck=1' in _package_manager_verify_dnf_text"
             fail_msg: "gpgcheck=1 missing from /etc/dnf/dnf.conf"
+            success_msg: "gpgcheck=1 confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert max_parallel_downloads value matches variable
           ansible.builtin.assert:
@@ -487,6 +559,7 @@
               'max_parallel_downloads=' ~ package_manager_dnf_parallel_downloads
               in _package_manager_verify_dnf_text
             fail_msg: "max_parallel_downloads not set to {{ package_manager_dnf_parallel_downloads }}"
+            success_msg: "max_parallel_downloads={{ package_manager_dnf_parallel_downloads }} confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert installonly_limit value matches variable
           ansible.builtin.assert:
@@ -494,21 +567,25 @@
               'installonly_limit=' ~ package_manager_dnf_installonly_limit
               in _package_manager_verify_dnf_text
             fail_msg: "installonly_limit not set to {{ package_manager_dnf_installonly_limit }}"
+            success_msg: "installonly_limit={{ package_manager_dnf_installonly_limit }} confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert clean_requirements_on_remove enabled
           ansible.builtin.assert:
             that: "'clean_requirements_on_remove=True' in _package_manager_verify_dnf_text"
             fail_msg: "clean_requirements_on_remove=True missing from /etc/dnf/dnf.conf"
+            success_msg: "clean_requirements_on_remove=True confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert best enabled
           ansible.builtin.assert:
             that: "'best=True' in _package_manager_verify_dnf_text"
             fail_msg: "best=True missing from /etc/dnf/dnf.conf"
+            success_msg: "best=True confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert skip_if_unavailable disabled
           ansible.builtin.assert:
             that: "'skip_if_unavailable=False' in _package_manager_verify_dnf_text"
             fail_msg: "skip_if_unavailable=False missing from /etc/dnf/dnf.conf"
+            success_msg: "skip_if_unavailable=False confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert fastestmirror value matches variable
           ansible.builtin.assert:
@@ -518,6 +595,7 @@
             fail_msg: >-
               fastestmirror not set to {{ package_manager_dnf_fastestmirror | lower }}
               in /etc/dnf/dnf.conf
+            success_msg: "fastestmirror={{ package_manager_dnf_fastestmirror | lower }} confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert color value matches variable
           ansible.builtin.assert:
@@ -527,6 +605,7 @@
             fail_msg: >-
               color not set to {{ package_manager_dnf_color }}
               in /etc/dnf/dnf.conf
+            success_msg: "color={{ package_manager_dnf_color }} confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert defaultyes value matches variable
           ansible.builtin.assert:
@@ -536,6 +615,7 @@
             fail_msg: >-
               defaultyes not set to {{ package_manager_dnf_defaultyes | lower }}
               in /etc/dnf/dnf.conf
+            success_msg: "defaultyes={{ package_manager_dnf_defaultyes | lower }} confirmed in /etc/dnf/dnf.conf"
 
         - name: Assert keepcache value matches variable
           ansible.builtin.assert:
@@ -545,6 +625,7 @@
             fail_msg: >-
               keepcache not set to {{ package_manager_dnf_keepcache | ternary('1', '0') }}
               in /etc/dnf/dnf.conf
+            success_msg: "keepcache={{ package_manager_dnf_keepcache | ternary('1', '0') }} confirmed in /etc/dnf/dnf.conf"
 
     # ==========================================================
     # Void Linux — xbps.conf
@@ -567,6 +648,10 @@
               - _package_manager_verify_xbps_dir.stat.mode == '0755'
               - _package_manager_verify_xbps_dir.stat.pw_name == 'root'
             fail_msg: "/etc/xbps.d missing or wrong permissions (expected directory root 0755)"
+            success_msg: >-
+              /etc/xbps.d exists
+              (owner={{ _package_manager_verify_xbps_dir.stat.pw_name }},
+              mode={{ _package_manager_verify_xbps_dir.stat.mode }})
 
         - name: Stat /etc/xbps.d/ansible.conf
           ansible.builtin.stat:
@@ -580,6 +665,10 @@
               - _package_manager_verify_xbps_stat.stat.mode == '0644'
               - _package_manager_verify_xbps_stat.stat.pw_name == 'root'
             fail_msg: "/etc/xbps.d/ansible.conf missing or wrong permissions"
+            success_msg: >-
+              /etc/xbps.d/ansible.conf exists
+              (owner={{ _package_manager_verify_xbps_stat.stat.pw_name }},
+              mode={{ _package_manager_verify_xbps_stat.stat.mode }})
 
         - name: Read /etc/xbps.d/ansible.conf
           ansible.builtin.slurp:
@@ -590,6 +679,7 @@
           ansible.builtin.assert:
             that: "'content' in _package_manager_verify_xbps_raw"
             fail_msg: "slurp /etc/xbps.d/ansible.conf returned no content"
+            success_msg: "/etc/xbps.d/ansible.conf content successfully read"
 
         - name: Set xbps.conf text fact
           ansible.builtin.set_fact:
@@ -599,11 +689,13 @@
           ansible.builtin.assert:
             that: "'Managed by Ansible' in _package_manager_verify_xbps_text"
             fail_msg: "/etc/xbps.d/ansible.conf missing Ansible marker"
+            success_msg: "/etc/xbps.d/ansible.conf contains Ansible marker"
 
         - name: Assert syslog disabled in xbps.conf
           ansible.builtin.assert:
             that: "'syslog=false' in _package_manager_verify_xbps_text"
             fail_msg: "syslog=false missing from /etc/xbps.d/ansible.conf"
+            success_msg: "syslog=false confirmed in /etc/xbps.d/ansible.conf"
 
     # ==========================================================
     # Void Linux — xbps cache cron
@@ -626,6 +718,7 @@
           ansible.builtin.assert:
             that: "'xbps-remove -O' in _package_manager_verify_xbps_crontab.stdout"
             fail_msg: "xbps cache cleanup cron job not found in root crontab"
+            success_msg: "xbps cache cleanup cron job (xbps-remove -O) found in root crontab"
 
         - name: Assert cron schedule matches variables
           ansible.builtin.assert:
@@ -637,6 +730,10 @@
             fail_msg: >-
               xbps cache cleanup cron schedule does not match variables
               (expected: {{ package_manager_xbps_cache_cron_minute }}
+              {{ package_manager_xbps_cache_cron_hour }} * * {{ package_manager_xbps_cache_cron_weekday }})
+            success_msg: >-
+              xbps cache cleanup cron schedule confirmed
+              ({{ package_manager_xbps_cache_cron_minute }}
               {{ package_manager_xbps_cache_cron_hour }} * * {{ package_manager_xbps_cache_cron_weekday }})
 
     # ==========================================================

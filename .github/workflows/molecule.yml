@@ -1,6 +1,7 @@
 # Purpose: Docker-based Molecule tests. Detects changed roles and runs
 #          molecule test -s docker for each in a ci-env container.
 # Triggers: push/PR to master (ansible/roles/**, requirements.txt),
+#           weekly schedule (Monday 06:00 UTC),
 #           workflow_dispatch (role_filter: role name or "all")
 # Uses:    ghcr.io/<repo>/ci-env:latest  (built by build-ci-image.yml)
 #          ghcr.io/textyre/arch-base:latest
@@ -23,6 +24,8 @@ on:
       - 'ansible/roles/**'
       - 'ansible/requirements.txt'
       - '.github/workflows/molecule.yml'
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC — drift detection
   workflow_dispatch:
     inputs:
       role_filter:
@@ -93,6 +96,29 @@ jobs:
           else
             echo "empty=false" >> "$GITHUB_OUTPUT"
           fi
+
+  lint:
+    needs: detect
+    if: needs.detect.outputs.empty == 'false'
+    name: "${{ matrix.role }} (lint)"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        role: ${{ fromJSON(needs.detect.outputs.matrix) }}
+      fail-fast: false
+    container:
+      image: ghcr.io/${{ github.repository }}/ci-env:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run yamllint
+        run: yamllint -c ansible/.yamllint ansible/roles/${{ matrix.role }}/
+
+      - name: Run ansible-lint
+        run: ansible-lint ansible/roles/${{ matrix.role }}/
+        env:
+          ANSIBLE_ROLES_PATH: ansible/roles
 
   test-docker:
     needs: detect
