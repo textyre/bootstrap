@@ -3,8 +3,10 @@ galaxy_info:
   role_name: vconsole
   author: textyre
   description: >-
-    Configure console (TTY) keymap. Supports systemd (vconsole.conf),
-    OpenRC (/etc/conf.d/keymaps), runit (/etc/rc.conf).
+    Configure console (TTY) keymap, fonts, and GPM daemon (mouse in TTY).
+    Distro-agnostic: dispatches per OS family and init system.
+    Supports systemd (vconsole.conf), OpenRC (/etc/conf.d/keymaps),
+    runit (/etc/rc.conf), and stubs for s6/dinit.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -16,8 +18,12 @@ galaxy_info:
       versions: [all]
     - name: EL
       versions: [all]
+    - name: Fedora
+      versions: [all]
     - name: Gentoo
       versions: [all]
     # Void Linux (runit) is supported but not an official Ansible Galaxy platform name
-  galaxy_tags: [system, vconsole, console]
-dependencies: []
+  galaxy_tags: [system, vconsole, console, tty, keymap, font, gpm, mouse]
+dependencies:
+  - name: common
+    description: Reporting and common role utilities
