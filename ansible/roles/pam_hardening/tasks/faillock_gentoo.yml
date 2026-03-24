@@ -1,0 +1,7 @@
+---
+# === PAM faillock — Gentoo ===
+# Same PAM stack management as Arch Linux (lineinfile on system-auth)
+
+- name: Configure PAM stack (Gentoo — lineinfile method)
+  ansible.builtin.include_tasks: faillock_archlinux.yml
+  tags: ['pam_hardening', 'pam', 'security', 'faillock']

@@ -4,66 +4,71 @@
 
 ## Цель
 
-Усиление политик аутентификации и авторизации через PAM (Pluggable Authentication Modules): требования к сложности паролей, ограничение количества неудачных попыток входа, история паролей, лимиты на пользовательские сессии. Защита от брутфорса и слабых паролей.
+Защита от brute-force через `pam_faillock`: блокировка аккаунтов после неудачных попыток входа с полной параметризацией через `/etc/security/faillock.conf`.
+
+## Реализованные подсистемы
+
+**Faillock** — единственная подсистема, реализованная в текущей версии.
+
+### Planned (не реализовано)
+
+- `pam_pwquality` — требования к сложности паролей
+- `pam_limits` — лимиты на пользовательские сессии
 
 ## Ключевые переменные (defaults)
 
 ```yaml
-pam_hardening_enabled: true               # Включить PAM hardening
-
-# Password quality (pam_pwquality)
-pam_password_min_length: 12               # Минимальная длина пароля
-pam_password_require_lowercase: 1         # Минимум строчных букв
-pam_password_require_uppercase: 1         # Минимум заглавных букв
-pam_password_require_digit: 1             # Минимум цифр
-pam_password_require_special: 1           # Минимум спецсимволов
-pam_password_max_repeat: 3                # Макс. повторяющихся символов подряд
-pam_password_reject_username: true        # Запретить использование username в пароле
-
-# Password history (pam_unix)
-pam_password_remember: 5                  # Помнить N последних паролей
-
-# Account lockout (pam_faillock)
-pam_faillock_enabled: true                # Включить блокировку после неудачных попыток
-pam_faillock_deny: 3                      # Число попыток до блокировки
-pam_faillock_unlock_time: 900             # Время блокировки в секундах (15 минут)
-pam_faillock_fail_interval: 900           # Окно времени для подсчета попыток
-pam_faillock_audit: true                  # Логирование в audit
-pam_faillock_silent: true                 # Не показывать пользователю причину отказа
-
-# Session limits (pam_limits)
-pam_limits_enabled: true                  # Включить ulimit через /etc/security/limits.conf
-pam_limits_max_logins: 3                  # Макс. одновременных сессий на пользователя
-pam_limits_nofile: 65536                  # Макс. открытых файлов (soft/hard)
-pam_limits_nproc: 4096                    # Макс. процессов
-pam_limits_custom: []                     # Список кастомных лимитов: [{domain, type, item, value}]
+pam_hardening_faillock_enabled: true          # Включить/выключить роль
+pam_hardening_faillock_deny: 3                # Блокировка после N попыток
+pam_hardening_faillock_fail_interval: 900     # Окно отслеживания (секунды)
+pam_hardening_faillock_unlock_time: 900       # Время блокировки (0 = перманентная)
+pam_hardening_faillock_root_unlock_time: 900  # Время блокировки root (-1 = перманентная)
+pam_hardening_faillock_audit: true            # Логировать в audit log
+pam_hardening_faillock_silent: false          # Подавлять сообщение при блокировке
+pam_hardening_faillock_even_deny_root: true   # Root тоже подпадает под блокировку
+pam_hardening_faillock_local_users_only: false  # Только локальные пользователи
+pam_hardening_faillock_nodelay: false         # Убрать задержку (pam >= 1.5.1)
+pam_hardening_faillock_x11_skip: false        # Игнорировать X11-сессии (screensaver)
 ```
 
 ## Что настраивает
 
-- Конфигурационные файлы:
-  - `/etc/security/pwquality.conf` — требования к паролям (pam_pwquality)
-  - `/etc/security/faillock.conf` — настройки блокировки аккаунта (pam_faillock)
-  - `/etc/security/limits.conf` — ulimit для пользователей и групп
-  - `/etc/pam.d/system-auth` или `/etc/pam.d/common-auth` — интеграция PAM-модулей
-  - `/etc/pam.d/passwd` — правила смены пароля
+- `/etc/security/faillock.conf` — параметры блокировки (Jinja2 шаблон, все платформы)
+- PAM stack activation (зависит от платформы):
+  - **Arch / Void / Gentoo**: `lineinfile` → `/etc/pam.d/system-auth`
+  - **Debian / Ubuntu**: `pam-auth-update --package` с двумя profile файлами
+  - **Fedora / RHEL**: `authselect enable-feature with-faillock`
 
-**Arch Linux:**
-- Пакеты: `pam`, `libpwquality`
-- Файлы: `/etc/pam.d/system-auth`, `/etc/pam.d/system-login`
+## Платформы
 
-**Debian/Ubuntu:**
-- Пакеты: `libpam-modules`, `libpam-pwquality`, `libpam-tmpdir`
-- Файлы: `/etc/pam.d/common-auth`, `/etc/pam.d/common-password`
+| Платформа | `os_family` | Метод PAM |
+|-----------|-------------|-----------|
+| Arch Linux | `Archlinux` | lineinfile (system-auth) |
+| Void Linux | `Void` | lineinfile (system-auth) |
+| Gentoo | `Gentoo` | lineinfile (system-auth) |
+| Debian / Ubuntu | `Debian` | pam-auth-update --package |
+| Fedora / RHEL | `RedHat` | authselect with-faillock |
 
 ## Зависимости
 
-- `base_system` — базовая настройка PAM уже должна быть выполнена
-- `user` — применяется к существующим пользователям
+Нет. Роль работает на стандартном PAM стеке.
 
 ## Tags
 
-- `pam_hardening`, `security`, `authentication`
+- `pam_hardening` — вся роль
+- `pam`, `security`, `faillock` — конфигурация faillock
+- `cis_5.4.2` — CIS Level 1 Workstation control
+- `report` — execution report
+
+## Безопасность
+
+Реализует CIS Level 1 Workstation:
+
+| CIS Control | Requirement | Реализация |
+|-------------|-------------|------------|
+| 5.4.2 | Lock accounts after failed logins | `deny = 3` |
+| 5.4.3 | Unlock time ≥ 900s | `unlock_time = 900` |
+| 5.4.4 | Root subject to lockout | `even_deny_root` |
 
 ---
 

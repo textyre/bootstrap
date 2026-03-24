@@ -14,3 +14,16 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install prerequisites for Fedora container
+      ansible.builtin.dnf:
+        name:
+          - authselect
+          - pam
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Ensure authselect profile is selected (Fedora)
+      ansible.builtin.command: authselect select sssd --force
+      changed_when: true
+      when: ansible_facts['os_family'] == 'RedHat'
