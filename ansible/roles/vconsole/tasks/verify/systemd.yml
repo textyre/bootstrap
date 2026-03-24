@@ -4,22 +4,22 @@
 - name: Slurp vconsole.conf (systemd)
   ansible.builtin.slurp:
     src: /etc/vconsole.conf
-  register: vconsole_vconsole_content
+  register: _vconsole_verify_conf
   tags: ['vconsole']
 
 - name: Assert KEYMAP is set in vconsole.conf (systemd)
   ansible.builtin.assert:
     that:
-      - "'KEYMAP=' + vconsole_value in (vconsole_vconsole_content.content | b64decode)"
+      - "'KEYMAP=' + vconsole_console in (_vconsole_verify_conf.content | b64decode)"
     fail_msg: >-
-      KEYMAP={{ vconsole_value }} not found in /etc/vconsole.conf.
-      Content: {{ vconsole_vconsole_content.content | b64decode }}
+      KEYMAP={{ vconsole_console }} not found in /etc/vconsole.conf.
+      Content: {{ _vconsole_verify_conf.content | b64decode }}
     quiet: true
   tags: ['vconsole']
 
 - name: Verify console keymap with localectl (systemd, Archlinux)
   ansible.builtin.command: localectl status
-  register: vconsole_check
+  register: _vconsole_verify_localectl
   changed_when: false
   when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['vconsole']
@@ -27,10 +27,10 @@
 - name: Assert keymap is set in localectl (systemd, Archlinux)
   ansible.builtin.assert:
     that:
-      - "vconsole_check.stdout is search('VC Keymap:\\s+' + vconsole_value + '(\\s|$)')"
+      - "_vconsole_verify_localectl.stdout is search('VC Keymap:\\s+' + vconsole_console + '(\\s|$)')"
     fail_msg: >-
-      Keymap '{{ vconsole_value }}' not found as VC Keymap in localectl status.
-      Output: {{ vconsole_check.stdout }}
+      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl status.
+      Output: {{ _vconsole_verify_localectl.stdout }}
     quiet: true
   when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['vconsole']
@@ -38,10 +38,39 @@
 - name: Assert FONT is set in vconsole.conf (systemd)
   ansible.builtin.assert:
     that:
-      - "'FONT=' + vconsole_console_font in (vconsole_vconsole_content.content | b64decode)"
+      - "'FONT=' + vconsole_console_font in (_vconsole_verify_conf.content | b64decode)"
     fail_msg: >-
       FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf.
-      Content: {{ vconsole_vconsole_content.content | b64decode }}
+      Content: {{ _vconsole_verify_conf.content | b64decode }}
     quiet: true
   when: vconsole_console_font | default('') | length > 0
+  tags: ['vconsole']
+
+# ---- GPM Service ----
+
+- name: Gather service facts (systemd)
+  ansible.builtin.service_facts:
+  tags: ['vconsole']
+
+- name: Assert GPM service state when enabled (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'gpm.service' in ansible_facts.services"
+      - "ansible_facts.services['gpm.service'].state == 'running'"
+    fail_msg: "GPM service is not running when vconsole_gpm_enabled=true"
+    quiet: true
+  when:
+    - vconsole_gpm_enabled | default(true) | bool
+    - (ansible_facts['virtualization_type'] | default('')) not in ['docker', 'container', 'podman']
+  tags: ['vconsole']
+
+- name: Assert GPM service is absent or stopped when disabled (systemd)
+  ansible.builtin.assert:
+    that: >-
+      ('gpm.service' not in ansible_facts.services) or
+      (ansible_facts.services['gpm.service'].state != 'running')
+    fail_msg: "GPM service is running when vconsole_gpm_enabled=false"
+    quiet: true
+  when:
+    - not (vconsole_gpm_enabled | default(true) | bool)
   tags: ['vconsole']

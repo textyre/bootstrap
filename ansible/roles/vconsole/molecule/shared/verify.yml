@@ -17,6 +17,7 @@
   vars:
     _vconsole_verify_keymap: "us"
     _vconsole_verify_gpm_enabled: false
+    verify_font_map: ""  # overridden by provisioner extra-vars
 
   tasks:
 
@@ -77,11 +78,13 @@
 
     - name: Assert FONT_MAP is set correctly
       ansible.builtin.assert:
-        that: "'FONT_MAP=8859-2' in _vconsole_verify_content"
-        fail_msg: "FONT_MAP=8859-2 not found in /etc/vconsole.conf"
+        that:
+          - _vconsole_verify_content is regex('^FONT_MAP=' + verify_font_map + '$', multiline=True)
+        fail_msg: "FONT_MAP={{ verify_font_map }} not found in /etc/vconsole.conf"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
         - ansible_facts['os_family'] == 'Archlinux'
+        - verify_font_map | default('') | length > 0
 
     # ---- Font package ----
 
@@ -124,15 +127,15 @@
     - name: Stat /etc/conf.d/keymaps (openrc)
       ansible.builtin.stat:
         path: /etc/conf.d/keymaps
-      register: vconsole_verify_stat_openrc
+      register: _vconsole_verify_stat_openrc
       when: ansible_facts['service_mgr'] == 'openrc'
 
     - name: Assert /etc/conf.d/keymaps permissions (openrc)
       ansible.builtin.assert:
         that:
-          - vconsole_verify_stat_openrc.stat.exists
-          - vconsole_verify_stat_openrc.stat.pw_name == 'root'
-          - vconsole_verify_stat_openrc.stat.mode == '0644'
+          - _vconsole_verify_stat_openrc.stat.exists
+          - _vconsole_verify_stat_openrc.stat.pw_name == 'root'
+          - _vconsole_verify_stat_openrc.stat.mode == '0644'
         fail_msg: "/etc/conf.d/keymaps wrong permissions"
       when: ansible_facts['service_mgr'] == 'openrc'
 
@@ -163,15 +166,15 @@
     - name: Stat /etc/rc.conf (runit)
       ansible.builtin.stat:
         path: /etc/rc.conf
-      register: vconsole_verify_stat_runit
+      register: _vconsole_verify_stat_runit
       when: ansible_facts['service_mgr'] == 'runit'
 
     - name: Assert /etc/rc.conf permissions (runit)
       ansible.builtin.assert:
         that:
-          - vconsole_verify_stat_runit.stat.exists
-          - vconsole_verify_stat_runit.stat.pw_name == 'root'
-          - vconsole_verify_stat_runit.stat.mode == '0644'
+          - _vconsole_verify_stat_runit.stat.exists
+          - _vconsole_verify_stat_runit.stat.pw_name == 'root'
+          - _vconsole_verify_stat_runit.stat.mode == '0644'
         fail_msg: "/etc/rc.conf wrong permissions"
       when: ansible_facts['service_mgr'] == 'runit'
 

@@ -46,13 +46,15 @@
 
     - name: Assert KEYMAP is set correctly
       ansible.builtin.assert:
-        that: "'KEYMAP=' + verify_keymap in vconsole_verify_content"
+        that:
+          - vconsole_verify_content is regex('^KEYMAP=' + verify_keymap + '$', multiline=True)
         fail_msg: "KEYMAP={{ verify_keymap }} not found in /etc/vconsole.conf"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert FONT is set correctly
       ansible.builtin.assert:
-        that: "'FONT=' + verify_font in vconsole_verify_content"
+        that:
+          - vconsole_verify_content is regex('^FONT=' + verify_font + '$', multiline=True)
         fail_msg: "FONT={{ verify_font }} not found in /etc/vconsole.conf"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
