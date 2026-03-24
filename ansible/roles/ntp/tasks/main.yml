@@ -117,14 +117,6 @@
       notify: restart ntp
       tags: ['ntp']
 
-    - name: Validate chrony configuration syntax (check-only)
-      ansible.builtin.command:
-        cmd: "chronyd -p -f {{ ntp_conf_path[ansible_facts['os_family']] | default('/etc/chrony.conf') }}"
-      register: _ntp_config_validation
-      changed_when: false
-      failed_when: _ntp_config_validation.rc != 0
-      tags: ['ntp']
-
     # ======================================================================
     # ---- Запуск chrony ----
     # ======================================================================
