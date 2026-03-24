@@ -34,11 +34,10 @@
         state: present
         timeout: 30
 
+    # Force service_mgr to be non-systemd to test cron fallback
     - name: Override service_mgr to test cron fallback
       ansible.builtin.set_fact:
         ansible_facts: "{{ ansible_facts | combine({'service_mgr': 'openrc'}) }}"
-      vars:
-        # Force service_mgr to be non-systemd to test cron fallback
 
   roles:
     - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
