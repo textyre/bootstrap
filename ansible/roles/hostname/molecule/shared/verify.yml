@@ -1,12 +1,9 @@
 ---
+# Values come from extra-vars in each molecule.yml (ROLE-014: no hardcoded values)
 - name: Verify
   hosts: all
   become: true
   gather_facts: false
-
-  vars:
-    _hostname_verify_expected_name: "archbox"
-    _hostname_verify_expected_domain: "example.com"
 
   tasks:
 
@@ -22,10 +19,10 @@
     - name: Assert hostname matches expected value
       ansible.builtin.assert:
         that:
-          - _hostname_verify_current.stdout | trim == _hostname_verify_expected_name
+          - _hostname_verify_current.stdout | trim == verify_hostname_name
         fail_msg: >-
           Hostname mismatch: got '{{ _hostname_verify_current.stdout | trim }}',
-          expected '{{ _hostname_verify_expected_name }}'
+          expected '{{ verify_hostname_name }}'
 
     # ---- /etc/hostname file content ----
 
@@ -43,12 +40,12 @@
     - name: Assert /etc/hostname contains expected hostname
       ansible.builtin.assert:
         that:
-          - _hostname_verify_hostname_file.content | b64decode | trim == _hostname_verify_expected_name
+          - _hostname_verify_hostname_file.content | b64decode | trim == verify_hostname_name
         fail_msg: >-
           /etc/hostname mismatch: got '{{ _hostname_verify_hostname_file.content | b64decode | trim }}',
-          expected '{{ _hostname_verify_expected_name }}'
+          expected '{{ verify_hostname_name }}'
 
-    # ---- /etc/hosts FQDN entry ----
+    # ---- /etc/hosts FQDN entry (when domain is set) ----
 
     - name: Read /etc/hosts
       ansible.builtin.slurp:
@@ -70,16 +67,29 @@
         that:
           - "'127.0.1.1' in _hostname_verify_hosts_text"
           - >-
-            _hostname_verify_expected_name ~ '.' ~ _hostname_verify_expected_domain
+            verify_hostname_name ~ '.' ~ verify_hostname_domain
             in _hostname_verify_hosts_text
-          - "_hostname_verify_expected_name in _hostname_verify_hosts_text"
+          - "verify_hostname_name in _hostname_verify_hosts_text"
         fail_msg: >-
           /etc/hosts is missing expected FQDN entry.
           Expected line containing '127.0.1.1',
-          '{{ _hostname_verify_expected_name }}.{{ _hostname_verify_expected_domain }}',
-          and '{{ _hostname_verify_expected_name }}'.
+          '{{ verify_hostname_name }}.{{ verify_hostname_domain }}',
+          and '{{ verify_hostname_name }}'.
           Actual content:
           {{ _hostname_verify_hosts_text }}
+      when: verify_hostname_domain | default('') | length > 0
+
+    - name: Assert short hostname entry is present in /etc/hosts (no domain)
+      ansible.builtin.assert:
+        that:
+          - "'127.0.1.1' in _hostname_verify_hosts_text"
+          - "verify_hostname_name in _hostname_verify_hosts_text"
+        fail_msg: >-
+          /etc/hosts is missing expected hostname entry.
+          Expected line containing '127.0.1.1' and '{{ verify_hostname_name }}'.
+          Actual content:
+          {{ _hostname_verify_hosts_text }}
+      when: verify_hostname_domain | default('') | length == 0
 
     # ---- no duplicate 127.0.1.1 entries ----
 
@@ -116,4 +126,8 @@
           - "Hostname check passed!"
           - "Hostname: {{ _hostname_verify_current.stdout | trim }}"
           - "/etc/hostname: {{ _hostname_verify_hostname_file.content | b64decode | trim }}"
-          - "/etc/hosts: 127.0.1.1 {{ _hostname_verify_expected_name }}.{{ _hostname_verify_expected_domain }} {{ _hostname_verify_expected_name }}"
+          - >-
+            /etc/hosts: 127.0.1.1
+            {{ verify_hostname_name ~ '.' ~ verify_hostname_domain ~ ' ' ~ verify_hostname_name
+               if verify_hostname_domain | default('') | length > 0
+               else verify_hostname_name }}

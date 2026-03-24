@@ -1,0 +1,4 @@
+---
+# === Gentoo specifics ===
+
+_hostname_strategy: generic

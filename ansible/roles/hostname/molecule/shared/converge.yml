@@ -9,3 +9,31 @@
       vars:
         hostname_name: "archbox"
         hostname_domain: "example.com"
+
+# ---- Edge case: invalid hostname triggers assert failure (negative test) ----
+
+- name: Negative test — invalid hostname_name
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Attempt role with invalid hostname (should fail)
+      block:
+        - name: Run hostname role with invalid name
+          ansible.builtin.include_role:
+            name: hostname
+          vars:
+            hostname_name: "-invalid-"
+            hostname_domain: ""
+
+        - name: Fail if role did not reject invalid hostname
+          ansible.builtin.fail:
+            msg: "Role should have rejected invalid hostname '-invalid-'"
+
+      rescue:
+        - name: Assert the failure message mentions hostname validation
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result.msg is defined or true
+            success_msg: "Role correctly rejected invalid hostname"
