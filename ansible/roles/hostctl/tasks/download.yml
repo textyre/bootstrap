@@ -77,7 +77,7 @@
         hostctl_checksum: >-
           sha256:{{ hostctl_checksums.content
              | trim
-             | splitlines
+             | split('\n')
              | select('search', hostctl_tarball_name)
              | first
              | split(' ')
