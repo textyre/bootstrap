@@ -1,0 +1,69 @@
+---
+- name: Verify custom keymap scenario
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    verify_keymap: "custom-test"
+    verify_gpm_enabled: false
+
+  tasks:
+
+    # ---- Verify custom keymap was copied and applied ----
+
+    - name: Check if custom keymap was copied to /etc/vconsole.conf
+      ansible.builtin.stat:
+        path: /etc/vconsole.conf
+      register: _vconsole_verify_stat
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert /etc/vconsole.conf exists
+      ansible.builtin.assert:
+        that:
+          - _vconsole_verify_stat.stat.exists
+        fail_msg: "/etc/vconsole.conf should exist after custom keymap setup"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Slurp /etc/vconsole.conf
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: _vconsole_verify_slurp
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Set vconsole.conf content fact
+      ansible.builtin.set_fact:
+        _vconsole_verify_content: "{{ _vconsole_verify_slurp.content | b64decode }}"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - "'content' in _vconsole_verify_slurp"
+
+    - name: Assert custom KEYMAP is set in vconsole.conf
+      ansible.builtin.assert:
+        that:
+          - _vconsole_verify_content is regex('^KEYMAP=' + verify_keymap + '$', multiline=True)
+        fail_msg: "Custom KEYMAP={{ verify_keymap }} not found in /etc/vconsole.conf"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- Verify GPM is disabled ----
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert GPM is not running (disabled scenario)
+      ansible.builtin.assert:
+        that: >-
+          ('gpm.service' not in ansible_facts.services) or
+          (ansible_facts.services['gpm.service'].state != 'running')
+        fail_msg: "GPM service should not be running when gpm_enabled=false"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- Summary ----
+
+    - name: Show custom keymap verify result
+      ansible.builtin.debug:
+        msg: >-
+          Custom keymap scenario verified:
+          keymap={{ verify_keymap }},
+          gpm={{ verify_gpm_enabled }},
+          init={{ ansible_facts['service_mgr'] }}

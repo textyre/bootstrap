@@ -1,0 +1,89 @@
+---
+- name: Verify GPM-enabled scenario
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    verify_keymap: "us"
+    verify_font: "ter-v16n"
+    verify_font_package: "terminus-font"
+    verify_gpm_enabled: true  # TEST: Verify GPM is running
+
+  tasks:
+
+    # ---- vconsole.conf (systemd) ----
+
+    - name: Stat /etc/vconsole.conf
+      ansible.builtin.stat:
+        path: /etc/vconsole.conf
+      register: _vconsole_verify_stat
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert /etc/vconsole.conf exists
+      ansible.builtin.assert:
+        that:
+          - _vconsole_verify_stat.stat.exists
+          - _vconsole_verify_stat.stat.pw_name == 'root'
+          - _vconsole_verify_stat.stat.gr_name == 'root'
+        fail_msg: "/etc/vconsole.conf missing or wrong permissions"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Slurp /etc/vconsole.conf
+      ansible.builtin.slurp:
+        src: /etc/vconsole.conf
+      register: _vconsole_verify_slurp
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Set vconsole.conf content fact
+      ansible.builtin.set_fact:
+        _vconsole_verify_content: "{{ _vconsole_verify_slurp.content | b64decode }}"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - "'content' in _vconsole_verify_slurp"
+
+    - name: Assert KEYMAP is set
+      ansible.builtin.assert:
+        that:
+          - _vconsole_verify_content is regex('^KEYMAP=' + verify_keymap + '$', multiline=True)
+        fail_msg: "KEYMAP not set correctly in vconsole.conf"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert FONT is set
+      ansible.builtin.assert:
+        that:
+          - _vconsole_verify_content is regex('^FONT=' + verify_font + '$', multiline=True)
+        fail_msg: "FONT not set correctly"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # ---- GPM Service Verification ----
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert GPM package is installed
+      ansible.builtin.assert:
+        that:
+          - verify_font_package in ansible_facts.packages
+        fail_msg: "{{ verify_font_package }} package not installed"
+
+    - name: Assert GPM service is running (enabled scenario)
+      ansible.builtin.assert:
+        that:
+          - "'gpm.service' in ansible_facts.services"
+          - "ansible_facts.services['gpm.service'].state == 'running'"
+        fail_msg: "GPM service should be running when gpm_enabled=true"
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - verify_gpm_enabled | bool
+
+    # ---- Summary ----
+
+    - name: Show GPM verify result
+      ansible.builtin.debug:
+        msg: >-
+          GPM scenario verified:
+          keymap={{ verify_keymap }},
+          font={{ verify_font }},
+          gpm={{ verify_gpm_enabled }},
+          init={{ ansible_facts['service_mgr'] }}
