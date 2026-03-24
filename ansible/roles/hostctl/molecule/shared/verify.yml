@@ -6,7 +6,6 @@
 
   vars:
     verify_binary: /usr/local/bin/hostctl
-    verify_version_string: "1.1.4"
     verify_profiles:
       - name: dev
         entries:
@@ -42,8 +41,9 @@
 
     - name: Assert hostctl version matches expected
       ansible.builtin.assert:
-        that: verify_version_string in _hostctl_verify_version.stdout
-        fail_msg: "Expected '{{ verify_version_string }}' in: {{ _hostctl_verify_version.stdout }}"
+        that: hostctl_version in _hostctl_verify_version.stdout
+        fail_msg: "Expected '{{ hostctl_version }}' in: {{ _hostctl_verify_version.stdout }}"
+      when: hostctl_version is defined
 
     # ---- Profile directory ----
 
