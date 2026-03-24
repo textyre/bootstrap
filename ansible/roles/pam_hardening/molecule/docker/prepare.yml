@@ -7,7 +7,7 @@
   tasks:
     - name: Install Python if missing (Fedora minimal)
       ansible.builtin.raw: |
-        if command -v dnf &>/dev/null && ! command -v python3 &>/dev/null; then
+        if command -v dnf >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
           dnf install -y python3
         fi
       changed_when: true
