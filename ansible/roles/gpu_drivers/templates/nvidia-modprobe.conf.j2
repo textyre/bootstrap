@@ -1,9 +1,13 @@
 # Managed by Ansible — do not edit manually
 # Role: gpu_drivers
-# NVIDIA kernel module options
 
 # Enable DRM kernel mode setting — required for Wayland compositors (KDE, GNOME, Hyprland)
 options nvidia-drm modeset=1
 
 # Preserve video memory allocations across suspend/resume — required for suspend support
-options nvidia NVreg_PreserveVideoMemoryAllocations=1
+# Controlled by: gpu_drivers_nvidia_preserve_video_memory (default: 1)
+# Set to 0 in defaults/main.yml or host vars to disable (older cards that don't support it)
+options nvidia NVreg_PreserveVideoMemoryAllocations={{ gpu_drivers_nvidia_preserve_video_memory }}
+{% for key, value in gpu_drivers_nvidia_modprobe_overwrite.items() %}
+options {{ key }} {{ value }}
+{% endfor %}

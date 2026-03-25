@@ -2,10 +2,14 @@
 # === gpu_drivers — GPU detection and driver installation ===
 # Auto-detect GPU via lspci, install appropriate drivers + Vulkan + VA-API
 
-# Supported OS families
+# Supported OS families (all 5 project-standard distros — ROLE-003)
+# RedHat/Void/Gentoo use stub install tasks until fully implemented.
 gpu_drivers_supported_os:
   - Archlinux
   - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
 # ---- Detection ----
 # auto    — detect via lspci (requires pciutils)
@@ -27,14 +31,35 @@ gpu_drivers_nvidia_blacklist_nouveau: true # blacklist nouveau (proprietary/open
 gpu_drivers_manage_initramfs: true        # regenerate initramfs after driver install
 gpu_drivers_nvidia_suspend: true          # enable nvidia-suspend/hibernate/resume.service (systemd only)
 
+# ---- NVIDIA modprobe options (ROLE-010) ----
+# NVreg_PreserveVideoMemoryAllocations=1 is required for stable suspend/resume with NVIDIA.
+# Set to 0 to disable if not using suspend or if causing issues with older cards.
+gpu_drivers_nvidia_preserve_video_memory: 1
+
+# User-provided overrides merged on top of the role-managed modprobe options.
+# Example: gpu_drivers_nvidia_modprobe_overwrite: { nvidia: "NVreg_UsePageAttributeTable=1" }
+gpu_drivers_nvidia_modprobe_overwrite: {}
+
 # ---- Feature flags ----
-gpu_drivers_multilib: false       # 32-bit library support (Wine, Steam)
+# gpu_drivers_multilib: defaults to true for 'gaming' workstation profile,
+#   false otherwise. Override explicitly to force a specific value.
+#   ROLE-009: profile-aware default via workstation_profiles list.
+gpu_drivers_multilib: "{{ true if 'gaming' in (workstation_profiles | default([])) else false }}"
 gpu_drivers_vulkan_tools: true    # vulkan-tools (vulkaninfo, vkcube)
 gpu_drivers_vaapi: true           # VA-API hardware video decode/encode
 gpu_drivers_cuda: false           # reserved: CUDA compute packages (not yet implemented)
 gpu_drivers_headless: false       # reserved: skip display components (not yet implemented)
 
+# ---- Audit and monitoring (ROLE-007) ----
+# Enable audit logging toggle. When true, audit events are recorded.
+# See wiki/roles/gpu_drivers.md for audit event table and monitoring integration.
+gpu_drivers_audit_enabled: false
+# Drift detection: not applicable for this role (driver config is static after deploy).
+# Monitoring: use kernel log parsing or gpu_top/nvtop exporters (documented in wiki).
+
 # ---- Package lists (Arch Linux) ----
+# These are public API: override in host/group vars to pin specific versions
+# or substitute alternative packages.
 
 gpu_drivers_nvidia_proprietary_packages:
   - nvidia

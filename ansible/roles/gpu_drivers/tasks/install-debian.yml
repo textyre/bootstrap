@@ -1,27 +1,31 @@
 ---
 # Debian GPU driver installation
 # Supports: NVIDIA (proprietary, nouveau), AMD (firmware+Mesa), Intel (Mesa+VA-API)
+# Package names are defined in vars/debian.yml (internal mappings, not user-facing).
+
+# ---- Refresh apt cache once at the top ----
+
+- name: Update apt cache (Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags: ['gpu', 'drivers']
 
 # ---- NVIDIA ----
 
 - name: Install NVIDIA proprietary drivers (Debian)
-  ansible.builtin.apt:
-    name:
-      - nvidia-driver
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_nvidia_proprietary }}"
     state: present
-    update_cache: true
   when:
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant == 'proprietary'
   tags: ['gpu', 'nvidia']
 
 - name: Install NVIDIA open kernel modules (Debian)
-  ansible.builtin.apt:
-    name:
-      - nvidia-open-kernel-dkms
-      - nvidia-driver
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_nvidia_open }}"
     state: present
-    update_cache: true
   when:
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant == 'open-kernel'
@@ -30,8 +34,8 @@
 # NOTE: nvidia-vaapi-driver is available in Debian Trixie (stable)
 # and via backports on Bookworm. Requires non-free and contrib components.
 - name: Install NVIDIA VA-API driver (Debian)
-  ansible.builtin.apt:
-    name: nvidia-vaapi-driver
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_nvidia_vaapi }}"
     state: present
   when:
     - gpu_drivers_has_nvidia
@@ -40,10 +44,8 @@
   tags: ['gpu', 'nvidia']
 
 - name: Install NVIDIA nouveau drivers (Debian)
-  ansible.builtin.apt:
-    name:
-      - xserver-xorg-video-nouveau
-      - libgl1-mesa-dri
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_nvidia_nouveau }}"
     state: present
   when:
     - gpu_drivers_has_nvidia
@@ -53,19 +55,15 @@
 # ---- AMD ----
 
 - name: Install AMD firmware and Mesa (Debian)
-  ansible.builtin.apt:
-    name:
-      - firmware-amd-graphics
-      - mesa-vulkan-drivers
-      - libgl1-mesa-dri
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_amd }}"
     state: present
-    update_cache: true
   when: gpu_drivers_has_amd
   tags: ['gpu', 'amd']
 
 - name: Install AMD VA-API driver (Debian)
-  ansible.builtin.apt:
-    name: mesa-va-drivers
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_amd_vaapi }}"
     state: present
   when:
     - gpu_drivers_has_amd
@@ -75,21 +73,17 @@
 # ---- Intel ----
 
 - name: Install Intel Mesa and VA-API (Debian)
-  ansible.builtin.apt:
-    name:
-      - intel-media-va-driver
-      - mesa-vulkan-drivers
-      - libgl1-mesa-dri
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_intel }}"
     state: present
-    update_cache: true
   when: gpu_drivers_has_intel
   tags: ['gpu', 'intel']
 
 # ---- Vulkan tools ----
 
 - name: Install Vulkan tools (Debian)
-  ansible.builtin.apt:
-    name: vulkan-tools
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_debian_vulkan_tools }}"
     state: present
   when:
     - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel

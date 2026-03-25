@@ -10,3 +10,15 @@
 - name: Install GPU drivers (Debian)
   ansible.builtin.import_tasks: install-debian.yml
   when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install GPU drivers (RedHat/Fedora — stub)
+  ansible.builtin.import_tasks: install-redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install GPU drivers (Void Linux — stub)
+  ansible.builtin.import_tasks: install-void.yml
+  when: ansible_facts['os_family'] == 'Void'
+
+- name: Install GPU drivers (Gentoo — stub)
+  ansible.builtin.import_tasks: install-gentoo.yml
+  when: ansible_facts['os_family'] == 'Gentoo'

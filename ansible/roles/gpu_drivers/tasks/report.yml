@@ -1,18 +1,31 @@
 ---
-# === gpu_drivers / report — Configuration summary ===
-# SRP: only emits a debug summary; never installs or configures.
+# === gpu_drivers / report — Structured execution report (ROLE-008) ===
+# SRP: only emits structured phase report and renders final summary.
+# Uses common/report_phase.yml and common/report_render.yml.
 
-- name: Report GPU driver configuration
-  ansible.builtin.debug:
-    msg:
-      - "=== GPU Driver Configuration ==="
-      - "Detection:       {{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }}"
-      - "NVIDIA:          {{ gpu_drivers_has_nvidia }} (variant: {{ gpu_drivers_nvidia_variant if gpu_drivers_has_nvidia else 'n/a' }})"
-      - "AMD:             {{ gpu_drivers_has_amd }}"
-      - "Intel:           {{ gpu_drivers_has_intel }}"
-      - "Multilib:        {{ gpu_drivers_multilib }}"
-      - "Vulkan tools:    {{ gpu_drivers_vulkan_tools }}"
-      - "VA-API:          {{ gpu_drivers_vaapi }}"
-      - "KMS:             {{ gpu_drivers_nvidia_kms if gpu_drivers_has_nvidia else 'n/a' }}"
-      - "Initramfs:       {{ (gpu_drivers_initramfs_tool | default('n/a')) if gpu_drivers_has_nvidia else 'n/a' }}"
-  tags: ['gpu', 'drivers']
+- name: "Report: GPU driver configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_gpu_drivers_phases"
+    common_rpt_phase: "GPU drivers"
+    common_rpt_detail: >-
+      vendor={{ gpu_drivers_vendor }}
+      nvidia={{ gpu_drivers_has_nvidia }}
+      amd={{ gpu_drivers_has_amd }}
+      intel={{ gpu_drivers_has_intel }}
+      variant={{ gpu_drivers_nvidia_variant if gpu_drivers_has_nvidia else 'n/a' }}
+      multilib={{ gpu_drivers_multilib }}
+      vaapi={{ gpu_drivers_vaapi }}
+      initramfs={{ gpu_drivers_initramfs_tool | default('n/a') }}
+  tags: ['gpu', 'drivers', 'report']
+
+- name: "gpu_drivers — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_gpu_drivers_phases"
+    common_rpt_title: "gpu_drivers"
+  tags: ['gpu', 'drivers', 'report']

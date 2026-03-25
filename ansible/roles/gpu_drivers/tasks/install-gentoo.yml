@@ -1,0 +1,13 @@
+---
+# Gentoo GPU driver installation — STUB
+# TODO: Implement when Gentoo support is added to this role.
+# Gentoo uses portage with USE flags; NVIDIA requires x11-drivers/nvidia-drivers,
+# AMD uses x11-drivers/xf86-video-amdgpu and mesa, Intel uses media-libs/mesa.
+
+- name: Gentoo GPU driver installation not yet implemented
+  ansible.builtin.debug:
+    msg: >-
+      gpu_drivers: Gentoo driver installation is not yet implemented.
+      GPU detection ran successfully but no packages were installed.
+      Implement tasks/install-gentoo.yml to add Gentoo support.
+  tags: ['gpu', 'drivers']
