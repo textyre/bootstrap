@@ -38,18 +38,8 @@ Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/mai
 | `pam_hardening_faillock_even_deny_root` | `true` | careful | Apply lockout to root account. If root gets locked and `root_unlock_time=-1`, only another admin can unlock |
 | `pam_hardening_faillock_local_users_only` | `false` | safe | Skip LDAP/SSO users. Set `true` with LDAP/SSSD to prevent false lockouts from network blips |
 | `pam_hardening_faillock_nodelay` | `false` | safe | Remove post-failure delay (requires pam >= 1.5.1) |
-| `pam_hardening_faillock_x11_skip` | `false` | safe | Ignore X11 session auth attempts (screensaver). Set `true` when `deny <= 3` and a GUI login manager is in use |
 
 ## Examples
-
-### Enabling x11_skip for GUI workstations
-
-```yaml
-# In group_vars/workstations/pam.yml:
-pam_hardening_faillock_x11_skip: true
-```
-
-Without this, a locked screensaver can exhaust the failure counter before a real brute-force attempt begins.
 
 ### LDAP/SSO environment
 
@@ -110,7 +100,7 @@ All platforms share `/etc/security/faillock.conf` for faillock parameters.
 |---------|-----------|-----|
 | Account locked after few attempts | `faillock --user <name>` — check tally count | `faillock --user <name> --reset` to unlock. Consider increasing `deny` |
 | Root account permanently locked | `even_deny_root=true` + `root_unlock_time=-1` | Boot into single-user/rescue mode, run `faillock --user root --reset` |
-| Screensaver locks account | X11 auth attempts counted against deny limit | Set `pam_hardening_faillock_x11_skip: true` |
+| Screensaver locks account | X11 auth attempts counted against deny limit | Separate PAM service config for screensaver without pam_faillock |
 | LDAP users getting locked | Network timeouts counted as failures | Set `pam_hardening_faillock_local_users_only: true` |
 | `pam-auth-update --package` breaks other PAM modules | Handler reconfigures entire PAM stack, may affect LDAP/MFA modules | Check `/etc/pam.d/common-auth` after role run. Restore from backup if needed |
 | Role reports `ok` but faillock not active | PAM stack not configured (profile conflict on Debian, authselect issue on Fedora) | Run verify: `grep pam_faillock /etc/pam.d/system-auth` (Arch) or `authselect current` (Fedora) |
@@ -137,7 +127,7 @@ Both scenarios are required. Run Docker for fast feedback, Vagrant for full vali
 | Category | Examples | Test requirement |
 |----------|----------|-----------------|
 | Config files | `/etc/security/faillock.conf` exists, root:root 0644, correct content | TEST-008 |
-| Boolean directives | silent, nodelay, local_users_only, x11_skip present/absent per defaults | TEST-008 |
+| Boolean directives | silent, nodelay, local_users_only present/absent per defaults | TEST-008 |
 | PAM stack (Arch) | `pam_faillock.so` preauth + authfail + account in system-auth | TEST-008 |
 | PAM stack (Debian) | Profile files deployed, `pam_faillock.so` in common-auth | TEST-008 |
 | PAM stack (Fedora) | `authselect current` shows `with-faillock` | TEST-008 |

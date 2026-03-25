@@ -31,7 +31,3 @@ pam_hardening_faillock_local_users_only: false
 
 # nodelay: убрать задержку после неудачного входа (pam >= 1.5.1)
 pam_hardening_faillock_nodelay: false
-
-# x11_skip: не учитывать попытки входа из X11-сессий (screensaver)
-# Важно при deny=3 и GUI (lightdm/xorg) — иначе screensaver заблокирует аккаунт
-pam_hardening_faillock_x11_skip: false

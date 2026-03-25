@@ -170,20 +170,6 @@
         fail_msg: "faillock.conf contains local_users_only directive but it should be absent"
       when: not pam_hardening_faillock_local_users_only
 
-    - name: Assert faillock.conf x11_skip directive present
-      ansible.builtin.assert:
-        that:
-          - _pam_hardening_verify_conf_text is regex('(?m)^x11_skip$')
-        fail_msg: "faillock.conf missing x11_skip directive (expected when enabled)"
-      when: pam_hardening_faillock_x11_skip
-
-    - name: Assert faillock.conf x11_skip NOT present when disabled
-      ansible.builtin.assert:
-        that:
-          - _pam_hardening_verify_conf_text is not regex('(?m)^x11_skip$')
-        fail_msg: "faillock.conf contains x11_skip directive but it should be absent"
-      when: not pam_hardening_faillock_x11_skip
-
     # ---- PAM stack: Arch / Void / Gentoo ----
 
     - name: Verify PAM stack on Arch/Void/Gentoo
