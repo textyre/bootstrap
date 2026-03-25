@@ -1,0 +1,12 @@
+---
+# Void Linux GPU driver installation — STUB
+# TODO: Implement when Void Linux support is added to this role.
+# Void ships nvidia drivers via void-packages (nonfree repo) and mesa for AMD/Intel.
+
+- name: Void Linux GPU driver installation not yet implemented
+  ansible.builtin.debug:
+    msg: >-
+      gpu_drivers: Void Linux driver installation is not yet implemented.
+      GPU detection ran successfully but no packages were installed.
+      Implement tasks/install-void.yml to add Void Linux support.
+  tags: ['gpu', 'drivers']

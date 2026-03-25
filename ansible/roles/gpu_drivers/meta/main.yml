@@ -10,5 +10,12 @@ galaxy_info:
       versions: [all]
     - name: Debian
       versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
   galaxy_tags: [gpu, nvidia, amd, intel, vulkan, vaapi, drivers]
-dependencies: []
+dependencies:
+  - role: common

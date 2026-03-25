@@ -1,0 +1,7 @@
+---
+# === gpu_drivers — Arch Linux internal variable mappings ===
+# These are internal vars (not user-facing; use defaults/main.yml for public API).
+# Loaded by tasks/main.yml via: include_vars: "vars/{{ ansible_facts['os_family'] | lower }}.yml"
+
+# Arch Linux has no service name variation for GPU services — left as stub for ROLE-001 compliance.
+# Package lists for Arch are defined in defaults/main.yml as public API (user-overridable).

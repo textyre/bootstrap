@@ -1,0 +1,194 @@
+---
+# === gpu_drivers / verify — In-role verification ===
+# SRP: only verifies the role's own postconditions; never installs or configures.
+# Called from tasks/main.yml after all configuration phases complete.
+# Register variables follow naming convention: _gpu_drivers_verify_<check>
+#
+# Techniques used (ROLE-005):
+#   1. Config file check — lineinfile in check_mode
+#   2. State assertion — stat + assert
+#   3. Package verification — package_facts + assert
+
+# ==========================================================
+# Phase 1: Package verification
+# ==========================================================
+
+- name: Gather package facts for verification
+  ansible.builtin.package_facts:
+    manager: auto
+  tags: ['gpu', 'drivers']
+
+# ---- Arch Linux: verify a representative driver package ----
+
+- name: Set Arch NVIDIA representative package for verification
+  ansible.builtin.set_fact:
+    _gpu_drivers_verify_nvidia_pkg: >-
+      {{ 'nvidia' if gpu_drivers_nvidia_variant == 'proprietary'
+         else ('nvidia-open' if gpu_drivers_nvidia_variant == 'open-kernel'
+         else 'xf86-video-nouveau') }}
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - gpu_drivers_has_nvidia
+  tags: ['gpu', 'drivers']
+
+- name: Assert NVIDIA driver package is installed (Arch)
+  ansible.builtin.assert:
+    that: "_gpu_drivers_verify_nvidia_pkg in ansible_facts.packages"
+    fail_msg: >-
+      NVIDIA driver package '{{ _gpu_drivers_verify_nvidia_pkg }}' not found.
+      Expected variant: {{ gpu_drivers_nvidia_variant }}
+    success_msg: "NVIDIA driver package '{{ _gpu_drivers_verify_nvidia_pkg }}' is installed"
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - gpu_drivers_has_nvidia
+  tags: ['gpu', 'drivers']
+
+- name: Assert Intel mesa package is installed (Arch)
+  ansible.builtin.assert:
+    that: "'mesa' in ansible_facts.packages"
+    fail_msg: "Intel driver package 'mesa' not found"
+    success_msg: "Intel driver package 'mesa' is installed"
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - gpu_drivers_has_intel
+  tags: ['gpu', 'drivers']
+
+- name: Assert AMD mesa package is installed (Arch)
+  ansible.builtin.assert:
+    that: "'mesa' in ansible_facts.packages"
+    fail_msg: "AMD driver package 'mesa' not found"
+    success_msg: "AMD driver package 'mesa' is installed"
+  when:
+    - ansible_facts['os_family'] == 'Archlinux'
+    - gpu_drivers_has_amd
+  tags: ['gpu', 'drivers']
+
+# ---- Debian: verify a representative driver package ----
+
+- name: Assert NVIDIA proprietary driver package is installed (Debian)
+  ansible.builtin.assert:
+    that: "'nvidia-driver' in ansible_facts.packages"
+    fail_msg: "NVIDIA driver package 'nvidia-driver' not found"
+    success_msg: "NVIDIA driver package 'nvidia-driver' is installed"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+  tags: ['gpu', 'drivers']
+
+- name: Assert Intel VA driver package is installed (Debian)
+  ansible.builtin.assert:
+    that: "'intel-media-va-driver' in ansible_facts.packages"
+    fail_msg: "Intel driver package 'intel-media-va-driver' not found"
+    success_msg: "Intel driver package 'intel-media-va-driver' is installed"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - gpu_drivers_has_intel
+  tags: ['gpu', 'drivers']
+
+# ==========================================================
+# Phase 2: Config file state assertions
+# ==========================================================
+
+# ---- NVIDIA modprobe config ----
+
+- name: Stat NVIDIA modprobe config
+  ansible.builtin.stat:
+    path: /etc/modprobe.d/nvidia.conf
+  register: _gpu_drivers_verify_modprobe_conf
+  tags: ['gpu', 'nvidia']
+
+- name: Assert NVIDIA modprobe config exists when KMS enabled
+  ansible.builtin.assert:
+    that: _gpu_drivers_verify_modprobe_conf.stat.exists
+    fail_msg: "/etc/modprobe.d/nvidia.conf is missing but NVIDIA KMS is enabled"
+    success_msg: "/etc/modprobe.d/nvidia.conf exists"
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_kms
+  tags: ['gpu', 'nvidia']
+
+- name: Assert NVIDIA modprobe config is absent when KMS disabled or non-NVIDIA
+  ansible.builtin.assert:
+    that: not _gpu_drivers_verify_modprobe_conf.stat.exists
+    fail_msg: "/etc/modprobe.d/nvidia.conf exists but should be absent (KMS disabled or non-NVIDIA)"
+    success_msg: "/etc/modprobe.d/nvidia.conf is correctly absent"
+  when: >-
+    not gpu_drivers_has_nvidia
+    or gpu_drivers_nvidia_variant == 'nouveau'
+    or not gpu_drivers_nvidia_kms
+  tags: ['gpu', 'nvidia']
+
+- name: Verify NVIDIA modprobe config contains modeset option (check_mode)
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/nvidia.conf
+    regexp: '^options nvidia-drm modeset='
+    line: "options nvidia-drm modeset=1"
+    state: present
+  check_mode: true
+  register: _gpu_drivers_verify_modprobe_kms
+  failed_when: _gpu_drivers_verify_modprobe_kms is changed
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_kms
+    - _gpu_drivers_verify_modprobe_conf.stat.exists
+  tags: ['gpu', 'nvidia']
+
+# ---- VA-API environment config ----
+
+- name: Stat VA-API gpu environment config
+  ansible.builtin.stat:
+    path: /etc/environment.d/gpu.conf
+  register: _gpu_drivers_verify_env_conf
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu.conf exists when VA-API enabled and GPU present
+  ansible.builtin.assert:
+    that:
+      - _gpu_drivers_verify_env_conf.stat.exists
+      - _gpu_drivers_verify_env_conf.stat.mode == '0644'
+    fail_msg: >-
+      /etc/environment.d/gpu.conf is missing or has wrong permissions.
+      Expected: exists with mode 0644
+    success_msg: "/etc/environment.d/gpu.conf exists with correct permissions"
+  when:
+    - gpu_drivers_vaapi
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
+  tags: ['gpu', 'drivers']
+
+- name: Assert gpu.conf is absent when VA-API disabled or no GPU
+  ansible.builtin.assert:
+    that: not _gpu_drivers_verify_env_conf.stat.exists
+    fail_msg: "/etc/environment.d/gpu.conf exists but should be absent (VA-API disabled or no GPU)"
+    success_msg: "/etc/environment.d/gpu.conf is correctly absent"
+  when: >-
+    not gpu_drivers_vaapi
+    or not (gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel)
+  tags: ['gpu', 'drivers']
+
+# ==========================================================
+# Phase 3: Runtime state check (command-based, changed_when: false)
+# ==========================================================
+
+- name: Check lspci is available (GPU detection tool)
+  ansible.builtin.command:
+    cmd: which lspci
+  register: _gpu_drivers_verify_lspci_available
+  changed_when: false
+  failed_when: false
+  when: gpu_drivers_vendor == 'auto'
+  tags: ['gpu', 'drivers']
+
+- name: Assert pciutils (lspci) is available when vendor is auto
+  ansible.builtin.assert:
+    that: _gpu_drivers_verify_lspci_available.rc == 0
+    fail_msg: >-
+      lspci not found (pciutils not installed).
+      gpu_drivers_vendor: auto requires pciutils for GPU detection.
+    success_msg: "lspci is available for GPU detection"
+  when:
+    - gpu_drivers_vendor == 'auto'
+    - _gpu_drivers_verify_lspci_available is not skipped
+  tags: ['gpu', 'drivers']
