@@ -21,7 +21,7 @@
       initramfs={{ gpu_drivers_initramfs_tool | default('n/a') }}
   tags: ['gpu', 'drivers', 'report']
 
-- name: "gpu_drivers — Execution Report"
+- name: "Gpu_drivers — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
