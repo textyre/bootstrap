@@ -1,30 +1,36 @@
 ---
 # === Hardening sshd ===
-# Развёртывание шаблона sshd_config и управление host-ключами
+# Deployment of sshd_config template and host key management
 #
-# ПОРЯДОК ВАЖЕН: сначала генерируем ключи и деплоим конфиг, потом
-# флашим хендлеры (sshd рестартует пока ECDSA-ключи ещё на диске,
-# sshdgenkeys.service не регенерирует их), затем удаляем слабые ключи
-# БЕЗ повторного рестарта → идемпотентность гарантирована.
+# ORDER MATTERS: generate keys and deploy config first, then flush
+# handlers (sshd restarts while ECDSA keys are still on disk,
+# sshdgenkeys.service sees all files present -> no-op), then remove
+# weak keys WITHOUT another restart -> idempotence guaranteed.
 
-# ---- Генерация отсутствующих host-ключей ----
+# ---- Generate missing host keys ----
 
-- name: Ensure ed25519 host key exists
+- name: "CIS 5.2.8 | Ensure ed25519 host key exists"
   ansible.builtin.command: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
   args:
     creates: /etc/ssh/ssh_host_ed25519_key
   notify: restart sshd
-  tags: ['ssh', 'security']
+  tags: ['ssh', 'security', 'cis_5.2.8']
 
-- name: Ensure RSA host key exists
+- name: "CIS 5.2.8 | Ensure RSA host key exists"
   ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N ''
   args:
     creates: /etc/ssh/ssh_host_rsa_key
   when: "'rsa-sha2-512' in ssh_host_key_algorithms or 'rsa-sha2-256' in ssh_host_key_algorithms"
   notify: restart sshd
-  tags: ['ssh', 'security']
+  tags: ['ssh', 'security', 'cis_5.2.8']
 
-# ---- Развёртывание конфигурации sshd ----
+# ---- Deploy hardened sshd_config ----
+# Covers: CIS 5.2.5 (LogLevel), 5.2.6 (PasswordAuth), 5.2.7 (MaxAuthTries),
+#         5.2.9 (PermitEmptyPasswords), 5.2.10 (PermitRootLogin),
+#         5.2.11 (X11Forwarding), 5.2.12 (KexAlgorithms), 5.2.13 (Ciphers),
+#         5.2.14 (MACs), 5.2.15 (AllowGroups), 5.2.16 (ClientAliveInterval),
+#         5.2.17 (ClientAliveCountMax), 5.2.18 (Banner), 5.2.21 (MaxStartups),
+#         5.2.22 (MaxSessions)
 
 - name: "CIS 5.2.1 | DISA V-238215 -- Deploy hardened sshd_config"
   ansible.builtin.template:
@@ -38,9 +44,9 @@
   notify: restart sshd
   tags: ['ssh', 'security', 'cis_5.2.1', 'stig_v238215']
 
-# Flush handlers: sshd рестартует ПОКА слабые ключи ещё на диске.
-# sshdgenkeys.service видит что все файлы присутствуют → no-op.
-# После этого удаляем ключи без повторного рестарта → идемпотентность.
+# Flush handlers: sshd restarts WHILE weak keys are still on disk.
+# sshdgenkeys.service sees all files present -> no-op.
+# After this, we remove keys without another restart -> idempotence.
 - name: "Commit sshd config changes before removing weak keys"
   ansible.builtin.meta: flush_handlers
   tags: ['ssh', 'security']
@@ -64,15 +70,15 @@
     - ansible_facts.services['sshdgenkeys.service'] is defined
   tags: ['ssh', 'security']
 
-# ---- Удаление слабых host-ключей (DSA, ECDSA) ----
+# ---- Remove weak host keys (DSA, ECDSA) ----
 
-- name: Find existing host key files
+- name: "CIS 5.2.8 | Find existing host key files"
   ansible.builtin.find:
     paths: /etc/ssh
     patterns: "ssh_host_*_key*"
   register: _ssh_existing_host_keys
   when: ssh_host_key_cleanup
-  tags: ['ssh', 'security']
+  tags: ['ssh', 'security', 'cis_5.2.8']
 
 - name: "CIS 5.2.3 -- Remove weak host keys (DSA, ECDSA)"
   ansible.builtin.file:
