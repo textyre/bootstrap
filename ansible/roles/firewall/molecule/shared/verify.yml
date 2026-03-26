@@ -222,7 +222,7 @@
 
     # ---- Service enabled state ----
 
-    - name: Check nftables service is enabled
+    - name: Check nftables service is enabled  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-enabled nftables.service
       register: _firewall_verify_svc_enabled
       changed_when: false
@@ -239,14 +239,14 @@
     # nftables is a Type=oneshot service: after successful execution it goes
     # 'inactive' without RemainAfterExit=yes. Check Result=success instead.
 
-    - name: Check nftables service is active
+    - name: Check nftables service is active  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-active nftables.service
       register: _firewall_verify_svc_active
       changed_when: false
       failed_when: false
       when: not _firewall_verify_in_docker
 
-    - name: Check nftables service result (oneshot completes as inactive/success)
+    - name: Check nftables service result (oneshot completes as inactive/success)  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl show nftables.service --property=Result
       register: _firewall_verify_svc_result
       changed_when: false
