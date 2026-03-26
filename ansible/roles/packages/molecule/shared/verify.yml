@@ -1,4 +1,11 @@
 ---
+# Verification categories covered: packages
+# Verification categories skipped:
+#   config files  — role does not write any configuration files
+#   services      — role does not manage any service units
+#   runtime       — role does not start any daemons or network interfaces
+#   permissions   — role does not create files with specific ownership or mode
+
 - name: Verify packages role
   hosts: all
   become: true
