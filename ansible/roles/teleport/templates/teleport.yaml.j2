@@ -1,36 +1,29 @@
 # {{ ansible_managed }}
 # Teleport node configuration
-
-version: v3
-teleport:
-  nodename: "{{ teleport_node_name }}"
-  data_dir: /var/lib/teleport
-  auth_token: "{{ teleport_join_token }}"
-  auth_server: "{{ teleport_auth_server }}"
-  log:
-    output: stderr
-    severity: INFO
-
-ssh_service:
-  enabled: {{ teleport_ssh_enabled | lower }}
+{% set _base_config = {} %}
+{% set _teleport_section = {
+  'nodename': teleport_node_name,
+  'data_dir': '/var/lib/teleport',
+  'auth_token': teleport_join_token,
+  'auth_server': teleport_auth_server,
+  'log': {'output': 'stderr', 'severity': 'INFO'}
+} %}
+{% set _base_config = _base_config | combine({'version': 'v3', 'teleport': _teleport_section}) %}
+{% set _ssh = {'enabled': teleport_ssh_enabled | bool} %}
 {% if teleport_labels %}
-  labels:
-{% for key, value in teleport_labels.items() %}
-    {{ key }}: "{{ value }}"
-{% endfor %}
+{% set _ssh = _ssh | combine({'labels': teleport_labels}) %}
 {% endif %}
-
-proxy_service:
-  enabled: {{ teleport_proxy_mode | lower }}
-
-auth_service:
-  enabled: false
-
+{% set _base_config = _base_config | combine({
+  'ssh_service': _ssh,
+  'proxy_service': {'enabled': teleport_proxy_mode | bool},
+  'auth_service': {'enabled': false}
+}) %}
 {% if teleport_session_recording != 'off' %}
-session_recording:
-  mode: "{{ teleport_session_recording }}"
+{% set _sr = {'mode': teleport_session_recording} %}
 {% if teleport_enhanced_recording %}
-  enhanced_recording:
-    enabled: true
+{% set _sr = _sr | combine({'enhanced_recording': {'enabled': true}}) %}
 {% endif %}
+{% set _base_config = _base_config | combine({'session_recording': _sr}) %}
 {% endif %}
+{% set _final = _base_config | combine(teleport_config_overwrite, recursive=True) %}
+{{ _final | to_nice_yaml(indent=2) }}

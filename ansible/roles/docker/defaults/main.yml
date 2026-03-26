@@ -18,23 +18,34 @@ docker_manage_daemon: true
 docker_add_user_to_group: true
 docker_enable_service: true
 
+# ---- Core settings (safe) ----
+
 # Целевой пользователь (добавляется в группу docker)
+# Safety: safe — user must exist on the system
 docker_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
-# --- Daemon configuration (ROLE-010) ---
-# Dict-based config merged with docker_daemon_overwrite in template
-docker_daemon_config:
-  log-driver: "journald"
-  log-opts:
-    max-size: "10m"
-    max-file: "3"
+# ---- Logging (safe) ----
 
-# User overrides merged on top of docker_daemon_config (ROLE-010)
-# Example: docker_daemon_overwrite: { "default-runtime": "nvidia" }
-docker_daemon_overwrite: {}
+# Logging driver for containers
+# Safety: safe — journald integrates with systemd journal
+docker_log_driver: "journald"
 
-# --- CIS Docker Benchmark security settings (ROLE-004) ---
-# Each setting has a CIS control ID and individual toggle for granular control
+# Max log file size (applies to non-journald drivers)
+# Safety: safe
+docker_log_max_size: "10m"
+
+# Max number of rotated log files (applies to non-journald drivers)
+# Safety: safe
+docker_log_max_file: "3"
+
+# ---- Storage (careful) ----
+
+# Storage driver — empty uses Docker default (overlay2 on modern kernels)
+# Safety: careful — changing on existing install requires data migration
+docker_storage_driver: ""
+
+# ---- Security features (careful) ----
+# CIS Docker Benchmark defaults
 
 # CIS 2.8 — Enable user namespace support (userns-remap)
 # WARNING: userns-remap ломает volume permissions — используйте named volumes
@@ -60,5 +71,9 @@ docker_live_restore: true
 # При необходимости — per-container override: --security-opt no-new-privileges=false
 docker_no_new_privileges: true
 
-# Storage driver (empty = Docker auto-selects; set e.g. "overlay2" to force)
-docker_storage_driver: ""
+# ---- Customization (internal) ----
+
+# User-provided daemon.json overrides — merged on top of computed config
+# Safety: internal — values here override all computed settings
+# Example: { "dns": ["8.8.8.8"], "default-address-pools": [{"base": "172.80.0.0/16", "size": 24}] }
+docker_daemon_overwrite: {}

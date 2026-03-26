@@ -7,9 +7,9 @@ Configures Docker daemon with CIS-hardened defaults (daemon.json, service manage
 1. **Preflight** (`tasks/main.yml`) -- asserts OS family is in the supported list (`Archlinux`, `Debian`, `RedHat`, `Void`, `Gentoo`); fails immediately if unsupported
 2. **Load OS variables** (`vars/<os_family>.yml`) -- loads distro-specific service name (`_docker_service_name`)
 3. **Create config directory** -- ensures `/etc/docker/` exists with `root:root 0755`
-4. **Build daemon config** -- assembles `docker_daemon_config` dict via `set_fact`, conditionally merging security settings (`userns-remap`, `icc`, `live-restore`, `no-new-privileges`) and storage driver
+4. **Build daemon config** -- merges logging, storage, and security settings into a single dict; applies `docker_daemon_overwrite` on top
 5. **Deploy daemon.json** -- renders `/etc/docker/daemon.json` from Jinja2 template with JSON validation (`python3 -m json.tool`). **Triggers handler:** if config changed, Docker will be restarted.
-6. **User group** -- ensures `docker` group exists and adds `docker_user` to it (skipped when `docker_add_user_to_group: false`)
+6. **User group** -- ensures `docker` group exists, validates target user exists, adds `docker_user` to it (skipped when `docker_add_user_to_group: false`)
 7. **Service** -- enables and starts Docker service (skipped when `docker_enable_service: false`)
 8. **Verify** (`tasks/verify.yml`) -- checks `/etc/docker/` permissions, `daemon.json` validity (JSON parse), correct ownership and mode
 9. **Report** -- writes execution report via `common/report_phase` + `report_render`
@@ -39,6 +39,16 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `docker_icc` | `false` | careful | Inter-container communication via `docker0` bridge. `false` = containers must use user-defined networks (Docker Compose creates them automatically) |
 | `docker_live_restore` | `true` | safe | Keep containers running when dockerd restarts. Incompatible with Docker Swarm |
 | `docker_no_new_privileges` | `true` | safe | Block setuid privilege escalation in containers. Per-container override: `--security-opt no-new-privileges=false` |
+| `docker_daemon_overwrite` | `{}` | internal | Dict merged on top of computed daemon.json. Use for any settings not covered by dedicated variables |
+
+### CIS Docker Benchmark defaults
+
+| Setting | Value | CIS Control | Effect |
+|---------|-------|-------------|--------|
+| `userns-remap` | `"default"` | CIS 2.8 | Isolates container UIDs from host UIDs |
+| `icc` | `false` | CIS 2.1 | Disables direct inter-container communication on docker0 |
+| `live-restore` | `true` | CIS 2.14 | Daemon resilience without stopping containers |
+| `no-new-privileges` | `true` | CIS 5.25 | Prevents privilege escalation via setuid |
 
 ### Internal mappings (`vars/`)
 
@@ -75,6 +85,21 @@ docker_icc: true                 # allow inter-container communication
 docker_no_new_privileges: false  # allow setuid in containers
 ```
 
+### Adding custom daemon.json settings
+
+```yaml
+# In host_vars/<hostname>/docker.yml:
+docker_daemon_overwrite:
+  dns:
+    - "8.8.8.8"
+    - "8.8.4.4"
+  default-address-pools:
+    - base: "172.80.0.0/16"
+      size: 24
+```
+
+Values in `docker_daemon_overwrite` are merged recursively on top of all computed settings.
+
 ### Skipping user group membership
 
 ```yaml
@@ -95,42 +120,42 @@ Or use tags: `ansible-playbook playbook.yml --tags docker:configure`
 
 ## Cross-platform details
 
-| Aspect | Arch Linux | Ubuntu / Debian | Fedora / RHEL | Void Linux | Gentoo |
-|--------|-----------|-----------------|---------------|------------|--------|
+| Aspect | Arch Linux | Ubuntu / Debian | Fedora / RedHat | Void Linux | Gentoo |
+|--------|-----------|-----------------|-----------------|------------|--------|
 | Service name | `docker` | `docker` | `docker` | `docker` | `docker` |
-| Package name | `docker` | `docker.io` | `docker` | `docker` | `app-containers/docker` |
 | Config path | `/etc/docker/daemon.json` | `/etc/docker/daemon.json` | `/etc/docker/daemon.json` | `/etc/docker/daemon.json` | `/etc/docker/daemon.json` |
+| Package | `docker` | `docker.io` / `docker-ce` | `docker-ce` | `docker` | `app-containers/docker` |
 
-The config path is identical across all distros. Package names differ -- this role does not install Docker, so the package name is only relevant to the prepare step in molecule tests.
+Docker service name is consistent across all distros. Config path is always `/etc/docker/daemon.json`. Package installation is handled outside this role.
 
 ## Logs
 
 ### Log files
 
-| File | Path | Contents | Rotation |
-|------|------|----------|----------|
+| Source | Path | Contents | Rotation |
+|--------|------|----------|----------|
+| Docker daemon | `journalctl -u docker` | Daemon start/stop, config reload, container lifecycle | System journal rotation |
 | Container logs (journald) | `journalctl CONTAINER_NAME=<name>` | Container stdout/stderr | System journal rotation |
-| Container logs (json-file) | `/var/lib/docker/containers/<id>/<id>-json.log` | Container stdout/stderr as JSON | `docker_log_max_size` / `docker_log_max_file` |
-| Docker daemon | `journalctl -u docker` | Daemon start/stop, errors, warnings | System journal rotation |
-| daemon.json | `/etc/docker/daemon.json` | Not a log -- config file deployed by this role | N/A |
+| Container logs (json-file) | `/var/lib/docker/containers/<id>/<id>-json.log` | Container stdout/stderr | `docker_log_max_size` / `docker_log_max_file` |
+| daemon.json | `/etc/docker/daemon.json` | Static config file (not a log) | N/A -- managed by this role |
 
 ### Reading the logs
 
-- Daemon issues: `journalctl -u docker -n 50 --no-pager`
+- Daemon errors: `journalctl -u docker -n 50 --no-pager`
 - Container logs: `docker logs <container>` or `journalctl CONTAINER_NAME=<name>`
-- Live-restore events: `journalctl -u docker | grep live-restore`
+- Config validation: `python3 -m json.tool /etc/docker/daemon.json`
 
 ## Troubleshooting
 
 | Symptom | Diagnosis | Fix |
 |---------|-----------|-----|
-| Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` -- must be one of: Archlinux, Debian, RedHat, Void, Gentoo |
-| `daemon.json` validation fails | Invalid JSON syntax in merged config | Run `python3 -m json.tool /etc/docker/daemon.json` to see the error. Check variable values for unquoted strings |
-| Docker won't start after config change | Bad daemon.json or conflicting settings | `journalctl -u docker -n 50`. Common: `userns-remap` with incompatible storage driver |
-| Containers can't talk to each other | `docker_icc: false` blocks `docker0` traffic | Use user-defined networks (`docker network create mynet`) or set `docker_icc: true` |
-| Bind-mount permission denied | `userns-remap` shifts UIDs by 100000 | Use named volumes, or `chown 100000:100000` on host directories, or disable `docker_userns_remap: ""` |
-| User can't run `docker` commands | Not in docker group, or session not refreshed | Check: `id -nG <user>`. If `docker` missing: verify `docker_add_user_to_group: true`. Log out and back in for group changes to take effect |
-| Handler didn't restart Docker | `docker_enable_service: false` skips handler | Set `docker_enable_service: true` or restart manually: `systemctl restart docker` |
+| Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` matches one of: Archlinux, Debian, RedHat, Void, Gentoo |
+| Role fails at "Assert target user exists" | `docker_user` resolves to a non-existent user | Set `docker_user` to a valid username or ensure the user is created before this role |
+| daemon.json validation fails | Invalid JSON in template output | Check `docker_daemon_overwrite` for syntax errors. Run: `python3 -m json.tool /etc/docker/daemon.json` |
+| Docker won't start after config change | Invalid daemon.json options | `journalctl -u docker -n 50` for error. Common: storage-driver mismatch with existing data |
+| userns-remap breaks volume permissions | Container UID remapped to 100000+ range | Use named volumes, or `chown 100000:100000 /path/to/bind/mount` on host |
+| Containers can't communicate | `docker_icc: false` blocks docker0 bridge traffic | Use user-defined networks (`docker network create`) or Docker Compose networks (created automatically) |
+| Handler doesn't restart Docker | `docker_enable_service: false` prevents restart | Set `docker_enable_service: true` or restart manually: `systemctl restart docker` |
 
 ## Testing
 
@@ -138,8 +163,8 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Config deployment, idempotence, daemon.json content, negative-path assertions |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic, services, or security settings | Real systemd, real packages, Arch + Ubuntu matrix, service state, runtime `docker info` |
+| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Config deployment, JSON validation, idempotence, security key presence/absence |
+| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or service tasks | Real systemd, real packages, Arch + Ubuntu matrix, service start |
 
 ### Success criteria
 
@@ -152,23 +177,23 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 
 | Category | Examples | Test requirement |
 |----------|----------|-----------------|
-| Directory | `/etc/docker/` exists with `root:root 0755` | TEST-008 |
-| Config file | `daemon.json` exists with `root:root 0644`, valid JSON | TEST-008 |
-| Config content | `log-driver`, `log-opts`, security keys match variables | TEST-008 |
-| Group | `docker` group exists, user is member | TEST-008 |
-| Service | `docker.service` enabled + running (vagrant only) | TEST-008 |
-| Runtime | `docker info` matches configured log driver, security options (vagrant only) | TEST-008 |
-| Negative path | Security keys absent when features disabled, user NOT in group when disabled | TEST-008 |
+| Directories | `/etc/docker/` exists with root:root 0755 | TEST-008 |
+| Config files | `daemon.json` exists, valid JSON, correct permissions | TEST-008 |
+| Config content | log-driver, security keys match variables | TEST-008 |
+| Negative paths | Security keys absent when features disabled | TEST-008 |
+| User group | docker group exists, user membership | TEST-008 |
+| Services | docker.service running + enabled (vagrant only) | TEST-008 |
+| Runtime | `docker info` matches configured settings (vagrant only) | TEST-008 |
 
 ### Common test failures
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `docker package not found` | Package not installed in prepare step | Check `molecule/docker/prepare.yml` installs `docker` (Arch) or `docker.io` (Ubuntu) |
-| Idempotence failure on daemon.json | Template produces different output on second run | Check `set_fact` for non-deterministic values |
-| `python3 -m json.tool` validation fails | daemon.json template error | Run converge, then `docker exec <container> python3 -m json.tool /etc/docker/daemon.json` |
-| Assertion failed: `icc` key absent | `docker_icc` host_var doesn't match expected path | Check `molecule.yml` host_vars match the assertion (nosec vs systemd platform) |
-| Vagrant: `Python not found` | prepare.yml missing or bootstrap skipped | Check `prepare.yml` imports `shared/prepare-vagrant.yml` (TEST-009) |
+| `daemon.json missing or wrong permissions` | Converge didn't run or failed silently | Run full sequence: `molecule test -s docker`, not just converge |
+| `JSON validation failed` | Template produces invalid JSON | Check `docker_daemon_overwrite` for trailing commas or unquoted keys |
+| Idempotence failure on daemon.json | `set_fact` produces different dict ordering | Usually harmless -- Ansible dict ordering varies. Check for actual content changes |
+| `docker.service is not enabled` (vagrant) | Docker not installed in prepare step | Check `molecule/vagrant/prepare.yml` installs Docker |
+| `User not in docker group` | User doesn't exist in container | Set `docker_add_user_to_group: false` in container host_vars |
 
 ## Tags
 
@@ -177,7 +202,19 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `docker` | Entire role | Full apply: `ansible-playbook playbook.yml --tags docker` |
 | `docker:configure` | daemon.json deployment + user group | Config-only: `ansible-playbook playbook.yml --tags docker:configure` |
 | `docker:service` | Service enable/start only | Restart Docker without re-deploying config: `ansible-playbook playbook.yml --tags docker:service` |
+| `security` | Security-tagged tasks (daemon.json deploy) | Audit security configuration |
 | `report` | Logging/report tasks only | Re-generate execution report: `ansible-playbook playbook.yml --tags report` |
+
+```bash
+# Full role apply
+ansible-playbook playbook.yml --tags docker
+
+# Config only, no service management
+ansible-playbook playbook.yml --tags docker:configure
+
+# Service management only
+ansible-playbook playbook.yml --tags docker:service
+```
 
 ## File map
 
@@ -195,4 +232,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `tasks/noop.yml` | Empty task for molecule defaults loading | Never |
 | `handlers/main.yml` | Service restart handler | Rarely |
 | `meta/main.yml` | Galaxy metadata | When changing role metadata |
-| `molecule/` | Test scenarios (docker, vagrant, default) | When changing test coverage |
+| `molecule/shared/` | Shared converge and verify playbooks | When changing test assertions |
+| `molecule/docker/` | Docker-based test scenario | When changing container test config |
+| `molecule/vagrant/` | Vagrant-based test scenario | When changing VM test config |
+| `molecule/default/` | Localhost test scenario | When changing local test config |
