@@ -47,6 +47,7 @@ provisioner:
     group_vars:
       all:
         firewall_start_service: false
+        firewall_enable_service: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
