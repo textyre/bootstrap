@@ -1,8 +1,16 @@
 ---
-- name: Converge
+- name: Converge -- minimal configuration
   hosts: all
   become: true
   gather_facts: true
 
   roles:
-    - role: git
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+- name: Converge -- full configuration
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"

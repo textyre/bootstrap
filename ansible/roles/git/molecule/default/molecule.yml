@@ -32,11 +32,15 @@ provisioner:
           diff.colorMoved: zebra
         git_safe_directories:
           - /tmp/test-safe-dir
-  playbooks:
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+
+dependency:
+  name: galaxy
+  options:
+    ignore-errors: true
+  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
+  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
 
 verifier:
   name: ansible
