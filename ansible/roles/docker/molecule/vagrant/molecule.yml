@@ -16,6 +16,12 @@ platforms:
     memory: 2048
     cpus: 2
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 provisioner:
   name: ansible
   config_options:
@@ -26,9 +32,12 @@ provisioner:
   inventory:
     group_vars:
       all:
-        docker_log_driver: "journald"
-        docker_log_max_size: "10m"
-        docker_log_max_file: "3"
+        docker_daemon_config:
+          log-driver: "journald"
+          log-opts:
+            max-size: "10m"
+            max-file: "3"
+        docker_daemon_overwrite: {}
         docker_storage_driver: ""
         docker_userns_remap: "default"
         docker_icc: false
@@ -36,26 +45,35 @@ provisioner:
         docker_no_new_privileges: true
         docker_add_user_to_group: true
         docker_enable_service: true
+        docker_manage_daemon: true
         docker_user: "vagrant"
     host_vars:
       arch-vm:
         docker_userns_remap: ""
         docker_icc: true
-        docker_log_driver: "json-file"
+        docker_daemon_config:
+          log-driver: "json-file"
+          log-opts:
+            max-size: "10m"
+            max-file: "3"
         docker_live_restore: false
         docker_no_new_privileges: false
         docker_storage_driver: "vfs"
       ubuntu-base:
         docker_userns_remap: ""
         docker_icc: true
-        docker_log_driver: "json-file"
+        docker_daemon_config:
+          log-driver: "json-file"
+          log-opts:
+            max-size: "10m"
+            max-file: "3"
         docker_live_restore: false
         docker_no_new_privileges: false
         docker_enable_service: false
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    converge: converge.yml
+    verify: verify.yml
 
 verifier:
   name: ansible

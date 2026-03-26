@@ -1,0 +1,9 @@
+---
+- name: "Prepare: update pacman package cache"
+  community.general.pacman:
+    update_cache: true
+
+- name: "Prepare: install docker package"
+  community.general.pacman:
+    name: docker
+    state: present

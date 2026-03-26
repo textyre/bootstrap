@@ -41,44 +41,48 @@
 # ---- Конфигурация daemon ----
 # ======================================================================
 
-- name: Ensure /etc/docker directory exists
-  ansible.builtin.file:
-    path: /etc/docker
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+- name: Configure Docker daemon
+  when: docker_manage_daemon | bool
   tags: ['docker', 'docker:configure']
+  block:
 
-- name: Build Docker daemon configuration
-  ansible.builtin.set_fact:
-    docker_daemon_config: >-
-      {{
-        {
-          "log-driver": docker_log_driver,
-          "log-opts": {
-            "max-size": docker_log_max_size,
-            "max-file": docker_log_max_file
-          }
-        }
-        | combine({"storage-driver": docker_storage_driver} if docker_storage_driver | length > 0 else {})
-        | combine({"userns-remap": docker_userns_remap} if docker_userns_remap | length > 0 else {})
-        | combine({"icc": false} if not docker_icc else {})
-        | combine({"live-restore": true} if docker_live_restore else {})
-        | combine({"no-new-privileges": true} if docker_no_new_privileges else {})
-      }}
-  tags: ['docker', 'docker:configure']
+    - name: Ensure /etc/docker directory exists
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
 
-- name: Deploy Docker daemon.json
-  ansible.builtin.template:
-    src: daemon.json.j2
-    dest: /etc/docker/daemon.json
-    owner: root
-    group: root
-    mode: '0644'
-    validate: 'python3 -m json.tool %s'
-  notify: Restart docker
-  tags: ['docker', 'docker:configure']
+    - name: "CIS 2.1, 2.8, 2.14, 5.25 | Build Docker daemon security configuration"
+      ansible.builtin.set_fact:
+        _docker_daemon_security: >-
+          {{
+            {}
+            | combine({"userns-remap": docker_userns_remap} if docker_userns_remap | string | length > 0 else {})
+            | combine({"icc": false} if not (docker_icc | bool) else {})
+            | combine({"live-restore": true} if docker_live_restore | bool else {})
+            | combine({"no-new-privileges": true} if docker_no_new_privileges | bool else {})
+            | combine({"storage-driver": docker_storage_driver} if docker_storage_driver | length > 0 else {})
+          }}
+      tags: ['security', 'cis_2.1', 'cis_2.8', 'cis_2.14', 'cis_5.25']
+
+    - name: Build final Docker daemon configuration
+      ansible.builtin.set_fact:
+        _docker_daemon_final: >-
+          {{ docker_daemon_config
+             | combine(_docker_daemon_security, recursive=True)
+             | combine(docker_daemon_overwrite, recursive=True) }}
+
+    - name: Deploy Docker daemon.json
+      ansible.builtin.template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+        validate: 'python3 -m json.tool %s'
+      notify: Restart docker
 
 - name: "Report: Configure daemon"
   ansible.builtin.include_role:
@@ -87,9 +91,10 @@
   vars:
     common_rpt_fact: "_docker_phases"
     common_rpt_phase: "Configure daemon"
+    common_rpt_status: "{{ 'done' if docker_manage_daemon | bool else 'skip' }}"
     common_rpt_detail: >-
-      log={{ docker_log_driver }}
-      icc={{ docker_icc }}
+      {{ 'log=' ~ docker_daemon_config['log-driver'] ~ ' icc=' ~ (docker_icc | string)
+         if docker_manage_daemon | bool else 'disabled' }}
   tags: ['docker', 'report']
 
 # ======================================================================
@@ -100,7 +105,7 @@
   ansible.builtin.group:
     name: docker
     state: present
-  when: docker_add_user_to_group
+  when: docker_add_user_to_group | bool
   tags: ['docker', 'docker:configure']
 
 - name: Add user to docker group
@@ -108,7 +113,7 @@
     name: "{{ docker_user }}"
     groups: docker
     append: true
-  when: docker_add_user_to_group
+  when: docker_add_user_to_group | bool
   tags: ['docker', 'docker:configure']
 
 - name: "Report: User group"
@@ -118,9 +123,9 @@
   vars:
     common_rpt_fact: "_docker_phases"
     common_rpt_phase: "User group"
-    common_rpt_status: "{{ 'done' if docker_add_user_to_group else 'skip' }}"
+    common_rpt_status: "{{ 'done' if docker_add_user_to_group | bool else 'skip' }}"
     common_rpt_detail: >-
-      {{ docker_user | default('n/a') if docker_add_user_to_group else 'disabled' }}
+      {{ docker_user | default('n/a') if docker_add_user_to_group | bool else 'disabled' }}
   tags: ['docker', 'report']
 
 # ======================================================================
@@ -132,7 +137,7 @@
     name: "{{ _docker_service_name }}"
     enabled: true
     state: started
-  when: docker_enable_service
+  when: docker_enable_service | bool
   tags: ['docker', 'docker:service']
 
 - name: "Report: Service"
@@ -142,9 +147,9 @@
   vars:
     common_rpt_fact: "_docker_phases"
     common_rpt_phase: "Service"
-    common_rpt_status: "{{ 'done' if docker_enable_service else 'skip' }}"
+    common_rpt_status: "{{ 'done' if docker_enable_service | bool else 'skip' }}"
     common_rpt_detail: >-
-      {{ _docker_service_name if docker_enable_service else 'disabled' }}
+      {{ _docker_service_name if docker_enable_service | bool else 'disabled' }}
   tags: ['docker', 'report']
 
 # ======================================================================
@@ -153,6 +158,7 @@
 
 - name: Verify Docker configuration
   ansible.builtin.include_tasks: verify.yml
+  when: docker_manage_daemon | bool
   tags: ['docker']
 
 - name: "Report: Verify"

@@ -1,0 +1,5 @@
+---
+roles:
+  - name: common
+    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../common"
+    version: master
