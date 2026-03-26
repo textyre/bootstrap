@@ -1,2 +1,9 @@
 ---
-- import_playbook: ../shared/verify.yml  # noqa: name[play]
+- name: Verify xorg role (config file assertions)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Import shared verify tasks
+      ansible.builtin.import_tasks: ../shared/verify_tasks.yml

@@ -1,0 +1,6 @@
+---
+- name: Apply xorg role with fixture dotfiles
+  ansible.builtin.include_role:
+    name: xorg
+  vars:
+    xorg_source_dir: /tmp/xorg_test_dotfiles
