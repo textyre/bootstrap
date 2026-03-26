@@ -6,4 +6,4 @@
 
   tasks:
     - name: Import shared verify tasks
-      ansible.builtin.import_tasks: verify_tasks.yml
+      ansible.builtin.import_tasks: tasks/verify.yml

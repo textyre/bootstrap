@@ -95,7 +95,7 @@
 - name: Assert keyboard config contains InputClass section structure
   ansible.builtin.assert:
     that:
-      - _xorg_verify_keyboard_text is regex('Section "InputClass"')
+      - _xorg_verify_keyboard_text is regex('Section \"InputClass\"')
       - _xorg_verify_keyboard_text is regex('EndSection')
     fail_msg: "00-keyboard.conf missing Section/EndSection structure"
 
@@ -132,21 +132,21 @@
 - name: Assert monitor config contains Monitor section with Monitor0
   ansible.builtin.assert:
     that:
-      - _xorg_verify_monitor_text is regex('Section "Monitor"')
+      - _xorg_verify_monitor_text is regex('Section \"Monitor\"')
       - "'Monitor0' in _xorg_verify_monitor_text"
     fail_msg: "10-monitor.conf missing Monitor section or Monitor0 identifier"
 
 - name: Assert monitor config contains Device section with modesetting driver
   ansible.builtin.assert:
     that:
-      - _xorg_verify_monitor_text is regex('Section "Device"')
+      - _xorg_verify_monitor_text is regex('Section \"Device\"')
       - "'modesetting' in _xorg_verify_monitor_text"
     fail_msg: "10-monitor.conf missing Device section or modesetting driver"
 
 - name: Assert monitor config contains Screen section with Screen0
   ansible.builtin.assert:
     that:
-      - _xorg_verify_monitor_text is regex('Section "Screen"')
+      - _xorg_verify_monitor_text is regex('Section \"Screen\"')
       - "'Screen0' in _xorg_verify_monitor_text"
     fail_msg: "10-monitor.conf missing Screen section or Screen0 identifier"
 

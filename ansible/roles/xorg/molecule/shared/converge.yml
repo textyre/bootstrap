@@ -6,7 +6,7 @@
 
   tasks:
     - name: Import shared converge tasks
-      ansible.builtin.import_tasks: converge_apply_tasks.yml
+      ansible.builtin.import_tasks: tasks/converge_apply.yml
 
 - name: Negative test — invalid xorg_source_dir
   hosts: all
@@ -15,4 +15,4 @@
 
   tasks:
     - name: Import shared negative converge tasks
-      ansible.builtin.import_tasks: converge_negative_tasks.yml
+      ansible.builtin.import_tasks: tasks/converge_negative.yml
