@@ -8,3 +8,8 @@
 # when common is not found on Ansible Galaxy (it is a local monorepo role, not a public role).
 roles:
   - name: common
+
+# Collection dependencies required by this role:
+#   - ansible.posix >=1.0.0     (ansible.posix.authorized_key in authorized_keys.yml)
+#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair in keygen.yml)
+# These are declared in ansible/requirements.yml at the project level.

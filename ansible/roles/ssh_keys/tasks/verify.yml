@@ -71,7 +71,7 @@
   ansible.builtin.stat:
     path: "{{ getent_passwd[item.name][4] }}/.ssh/id_{{ ssh_keys_key_type }}"
   register: _ssh_keys_verify_keypair
-  loop: "{{ _ssh_keys_present_users_with_keys }}"
+  loop: "{{ _ssh_keys_present_users }}"
   loop_control:
     label: "{{ item.name }}"
   when: ssh_keys_generate_user_keys | bool
