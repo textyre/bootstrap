@@ -2,6 +2,15 @@
 # === Установка браузера Zen Browser ===
 # Значения по умолчанию
 
+# Включить/отключить роль полностью (false — роль пропускается без ошибок)
+zen_browser_enabled: true
+
+# Поддерживаемые OS-семейства (ROLE-003 — preflight assert)
+# zen_browser устанавливается только через AUR, поэтому поддерживается только Arch Linux.
+# Остальные дистрибутивы не поддерживаются — роль завершается с fail_msg при несовпадении.
+_zen_browser_supported_os:
+  - Archlinux
+
 # AUR пакет для установки
 zen_browser_aur_package: "zen-browser-bin"
 

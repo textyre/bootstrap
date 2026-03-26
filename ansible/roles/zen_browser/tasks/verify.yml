@@ -1,0 +1,74 @@
+---
+# === zen_browser — верификация после установки (ROLE-005) ===
+# Вызывается из tasks/main.yml через include_tasks.
+# Использует changed_when: false (read-only) и failed_when для явного контроля.
+
+# ---- Бинарный файл ----
+
+- name: Check zen-browser binary is in PATH
+  ansible.builtin.command: which zen-browser
+  register: _zen_browser_verify_bin
+  changed_when: false
+  failed_when: false
+  tags: ['zen_browser', 'browser']
+
+- name: Assert zen-browser binary exists
+  ansible.builtin.assert:
+    that: _zen_browser_verify_bin.rc == 0
+    fail_msg: >-
+      zen-browser binary not found in PATH after installation.
+      Install log: {{ (zen_browser_install | default({})).stdout_lines | default(['(AUR tasks were skipped)']) | join(' | ') }}
+    success_msg: "zen-browser binary found at {{ _zen_browser_verify_bin.stdout }}"
+  tags: ['zen_browser', 'browser', 'molecule-notest']
+
+# ---- Пакет зарегистрирован в pacman ----
+
+- name: Check zen-browser-bin is registered with pacman
+  ansible.builtin.command: "pacman -Qi {{ zen_browser_aur_package }}"
+  register: _zen_browser_verify_pkg
+  changed_when: false
+  failed_when: false
+  tags: ['zen_browser', 'browser', 'molecule-notest']
+
+- name: Assert package is registered with pacman
+  ansible.builtin.assert:
+    that: _zen_browser_verify_pkg.rc == 0
+    fail_msg: >-
+      {{ zen_browser_aur_package }} is not registered with pacman.
+      Run: pacman -Qi {{ zen_browser_aur_package }} to inspect.
+    success_msg: "{{ zen_browser_aur_package }} is registered with pacman"
+  tags: ['zen_browser', 'browser', 'molecule-notest']
+
+# ---- Desktop entry ----
+
+- name: Stat desktop entry file
+  ansible.builtin.stat:
+    path: "/usr/share/applications/{{ zen_browser_desktop_file }}"
+  register: _zen_browser_verify_desktop
+  tags: ['zen_browser', 'browser', 'molecule-notest']
+
+- name: Assert desktop entry file exists
+  ansible.builtin.assert:
+    that:
+      - _zen_browser_verify_desktop.stat.exists
+      - _zen_browser_verify_desktop.stat.isreg
+    fail_msg: "Desktop entry /usr/share/applications/{{ zen_browser_desktop_file }} does not exist"
+    success_msg: "Desktop entry {{ zen_browser_desktop_file }} is present"
+  tags: ['zen_browser', 'browser', 'molecule-notest']
+
+# ---- SUDO_ASKPASS helper очищен (безопасность) ----
+
+- name: Stat temporary SUDO_ASKPASS helper
+  ansible.builtin.stat:
+    path: /tmp/.ansible_sudo_askpass_zen
+  register: _zen_browser_verify_askpass
+  tags: ['zen_browser', 'browser']
+
+- name: Assert SUDO_ASKPASS helper was removed
+  ansible.builtin.assert:
+    that: not _zen_browser_verify_askpass.stat.exists
+    fail_msg: >-
+      Temporary SUDO_ASKPASS helper /tmp/.ansible_sudo_askpass_zen was not removed.
+      This file contains sudo credentials and is a security risk. Remove it manually.
+    success_msg: "SUDO_ASKPASS helper is cleaned up"
+  tags: ['zen_browser', 'browser']
