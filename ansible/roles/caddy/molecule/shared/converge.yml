@@ -6,3 +6,7 @@
 
   roles:
     - role: caddy
+      vars:
+        # Disable userns-remap in test — requires subuid/subgid setup
+        # that is not available in fresh molecule VMs
+        docker_userns_remap: ""
