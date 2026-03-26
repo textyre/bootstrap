@@ -4,6 +4,22 @@
   become: true
   gather_facts: true
 
+  vars:
+    # Expected values must match the converge.yml role configuration.
+    # Defined here because set_fact in converge post_tasks does not persist
+    # across Molecule plays (converge → verify are separate Ansible runs).
+    power_management_verify_expected_governor: schedutil
+    power_management_verify_expected_hibernate_mode: platform
+    power_management_verify_expected_lid_switch: suspend
+    power_management_verify_expected_lid_switch_ac: suspend
+    power_management_verify_expected_lid_switch_docked: ignore
+    power_management_verify_expected_power_key: poweroff
+    power_management_verify_expected_suspend_key: suspend
+    power_management_verify_expected_hibernate_key: ignore
+    power_management_verify_expected_idle_action: ignore
+    power_management_verify_expected_idle_action_sec: 30min
+    power_management_verify_expected_audit_schedule: daily
+
   tasks:
 
     # ==== Environment Detection ====

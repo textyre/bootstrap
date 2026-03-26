@@ -11,18 +11,3 @@
         power_management_assert_strict: true
         power_management_audit_battery: false
 
-  # Export converge settings for data-driven verification
-  post_tasks:
-    - name: Set verification facts from converge vars
-      ansible.builtin.set_fact:
-        power_management_verify_expected_governor: schedutil
-        power_management_verify_expected_hibernate_mode: platform
-        power_management_verify_expected_lid_switch: suspend
-        power_management_verify_expected_lid_switch_ac: suspend
-        power_management_verify_expected_lid_switch_docked: ignore
-        power_management_verify_expected_power_key: poweroff
-        power_management_verify_expected_suspend_key: suspend
-        power_management_verify_expected_hibernate_key: ignore
-        power_management_verify_expected_idle_action: ignore
-        power_management_verify_expected_idle_action_sec: 30min
-        power_management_verify_expected_audit_schedule: daily
