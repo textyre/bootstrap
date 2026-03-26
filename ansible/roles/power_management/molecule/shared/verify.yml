@@ -4,22 +4,6 @@
   become: true
   gather_facts: true
 
-  vars:
-    # Expected values must match the converge.yml role configuration.
-    # Defined here because set_fact in converge post_tasks does not persist
-    # across Molecule plays (converge → verify are separate Ansible runs).
-    power_management_verify_expected_governor: schedutil
-    power_management_verify_expected_hibernate_mode: platform
-    power_management_verify_expected_lid_switch: suspend
-    power_management_verify_expected_lid_switch_ac: suspend
-    power_management_verify_expected_lid_switch_docked: ignore
-    power_management_verify_expected_power_key: poweroff
-    power_management_verify_expected_suspend_key: suspend
-    power_management_verify_expected_hibernate_key: ignore
-    power_management_verify_expected_idle_action: ignore
-    power_management_verify_expected_idle_action_sec: 30min
-    power_management_verify_expected_audit_schedule: daily
-
   tasks:
 
     # ==== Environment Detection ====
@@ -343,45 +327,26 @@
         fail_msg: "power-audit.timer missing expected timer directives (expected OnCalendar={{ power_management_verify_expected_audit_schedule }})"
         success_msg: "power-audit.timer contains OnCalendar={{ power_management_verify_expected_audit_schedule }} + RandomizedDelaySec + Persistent"
 
-    - name: Check power-audit.timer is enabled  # noqa: command-instead-of-module
-      ansible.builtin.command:
-        cmd: systemctl is-enabled power-audit.timer
-      register: power_management_verify_timer_enabled
-      changed_when: false
+    - name: Gather service facts for timer and conflict checks
+      ansible.builtin.service_facts:
 
     - name: Assert power-audit.timer is enabled
       ansible.builtin.assert:
         that:
-          - power_management_verify_timer_enabled.rc == 0
-          - power_management_verify_timer_enabled.stdout | trim == 'enabled'
-        fail_msg: >-
-          power-audit.timer is not enabled
-          (rc: {{ power_management_verify_timer_enabled.rc }},
-          stdout: {{ power_management_verify_timer_enabled.stdout | default('') | trim }})
+          - "'power-audit.timer' in ansible_facts.services"
+          - ansible_facts.services['power-audit.timer'].status | default('unknown') == 'enabled'
+        fail_msg: "power-audit.timer is not enabled (status: {{ ansible_facts.services['power-audit.timer'].status | default('not found') }})"
         success_msg: "power-audit.timer is enabled"
-
-    - name: Check power-audit.timer is active  # noqa: command-instead-of-module
-      ansible.builtin.command:
-        cmd: systemctl is-active power-audit.timer
-      register: power_management_verify_timer_active
-      changed_when: false
-      failed_when: false
 
     - name: Assert power-audit.timer is active
       ansible.builtin.assert:
         that:
-          - power_management_verify_timer_active.rc == 0
-          - power_management_verify_timer_active.stdout | trim == 'active'
-        fail_msg: >-
-          power-audit.timer is not active
-          (rc: {{ power_management_verify_timer_active.rc }},
-          stdout: {{ power_management_verify_timer_active.stdout | default('') | trim }})
+          - "'power-audit.timer' in ansible_facts.services"
+          - ansible_facts.services['power-audit.timer'].state | default('unknown') == 'active'
+        fail_msg: "power-audit.timer is not active (state: {{ ansible_facts.services['power-audit.timer'].state | default('not found') }})"
         success_msg: "power-audit.timer is active"
 
     # ==== Conflicting Services Masked ====
-
-    - name: Gather service facts for conflict checks
-      ansible.builtin.service_facts:
 
     - name: Assert power-profiles-daemon is masked or absent
       ansible.builtin.assert:
