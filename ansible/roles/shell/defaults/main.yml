@@ -3,19 +3,49 @@
 # Install shell, set login shell, create XDG dirs, deploy global config.
 # Per-user dotfiles (.bashrc, .zshrc) managed by chezmoi — NOT this role.
 
+# Supported OS families (ROLE-003)
+_shell_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Target user
 shell_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
 # Shell type: bash | zsh | fish
 shell_type: zsh
 
-# Set as user's login shell via chsh?
+# --- Subsystem toggles (ROLE-010) ---
+
+# Install shell packages
+shell_manage_packages: true
+
+# Set as user's login shell via chsh
 shell_set_login: true
+
+# Create XDG Base Directories
+shell_manage_xdg: true
+
+# Deploy global config (/etc/profile.d/, /etc/zsh/zshenv, /etc/fish/conf.d/)
+shell_manage_global_config: true
+
+# Set ZDOTDIR in /etc/zsh/zshenv (zsh only)
+# Points ZDOTDIR to ${XDG_CONFIG_HOME:-$HOME/.config}/zsh
+shell_zsh_zdotdir: true
+
+# --- Path and env configuration ---
 
 # System-wide PATH additions (deployed to /etc/profile.d/ or /etc/fish/conf.d/)
 # Use absolute paths or $HOME-relative paths
+# Developer profile adds cargo/go paths; override via inventory for other profiles
 shell_global_path:
   - "$HOME/.local/bin"
+
+# Developer-specific PATH additions (ROLE-009)
+# Merged into shell_global_path when developer profile is active
+shell_developer_path:
   - "$HOME/.cargo/bin"
   - "/usr/local/go/bin"
 
@@ -24,6 +54,14 @@ shell_global_env: {}
 #   GOPATH: "$HOME/go"
 #   JAVA_HOME: "/usr/lib/jvm/default"
 
+# Developer-specific environment variables (ROLE-009)
+# Merged into shell_global_env when developer profile is active
+shell_developer_env:
+  GOPATH: "$HOME/go"
+
+# User overrides merged on top of shell_global_env (ROLE-010)
+shell_global_env_overwrite: {}
+
 # XDG Base Directories to create (XDG Base Directory Specification)
 # Uses shell_user_home fact resolved at runtime
 shell_xdg_dirs:
@@ -31,7 +69,3 @@ shell_xdg_dirs:
   - ".local/share"
   - ".local/bin"
   - ".cache"
-
-# Set ZDOTDIR in /etc/zsh/zshenv? (zsh only)
-# Points ZDOTDIR to ${XDG_CONFIG_HOME:-$HOME/.config}/zsh
-shell_zsh_zdotdir: true

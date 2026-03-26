@@ -24,7 +24,9 @@
     owner: root
     group: root
     mode: '0755'
-  when: shell_type == 'zsh'
+  when:
+    - shell_type == 'zsh'
+    - shell_zsh_zdotdir | bool
   tags: ['shell', 'configure']
 
 - name: Deploy /etc/zsh/zshenv
@@ -35,7 +37,9 @@
     group: root
     mode: '0644'
     validate: sh -n %s
-  when: shell_type == 'zsh'
+  when:
+    - shell_type == 'zsh'
+    - shell_zsh_zdotdir | bool
   tags: ['shell', 'configure']
 
 # ---- /etc/fish/conf.d/ (fish only) ----
