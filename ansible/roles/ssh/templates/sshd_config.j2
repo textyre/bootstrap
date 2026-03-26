@@ -30,7 +30,8 @@ ListenAddress {{ addr }}
 HostKey {{ key }}
 {% endfor %}
 
-# ---- Криптография ----
+{% if ssh_manage_crypto %}
+# ---- Криптография (ssh_manage_crypto: true) ----
 
 # Алгоритмы обмена ключами (KEX) — только современные с эфемерными ключами
 # curve25519 + DH group16/18 — соответствует Mozilla Modern и dev-sec
@@ -51,8 +52,10 @@ HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}
 # Перегенерация ключей сессии — ограничение объёма данных и времени
 # на одном сессионном ключе (защита от long-running session compromise)
 RekeyLimit {{ ssh_rekey_limit }}
+{% endif %}
 
-# ---- Аутентификация ----
+{% if ssh_manage_auth %}
+# ---- Аутентификация (ssh_manage_auth: true) ----
 
 # Время на ввод учётных данных после подключения (секунды)
 # Короткое значение снижает окно для brute-force атак
@@ -105,8 +108,10 @@ PermitUserEnvironment {{ ssh_permit_user_environment }}
 # PAM (Pluggable Authentication Modules) — нужен для account/session management
 # Даже при password auth=no, PAM обеспечивает account lockout, session limits
 UsePAM {{ ssh_use_pam }}
+{% endif %}
 
-# ---- Контроль доступа ----
+{% if ssh_manage_access_control %}
+# ---- Контроль доступа (ssh_manage_access_control: true) ----
 
 {% if ssh_allow_groups | length > 0 %}
 # Группы, которым разрешён SSH-доступ (whitelist)
@@ -128,8 +133,10 @@ DenyGroups {{ ssh_deny_groups | join(' ') }}
 # Пользователи, которым запрещён SSH-доступ (blacklist)
 DenyUsers {{ ssh_deny_users | join(' ') }}
 {% endif %}
+{% endif %}
 
-# ---- Перенаправление и туннели ----
+{% if ssh_manage_forwarding %}
+# ---- Перенаправление и туннели (ssh_manage_forwarding: true) ----
 
 # X11-перенаправление — графический вывод через SSH
 # Отключение предотвращает X11 sniffing (перехват клавиатуры/экрана)
@@ -150,8 +157,10 @@ PermitTunnel {{ ssh_permit_tunnel }}
 # Открытие сокета на всех интерфейсах для перенаправленных портов
 # no = только localhost может подключаться к перенаправленным портам
 GatewayPorts {{ ssh_gateway_ports }}
+{% endif %}
 
-# ---- Логирование ----
+{% if ssh_manage_logging %}
+# ---- Логирование (ssh_manage_logging: true) ----
 
 # Уровень логирования: VERBOSE записывает fingerprint ключа при каждом входе
 # Необходимо для аудита — кто и каким ключом подключился (CIS, DISA STIG)
@@ -159,8 +168,10 @@ LogLevel {{ ssh_log_level }}
 
 # Facility syslog — AUTH направляет логи в стандартный журнал безопасности
 SyslogFacility {{ ssh_syslog_facility }}
+{% endif %}
 
-# ---- Сессия и окружение ----
+{% if ssh_manage_session %}
+# ---- Сессия и окружение (ssh_manage_session: true) ----
 
 # Интервал keepalive — сервер проверяет что клиент жив (секунды)
 ClientAliveInterval {{ ssh_client_alive_interval }}
@@ -207,6 +218,7 @@ Compression {{ ssh_compression }}
 # full — все отклоняются при достижении full
 # CIS/Mozilla: 10:30:60 (агрессивный, но эффективный против brute-force)
 MaxStartups {{ ssh_max_startups }}
+{% endif %}
 
 {% if ssh_teleport_integration %}
 # ---- Teleport SSH CA ----

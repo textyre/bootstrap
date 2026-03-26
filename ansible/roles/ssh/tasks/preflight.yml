@@ -65,11 +65,9 @@
 # ---- Проверка authorized_keys (предупреждение о возможной блокировке) ----
 
 - name: "Check if authorized_keys exists for {{ ssh_user }}"
-  ansible.builtin.shell:
-    cmd: "test -f ~{{ ssh_user }}/.ssh/authorized_keys && echo found || echo missing"
+  ansible.builtin.stat:
+    path: "~{{ ssh_user }}/.ssh/authorized_keys"
   register: _ssh_preflight_authkeys
-  changed_when: false
-  failed_when: false
   when: ssh_password_authentication == "no"
   tags: ['ssh', 'security']
 
@@ -83,5 +81,5 @@
   when:
     - ssh_password_authentication == "no"
     - _ssh_preflight_authkeys is defined
-    - _ssh_preflight_authkeys.stdout | default('') == 'missing'
+    - not (_ssh_preflight_authkeys.stat.exists | default(false))
   tags: ['ssh', 'security']
