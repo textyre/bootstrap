@@ -90,31 +90,36 @@
       tags: ['caddy', 'proxy', 'configure']
       block:
 
-        - name: Extract Caddy root CA from container
+        - name: Extract Caddy root CA to temporary file
           ansible.builtin.command:
-            cmd: >-
-              docker cp caddy:/data/caddy/pki/authorities/local/root.crt
-              {{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}
-          register: _caddy_cp_result
+            cmd: docker cp caddy:/data/caddy/pki/authorities/local/root.crt /tmp/caddy_root_ca.crt
           changed_when: false
-          failed_when: _caddy_cp_result.rc != 0
 
-        - name: Ensure Caddy root CA has correct permissions
-          ansible.builtin.file:
-            path: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
+        - name: Read extracted CA certificate content
+          ansible.builtin.slurp:
+            src: /tmp/caddy_root_ca.crt
+          register: _caddy_ca_new
+
+        - name: Deploy Caddy root CA to trust store
+          ansible.builtin.copy:
+            content: "{{ _caddy_ca_new.content | b64decode }}"
+            dest: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
+            owner: root
+            group: root
             mode: '0644'
+          register: _caddy_ca_deployed
 
-        - name: Detect if CA trust store needs updating
-          ansible.builtin.stat:
-            path: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
-          register: _caddy_ca_stat
+        - name: Clean up temporary CA file
+          ansible.builtin.file:
+            path: /tmp/caddy_root_ca.crt
+            state: absent
+          changed_when: false
 
         - name: Update system CA trust
           ansible.builtin.command:
             cmd: "{{ _caddy_update_ca_trust_cmd[ansible_facts['os_family']] }}"
-          register: _caddy_update_ca_result
-          changed_when: false
-          failed_when: _caddy_update_ca_result.rc != 0
+          when: _caddy_ca_deployed.changed
+          changed_when: _caddy_ca_deployed.changed
 
     # ======================================================================
     # ---- Доверие к CA в браузерах ----

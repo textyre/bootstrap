@@ -4,4 +4,3 @@
     project_src: "{{ caddy_base_dir }}"
     state: restarted
   listen: Restart caddy
-
