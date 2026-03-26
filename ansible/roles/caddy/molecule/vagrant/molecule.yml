@@ -25,6 +25,18 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  inventory:
+    group_vars:
+      all:
+        # CI-safe docker overrides: these apply to all plays (including TEST-011
+        # edge-case play) so the docker dependency doesn't rewrite daemon.json
+        # with incompatible defaults on the second role invocation.
+        docker_log_driver: "json-file"
+        docker_userns_remap: ""
+        docker_icc: true
+        docker_live_restore: false
+        docker_no_new_privileges: false
+        docker_storage_driver: ""
   playbooks:
     prepare: prepare.yml
 
