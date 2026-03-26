@@ -2,7 +2,7 @@
 # === Official package installation ===
 # AUR packages → yay role. Services → docker/lightdm roles. Groups → user role.
 
-- name: packages role
+- name: Packages role
   when: packages_enabled | bool
   tags: ['packages']
   block:
@@ -67,7 +67,7 @@
         common_rpt_detail: "{{ packages_all | length }} pkgs on {{ ansible_facts['os_family'] }}"
       tags: ['packages', 'report']
 
-    - name: "packages -- Execution Report"
+    - name: "Packages -- Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml
