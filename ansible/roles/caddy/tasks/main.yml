@@ -56,7 +56,7 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Reload caddy
+      notify: Restart caddy
       tags: ['caddy', 'proxy', 'configure']
 
     - name: Deploy docker-compose.yml
