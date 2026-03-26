@@ -9,6 +9,7 @@
     update_cache: true
     cache_valid_time: 3600
   check_mode: false
+  changed_when: false
   tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
 
 - name: "CIS 3.4.1.1 | Ensure nftables is installed (Debian)"
