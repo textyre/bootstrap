@@ -1,10 +1,8 @@
 ---
 # === Debian/Ubuntu: установка nftables ===
 
-- name: Ensure nftables is installed (apt)
-  ansible.builtin.apt:
-    name: nftables
+- name: "CIS 3.4.1.1 | Ensure nftables is installed (Debian)"
+  ansible.builtin.package:
+    name: "{{ _firewall_packages }}"
     state: present
-    update_cache: true
-    cache_valid_time: 3600
-  tags: ['firewall', 'install']
+  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']

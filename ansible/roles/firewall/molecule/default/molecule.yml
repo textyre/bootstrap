@@ -7,6 +7,12 @@ driver:
 platforms:
   - name: Localhost
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 provisioner:
   name: ansible
   config_options:

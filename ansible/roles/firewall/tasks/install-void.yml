@@ -1,8 +1,8 @@
 ---
 # === Void Linux: установка nftables ===
 
-- name: Ensure nftables is installed (Void)
+- name: "CIS 3.4.1.1 | Ensure nftables is installed (Void)"
   ansible.builtin.package:
-    name: nftables
+    name: "{{ _firewall_packages }}"
     state: present
-  tags: ['firewall', 'install']
+  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']

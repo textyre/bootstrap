@@ -1,0 +1,5 @@
+---
+# Single source of truth for test data (TEST-012).
+# Consumed by both converge.yml and verify.yml.
+firewall_test_tcp_ports: [8080, 9090]
+firewall_test_udp_ports: [53]

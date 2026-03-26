@@ -7,7 +7,7 @@
 # ---- Preflight ----
 # ======================================================================
 
-- name: Assert supported operating system
+- name: "CIS 3.4.1.1 | Assert supported operating system"
   ansible.builtin.assert:
     that:
       - ansible_facts['os_family'] in _firewall_supported_os
@@ -15,15 +15,19 @@
       OS family '{{ ansible_facts['os_family'] }}' is not supported.
       Supported: {{ _firewall_supported_os | join(', ') }}
     success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['firewall']
 
 # ======================================================================
 # ---- Install ----
 # ======================================================================
 
-- name: Install nftables (OS-specific)
+- name: "CIS 3.4.1.1 | Install nftables (OS-specific)"
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['firewall', 'install']
+  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
 
 - name: Reload systemd daemon after nftables install
   ansible.builtin.systemd:
@@ -31,7 +35,7 @@
   when: ansible_facts['service_mgr'] | default('') == 'systemd'
   tags: ['firewall', 'install']
 
-- name: Deploy nftables configuration
+- name: "CIS 3.4.1.4 | Deploy nftables configuration"
   ansible.builtin.template:
     src: nftables.conf.j2
     dest: /etc/nftables.conf
@@ -40,14 +44,14 @@
     mode: '0644'
   notify: Restart nftables
   when: firewall_enabled | bool
-  tags: ['firewall', 'configure']
+  tags: ['firewall', 'configure', 'security', 'cis_3.4.1.4']
 
-- name: Enable nftables service
+- name: "CIS 3.4.1.1 | Enable nftables service"
   ansible.builtin.service:
     name: nftables
     enabled: true
   when: (firewall_enabled | bool) and (firewall_enable_service | bool)
-  tags: ['firewall', 'service']
+  tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
 
 - name: Check if nftables ruleset is already loaded
   ansible.builtin.command: nft list ruleset
@@ -57,14 +61,23 @@
   when: (firewall_enabled | bool) and (firewall_start_service | bool)
   tags: ['firewall', 'service']
 
-- name: Start nftables service
+- name: Report nftables ruleset probe outcome
+  ansible.builtin.debug:
+    msg: >-
+      nft list ruleset {{ 'succeeded -- ruleset already loaded'
+      if (_firewall_nft_ruleset.rc | default(1)) == 0
+      else 'failed (rc=' ~ (_firewall_nft_ruleset.rc | default('N/A')) ~ ') -- will start service to load ruleset' }}
+  when: (firewall_enabled | bool) and (firewall_start_service | bool)
+  tags: ['firewall', 'service']
+
+- name: "CIS 3.4.1.1 | Start nftables service"
   ansible.builtin.service:
     name: nftables
     state: started
   when:
     - (firewall_enabled | bool) and (firewall_start_service | bool)
     - "'chain input' not in (_firewall_nft_ruleset.stdout | default(''))"
-  tags: ['firewall', 'service']
+  tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
 
 # ======================================================================
 # ---- Verify ----

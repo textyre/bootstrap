@@ -5,9 +5,7 @@
   gather_facts: true
   vars_files:
     - ../../defaults/main.yml
-  vars:
-    firewall_expected_tcp_ports: [8080, 9090]
-    firewall_expected_udp_ports: [53]
+    - vars.yml
 
   tasks:
 
@@ -169,16 +167,16 @@
     - name: Assert custom TCP ports are present in config
       ansible.builtin.assert:
         that: "('tcp dport ' ~ item ~ ' accept') in _firewall_verify_conf_text"
-        fail_msg: "TCP port {{ item }} not found in nftables.conf (expected from firewall_allow_tcp_ports)"
-      loop: "{{ firewall_expected_tcp_ports }}"
-      when: firewall_expected_tcp_ports | length > 0
+        fail_msg: "TCP port {{ item }} not found in nftables.conf (expected from firewall_test_tcp_ports)"
+      loop: "{{ firewall_test_tcp_ports }}"
+      when: firewall_test_tcp_ports | length > 0
 
     - name: Assert custom UDP ports are present in config
       ansible.builtin.assert:
         that: "('udp dport ' ~ item ~ ' accept') in _firewall_verify_conf_text"
-        fail_msg: "UDP port {{ item }} not found in nftables.conf (expected from firewall_allow_udp_ports)"
-      loop: "{{ firewall_expected_udp_ports }}"
-      when: firewall_expected_udp_ports | length > 0
+        fail_msg: "UDP port {{ item }} not found in nftables.conf (expected from firewall_test_udp_ports)"
+      loop: "{{ firewall_test_udp_ports }}"
+      when: firewall_test_udp_ports | length > 0
 
     # ---- Forward chain ----
 
@@ -387,6 +385,6 @@
           (root:root 0644), inet filter table with drop policy, lo/established/invalid
           rules OK, ICMP rate limiting OK, SSH per-source-IP rate limiting IPv4+IPv6
           (CRIT-01 validated{{ ' in config' if _firewall_verify_in_docker else ' in config + runtime' }}),
-          custom TCP ports={{ firewall_expected_tcp_ports }},
-          custom UDP ports={{ firewall_expected_udp_ports }},
+          custom TCP ports={{ firewall_test_tcp_ports }},
+          custom UDP ports={{ firewall_test_udp_ports }},
           service enabled{{ ' (active check skipped in Docker)' if _firewall_verify_in_docker else ' and active' }}.
