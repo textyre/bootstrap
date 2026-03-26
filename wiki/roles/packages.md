@@ -63,3 +63,12 @@ Uses `common` role tasks (`report_phase.yml`, `report_render.yml`) for execution
 | `vagrant` | Vagrant/KVM | Arch VM + Ubuntu VM (full list) |
 
 Run: `molecule test -s docker` or `molecule test -s vagrant` from `ansible/roles/packages/`.
+
+## Verification
+
+In-role verify (`tasks/verify.yml`) uses two techniques per package:
+
+1. Native PM command — `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian)
+2. `package_facts` assert — confirms presence in Ansible fact database
+
+Molecule verify (`molecule/shared/verify.yml`) mirrors these checks externally.
