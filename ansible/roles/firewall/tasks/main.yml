@@ -50,7 +50,11 @@
   ansible.builtin.service:
     name: nftables
     enabled: true
-  when: (firewall_enabled | bool) and (firewall_enable_service | bool)
+  when:
+    - firewall_enabled | bool
+    - firewall_enable_service | bool
+    - not ansible_check_mode
+    - ansible_facts['service_mgr'] | default('') != 'host'
   tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
 
 - name: Check if nftables ruleset is already loaded
@@ -75,7 +79,9 @@
     name: nftables
     state: started
   when:
-    - (firewall_enabled | bool) and (firewall_start_service | bool)
+    - firewall_enabled | bool
+    - firewall_start_service | bool
+    - not ansible_check_mode
     - "'chain input' not in (_firewall_nft_ruleset.stdout | default(''))"
   tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
 
@@ -89,7 +95,7 @@
 
 - name: Verify firewall
   ansible.builtin.include_tasks: verify.yml
-  when: firewall_enabled | bool
+  when: (firewall_enabled | bool) and not ansible_check_mode
   tags: ['firewall']
 
 # ---- Отчёт о выполнении ----
