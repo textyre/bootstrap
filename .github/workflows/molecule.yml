@@ -125,6 +125,7 @@ jobs:
     if: needs.detect.outputs.empty == 'false'
     name: "${{ matrix.role }} (test-docker)"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         role: ${{ fromJSON(needs.detect.outputs.matrix) }}
