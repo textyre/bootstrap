@@ -10,8 +10,10 @@ Installs workstation packages via OS-native package managers (pacman, apt).
 4. **OS-specific install** (`tasks/install-archlinux.yml` or `tasks/install-debian.yml`)
    - **Arch:** runs `pacman -Syu` (full upgrade, tagged `upgrade`) then installs `packages_all` via `ansible.builtin.package`. Both steps retry up to 3 times on transient mirror failures. Skipped when `packages_all` is empty.
    - **Debian/Ubuntu:** updates apt cache (`cache_valid_time: 3600`) then installs `packages_all` via `ansible.builtin.package`. Install retries up to 3 times. Skipped when `packages_all` is empty.
-5. **Verify** (`tasks/verify.yml`) — gathers `package_facts` and asserts every package in `packages_all` is present; skipped when `packages_all` is empty
-6. **Report** — calls `common/report_phase.yml` and `common/report_render.yml` to emit a structured execution table (skipped via `--skip-tags report` in CI)
+5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all`; skipped when `packages_all` is empty:
+   - **Technique 1 (runtime):** `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian) — direct native package manager check
+   - **Technique 2 (state):** `package_facts` + assert — confirms package is in Ansible's fact database
+6. **Report** — calls `common/report_phase.yml` for each phase (verify + install) and `common/report_render.yml` to emit a structured execution table (skipped via `--skip-tags report` in CI)
 
 ### Failure behavior
 
@@ -190,7 +192,12 @@ ansible-playbook site.yml --tags packages --skip-tags upgrade,report
 | `tasks/main.yml` | Execution orchestrator: preflight → build list → install → verify → report | When adding/removing steps |
 | `tasks/install-archlinux.yml` | Arch-specific: system upgrade + package install | When changing Arch install behavior |
 | `tasks/install-debian.yml` | Debian/Ubuntu-specific: cache update + package install | When changing Debian install behavior |
-| `tasks/verify.yml` | In-role post-install verification via package_facts | When changing verification logic |
+| `tasks/verify.yml` | In-role post-install verification: native PM command + package_facts assert | When changing verification logic |
+| `vars/archlinux.yml` | Arch Linux OS-family vars stub (package manager specifics) | When adding Arch-specific variables |
+| `vars/debian.yml` | Debian/Ubuntu OS-family vars stub (package manager specifics) | When adding Debian-specific variables |
+| `vars/redhat.yml` | RedHat/Fedora OS-family vars stub (no install task yet) | When implementing RedHat support |
+| `vars/void.yml` | Void Linux OS-family vars stub (no install task yet) | When implementing Void support |
+| `vars/gentoo.yml` | Gentoo OS-family vars stub (no install task yet) | When implementing Gentoo support |
 | `meta/main.yml` | Role metadata and galaxy info | When updating supported platforms |
 | `molecule/docker/` | Docker CI scenario (Arch + Ubuntu + empty-list edge cases) | When changing CI test coverage |
 | `molecule/vagrant/` | Vagrant cross-platform scenario (Arch VM + Ubuntu VM) | When changing full-system test coverage |
