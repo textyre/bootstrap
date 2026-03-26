@@ -22,3 +22,18 @@
   register: vm_pkg_remove_result
   failed_when: false
   tags: ['vm', 'vm:install']
+
+- name: "Assert no unexpected package removal failures ({{ vm_pkg_label }})"
+  ansible.builtin.assert:
+    that:
+      - vm_pkg_remove_result.results | selectattr('failed', 'true') | list | length == 0
+    fail_msg: >-
+      Package removal failed for: {{
+        vm_pkg_remove_result.results
+        | selectattr('failed', 'true')
+        | map(attribute='item')
+        | list
+      }}. Check package manager logs.
+    success_msg: "All packages removed or not present ({{ vm_pkg_label }})"
+  when: vm_pkg_remove_result.results is defined
+  tags: ['vm', 'vm:install']

@@ -25,7 +25,7 @@
     changed: "{{ item.changed | default(false) | bool }}"
     common_rpt_status_mark: "{{ '! fail' if failed else ('+ removed' if changed else '- skipped') }}"
     detail: "{{ (item.msg | default('error')) | truncate(28, true, '..') if failed else ('not installed' if not changed else '') }}"
-    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(detail) }} |"
+    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(common_rpt_status_mark) }} | {{ '%-28s' | format(detail) }} |"
   loop: "{{ vm_pkg_remove_result.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"

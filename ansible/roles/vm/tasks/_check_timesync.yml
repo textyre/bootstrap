@@ -35,6 +35,7 @@
     name: systemd-timesyncd
   register: vm_timesync_status
   failed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['vm', 'vm:verify']
 
 - name: "Warn about time sync conflict ({{ vm_timesync_label }})"
@@ -44,6 +45,8 @@
       Consider disabling systemd-timesyncd to avoid conflicts:
       systemctl disable --now systemd-timesyncd
   when:
-    - _vm_timesync_status.status is defined
-    - _vm_timesync_status.status.ActiveState | default('') == 'active'
+    - ansible_facts['service_mgr'] == 'systemd'
+    - vm_timesync_status is not skipped
+    - vm_timesync_status.status is defined
+    - vm_timesync_status.status.ActiveState | default('') == 'active'
   tags: ['vm', 'vm:verify', 'vm:report']

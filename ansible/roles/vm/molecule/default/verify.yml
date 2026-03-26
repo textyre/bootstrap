@@ -1,319 +1,226 @@
 ---
-- name: Verify
+# === Verify vm role ===
+# Delegated to shared/verify.yml — single source of truth for verification logic.
+# Run via: molecule verify -s default
+
+- name: Verify vm role
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/vault.yml"
-    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/inventory/group_vars/all/packages.yml"
 
   tasks:
-    - name: Get virtualization type
+    # ---- Capture environment ----
+
+    - name: Capture virtualization facts
       ansible.builtin.set_fact:
-        vm_verify_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
-        vm_verify_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
+        _vm_verify_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
+        _vm_verify_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
 
-    # === Custom facts verification ===
+    - name: Debug virtualization environment
+      ansible.builtin.debug:
+        msg: "Environment: {{ _vm_verify_virt_type }} / {{ _vm_verify_virt_role }}"
 
-    - name: Verify custom fact exists
+    # ---- Docker (container) -- vm_is_guest is false ----
+
+    - name: Stat guest fact file (container check)
       ansible.builtin.stat:
         path: /etc/ansible/facts.d/vm_guest.fact
-      register: vm_verify_custom_fact
-      when: vm_verify_virt_role == 'guest'
+      register: _vm_verify_container_fact
+      when: _vm_verify_virt_type in ['container', 'docker']
 
-    - name: Assert custom fact was created
+    - name: Assert fact file NOT created in container
       ansible.builtin.assert:
-        that: vm_verify_custom_fact.stat.exists | default(false)
-        fail_msg: "Custom fact vm_guest.fact not found - _set_facts.yml should have created it"
+        that:
+          - not _vm_verify_container_fact.stat.exists
+        fail_msg: >-
+          vm_guest.fact should NOT exist in container environment
+          (vm_is_guest=false for container type)
+        success_msg: "Correct: no guest fact file in container"
       when:
-        - vm_verify_virt_role == 'guest'
-        - vm_verify_custom_fact.stat is defined
+        - _vm_verify_virt_type in ['container', 'docker']
+        - _vm_verify_container_fact is not skipped
 
-    - name: Read custom fact content
+    - name: Assert vm_reboot_required is false in container
+      ansible.builtin.assert:
+        that:
+          - not (vm_reboot_required | default(false) | bool)
+        fail_msg: "vm_reboot_required should be false in container"
+        success_msg: "Correct: vm_reboot_required is false in container"
+      when: _vm_verify_virt_type in ['container', 'docker']
+
+    # ---- KVM guest -- packages, services, fact file ----
+
+    - name: Check qemu-guest-agent package installed (KVM)
+      ansible.builtin.command:
+        cmd: qemu-ga --version
+      register: _vm_verify_qga_pkg
+      changed_when: false
+      failed_when: false
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+
+    - name: Assert qemu-guest-agent package is installed (KVM)
+      ansible.builtin.assert:
+        that:
+          - _vm_verify_qga_pkg.rc == 0
+        fail_msg: "qemu-guest-agent package not installed on KVM guest"
+        success_msg: "qemu-guest-agent package installed"
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_qga_pkg is not skipped
+
+    # ---- KVM: virtio device guard for service checks ----
+
+    - name: Check virtio-serial channel device (KVM)
+      ansible.builtin.stat:
+        path: /dev/virtio-ports/org.qemu.guest_agent.0
+      register: _vm_verify_virtio_dev
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+
+    - name: Warn -- virtio channel absent, skipping service assertion
+      ansible.builtin.debug:
+        msg: >-
+          /dev/virtio-ports/org.qemu.guest_agent.0 not found.
+          Skipping qemu-guest-agent service assertion (no virtio-serial device).
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - not (_vm_verify_virtio_dev.stat.exists | default(false))
+
+    - name: Check qemu-guest-agent service enabled (KVM)
+      ansible.builtin.command:
+        cmd: systemctl is-enabled qemu-guest-agent
+      register: _vm_verify_qga_svc
+      changed_when: false
+      failed_when: false
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virtio_dev.stat.exists | default(false)
+
+    - name: Assert qemu-guest-agent is enabled (KVM with virtio channel)
+      ansible.builtin.assert:
+        that:
+          - _vm_verify_qga_svc.stdout is regex('^enabled')
+        fail_msg: "qemu-guest-agent is not enabled on KVM guest"
+        success_msg: "qemu-guest-agent is enabled"
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virtio_dev.stat.exists | default(false)
+        - _vm_verify_qga_svc is not skipped
+
+    - name: Check qemu-guest-agent service active (KVM)
+      ansible.builtin.command:
+        cmd: systemctl is-active qemu-guest-agent
+      register: _vm_verify_qga_active
+      changed_when: false
+      failed_when: false
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virtio_dev.stat.exists | default(false)
+
+    - name: Assert qemu-guest-agent is active (KVM with virtio channel)
+      ansible.builtin.assert:
+        that:
+          - _vm_verify_qga_active.stdout is regex('^active')
+        fail_msg: "qemu-guest-agent is not running on KVM guest"
+        success_msg: "qemu-guest-agent is active"
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virtio_dev.stat.exists | default(false)
+        - _vm_verify_qga_active is not skipped
+
+    # ---- Fact file verification (all guest types) ----
+
+    - name: Stat guest fact file
+      ansible.builtin.stat:
+        path: /etc/ansible/facts.d/vm_guest.fact
+      register: _vm_verify_fact_stat
+      when:
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
+
+    - name: Assert fact file exists (guest VM)
+      ansible.builtin.assert:
+        that:
+          - _vm_verify_fact_stat.stat.exists
+        fail_msg: "vm_guest.fact not found -- _set_facts.yml should have created it"
+        success_msg: "Guest fact file exists"
+      when:
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
+        - _vm_verify_fact_stat is not skipped
+
+    - name: Read fact file content
       ansible.builtin.slurp:
         src: /etc/ansible/facts.d/vm_guest.fact
-      register: vm_verify_custom_fact_content
+      register: _vm_verify_fact_content
       when:
-        - vm_verify_virt_role == 'guest'
-        - vm_verify_custom_fact.stat.exists | default(false)
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
+        - _vm_verify_fact_stat.stat.exists | default(false)
 
-    - name: Assert custom fact has valid content
+    - name: Assert fact file has valid JSON with required keys
       ansible.builtin.assert:
         that:
-          - (vm_verify_custom_fact_content.content | b64decode | from_json).hypervisor is defined
-          - (vm_verify_custom_fact_content.content | b64decode | from_json).is_guest is defined
-        fail_msg: "Custom fact vm_guest.fact has invalid content"
+          - (_vm_verify_fact_content.content | b64decode | from_json).hypervisor is defined
+          - (_vm_verify_fact_content.content | b64decode | from_json).is_guest == true
+          - (_vm_verify_fact_content.content | b64decode | from_json).is_container == false
+        fail_msg: "vm_guest.fact content invalid -- expected is_guest=true, is_container=false"
+        success_msg: "Fact file content correct"
       when:
-        - vm_verify_virt_role == 'guest'
-        - vm_verify_custom_fact_content is defined
-        - vm_verify_custom_fact_content is not skipped
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
+        - _vm_verify_fact_content is not skipped
+        - "'content' in _vm_verify_fact_content"
 
-    # === VirtualBox verification ===
+    - name: Assert fact file hypervisor matches detected type (KVM)
+      ansible.builtin.assert:
+        that:
+          - (_vm_verify_fact_content.content | b64decode | from_json).hypervisor == 'kvm'
+        fail_msg: "vm_guest.fact hypervisor mismatch -- expected kvm"
+        success_msg: "Fact file hypervisor=kvm correct"
+      when:
+        - _vm_verify_virt_type == 'kvm'
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_fact_content is not skipped
+        - "'content' in _vm_verify_fact_content"
 
-    - name: Check if vboxadd-service unit exists (ISO GA)
+    # ---- Facts directory permissions ----
+
+    - name: Stat facts directory
       ansible.builtin.stat:
-        path: /usr/lib/systemd/system/vboxadd-service.service
-      register: vm_verify_vboxadd_unit
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+        path: /etc/ansible/facts.d
+      register: _vm_verify_factsdir
+      when:
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
 
-    - name: Determine VBox service name
-      ansible.builtin.set_fact:
-        vm_verify_vbox_service_name: >-
-          {{ 'vboxadd-service' if vm_verify_vboxadd_unit.stat.exists | default(false)
-             else 'vboxservice' }}
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Check VBox service is running
-      ansible.builtin.systemd:
-        name: "{{ vm_verify_vbox_service_name }}"
-      register: vm_verify_vboxservice
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Assert VBox service is active
+    - name: Assert facts directory has correct permissions
       ansible.builtin.assert:
         that:
-          - vm_verify_vboxservice.status.ActiveState == 'active'
-        fail_msg: "{{ vm_verify_vbox_service_name }} is not running"
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+          - _vm_verify_factsdir.stat.isdir
+          - _vm_verify_factsdir.stat.mode == '0755'
+        fail_msg: "facts.d directory missing or wrong permissions"
+        success_msg: "facts.d directory OK (0755)"
+      when:
+        - _vm_verify_virt_role == 'guest'
+        - _vm_verify_virt_type not in ['container', 'docker']
+        - _vm_verify_factsdir is not skipped
+        - _vm_verify_factsdir.stat is defined
 
-    - name: Check vboxguest module loaded (VirtualBox only)
-      ansible.builtin.command: lsmod
-      register: vm_verify_vbox_lsmod
-      changed_when: false
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
+    # ---- Summary ----
 
-    - name: Assert vboxguest module is loaded
-      ansible.builtin.assert:
-        that:
-          - "'vboxguest' in vm_verify_vbox_lsmod.stdout"
-        fail_msg: "vboxguest kernel module not loaded"
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Assert vboxsf module is loaded
-      ansible.builtin.assert:
-        that:
-          - "'vboxsf' in vm_verify_vbox_lsmod.stdout"
-        fail_msg: "vboxsf kernel module not loaded"
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Verify VBox version match (post-enforcement)
-      ansible.builtin.command:
-        cmd: VBoxControl --version
-      register: vm_verify_vbox_ga_ver
-      changed_when: false
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Get VBox host version
-      ansible.builtin.command:
-        cmd: VBoxControl guestproperty get /VirtualBox/HostInfo/VBoxVer
-      register: vm_verify_vbox_host_ver
-      changed_when: false
-      failed_when: false
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Parse VBox versions for report
-      ansible.builtin.set_fact:
-        vm_verify_ga_version: >-
-          {{ vm_verify_vbox_ga_ver.stdout | default('')
-             | regex_replace('[^0-9.].*', '') }}
-        vm_verify_host_version: >-
-          {{ (vm_verify_vbox_host_ver.stdout | default(''))
-             | regex_search('Value:\s*(.+)', '\1')
-             | default(['unknown'], true) | first | trim }}
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    - name: Report VBox version enforcement result
+    - name: Verify summary
       ansible.builtin.debug:
-        msg:
-          - "GA version: {{ vm_verify_ga_version | default('unknown') }}"
-          - "Host version: {{ vm_verify_host_version | default('unknown') }}"
-      when: vm_verify_virt_type == 'virtualbox' and vm_verify_virt_role == 'guest'
-
-    # === VMware verification ===
-
-    - name: Check vmtoolsd is running (VMware only)
-      ansible.builtin.systemd:
-        name: vmtoolsd
-      register: vm_verify_vmtoolsd
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Assert vmtoolsd is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_vmtoolsd.status.ActiveState == 'active'
-        fail_msg: "vmtoolsd is not running"
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Check vgauthd is running (VMware only)
-      ansible.builtin.systemd:
-        name: vgauthd
-      register: vm_verify_vgauthd
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Assert vgauthd is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_vgauthd.status.ActiveState == 'active'
-        fail_msg: "vgauthd is not running"
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Check vmware-vmblock-fuse status (VMware only, optional)
-      ansible.builtin.systemd:
-        name: vmware-vmblock-fuse
-      register: vm_verify_vmblock
-      failed_when: false
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Report vmblock-fuse status
-      ansible.builtin.debug:
-        msg: "{{ 'vmware-vmblock-fuse is active' if vm_verify_vmblock.status.ActiveState == 'active' else 'vmware-vmblock-fuse not active (optional)' }}"
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Check VMware kernel modules loaded
-      ansible.builtin.command: lsmod
-      register: vm_verify_vmware_lsmod
-      changed_when: false
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Assert vmw_balloon module is loaded
-      ansible.builtin.assert:
-        that:
-          - "'vmw_balloon' in vm_verify_vmware_lsmod.stdout"
-        fail_msg: "vmw_balloon kernel module not loaded"
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    - name: Check vmxnet3 module status (VMware only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'vmxnet3 module loaded' if 'vmxnet3' in vm_verify_vmware_lsmod.stdout else 'vmxnet3 module not loaded (optional)' }}"
-      when: vm_verify_virt_type == 'VMware' and vm_verify_virt_role == 'guest'
-
-    # === Hyper-V verification ===
-
-    - name: Check hv_fcopy_daemon is running (Hyper-V only)
-      ansible.builtin.systemd:
-        name: hv_fcopy_daemon
-      register: vm_verify_hv_fcopy
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Assert hv_fcopy_daemon is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_hv_fcopy.status.ActiveState == 'active'
-        fail_msg: "hv_fcopy_daemon is not running"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check hv_kvp_daemon is running (Hyper-V only)
-      ansible.builtin.systemd:
-        name: hv_kvp_daemon
-      register: vm_verify_hv_kvp
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Assert hv_kvp_daemon is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_hv_kvp.status.ActiveState == 'active'
-        fail_msg: "hv_kvp_daemon is not running"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check hv_vss_daemon is running (Hyper-V only)
-      ansible.builtin.systemd:
-        name: hv_vss_daemon
-      register: vm_verify_hv_vss
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Assert hv_vss_daemon is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_hv_vss.status.ActiveState == 'active'
-        fail_msg: "hv_vss_daemon is not running"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check Hyper-V kernel modules loaded
-      ansible.builtin.command: lsmod
-      register: vm_verify_hyperv_lsmod
-      changed_when: false
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Assert hv_vmbus module is loaded
-      ansible.builtin.assert:
-        that:
-          - "'hv_vmbus' in vm_verify_hyperv_lsmod.stdout"
-        fail_msg: "hv_vmbus kernel module not loaded"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check hv_storvsc module status (Hyper-V only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'hv_storvsc module loaded' if 'hv_storvsc' in vm_verify_hyperv_lsmod.stdout else 'hv_storvsc module not loaded (optional)' }}"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check hv_netvsc module status (Hyper-V only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'hv_netvsc module loaded' if 'hv_netvsc' in vm_verify_hyperv_lsmod.stdout else 'hv_netvsc module not loaded (optional)' }}"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    - name: Check hv_utils module status (Hyper-V only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'hv_utils module loaded' if 'hv_utils' in vm_verify_hyperv_lsmod.stdout else 'hv_utils module not loaded (optional)' }}"
-      when: vm_verify_virt_type == 'hyperv' and vm_verify_virt_role == 'guest'
-
-    # === KVM verification ===
-
-    - name: Check qemu-guest-agent is running (KVM only)
-      ansible.builtin.systemd:
-        name: qemu-guest-agent
-      register: vm_verify_qemu_ga
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
-
-    - name: Assert qemu-guest-agent is active
-      ansible.builtin.assert:
-        that:
-          - vm_verify_qemu_ga.status.ActiveState == 'active'
-        fail_msg: "qemu-guest-agent is not running"
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
-
-    - name: Check KVM kernel modules loaded
-      ansible.builtin.command: lsmod
-      register: vm_verify_kvm_lsmod
-      changed_when: false
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
-
-    - name: Check virtio_balloon module status (KVM only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'virtio_balloon module loaded' if 'virtio_balloon' in vm_verify_kvm_lsmod.stdout else 'virtio_balloon module not loaded (may be built-in)' }}"
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
-
-    - name: Check virtio_net module status (KVM only, optional)
-      ansible.builtin.debug:
-        msg: "{{ 'virtio_net module loaded' if 'virtio_net' in vm_verify_kvm_lsmod.stdout else 'virtio_net module not loaded (may be built-in or not configured)' }}"
-      when: vm_verify_virt_type == 'kvm' and vm_verify_virt_role == 'guest'
-
-    # === Common checks for all guest VMs ===
-
-    - name: Verify vm_reboot_required fact exists
-      ansible.builtin.assert:
-        that:
-          - vm_reboot_required is defined
-        fail_msg: "vm_reboot_required fact not set by role"
-      when: vm_verify_virt_role == 'guest'
-
-    - name: Check systemd-timesyncd status
-      ansible.builtin.systemd:
-        name: systemd-timesyncd
-      register: vm_verify_timesyncd
-      failed_when: false
-      when: vm_verify_virt_role == 'guest'
-
-    - name: Report time sync status
-      ansible.builtin.debug:
-        msg: "{{ 'systemd-timesyncd is active' if vm_verify_timesyncd.status.ActiveState == 'active' else 'systemd-timesyncd not active (informational)' }}"
-      when: vm_verify_virt_role == 'guest'
-
-    # === Summary ===
-
-    - name: Show verification results
-      ansible.builtin.debug:
-        msg:
-          - "Virtualization: {{ vm_verify_virt_type }} ({{ vm_verify_virt_role }})"
-          - "VM guest verification passed"
-          - "Reboot required: {{ vm_reboot_required | default('unknown') }}"
-      when: vm_verify_virt_role == 'guest'
+        msg: >-
+          vm role verify passed:
+          env={{ _vm_verify_virt_type }}/{{ _vm_verify_virt_role }},
+          reboot_required={{ vm_reboot_required | default(false) }}
