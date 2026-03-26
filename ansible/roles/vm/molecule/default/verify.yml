@@ -91,11 +91,10 @@
         - _vm_verify_virt_role == 'guest'
         - not (_vm_verify_virtio_dev.stat.exists | default(false))
 
-    - name: Check qemu-guest-agent service enabled (KVM)
-      ansible.builtin.command:
-        cmd: systemctl is-enabled qemu-guest-agent
+    - name: Check qemu-guest-agent service state (KVM)
+      ansible.builtin.systemd:
+        name: qemu-guest-agent
       register: _vm_verify_qga_svc
-      changed_when: false
       failed_when: false
       when:
         - _vm_verify_virt_type == 'kvm'
@@ -105,7 +104,7 @@
     - name: Assert qemu-guest-agent is enabled (KVM with virtio channel)
       ansible.builtin.assert:
         that:
-          - _vm_verify_qga_svc.stdout is regex('^enabled')
+          - _vm_verify_qga_svc.status.UnitFileState == 'enabled'
         fail_msg: "qemu-guest-agent is not enabled on KVM guest"
         success_msg: "qemu-guest-agent is enabled"
       when:
@@ -114,28 +113,17 @@
         - _vm_verify_virtio_dev.stat.exists | default(false)
         - _vm_verify_qga_svc is not skipped
 
-    - name: Check qemu-guest-agent service active (KVM)
-      ansible.builtin.command:
-        cmd: systemctl is-active qemu-guest-agent
-      register: _vm_verify_qga_active
-      changed_when: false
-      failed_when: false
-      when:
-        - _vm_verify_virt_type == 'kvm'
-        - _vm_verify_virt_role == 'guest'
-        - _vm_verify_virtio_dev.stat.exists | default(false)
-
     - name: Assert qemu-guest-agent is active (KVM with virtio channel)
       ansible.builtin.assert:
         that:
-          - _vm_verify_qga_active.stdout is regex('^active')
+          - _vm_verify_qga_svc.status.ActiveState == 'active'
         fail_msg: "qemu-guest-agent is not running on KVM guest"
         success_msg: "qemu-guest-agent is active"
       when:
         - _vm_verify_virt_type == 'kvm'
         - _vm_verify_virt_role == 'guest'
         - _vm_verify_virtio_dev.stat.exists | default(false)
-        - _vm_verify_qga_active is not skipped
+        - _vm_verify_qga_svc is not skipped
 
     # ---- Fact file verification (all guest types) ----
 
