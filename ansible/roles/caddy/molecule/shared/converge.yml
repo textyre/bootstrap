@@ -5,10 +5,11 @@
   gather_facts: true
 
   vars:
-    # Disable userns-remap in test -- requires subuid/subgid setup
-    # that is not available in fresh molecule VMs.
-    # Must be play-level to propagate to docker dependency via meta.
+    # Docker role overrides for molecule VMs:
+    # - userns-remap requires subuid/subgid entries not present in fresh VMs
+    # - journald log driver is incompatible with max-size/max-file log-opts
     docker_userns_remap: ""
+    docker_log_driver: "json-file"
 
   roles:
     - role: caddy
