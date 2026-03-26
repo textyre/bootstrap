@@ -1,0 +1,7 @@
+# ansible/roles/ssh_keys/vars/redhat.yml
+---
+# ROLE-001: Per-OS-family variables (RedHat/Fedora)
+# ssh_keys role has no OS-specific packages or services.
+# Stub file maintains distro-agnostic architecture for future extensions.
+
+_ssh_keys_os_family: RedHat

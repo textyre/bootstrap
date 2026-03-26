@@ -5,7 +5,8 @@ Manages SSH authorized_keys deployment and optional keypair generation for user 
 ## Execution flow
 
 1. **Assert supported OS** (`tasks/main.yml`) — validates `ansible_facts['os_family']` is in the supported list. Fails if OS is not Arch, Debian, RedHat, Void, or Gentoo.
-2. **Compute user lists** (`tasks/main.yml`) — pre-filters `ssh_keys_users` into present, present-with-keys, and absent user lists. Used by all subsequent steps.
+2. **Load OS-specific variables** (`tasks/main.yml`) — includes `vars/<os_family>.yml` for per-distro settings (currently stubs for future extensions).
+3. **Compute user lists** (`tasks/main.yml`) — pre-filters `ssh_keys_users` into present, present-with-keys, and absent user lists. Used by all subsequent steps.
 3. **Ensure .ssh directories** (`tasks/main.yml`) — creates `~/.ssh` with mode `0700` for all present users that have SSH keys defined. Shared by authorized_keys and keygen steps.
 4. **Deploy authorized_keys** (`tasks/authorized_keys.yml`) — adds SSH public keys from `accounts[].ssh_keys` via `ansible.posix.authorized_key`. Removes `authorized_keys` for absent users. Skipped when `ssh_keys_manage_authorized_keys: false`.
 5. **Generate keypairs** (`tasks/keygen.yml`) — generates SSH keypairs (ed25519 by default) on target machines via `community.crypto.openssh_keypair`. Skipped when `ssh_keys_generate_user_keys: false` (default).
@@ -28,7 +29,7 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `ssh_keys_generate_user_keys` | `false` | safe | Generate SSH keypairs on target machines |
 | `ssh_keys_key_type` | `ed25519` | safe | Key type for generation: `ed25519`, `rsa`, or `ecdsa` |
 | `ssh_keys_exclusive` | `false` | careful | Remove keys not listed in `accounts[].ssh_keys` from `authorized_keys`. When `true`, any manually added keys will be deleted |
-| `ssh_keys_supported_os` | 5 OS families | internal | List of supported `os_family` values. Do not change unless adding platform support |
+| `_ssh_keys_supported_os` | 5 OS families | internal | List of supported `os_family` values (underscore prefix = internal, not user-configurable) |
 
 ### Internal variables
 
@@ -131,7 +132,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Local (fast) | `molecule test` | After changing task logic or variables | Syntax, idempotence, basic verification on localhost |
+| Default (fast) | `molecule test` | After changing task logic or variables | Syntax, idempotence, basic verification on localhost |
 | Docker (CI) | `molecule test -s docker` | After changing any role files | Arch + Ubuntu containers, full verification |
 | Vagrant (full) | `molecule test -s vagrant` | After changing OS-specific logic | Real VMs with Arch + Ubuntu, full system validation |
 
@@ -175,6 +176,8 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | File | Purpose | Edit? |
 |------|---------|-------|
 | `defaults/main.yml` | All configurable settings | No -- override via inventory |
+| `vars/*.yml` | Per-OS-family variables (stubs) | When adding OS-specific config |
+| `requirements.yml` | Role dependencies for molecule | When adding role dependencies |
 | `tasks/main.yml` | Execution flow orchestrator, user list computation | When adding/removing steps |
 | `tasks/authorized_keys.yml` | authorized_keys deployment and cleanup | When changing key deployment logic |
 | `tasks/keygen.yml` | SSH keypair generation | When changing keygen logic |
@@ -182,6 +185,6 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `handlers/main.yml` | Empty -- sshd restart handled by ssh role | Rarely |
 | `meta/main.yml` | Galaxy metadata and collection dependency docs | When changing role metadata |
 | `molecule/shared/` | Shared converge and verify playbooks | When changing test coverage |
-| `molecule/default/` | Local test scenario | When changing local test config |
+| `molecule/default/` | Localhost test scenario | When changing local test config |
 | `molecule/docker/` | Docker CI scenario (Arch + Ubuntu) | When changing container test config |
 | `molecule/vagrant/` | Vagrant scenario (Arch + Ubuntu VMs) | When changing VM test config |
