@@ -33,13 +33,45 @@
         fail_msg: "Greeter dist не найден: {{ greeter_dist_dir }}. Запустите 'task greeter:build'."
       tags: ['greeter', 'display']
 
-    - name: Create ctOS theme directory
+    - name: Ensure web-greeter themes root exists
       ansible.builtin.file:
-        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}"
+        path: /usr/share/web-greeter/themes
         state: directory
         owner: root
         group: root
         mode: '0755'
+      tags: ['greeter', 'display']
+
+    - name: Calculate source greeter dist checksum
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        cd {{ greeter_dist_dir | quote }} &&
+        find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+      register: _greeter_source_dist_checksum
+      changed_when: false
+      tags: ['greeter', 'display']
+
+    - name: Calculate deployed greeter dist checksum
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        if [ -d {{ ("/usr/share/web-greeter/themes/" ~ greeter_theme) | quote }} ]; then
+          cd {{ ("/usr/share/web-greeter/themes/" ~ greeter_theme) | quote }} &&
+          find . -type f ! -name 'index.yml' ! -name 'system-info.json' -print0 | sort -z |
+          xargs -0 sha256sum | sha256sum | awk '{print $1}';
+        else
+          echo absent;
+        fi
+      register: _greeter_target_dist_checksum
+      changed_when: false
+      failed_when: false
+      tags: ['greeter', 'display']
+
+    - name: Determine whether theme artefacts need redeploy
+      ansible.builtin.set_fact:
+        _greeter_theme_needs_deploy: >-
+          {{
+            (_greeter_source_dist_checksum.stdout | trim) != (_greeter_target_dist_checksum.stdout | trim)
+          }}
       tags: ['greeter', 'display']
 
     - name: Remove stale theme artefacts before deploy
@@ -50,6 +82,7 @@
         - assets
         - dist
         - index.html
+      when: _greeter_theme_needs_deploy | bool
       tags: ['greeter', 'display']
 
     - name: Deploy ctOS greeter theme files
@@ -61,6 +94,7 @@
         mode: '0644'
         directory_mode: '0755'
         remote_src: true
+      when: _greeter_theme_needs_deploy | bool
       tags: ['greeter', 'display']
 
     - name: Deploy index.yml theme metadata
@@ -71,6 +105,7 @@
         group: root
         mode: '0644'
         remote_src: true
+      when: _greeter_theme_needs_deploy | bool
       tags: ['greeter', 'display']
 
 # ---- Сбор системной информации ----
