@@ -4,18 +4,19 @@ Sets up the system-level shell environment: installs the shell package, sets the
 
 ## Execution flow
 
-1. **Resolve user home** (`tasks/main.yml`) -- looks up `shell_user` in `/etc/passwd` via `getent` to determine the home directory for XDG and ownership operations
-2. **Load OS-specific vars** (`tasks/main.yml`) -- includes `vars/<os_family>.yml` to resolve package names (`shell_packages`) and binary paths (`shell_bin`) for the current distro
-3. **Validate** (`tasks/validate.yml`) -- asserts OS family is supported, `shell_type` is one of `bash`/`zsh`/`fish`, and `shell_user` is defined and non-empty. Fails early with descriptive messages if any check fails
-4. **Install** (`tasks/install.yml`) -- installs the shell package via `ansible.builtin.package`. Skips if `shell_type` is `bash` (already present on all distros)
-5. **Set login shell** (`tasks/chsh.yml`) -- sets `shell_user`'s login shell via `ansible.builtin.user`. Skips when `shell_set_login: false`
-6. **Create XDG directories** (`tasks/xdg.yml`) -- creates `~/.config`, `~/.local/share`, `~/.local/bin`, `~/.cache` under `shell_user`'s home with correct ownership
-7. **Deploy global config** (`tasks/global.yml`) -- deploys system-wide shell configuration:
+1. **Merge profile/overrides** (`tasks/main.yml`) -- merges developer profile paths/env and user overrides into `shell_global_path` and `shell_global_env`
+2. **Resolve user home** (`tasks/main.yml`) -- looks up `shell_user` in `/etc/passwd` via `getent` to determine the home directory for XDG and ownership operations
+3. **Load OS-specific vars** (`tasks/main.yml`) -- includes `vars/<os_family>.yml` to resolve package names (`shell_packages`) and binary paths (`shell_bin`) for the current distro
+4. **Validate** (`tasks/validate.yml`) -- asserts OS family is supported, `shell_type` is one of `bash`/`zsh`/`fish`, and `shell_user` is defined and non-empty. Fails early with descriptive messages if any check fails
+5. **Install** (`tasks/install.yml`) -- installs the shell package via `ansible.builtin.package`. Skips if `shell_type` is `bash` (already present on all distros)
+6. **Set login shell** (`tasks/chsh.yml`) -- sets `shell_user`'s login shell via `ansible.builtin.user`. Skips when `shell_set_login: false`
+7. **Create XDG directories** (`tasks/xdg.yml`) -- creates `~/.config`, `~/.local/share`, `~/.local/bin`, `~/.cache` under `shell_user`'s home with correct ownership
+8. **Deploy global config** (`tasks/global.yml`) -- deploys system-wide shell configuration:
    - `/etc/profile.d/dev-paths.sh` (bash + zsh) -- PATH additions and environment variables
    - `/etc/zsh/zshenv` (zsh only) -- sets `ZDOTDIR` to `${XDG_CONFIG_HOME:-$HOME/.config}/zsh`
    - `/etc/fish/conf.d/dev-paths.fish` (fish only) -- PATH additions and environment variables via `fish_add_path`
-8. **Verify** (`tasks/verify.yml`) -- checks login shell is correct (via `getent`), XDG dirs exist, and deployed config files are present
-9. **Report** (`tasks/main.yml`) -- renders execution report via `common/report_render.yml`
+9. **Verify** (`tasks/verify.yml`) -- checks login shell is correct (via `getent`), XDG dirs exist, and deployed config files are present
+10. **Report** (`tasks/main.yml`) -- renders execution report via `common/report_render.yml`
 
 ### Handlers
 
@@ -31,9 +32,15 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 |----------|---------|--------|-------------|
 | `shell_user` | `SUDO_USER` or current user | careful | Target user for login shell and XDG directories. Changing this affects which user's home directory is modified and which user's login shell is set |
 | `shell_type` | `zsh` | safe | Shell to install and configure: `bash`, `zsh`, or `fish` |
+| `shell_manage_packages` | `true` | safe | Install shell packages |
 | `shell_set_login` | `true` | safe | Whether to set `shell_type` as the user's login shell via `ansible.builtin.user` |
-| `shell_global_path` | `["$HOME/.local/bin", "$HOME/.cargo/bin", "/usr/local/go/bin"]` | safe | PATH entries added to `/etc/profile.d/dev-paths.sh` or `/etc/fish/conf.d/dev-paths.fish` |
+| `shell_manage_xdg` | `true` | safe | Create XDG Base Directories |
+| `shell_manage_global_config` | `true` | safe | Deploy global config files (/etc/profile.d/, /etc/zsh/zshenv, /etc/fish/conf.d/) |
+| `shell_global_path` | `["$HOME/.local/bin"]` | safe | PATH entries added to `/etc/profile.d/dev-paths.sh` or `/etc/fish/conf.d/dev-paths.fish`. Developer profile adds cargo/go paths automatically |
+| `shell_developer_path` | `["$HOME/.cargo/bin", "/usr/local/go/bin"]` | safe | Additional PATH entries merged when `developer` profile is active |
 | `shell_global_env` | `{}` | safe | Environment variables added to global profile (e.g., `GOPATH: "$HOME/go"`) |
+| `shell_developer_env` | `{GOPATH: "$HOME/go"}` | safe | Additional env vars merged when `developer` profile is active |
+| `shell_global_env_overwrite` | `{}` | safe | User overrides merged on top of `shell_global_env` (ROLE-010 overwrite pattern) |
 | `shell_xdg_dirs` | `[".config", ".local/share", ".local/bin", ".cache"]` | careful | XDG directories to create under `shell_user`'s home. Removing entries does not delete existing directories |
 | `shell_zsh_zdotdir` | `true` | safe | Set `ZDOTDIR` in `/etc/zsh/zshenv` pointing to `${XDG_CONFIG_HOME:-$HOME/.config}/zsh`. Only applies when `shell_type: zsh` |
 
@@ -43,7 +50,7 @@ These files contain per-distro package names and binary paths. Do not override v
 
 | File | What it contains | When to edit |
 |------|-----------------|-------------|
-| `vars/main.yml` | Supported OS families list (`shell_supported_os`) and supported shell types list (`shell_supported_types`) | Adding a new OS family or shell type |
+| `vars/main.yml` | Supported shell types list (`_shell_supported_types`) | Adding a new shell type |
 | `vars/archlinux.yml` | Arch Linux package names and binary paths | Changing Arch-specific package names |
 | `vars/debian.yml` | Debian/Ubuntu package names and binary paths | Changing Debian-specific package names |
 | `vars/redhat.yml` | RedHat/Fedora package names and binary paths | Changing RedHat-specific package names |
@@ -124,7 +131,7 @@ This role does not create log files or configure log rotation. All output is vis
 |---------------|---------|
 | Current login shell | `getent passwd <username>` -- 7th field is the login shell |
 | Shell binary version | `zsh --version` / `fish --version` / `bash --version` |
-| Profile.d is sourced | `echo $PATH` after login -- should contain `.local/bin`, `.cargo/bin`, `go/bin` |
+| Profile.d is sourced | `echo $PATH` after login -- should contain `.local/bin` (plus `.cargo/bin`, `go/bin` if developer profile) |
 | ZDOTDIR is set (zsh) | `echo $ZDOTDIR` -- should show `~/.config/zsh` |
 | XDG dirs exist | `ls -la ~/.config ~/.local/share ~/.local/bin ~/.cache` |
 
@@ -197,7 +204,7 @@ Use `--skip-tags report` in molecule and automation pipelines to suppress the ex
 | File | Purpose | Edit? |
 |------|---------|-------|
 | `defaults/main.yml` | All configurable settings with comments | No -- override via inventory |
-| `vars/main.yml` | Supported OS families and shell types lists | Only when adding new OS or shell support |
+| `vars/main.yml` | Supported shell types list (`_shell_supported_types`) | Only when adding a new shell type |
 | `vars/<os_family>.yml` | Per-distro package names and binary paths | Only when changing distro-specific packages |
 | `tasks/main.yml` | Execution flow orchestrator: resolve user, load vars, include task files | When adding/removing execution steps |
 | `tasks/validate.yml` | Preflight assertions (OS, shell_type, shell_user) | When adding new validation checks |
