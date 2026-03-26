@@ -49,7 +49,7 @@
       live sysctl -n checks
   tags: ['sysctl', 'report']
 
-- name: "sysctl -- Execution Report"
+- name: "Sysctl -- Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
