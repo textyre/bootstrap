@@ -1,0 +1,129 @@
+---
+# === Firewall — in-role verification (ROLE-005) ===
+# Called from main.yml after config deploy and service start.
+# Three verification techniques: config file check, config syntax, runtime state.
+
+# ---- 1. Config file verification ----
+
+- name: "CIS 3.4.1.4 | Verify /etc/nftables.conf exists"
+  ansible.builtin.stat:
+    path: /etc/nftables.conf
+  register: _firewall_verify_conf
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+- name: "CIS 3.4.1.4 | Assert nftables.conf exists and has correct permissions"
+  ansible.builtin.assert:
+    that:
+      - _firewall_verify_conf.stat.exists
+      - _firewall_verify_conf.stat.pw_name == 'root'
+      - _firewall_verify_conf.stat.gr_name == 'root'
+      - _firewall_verify_conf.stat.mode == '0644'
+    fail_msg: >-
+      /etc/nftables.conf missing or wrong permissions
+      (expected root:root 0644, got
+      {{ _firewall_verify_conf.stat.pw_name | default('?') }}:{{ _firewall_verify_conf.stat.gr_name | default('?') }}
+      {{ _firewall_verify_conf.stat.mode | default('?') }})
+    success_msg: "/etc/nftables.conf exists with correct permissions"
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+- name: "CIS 3.4.1.4 | Read nftables.conf content for drop policy check"
+  ansible.builtin.slurp:
+    src: /etc/nftables.conf
+  register: _firewall_verify_conf_content
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+- name: "CIS 3.4.1.4 | Assert input chain has drop policy"
+  ansible.builtin.assert:
+    that:
+      - "'policy drop' in (_firewall_verify_conf_content.content | b64decode)"
+    fail_msg: "Input chain default policy is not 'drop' in /etc/nftables.conf"
+    success_msg: "Input chain drop policy is correctly set"
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+# ---- 2. Config syntax verification ----
+
+- name: "CIS 3.4.1.4 | Verify nftables config syntax"
+  ansible.builtin.command:
+    cmd: nft -c -f /etc/nftables.conf
+  register: _firewall_verify_syntax
+  changed_when: false
+  failed_when: false
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+- name: "CIS 3.4.1.4 | Assert nftables config syntax is valid"
+  ansible.builtin.assert:
+    that:
+      - _firewall_verify_syntax.rc == 0
+    fail_msg: >-
+      nftables config syntax check failed:
+      {{ _firewall_verify_syntax.stderr | default('unknown error') }}
+    success_msg: "nftables config syntax is valid"
+  when: _firewall_verify_syntax.rc is defined
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
+
+# ---- 3. Runtime state verification ----
+
+- name: Detect container environment
+  ansible.builtin.set_fact:
+    _firewall_verify_in_container: >-
+      {{ ansible_virtualization_type | default('') in ['docker', 'container', 'lxc'] }}
+  tags: ['firewall']
+
+- name: "CIS 3.4.1.1 | Check nftables service is enabled"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: systemctl is-enabled nftables.service
+  register: _firewall_verify_svc_enabled
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['service_mgr'] | default('') == 'systemd'
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
+
+- name: "CIS 3.4.1.1 | Assert nftables service is enabled"
+  ansible.builtin.assert:
+    that:
+      - "'enabled' in _firewall_verify_svc_enabled.stdout"
+    fail_msg: >-
+      nftables.service is not enabled
+      (got '{{ _firewall_verify_svc_enabled.stdout | default('') | trim }}')
+    success_msg: "nftables.service is enabled"
+  when:
+    - firewall_enable_service | bool
+    - ansible_facts['service_mgr'] | default('') == 'systemd'
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
+
+- name: "CIS 3.4.1.1 | Verify nftables ruleset is loaded"
+  ansible.builtin.command:
+    cmd: nft list tables
+  register: _firewall_verify_tables
+  changed_when: false
+  failed_when: false
+  when: not (_firewall_verify_in_container | bool)
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
+
+- name: "CIS 3.4.1.1 | Assert inet filter table is loaded in runtime"
+  ansible.builtin.assert:
+    that:
+      - "'inet filter' in _firewall_verify_tables.stdout"
+    fail_msg: >-
+      inet filter table not loaded in nftables runtime.
+      nft list tables returned: {{ _firewall_verify_tables.stdout | default('') }}
+    success_msg: "inet filter table is loaded"
+  when:
+    - not (_firewall_verify_in_container | bool)
+    - _firewall_verify_tables.rc == 0
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
+
+# ---- Report verification phase ----
+
+- name: "Report: firewall -- verify"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Verify firewall"
+    common_rpt_detail: >-
+      config=ok syntax=ok
+      service={{ 'enabled' if (firewall_enable_service | bool) else 'skip' }}
+      runtime={{ 'ok' if not (_firewall_verify_in_container | bool) else 'skip(container)' }}
+  tags: ['firewall', 'report']

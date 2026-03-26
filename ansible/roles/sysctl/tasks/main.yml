@@ -25,6 +25,9 @@
   ansible.builtin.import_tasks: deploy.yml
   when: ansible_facts['os_family'] in _sysctl_supported_os
 
+- name: Flush handlers to apply sysctl reload before verification
+  ansible.builtin.meta: flush_handlers
+
 - name: Verify applied parameters
   ansible.builtin.import_tasks: verify.yml
   when: ansible_facts['os_family'] in _sysctl_supported_os

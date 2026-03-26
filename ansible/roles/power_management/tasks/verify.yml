@@ -8,7 +8,7 @@
   ansible.builtin.service_facts:
   when:
     - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'assert']
 
 - name: Set TLP assert result fact
@@ -16,7 +16,7 @@
     power_management_assert_tlp: "{{ ansible_facts.services['tlp.service'] | default({}) }}"
   when:
     - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify TLP is enabled and did not fail
@@ -35,7 +35,7 @@
   when:
     - power_management_assert_strict
     - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'assert']
 
 # ---- power-profiles-daemon masked (laptop + systemd) ----
@@ -45,7 +45,7 @@
     power_management_assert_ppd: "{{ ansible_facts.services['power-profiles-daemon.service'] | default({}) }}"
   when:
     - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'assert']
 
 - name: Verify power-profiles-daemon is masked or absent
@@ -60,7 +60,7 @@
   when:
     - power_management_assert_strict
     - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'assert']
 
 # ---- CPU governor matches expected (laptop — TLP managed) ----
@@ -116,7 +116,7 @@
     success_msg: "sleep.conf HibernateMode={{ power_management_hibernate_mode }}"
   when:
     - power_management_assert_strict
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
     - "'content' in power_management_assert_hibernate"
   tags: ['power', 'assert']
 
@@ -157,7 +157,7 @@
     success_msg: "logind.conf HandleLidSwitch={{ power_management_lid_switch_action }}"
   when:
     - power_management_assert_strict
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
     - "'content' in power_management_assert_lid"
   tags: ['power', 'assert']
 

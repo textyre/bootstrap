@@ -1,14 +1,68 @@
 ---
 # === power_management / install ===
-# OS-specific package dispatch.
-#
-# NOTE: include_tasks (unlike import_tasks) is required here because the filename
-# is dynamic (variable in path). As a consequence, tags on this task do NOT
-# propagate into the included file. Running --tags power,install will execute
-# this include task but not the tasks inside install-*.yml.
-# Workaround: run without --tags, or tag the play directly.
+# Load OS-specific vars and install packages via ansible.builtin.package.
 
-- name: Include OS-specific installation
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
   when: ansible_facts['os_family'] in power_management_supported_os
+  tags: ['power', 'install']
+
+- name: Load init-system service mappings
+  ansible.builtin.include_vars: environments.yml
+  tags: ['power', 'install']
+
+- name: Install base packages (cpupower)
+  ansible.builtin.package:
+    name: "{{ _power_management_packages_base }}"
+    state: present
+  tags: ['power', 'install']
+
+- name: Install TLP packages (laptop)
+  ansible.builtin.package:
+    name: "{{ _power_management_packages_laptop }}"
+    state: present
+  when: power_management_is_laptop
+  tags: ['power', 'install']
+
+# Debian: kernel-versioned linux-tools provides cpupower; fallback to linux-cpupower
+- name: Install kernel-versioned cpupower tools (Debian)
+  ansible.builtin.package:
+    name: "linux-tools-{{ ansible_kernel }}"
+    state: present
+  register: _power_management_linux_tools_result
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ['power', 'install']
+
+- name: Report kernel-versioned cpupower install outcome (Debian)
+  ansible.builtin.debug:
+    msg: >-
+      linux-tools-{{ ansible_kernel }} install
+      {{ 'succeeded' if _power_management_linux_tools_result is not failed
+         else 'failed — linux-cpupower fallback will be used' }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - _power_management_linux_tools_result is defined
+  tags: ['power', 'install']
+
+- name: Install linux-cpupower as fallback (Debian custom kernel)
+  ansible.builtin.package:
+    name: linux-cpupower
+    state: present
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - _power_management_linux_tools_result is defined
+    - _power_management_linux_tools_result is failed
+  tags: ['power', 'install']
+
+# Arch: mask systemd-rfkill when TLP is active (conflicts with TLP radio management)
+- name: Mask conflicting rfkill services (Arch laptop)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+  loop: "{{ _power_management_mask_rfkill }}"
+  when:
+    - power_management_is_laptop
+    - _power_management_mask_rfkill | length > 0
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'install']

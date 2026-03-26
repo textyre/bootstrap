@@ -5,23 +5,40 @@
   gather_facts: true
 
   vars:
+    # Expected values derived from defaults/main.yml — not hardcoded.
+    # Override these via molecule provisioner extra_vars when testing non-default profiles.
+    _sysctl_expected_vm_swappiness: "{{ sysctl_vm_swappiness | default(10) }}"
+    _sysctl_expected_vm_vfs_cache_pressure: "{{ sysctl_vm_vfs_cache_pressure | default(50) }}"
+    _sysctl_expected_vm_dirty_ratio: "{{ sysctl_vm_dirty_ratio | default(10) }}"
+    _sysctl_expected_vm_dirty_background_ratio: "{{ sysctl_vm_dirty_background_ratio | default(5) }}"
+    _sysctl_expected_fs_inotify_max_user_watches: "{{ sysctl_fs_inotify_max_user_watches | default(524288) }}"
+    _sysctl_expected_fs_inotify_max_user_instances: "{{ sysctl_fs_inotify_max_user_instances | default(1024) }}"
+    _sysctl_expected_fs_file_max: "{{ sysctl_fs_file_max | default(2097152) }}"
+    _sysctl_expected_net_core_somaxconn: "{{ sysctl_net_core_somaxconn | default(4096) }}"
+    _sysctl_expected_net_ipv4_tcp_fastopen: "{{ sysctl_net_ipv4_tcp_fastopen | default(3) }}"
+    _sysctl_expected_ptrace_scope: >-
+      {{ sysctl_kernel_yama_ptrace_scope | default(
+         0 if 'gaming' in (workstation_profiles | default([]))
+         else (2 if 'security' in (workstation_profiles | default([]))
+         else 1)) }}
+
     # Parameters verified in all scenarios (loop-based, Tier 2)
     _sysctl_perf_params:
-      - { param: "vm.swappiness", expected: "10" }
-      - { param: "vm.vfs_cache_pressure", expected: "50" }
-      - { param: "vm.dirty_ratio", expected: "10" }
-      - { param: "vm.dirty_background_ratio", expected: "5" }
-      - { param: "fs.inotify.max_user_watches", expected: "524288" }
-      - { param: "fs.inotify.max_user_instances", expected: "1024" }
-      - { param: "fs.file-max", expected: "2097152" }
-      - { param: "net.core.somaxconn", expected: "4096" }
-      - { param: "net.ipv4.tcp_fastopen", expected: "3" }
+      - { param: "vm.swappiness", expected: "{{ _sysctl_expected_vm_swappiness }}" }
+      - { param: "vm.vfs_cache_pressure", expected: "{{ _sysctl_expected_vm_vfs_cache_pressure }}" }
+      - { param: "vm.dirty_ratio", expected: "{{ _sysctl_expected_vm_dirty_ratio }}" }
+      - { param: "vm.dirty_background_ratio", expected: "{{ _sysctl_expected_vm_dirty_background_ratio }}" }
+      - { param: "fs.inotify.max_user_watches", expected: "{{ _sysctl_expected_fs_inotify_max_user_watches }}" }
+      - { param: "fs.inotify.max_user_instances", expected: "{{ _sysctl_expected_fs_inotify_max_user_instances }}" }
+      - { param: "fs.file-max", expected: "{{ _sysctl_expected_fs_file_max }}" }
+      - { param: "net.core.somaxconn", expected: "{{ _sysctl_expected_net_core_somaxconn }}" }
+      - { param: "net.ipv4.tcp_fastopen", expected: "{{ _sysctl_expected_net_ipv4_tcp_fastopen }}" }
 
     _sysctl_kernel_hardening_params:
       - { param: "kernel.randomize_va_space", expected: "2" }
       - { param: "kernel.kptr_restrict", expected: "2" }
       - { param: "kernel.dmesg_restrict", expected: "1" }
-      - { param: "kernel.yama.ptrace_scope", expected: "1" }
+      - { param: "kernel.yama.ptrace_scope", expected: "{{ _sysctl_expected_ptrace_scope | trim }}" }
       - { param: "kernel.perf_event_paranoid", expected: "3" }
       - { param: "kernel.unprivileged_bpf_disabled", expected: "1" }
       - { param: "dev.tty.ldisc_autoload", expected: "0" }
@@ -110,15 +127,15 @@
     - name: Assert performance parameters present in config
       ansible.builtin.assert:
         that:
-          - "'vm.swappiness = 10' in _sysctl_verify_content"
-          - "'vm.vfs_cache_pressure = 50' in _sysctl_verify_content"
-          - "'vm.dirty_ratio = 10' in _sysctl_verify_content"
-          - "'vm.dirty_background_ratio = 5' in _sysctl_verify_content"
-          - "'fs.inotify.max_user_watches = 524288' in _sysctl_verify_content"
-          - "'fs.inotify.max_user_instances = 1024' in _sysctl_verify_content"
-          - "'fs.file-max = 2097152' in _sysctl_verify_content"
-          - "'net.core.somaxconn = 4096' in _sysctl_verify_content"
-          - "'net.ipv4.tcp_fastopen = 3' in _sysctl_verify_content"
+          - "'vm.swappiness = ' ~ _sysctl_expected_vm_swappiness | string in _sysctl_verify_content"
+          - "'vm.vfs_cache_pressure = ' ~ _sysctl_expected_vm_vfs_cache_pressure | string in _sysctl_verify_content"
+          - "'vm.dirty_ratio = ' ~ _sysctl_expected_vm_dirty_ratio | string in _sysctl_verify_content"
+          - "'vm.dirty_background_ratio = ' ~ _sysctl_expected_vm_dirty_background_ratio | string in _sysctl_verify_content"
+          - "'fs.inotify.max_user_watches = ' ~ _sysctl_expected_fs_inotify_max_user_watches | string in _sysctl_verify_content"
+          - "'fs.inotify.max_user_instances = ' ~ _sysctl_expected_fs_inotify_max_user_instances | string in _sysctl_verify_content"
+          - "'fs.file-max = ' ~ _sysctl_expected_fs_file_max | string in _sysctl_verify_content"
+          - "'net.core.somaxconn = ' ~ _sysctl_expected_net_core_somaxconn | string in _sysctl_verify_content"
+          - "'net.ipv4.tcp_fastopen = ' ~ _sysctl_expected_net_ipv4_tcp_fastopen | string in _sysctl_verify_content"
           - "'net.ipv4.tcp_tw_reuse = 0' in _sysctl_verify_content"
         fail_msg: "Required performance parameters missing from config file"
         success_msg: "Performance parameters present in config with correct values"
@@ -130,7 +147,7 @@
           - "'kernel.randomize_va_space = 2' in _sysctl_verify_content"
           - "'kernel.kptr_restrict = 2' in _sysctl_verify_content"
           - "'kernel.dmesg_restrict = 1' in _sysctl_verify_content"
-          - "'kernel.yama.ptrace_scope = 1' in _sysctl_verify_content"
+          - "'kernel.yama.ptrace_scope = ' ~ _sysctl_expected_ptrace_scope | trim | string in _sysctl_verify_content"
           - "'kernel.perf_event_paranoid = 3' in _sysctl_verify_content"
           - "'kernel.unprivileged_bpf_disabled = 1' in _sysctl_verify_content"
           - "'dev.tty.ldisc_autoload = 0' in _sysctl_verify_content"
@@ -235,6 +252,17 @@
         label: "{{ item.param }}"
       when: not _sysctl_in_container
 
+    - name: Log failed performance sysctl reads
+      ansible.builtin.debug:
+        msg: "WARNING: sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_perf_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
+
     - name: Assert live performance sysctl values match expected
       ansible.builtin.assert:
         that: item.stdout | string == item.item.expected | string
@@ -256,6 +284,17 @@
       loop_control:
         label: "{{ item.param }}"
       when: not _sysctl_in_container
+
+    - name: Log failed kernel hardening sysctl reads
+      ansible.builtin.debug:
+        msg: "WARNING: sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_kernel_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
 
     - name: Assert live kernel hardening sysctl values match expected
       ansible.builtin.assert:
@@ -279,6 +318,17 @@
         label: "{{ item.param }}"
       when: not _sysctl_in_container
 
+    - name: Log failed network hardening sysctl reads
+      ansible.builtin.debug:
+        msg: "WARNING: sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_network_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
+
     - name: Assert live network hardening sysctl values match expected
       ansible.builtin.assert:
         that: item.stdout | string == item.item.expected | string
@@ -300,6 +350,17 @@
       loop_control:
         label: "{{ item.param }}"
       when: not _sysctl_in_container
+
+    - name: Log failed filesystem hardening sysctl reads
+      ansible.builtin.debug:
+        msg: "WARNING: sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_fs_live.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
 
     - name: Assert live filesystem hardening sysctl values match expected
       ansible.builtin.assert:
@@ -338,6 +399,17 @@
         label: "{{ item.param }}"
       when: not _sysctl_in_container
 
+    - name: "Boot persistence | log failed kernel hardening reads after boot"
+      ansible.builtin.debug:
+        msg: "WARNING: [BOOT] sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_kernel_boot.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
+
     - name: "Boot persistence | assert kernel hardening values survive reboot"
       ansible.builtin.assert:
         that: item.stdout | string == item.item.expected | string
@@ -361,6 +433,17 @@
       loop_control:
         label: "{{ item.param }}"
       when: not _sysctl_in_container
+
+    - name: "Boot persistence | log failed network hardening reads after boot"
+      ansible.builtin.debug:
+        msg: "WARNING: [BOOT] sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_network_boot.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
 
     - name: "Boot persistence | assert network hardening values survive reboot"
       ansible.builtin.assert:
@@ -386,6 +469,17 @@
         label: "{{ item.param }}"
       when: not _sysctl_in_container
 
+    - name: "Boot persistence | log failed filesystem hardening reads after boot"
+      ansible.builtin.debug:
+        msg: "WARNING: [BOOT] sysctl -n {{ item.item.param }} failed (rc={{ item.rc }}): {{ item.stderr | default('') }}"
+      loop: "{{ _sysctl_verify_fs_boot.results }}"
+      loop_control:
+        label: "{{ item.item.param }}"
+      when:
+        - not _sysctl_in_container
+        - item.rc is defined
+        - item.rc != 0
+
     - name: "Boot persistence | assert filesystem hardening values survive reboot"
       ansible.builtin.assert:
         that: item.stdout | string == item.item.expected | string
@@ -410,9 +504,49 @@
         success_msg: "kernel.unprivileged_userns_clone present in config (Arch)"
       when: ansible_facts['distribution'] == 'Archlinux'
 
+    # =====================================================================
+    # Tier 4: Gaming profile edge-case test (TEST-011)
+    # Re-applies the role with gaming profile settings, then verifies
+    # profile-dependent values (ptrace_scope=0, custom swappiness).
+    # =====================================================================
+    - name: "Gaming profile | apply role with gaming profile"
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        workstation_profiles:
+          - gaming
+        sysctl_vm_swappiness: 30
+        sysctl_kernel_yama_ptrace_scope: 0
+
+    - name: "Gaming profile | read drop-in file after gaming apply"
+      ansible.builtin.slurp:
+        src: /etc/sysctl.d/99-z-ansible.conf
+      register: _sysctl_verify_gaming_raw
+
+    - name: "Gaming profile | set gaming config content fact"
+      ansible.builtin.set_fact:
+        _sysctl_verify_gaming_content: "{{ _sysctl_verify_gaming_raw.content | b64decode }}"
+
+    - name: "Gaming profile | assert ptrace_scope=0 in config"
+      ansible.builtin.assert:
+        that: "'kernel.yama.ptrace_scope = 0' in _sysctl_verify_gaming_content"
+        fail_msg: "Gaming profile: ptrace_scope should be 0 but is not in config"
+        success_msg: "Gaming profile: ptrace_scope=0 correctly deployed"
+
+    - name: "Gaming profile | assert swappiness=30 in config"
+      ansible.builtin.assert:
+        that: "'vm.swappiness = 30' in _sysctl_verify_gaming_content"
+        fail_msg: "Gaming profile: vm.swappiness should be 30 but is not in config"
+        success_msg: "Gaming profile: vm.swappiness=30 correctly deployed"
+
+    - name: "Gaming profile | restore default profile"
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
     - name: Show verify summary
       ansible.builtin.debug:
         msg: >-
           sysctl verify complete.
           Container mode: {{ _sysctl_in_container }}.
           Live value checks: {{ 'skipped' if _sysctl_in_container else 'performed' }}.
+          Gaming profile edge-case: tested.

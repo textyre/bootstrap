@@ -149,15 +149,10 @@
         that: "'Ansible' in _caddy_verify_compose_text"
         fail_msg: "Ansible managed marker not found in docker-compose.yml"
 
-    - name: Assert docker-compose.yml uses configured image
+    - name: Assert docker-compose.yml uses correct image
       ansible.builtin.assert:
-        that: "'{{ caddy_image }}' in _caddy_verify_compose_text"
-        fail_msg: "{{ caddy_image }} image not found in docker-compose.yml"
-
-    - name: Assert docker-compose.yml uses configured container name
-      ansible.builtin.assert:
-        that: "'{{ caddy_container_name }}' in _caddy_verify_compose_text"
-        fail_msg: "container_name '{{ caddy_container_name }}' not found in docker-compose.yml"
+        that: "'{{ caddy_docker_image }}' in _caddy_verify_compose_text"
+        fail_msg: "{{ caddy_docker_image }} image not found in docker-compose.yml"
 
     - name: Assert docker-compose.yml maps HTTPS port
       ansible.builtin.assert:
@@ -199,7 +194,7 @@
       block:
 
         - name: Check proxy Docker network exists  # noqa: command-instead-of-module
-          ansible.builtin.command: "docker network inspect {{ caddy_docker_network }}"
+          ansible.builtin.command: docker network inspect {{ caddy_docker_network }}
           register: _caddy_verify_network
           changed_when: false
           failed_when: false
@@ -213,7 +208,7 @@
 
         - name: Check caddy container is running  # noqa: command-instead-of-module
           ansible.builtin.command: >
-            docker inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ caddy_container_name }}
+            docker inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' caddy
           register: _caddy_verify_container_status
           changed_when: false
           failed_when: false
@@ -228,7 +223,7 @@
               Status: {{ _caddy_verify_container_status.stdout | default('container not found') }}
 
         - name: Validate Caddyfile syntax inside container  # noqa: command-instead-of-module
-          ansible.builtin.command: "docker exec {{ caddy_container_name }} caddy validate --config /etc/caddy/Caddyfile"
+          ansible.builtin.command: docker exec caddy caddy validate --config /etc/caddy/Caddyfile
           register: _caddy_verify_validate
           changed_when: false
           failed_when: false
@@ -242,7 +237,7 @@
 
         - name: Check caddy container is connected to proxy network  # noqa: command-instead-of-module
           ansible.builtin.command: >
-            docker inspect --format '{{ '{{' }}json .NetworkSettings.Networks{{ '}}' }}' {{ caddy_container_name }}
+            docker inspect --format '{{ '{{' }}json .NetworkSettings.Networks{{ '}}' }}' caddy
           register: _caddy_verify_container_networks
           changed_when: false
           failed_when: false
@@ -269,8 +264,8 @@
     - name: Verify CA trust deployment
       when:
         - caddy_tls_mode == "internal"
-        - caddy_manage_certs | default(true) | bool
         - _caddy_verify_docker_info.rc == 0
+        - caddy_manage_certs | default(true) | bool
       block:
 
         - name: Stat Caddy root CA in system trust store
@@ -299,5 +294,5 @@
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
           Docker checks: {{ 'enabled' if _caddy_verify_docker_info.rc == 0 else 'skipped (no daemon)' }}.
           CA trust checks: {{ 'enabled' if (caddy_tls_mode == 'internal' and
-          caddy_manage_certs | default(true) | bool and
-          _caddy_verify_docker_info.rc == 0) else 'skipped' }}.
+          _caddy_verify_docker_info.rc == 0 and
+          (caddy_manage_certs | default(true) | bool)) else 'skipped' }}.

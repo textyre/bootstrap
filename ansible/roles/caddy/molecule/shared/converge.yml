@@ -4,5 +4,12 @@
   become: true
   gather_facts: true
 
+  vars:
+    # Docker role overrides for molecule VMs:
+    # - userns-remap requires subuid/subgid entries not present in fresh VMs
+    # - journald log driver is incompatible with max-size/max-file log-opts
+    docker_userns_remap: ""
+    docker_log_driver: "json-file"
+
   roles:
     - role: caddy

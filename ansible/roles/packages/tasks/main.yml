@@ -2,48 +2,86 @@
 # === Official package installation ===
 # AUR packages → yay role. Services → docker/lightdm roles. Groups → user role.
 
-# ---- Full system upgrade ----
+- name: Packages role
+  when: packages_enabled | bool
+  tags: ['packages']
+  block:
 
-- name: Full system upgrade (pacman -Syu)
-  community.general.pacman:
-    update_cache: true
-    upgrade: true
-  when: ansible_facts['os_family'] == 'Archlinux'
-  tags: ['install', 'upgrade']
+    # ---- Preflight: supported OS ----
 
-# ---- Build combined package list ----
+    - name: Assert supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in _packages_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ _packages_supported_os | join(', ') }}
+        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+      tags: ['packages']
 
-- name: Build combined package list
-  ansible.builtin.set_fact:
-    packages_all: >-
-      {{ packages_base
-         + packages_editors
-         + packages_docker
-         + packages_xorg
-         + packages_wm
-         + packages_filemanager
-         + packages_network
-         + packages_media
-         + packages_desktop
-         + packages_graphics
-         + packages_session
-         + packages_terminal
-         + packages_fonts
-         + packages_theming
-         + packages_search
-         + packages_viewers
-         + (packages_distro[ansible_facts['os_family']] | default([])) }}
-  tags: ['install']
+    # ---- Build combined package list ----
 
-# ---- OS-specific package installation ----
+    - name: Build combined package list
+      ansible.builtin.set_fact:
+        packages_all: >-
+          {{ packages_base
+             + packages_editors
+             + packages_docker
+             + packages_xorg
+             + packages_wm
+             + packages_filemanager
+             + packages_network
+             + packages_media
+             + packages_desktop
+             + packages_graphics
+             + packages_session
+             + packages_terminal
+             + packages_fonts
+             + packages_theming
+             + packages_search
+             + packages_viewers
+             + (packages_distro[ansible_facts['os_family']] | default([])) }}
+      tags: ['packages', 'install']
 
-- name: Install packages (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['install']
+    # ---- OS-specific package installation ----
 
-# ---- Report ----
+    - name: Install packages (OS-specific)
+      ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['packages', 'install']
 
-- name: Report installed packages
-  ansible.builtin.debug:
-    msg: "Official packages installed: {{ packages_all | length }}"
-  tags: ['install']
+    # ---- In-role verification ----
+
+    - name: Verify packages
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['packages']
+
+    # ---- Report ----
+
+    - name: "Report: Package installation"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_packages_phases"
+        common_rpt_phase: "Install packages"
+        common_rpt_detail: "{{ packages_all | length }} pkgs on {{ ansible_facts['os_family'] }}"
+      tags: ['packages', 'report']
+
+    - name: "Report: Package verification"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_packages_phases"
+        common_rpt_phase: "Verify packages"
+        common_rpt_detail: "{{ packages_all | length }} pkgs verified on {{ ansible_facts['os_family'] }}"
+      tags: ['packages', 'report']
+
+    - name: "Packages -- Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_packages_phases"
+        common_rpt_title: "packages"
+      tags: ['packages', 'report']

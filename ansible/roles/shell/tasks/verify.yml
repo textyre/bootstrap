@@ -16,6 +16,8 @@
     fail_msg: >-
       Login shell for {{ shell_user }} is '{{ getent_passwd[shell_user][5] }}'
       but expected '{{ shell_bin[shell_type] }}'.
+    success_msg: >-
+      Login shell for {{ shell_user }} is '{{ shell_bin[shell_type] }}'
     quiet: true
   when: shell_set_login | bool
   tags: ['shell']
@@ -25,8 +27,9 @@
 - name: Verify XDG directories exist
   ansible.builtin.stat:
     path: "{{ shell_user_home }}/{{ item }}"
-  register: shell_verify_xdg
+  register: _shell_verify_xdg
   loop: "{{ shell_xdg_dirs }}"
+  when: shell_manage_xdg | bool
   tags: ['shell']
 
 - name: Assert all XDG directories exist
@@ -36,10 +39,13 @@
       - item.stat.isdir
     fail_msg: >-
       XDG directory '{{ item.item }}' does not exist or is not a directory.
+    success_msg: >-
+      XDG directory '{{ item.item }}' exists and is a directory
     quiet: true
-  loop: "{{ shell_verify_xdg.results }}"
+  loop: "{{ _shell_verify_xdg.results }}"
   loop_control:
     label: "{{ item.item }}"
+  when: shell_manage_xdg | bool
   tags: ['shell']
 
 # ---- Global config: /etc/profile.d/ ----
@@ -47,17 +53,22 @@
 - name: Verify /etc/profile.d/dev-paths.sh exists
   ansible.builtin.stat:
     path: /etc/profile.d/dev-paths.sh
-  register: shell_verify_profiled
-  when: shell_type in ['bash', 'zsh']
+  register: _shell_verify_profiled
+  when:
+    - shell_manage_global_config | bool
+    - shell_type in ['bash', 'zsh']
   tags: ['shell']
 
 - name: Assert /etc/profile.d/dev-paths.sh exists
   ansible.builtin.assert:
     that:
-      - shell_verify_profiled.stat.exists
+      - _shell_verify_profiled.stat.exists
     fail_msg: "/etc/profile.d/dev-paths.sh not found"
+    success_msg: "/etc/profile.d/dev-paths.sh exists"
     quiet: true
-  when: shell_type in ['bash', 'zsh']
+  when:
+    - shell_manage_global_config | bool
+    - shell_type in ['bash', 'zsh']
   tags: ['shell']
 
 # ---- Global config: /etc/zsh/zshenv ----
@@ -65,17 +76,22 @@
 - name: Verify /etc/zsh/zshenv exists
   ansible.builtin.stat:
     path: /etc/zsh/zshenv
-  register: shell_verify_zshenv
-  when: shell_type == 'zsh'
+  register: _shell_verify_zshenv
+  when:
+    - shell_manage_global_config | bool
+    - shell_type == 'zsh'
   tags: ['shell']
 
 - name: Assert /etc/zsh/zshenv exists
   ansible.builtin.assert:
     that:
-      - shell_verify_zshenv.stat.exists
+      - _shell_verify_zshenv.stat.exists
     fail_msg: "/etc/zsh/zshenv not found"
+    success_msg: "/etc/zsh/zshenv exists"
     quiet: true
-  when: shell_type == 'zsh'
+  when:
+    - shell_manage_global_config | bool
+    - shell_type == 'zsh'
   tags: ['shell']
 
 # ---- Global config: /etc/fish/conf.d/ ----
@@ -83,17 +99,22 @@
 - name: Verify /etc/fish/conf.d/dev-paths.fish exists
   ansible.builtin.stat:
     path: /etc/fish/conf.d/dev-paths.fish
-  register: shell_verify_fish
-  when: shell_type == 'fish'
+  register: _shell_verify_fish
+  when:
+    - shell_manage_global_config | bool
+    - shell_type == 'fish'
   tags: ['shell']
 
 - name: Assert /etc/fish/conf.d/dev-paths.fish exists
   ansible.builtin.assert:
     that:
-      - shell_verify_fish.stat.exists
+      - _shell_verify_fish.stat.exists
     fail_msg: "/etc/fish/conf.d/dev-paths.fish not found"
+    success_msg: "/etc/fish/conf.d/dev-paths.fish exists"
     quiet: true
-  when: shell_type == 'fish'
+  when:
+    - shell_manage_global_config | bool
+    - shell_type == 'fish'
   tags: ['shell']
 
 # ---- Report ----

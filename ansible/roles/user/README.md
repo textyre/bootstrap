@@ -60,6 +60,7 @@ Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/mai
 | `user_sudo_log_input` | `false` | careful | Record stdin of sudo sessions. Enables forensic logging but may capture passwords |
 | `user_sudo_log_output` | `false` | careful | Record stdout/stderr of sudo sessions. Significant disk usage on busy systems |
 | `user_sudo_passwd_timeout` | `1` | safe | Minutes to enter password at sudo prompt |
+| `user_sudo_config_overwrite` | `{}` | careful | Dict of additional `Defaults` directives merged into the sudoers template. Each key is a directive name, value is the directive value. Overrides or extends the built-in sudo policy without modifying the template. See [Overriding sudo defaults](#overriding-sudo-defaults) |
 | `user_sudo_logrotate_enabled` | `true` | safe | Deploy logrotate config for sudo.log |
 | `user_sudo_logrotate_frequency` | `"weekly"` | safe | Rotation frequency |
 | `user_sudo_logrotate_rotate` | `13` | safe | Number of rotations to keep (~90 days, CIS minimum retention) |
@@ -129,6 +130,18 @@ accounts:
     state: absent
 ```
 
+### Overriding sudo defaults
+
+```yaml
+# In group_vars/all/sudo.yml:
+user_sudo_config_overwrite:
+  env_reset: "true"
+  secure_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  mail_badpass: "true"
+```
+
+Each key-value pair renders as `Defaults key=value` in the sudoers file, appended after all built-in directives. Use this to add directives not covered by the dedicated variables (`user_sudo_use_pty`, `user_sudo_logfile`, etc.) without editing the template.
+
 ### Adjusting sudo timeout for a security-focused workstation
 
 ```yaml
@@ -182,7 +195,7 @@ workstation_profiles:
 | `visudo: /etc/sudoers.d/wheel: bad permissions` | File permissions are not 0440 | Role sets 0440 automatically. If changed externally, re-run the role |
 | Password aging not applied | `chage -l <username>` -- check max/min/warn values | Ensure `user_manage_password_aging: true` and values are set in `user_owner` |
 | Root lock assertion fails | `passwd -S root` -- check if root has a password | Lock root: `passwd -l root`. Or set `user_verify_root_lock: false` to skip |
-| Idempotence failure on `chage -W` task | `chage -W` always runs (no state detection) | Expected behavior -- `changed_when: false` suppresses the report since chage has no check mode |
+| `chage -W` shows `changed` on first run | `chage -W` runs only when current warn age differs from desired value | Expected on first apply. Second run (idempotence) shows `ok` because the value already matches |
 | Umask profile not applied after login | `/etc/profile.d/` only runs for login shells | Use `bash -l` or `su - <user>` to trigger profile scripts |
 
 ## Testing

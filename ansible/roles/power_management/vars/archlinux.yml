@@ -1,0 +1,17 @@
+---
+# === power_management / vars — Arch Linux ===
+
+_power_management_packages_base:
+  - cpupower
+
+_power_management_packages_laptop:
+  - tlp
+  - tlp-rdw
+
+_power_management_service_tlp: tlp
+_power_management_service_cpupower: cpupower
+
+# Services to mask when TLP is active (conflicts with TLP radio management)
+_power_management_mask_rfkill:
+  - systemd-rfkill.service
+  - systemd-rfkill.socket

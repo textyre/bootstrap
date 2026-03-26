@@ -4,6 +4,22 @@
   become: true
   gather_facts: true
 
+  vars:
+    # Expected values must match the converge.yml role configuration.
+    # Defined here because set_fact in converge post_tasks does not persist
+    # across Molecule plays (converge → verify are separate Ansible runs).
+    power_management_verify_expected_governor: schedutil
+    power_management_verify_expected_hibernate_mode: platform
+    power_management_verify_expected_lid_switch: suspend
+    power_management_verify_expected_lid_switch_ac: suspend
+    power_management_verify_expected_lid_switch_docked: ignore
+    power_management_verify_expected_power_key: poweroff
+    power_management_verify_expected_suspend_key: suspend
+    power_management_verify_expected_hibernate_key: ignore
+    power_management_verify_expected_idle_action: ignore
+    power_management_verify_expected_idle_action_sec: 30min
+    power_management_verify_expected_audit_schedule: daily
+
   tasks:
 
     # ==== Environment Detection ====
@@ -11,20 +27,20 @@
     - name: Read DMI chassis type
       ansible.builtin.slurp:
         src: /sys/class/dmi/id/chassis_type
-      register: pm_verify_chassis
+      register: power_management_verify_chassis
       failed_when: false
 
     - name: Set laptop detection fact
       ansible.builtin.set_fact:
-        pm_verify_is_laptop: >-
-          {{ (pm_verify_force_laptop | default(false) | bool) or
-             ('content' in pm_verify_chassis and
-              (pm_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32']) }}
+        power_management_verify_is_laptop: >-
+          {{ (power_management_verify_force_laptop | default(false) | bool) or
+             ('content' in power_management_verify_chassis and
+              (power_management_verify_chassis.content | b64decode | trim) in ['8', '9', '10', '14', '30', '31', '32']) }}
 
     - name: Check if cpufreq is available
       ansible.builtin.stat:
         path: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-      register: pm_verify_cpufreq_available
+      register: power_management_verify_cpufreq_available
 
     # ==== Package Checks ====
 
@@ -55,62 +71,61 @@
         that: "'tlp' in ansible_facts.packages"
         fail_msg: "TLP not installed on laptop"
         success_msg: "TLP package installed"
-      when: pm_verify_is_laptop
+      when: power_management_verify_is_laptop
 
-    - name: Check TLP service state (laptop)
-      ansible.builtin.command: systemctl is-active tlp.service
-      register: pm_verify_tlp_active
-      changed_when: false
-      failed_when: false
-      when: pm_verify_is_laptop
+    - name: Gather service facts for TLP verification
+      ansible.builtin.service_facts:
+      when: power_management_verify_is_laptop
 
     - name: Assert TLP service is active (laptop)
       ansible.builtin.assert:
-        that: pm_verify_tlp_active.stdout | trim == 'active'
-        fail_msg: "TLP service is not active (got: {{ pm_verify_tlp_active.stdout | trim }})"
+        that:
+          - "'tlp.service' in ansible_facts.services"
+          - ansible_facts.services['tlp.service'].state | default('unknown') != 'failed'
+        fail_msg: >-
+          TLP service is not active
+          (state: {{ ansible_facts.services['tlp.service'].state | default('not found') }})
         success_msg: "TLP service is active"
-      when:
-        - pm_verify_is_laptop
-        - pm_verify_tlp_active is not skipped
+      when: power_management_verify_is_laptop
 
     - name: Stat /etc/tlp.conf (laptop)
       ansible.builtin.stat:
         path: /etc/tlp.conf
-      register: pm_verify_tlp_conf
-      when: pm_verify_is_laptop
+      register: power_management_verify_tlp_conf
+      when: power_management_verify_is_laptop
 
     - name: Assert /etc/tlp.conf deployed with correct permissions (laptop)
       ansible.builtin.assert:
         that:
-          - pm_verify_tlp_conf.stat.exists
-          - pm_verify_tlp_conf.stat.pw_name == 'root'
-          - pm_verify_tlp_conf.stat.gr_name == 'root'
-          - pm_verify_tlp_conf.stat.mode == '0644'
-        fail_msg: "/etc/tlp.conf missing or wrong permissions (mode={{ pm_verify_tlp_conf.stat.mode | default('?') }})"
+          - power_management_verify_tlp_conf.stat.exists
+          - power_management_verify_tlp_conf.stat.pw_name == 'root'
+          - power_management_verify_tlp_conf.stat.gr_name == 'root'
+          - power_management_verify_tlp_conf.stat.mode == '0644'
+        fail_msg: "/etc/tlp.conf missing or wrong permissions (mode={{ power_management_verify_tlp_conf.stat.mode | default('?') }})"
         success_msg: "/etc/tlp.conf deployed with correct permissions"
       when:
-        - pm_verify_is_laptop
-        - pm_verify_tlp_conf is not skipped
+        - power_management_verify_is_laptop
+        - power_management_verify_tlp_conf is not skipped
 
     - name: Read /etc/tlp.conf content (laptop)
       ansible.builtin.slurp:
         src: /etc/tlp.conf
-      register: pm_verify_tlp_conf_content
+      register: power_management_verify_tlp_conf_content
       when:
-        - pm_verify_is_laptop
-        - pm_verify_tlp_conf.stat.exists | default(false)
+        - power_management_verify_is_laptop
+        - power_management_verify_tlp_conf.stat.exists | default(false)
 
     - name: Assert /etc/tlp.conf is Ansible-managed with expected CPU directives (laptop)
       ansible.builtin.assert:
         that:
-          - "'Managed by Ansible' in (pm_verify_tlp_conf_content.content | b64decode)"
-          - "'CPU_SCALING_GOVERNOR_ON_AC=' in (pm_verify_tlp_conf_content.content | b64decode)"
-          - "'CPU_SCALING_GOVERNOR_ON_BAT=' in (pm_verify_tlp_conf_content.content | b64decode)"
+          - "'Managed by Ansible' in (power_management_verify_tlp_conf_content.content | b64decode)"
+          - "'CPU_SCALING_GOVERNOR_ON_AC=' in (power_management_verify_tlp_conf_content.content | b64decode)"
+          - "'CPU_SCALING_GOVERNOR_ON_BAT=' in (power_management_verify_tlp_conf_content.content | b64decode)"
         fail_msg: "/etc/tlp.conf missing Ansible header or CPU governor directives"
         success_msg: "/etc/tlp.conf contains Ansible header and CPU directives"
       when:
-        - pm_verify_is_laptop
-        - pm_verify_tlp_conf_content is not skipped
+        - power_management_verify_is_laptop
+        - power_management_verify_tlp_conf_content is not skipped
 
     # ==== Config File Deployment Checks ====
 
@@ -119,41 +134,43 @@
     - name: Stat /etc/systemd/sleep.conf
       ansible.builtin.stat:
         path: /etc/systemd/sleep.conf
-      register: pm_verify_sleep
+      register: power_management_verify_sleep
 
     - name: Assert sleep.conf exists with correct permissions
       ansible.builtin.assert:
         that:
-          - pm_verify_sleep.stat.exists
-          - pm_verify_sleep.stat.pw_name == 'root'
-          - pm_verify_sleep.stat.gr_name == 'root'
-          - pm_verify_sleep.stat.mode == '0644'
+          - power_management_verify_sleep.stat.exists
+          - power_management_verify_sleep.stat.pw_name == 'root'
+          - power_management_verify_sleep.stat.gr_name == 'root'
+          - power_management_verify_sleep.stat.mode == '0644'
         fail_msg: "sleep.conf missing or wrong permissions"
         success_msg: "sleep.conf deployed with correct permissions"
 
     - name: Read sleep.conf content
       ansible.builtin.slurp:
         src: /etc/systemd/sleep.conf
-      register: pm_verify_sleep_content
+      register: power_management_verify_sleep_content
 
     - name: Set sleep.conf text fact
       ansible.builtin.set_fact:
-        pm_verify_sleep_text: "{{ pm_verify_sleep_content.content | b64decode }}"
+        power_management_verify_sleep_text: "{{ power_management_verify_sleep_content.content | b64decode }}"
 
     - name: Assert sleep.conf contains Ansible header
       ansible.builtin.assert:
-        that: "'Managed by Ansible' in pm_verify_sleep_text"
+        that: "'Managed by Ansible' in power_management_verify_sleep_text"
         fail_msg: "sleep.conf missing Ansible managed header"
 
-    - name: Assert sleep.conf contains HibernateMode=platform
+    - name: Assert sleep.conf contains expected HibernateMode
       ansible.builtin.assert:
-        that: "'HibernateMode=platform' in pm_verify_sleep_text"
-        fail_msg: "sleep.conf does not contain HibernateMode=platform"
-        success_msg: "sleep.conf HibernateMode=platform confirmed"
+        that: "'HibernateMode=' ~ power_management_verify_expected_hibernate_mode in power_management_verify_sleep_text"
+        fail_msg: >-
+          sleep.conf does not contain HibernateMode={{ power_management_verify_expected_hibernate_mode }}.
+          Content: {{ power_management_verify_sleep_text | regex_search('HibernateMode=.*') | default('not found') }}
+        success_msg: "sleep.conf HibernateMode={{ power_management_verify_expected_hibernate_mode }} confirmed"
 
     - name: Assert sleep.conf contains [Sleep] section
       ansible.builtin.assert:
-        that: "'[Sleep]' in pm_verify_sleep_text"
+        that: "'[Sleep]' in power_management_verify_sleep_text"
         fail_msg: "sleep.conf missing [Sleep] section header"
 
     # ---- logind.conf ----
@@ -161,44 +178,44 @@
     - name: Stat /etc/systemd/logind.conf
       ansible.builtin.stat:
         path: /etc/systemd/logind.conf
-      register: pm_verify_logind
+      register: power_management_verify_logind
 
     - name: Assert logind.conf exists with correct permissions
       ansible.builtin.assert:
         that:
-          - pm_verify_logind.stat.exists
-          - pm_verify_logind.stat.pw_name == 'root'
-          - pm_verify_logind.stat.gr_name == 'root'
-          - pm_verify_logind.stat.mode == '0644'
+          - power_management_verify_logind.stat.exists
+          - power_management_verify_logind.stat.pw_name == 'root'
+          - power_management_verify_logind.stat.gr_name == 'root'
+          - power_management_verify_logind.stat.mode == '0644'
         fail_msg: "logind.conf missing or wrong permissions"
         success_msg: "logind.conf deployed with correct permissions"
 
     - name: Read logind.conf content
       ansible.builtin.slurp:
         src: /etc/systemd/logind.conf
-      register: pm_verify_logind_content
+      register: power_management_verify_logind_content
 
     - name: Set logind.conf text fact
       ansible.builtin.set_fact:
-        pm_verify_logind_text: "{{ pm_verify_logind_content.content | b64decode }}"
+        power_management_verify_logind_text: "{{ power_management_verify_logind_content.content | b64decode }}"
 
     - name: Assert logind.conf contains expected directives
       ansible.builtin.assert:
         that:
-          - "'HandleLidSwitch=suspend' in pm_verify_logind_text"
-          - "'HandleLidSwitchExternalPower=suspend' in pm_verify_logind_text"
-          - "'HandleLidSwitchDocked=ignore' in pm_verify_logind_text"
-          - "'HandlePowerKey=poweroff' in pm_verify_logind_text"
-          - "'HandleSuspendKey=suspend' in pm_verify_logind_text"
-          - "'HandleHibernateKey=ignore' in pm_verify_logind_text"
-          - "'IdleAction=ignore' in pm_verify_logind_text"
-          - "'IdleActionSec=30min' in pm_verify_logind_text"
+          - "'HandleLidSwitch=' ~ power_management_verify_expected_lid_switch in power_management_verify_logind_text"
+          - "'HandleLidSwitchExternalPower=' ~ power_management_verify_expected_lid_switch_ac in power_management_verify_logind_text"
+          - "'HandleLidSwitchDocked=' ~ power_management_verify_expected_lid_switch_docked in power_management_verify_logind_text"
+          - "'HandlePowerKey=' ~ power_management_verify_expected_power_key in power_management_verify_logind_text"
+          - "'HandleSuspendKey=' ~ power_management_verify_expected_suspend_key in power_management_verify_logind_text"
+          - "'HandleHibernateKey=' ~ power_management_verify_expected_hibernate_key in power_management_verify_logind_text"
+          - "'IdleAction=' ~ power_management_verify_expected_idle_action in power_management_verify_logind_text"
+          - "'IdleActionSec=' ~ power_management_verify_expected_idle_action_sec in power_management_verify_logind_text"
         fail_msg: "logind.conf missing expected directives"
         success_msg: "logind.conf contains all expected power action directives"
 
     - name: Assert logind.conf contains [Login] section
       ansible.builtin.assert:
-        that: "'[Login]' in pm_verify_logind_text"
+        that: "'[Login]' in power_management_verify_logind_text"
         fail_msg: "logind.conf missing [Login] section header"
 
     # ---- udev governor rule (desktop path) ----
@@ -206,66 +223,68 @@
     - name: Stat /etc/udev/rules.d/50-cpu-governor.rules
       ansible.builtin.stat:
         path: /etc/udev/rules.d/50-cpu-governor.rules
-      register: pm_verify_udev_rule
-      when: not pm_verify_is_laptop
+      register: power_management_verify_udev_rule
+      when: not power_management_verify_is_laptop
 
     - name: Assert udev governor rule exists (desktop)
       ansible.builtin.assert:
         that:
-          - pm_verify_udev_rule.stat.exists
-          - pm_verify_udev_rule.stat.mode == '0644'
+          - power_management_verify_udev_rule.stat.exists
+          - power_management_verify_udev_rule.stat.mode == '0644'
         fail_msg: "50-cpu-governor.rules missing or wrong permissions"
         success_msg: "udev governor rule deployed"
-      when: not pm_verify_is_laptop
+      when: not power_management_verify_is_laptop
 
     - name: Read udev governor rule content
       ansible.builtin.slurp:
         src: /etc/udev/rules.d/50-cpu-governor.rules
-      register: pm_verify_udev_content
+      register: power_management_verify_udev_content
       when:
-        - not pm_verify_is_laptop
-        - pm_verify_udev_rule.stat.exists | default(false)
+        - not power_management_verify_is_laptop
+        - power_management_verify_udev_rule.stat.exists | default(false)
 
     - name: Assert udev rule contains correct governor
       ansible.builtin.assert:
         that:
-          - "'SUBSYSTEM==\"cpu\"' in (pm_verify_udev_content.content | b64decode)"
-          - "'scaling_governor' in (pm_verify_udev_content.content | b64decode)"
-          - "'schedutil' in (pm_verify_udev_content.content | b64decode)"
-        fail_msg: "udev rule does not contain expected governor configuration"
-        success_msg: "udev rule contains correct governor (schedutil)"
+          - "'SUBSYSTEM==\"cpu\"' in (power_management_verify_udev_content.content | b64decode)"
+          - "'scaling_governor' in (power_management_verify_udev_content.content | b64decode)"
+          - "power_management_verify_expected_governor in (power_management_verify_udev_content.content | b64decode)"
+        fail_msg: >-
+          udev rule does not contain expected governor '{{ power_management_verify_expected_governor }}'.
+          Content: {{ power_management_verify_udev_content.content | b64decode }}
+        success_msg: "udev rule contains correct governor ({{ power_management_verify_expected_governor }})"
       when:
-        - not pm_verify_is_laptop
-        - pm_verify_udev_content is not skipped
+        - not power_management_verify_is_laptop
+        - power_management_verify_udev_content is not skipped
 
     # ==== Audit Infrastructure Checks ====
 
     - name: Stat /usr/local/bin/power-audit.sh
       ansible.builtin.stat:
         path: /usr/local/bin/power-audit.sh
-      register: pm_verify_audit_script
+      register: power_management_verify_audit_script
 
     - name: Assert power-audit.sh deployed and executable
       ansible.builtin.assert:
         that:
-          - pm_verify_audit_script.stat.exists
-          - pm_verify_audit_script.stat.mode == '0755'
-          - pm_verify_audit_script.stat.pw_name == 'root'
+          - power_management_verify_audit_script.stat.exists
+          - power_management_verify_audit_script.stat.mode == '0755'
+          - power_management_verify_audit_script.stat.pw_name == 'root'
         fail_msg: "power-audit.sh missing or wrong permissions"
         success_msg: "power-audit.sh deployed with mode 0755"
 
     - name: Read power-audit.sh content
       ansible.builtin.slurp:
         src: /usr/local/bin/power-audit.sh
-      register: pm_verify_audit_content
+      register: power_management_verify_audit_content
 
     - name: Assert audit script contains expected checks
       ansible.builtin.assert:
         that:
-          - "'#!/usr/bin/env bash' in (pm_verify_audit_content.content | b64decode)"
-          - "'power-audit' in (pm_verify_audit_content.content | b64decode)"
-          - "'scaling_governor' in (pm_verify_audit_content.content | b64decode)"
-          - "'tlp-stat' in (pm_verify_audit_content.content | b64decode)"
+          - "'#!/usr/bin/env bash' in (power_management_verify_audit_content.content | b64decode)"
+          - "'power-audit' in (power_management_verify_audit_content.content | b64decode)"
+          - "'scaling_governor' in (power_management_verify_audit_content.content | b64decode)"
+          - "'tlp-stat' in (power_management_verify_audit_content.content | b64decode)"
         fail_msg: "power-audit.sh missing expected content"
         success_msg: "power-audit.sh contains expected audit checks"
 
@@ -276,102 +295,108 @@
     - name: Stat /etc/systemd/system/power-audit.service
       ansible.builtin.stat:
         path: /etc/systemd/system/power-audit.service
-      register: pm_verify_audit_service
+      register: power_management_verify_audit_service
 
     - name: Assert power-audit.service unit deployed
       ansible.builtin.assert:
         that:
-          - pm_verify_audit_service.stat.exists
-          - pm_verify_audit_service.stat.mode == '0644'
+          - power_management_verify_audit_service.stat.exists
+          - power_management_verify_audit_service.stat.mode == '0644'
         fail_msg: "power-audit.service unit missing"
         success_msg: "power-audit.service unit deployed"
 
     - name: Read power-audit.service content
       ansible.builtin.slurp:
         src: /etc/systemd/system/power-audit.service
-      register: pm_verify_audit_service_content
+      register: power_management_verify_audit_service_content
 
     - name: Assert power-audit.service ExecStart points to correct script
       ansible.builtin.assert:
-        that: "'ExecStart=/usr/local/bin/power-audit.sh' in (pm_verify_audit_service_content.content | b64decode)"
+        that: "'ExecStart=/usr/local/bin/power-audit.sh' in (power_management_verify_audit_service_content.content | b64decode)"
         fail_msg: "power-audit.service ExecStart does not reference /usr/local/bin/power-audit.sh"
         success_msg: "power-audit.service ExecStart verified"
 
     - name: Stat /etc/systemd/system/power-audit.timer
       ansible.builtin.stat:
         path: /etc/systemd/system/power-audit.timer
-      register: pm_verify_audit_timer
+      register: power_management_verify_audit_timer
 
     - name: Assert power-audit.timer unit deployed
       ansible.builtin.assert:
         that:
-          - pm_verify_audit_timer.stat.exists
-          - pm_verify_audit_timer.stat.mode == '0644'
+          - power_management_verify_audit_timer.stat.exists
+          - power_management_verify_audit_timer.stat.mode == '0644'
         fail_msg: "power-audit.timer unit missing"
         success_msg: "power-audit.timer unit deployed"
 
     - name: Read power-audit.timer content
       ansible.builtin.slurp:
         src: /etc/systemd/system/power-audit.timer
-      register: pm_verify_audit_timer_content
+      register: power_management_verify_audit_timer_content
 
-    - name: Assert power-audit.timer contains OnCalendar directive
+    - name: Assert power-audit.timer contains expected directives
       ansible.builtin.assert:
         that:
-          - "'OnCalendar=daily' in (pm_verify_audit_timer_content.content | b64decode)"
-          - "'RandomizedDelaySec=' in (pm_verify_audit_timer_content.content | b64decode)"
-          - "'Persistent=true' in (pm_verify_audit_timer_content.content | b64decode)"
-        fail_msg: "power-audit.timer missing expected timer directives"
-        success_msg: "power-audit.timer contains OnCalendar=daily + RandomizedDelaySec + Persistent"
+          - "'OnCalendar=' ~ power_management_verify_expected_audit_schedule in (power_management_verify_audit_timer_content.content | b64decode)"
+          - "'RandomizedDelaySec=' in (power_management_verify_audit_timer_content.content | b64decode)"
+          - "'Persistent=true' in (power_management_verify_audit_timer_content.content | b64decode)"
+        fail_msg: "power-audit.timer missing expected timer directives (expected OnCalendar={{ power_management_verify_expected_audit_schedule }})"
+        success_msg: "power-audit.timer contains OnCalendar={{ power_management_verify_expected_audit_schedule }} + RandomizedDelaySec + Persistent"
 
-    - name: Check power-audit.timer is enabled
-      ansible.builtin.command: systemctl is-enabled power-audit.timer
-      register: pm_verify_audit_timer_enabled
+    - name: Check power-audit.timer is enabled  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: systemctl is-enabled power-audit.timer
+      register: power_management_verify_timer_enabled
       changed_when: false
-      failed_when: false
 
     - name: Assert power-audit.timer is enabled
       ansible.builtin.assert:
-        that: pm_verify_audit_timer_enabled.stdout | trim == 'enabled'
-        fail_msg: "power-audit.timer is not enabled (status: {{ pm_verify_audit_timer_enabled.stdout | trim }})"
+        that:
+          - power_management_verify_timer_enabled.rc == 0
+          - power_management_verify_timer_enabled.stdout | trim == 'enabled'
+        fail_msg: >-
+          power-audit.timer is not enabled
+          (rc: {{ power_management_verify_timer_enabled.rc }},
+          stdout: {{ power_management_verify_timer_enabled.stdout | default('') | trim }})
         success_msg: "power-audit.timer is enabled"
 
-    - name: Check power-audit.timer is active
-      ansible.builtin.command: systemctl is-active power-audit.timer
-      register: pm_verify_audit_timer_active
+    - name: Check power-audit.timer is active  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: systemctl is-active power-audit.timer
+      register: power_management_verify_timer_active
       changed_when: false
       failed_when: false
 
     - name: Assert power-audit.timer is active
       ansible.builtin.assert:
-        that: pm_verify_audit_timer_active.stdout | trim == 'active'
-        fail_msg: "power-audit.timer is not active (got: {{ pm_verify_audit_timer_active.stdout | trim }})"
+        that:
+          - power_management_verify_timer_active.rc == 0
+          - power_management_verify_timer_active.stdout | trim == 'active'
+        fail_msg: >-
+          power-audit.timer is not active
+          (rc: {{ power_management_verify_timer_active.rc }},
+          stdout: {{ power_management_verify_timer_active.stdout | default('') | trim }})
         success_msg: "power-audit.timer is active"
 
     # ==== Conflicting Services Masked ====
 
-    - name: Check power-profiles-daemon is masked or not found
-      ansible.builtin.command: systemctl is-enabled power-profiles-daemon
-      register: pm_verify_ppd_status
-      changed_when: false
-      failed_when: false
+    - name: Gather service facts for conflict checks
+      ansible.builtin.service_facts:
 
     - name: Assert power-profiles-daemon is masked or absent
       ansible.builtin.assert:
-        that: pm_verify_ppd_status.stdout | trim in ['masked', 'not-found'] or pm_verify_ppd_status.rc != 0
-        fail_msg: "power-profiles-daemon is not masked (status: {{ pm_verify_ppd_status.stdout | trim }})"
+        that: >-
+          'power-profiles-daemon.service' not in ansible_facts.services or
+          ansible_facts.services['power-profiles-daemon.service'].status | default('not-found') in ['masked', 'not-found']
+        fail_msg: "power-profiles-daemon is not masked (status: {{ ansible_facts.services['power-profiles-daemon.service'].status | default('not found') }})"
         success_msg: "power-profiles-daemon is masked or absent"
-
-    - name: Check auto-cpufreq is masked or not found
-      ansible.builtin.command: systemctl is-enabled auto-cpufreq
-      register: pm_verify_autocpufreq_status
-      changed_when: false
-      failed_when: false
 
     - name: Assert auto-cpufreq is masked or absent
       ansible.builtin.assert:
-        that: pm_verify_autocpufreq_status.stdout | trim in ['masked', 'not-found'] or pm_verify_autocpufreq_status.rc != 0
-        fail_msg: "auto-cpufreq is not masked (status: {{ pm_verify_autocpufreq_status.stdout | trim }})"
+        that: >-
+          'auto-cpufreq.service' not in ansible_facts.services or
+          ansible_facts.services['auto-cpufreq.service'].status | default('not-found') in ['masked', 'not-found']
+        fail_msg: "auto-cpufreq is not masked (status: {{ ansible_facts.services['auto-cpufreq.service'].status | default('not found') }})"
         success_msg: "auto-cpufreq is masked or absent"
 
     # ==== Drift Detection State ====
@@ -379,77 +404,79 @@
     - name: Stat /var/lib/ansible-power-management
       ansible.builtin.stat:
         path: /var/lib/ansible-power-management
-      register: pm_verify_drift_dir
+      register: power_management_verify_drift_dir
 
     - name: Assert drift state directory exists with correct permissions
       ansible.builtin.assert:
         that:
-          - pm_verify_drift_dir.stat.exists
-          - pm_verify_drift_dir.stat.isdir
-          - pm_verify_drift_dir.stat.mode == '0700'
-          - pm_verify_drift_dir.stat.pw_name == 'root'
+          - power_management_verify_drift_dir.stat.exists
+          - power_management_verify_drift_dir.stat.isdir
+          - power_management_verify_drift_dir.stat.mode == '0700'
+          - power_management_verify_drift_dir.stat.pw_name == 'root'
         fail_msg: "Drift state directory missing or wrong permissions"
         success_msg: "Drift state directory exists (mode 0700, root-owned)"
 
     - name: Stat drift state file
       ansible.builtin.stat:
         path: /var/lib/ansible-power-management/last_state.json
-      register: pm_verify_drift_state
+      register: power_management_verify_drift_state
 
     - name: Assert drift state file exists with correct permissions
       ansible.builtin.assert:
         that:
-          - pm_verify_drift_state.stat.exists
-          - pm_verify_drift_state.stat.mode == '0600'
+          - power_management_verify_drift_state.stat.exists
+          - power_management_verify_drift_state.stat.mode == '0600'
         fail_msg: "Drift state file missing or wrong mode"
         success_msg: "Drift state file exists (mode 0600)"
 
     - name: Read drift state file
       ansible.builtin.slurp:
         src: /var/lib/ansible-power-management/last_state.json
-      register: pm_verify_drift_content
+      register: power_management_verify_drift_content
 
     - name: Assert drift state file is valid JSON with expected keys
       ansible.builtin.assert:
         that:
-          - (pm_verify_drift_content.content | b64decode | from_json).governor is defined
-          - (pm_verify_drift_content.content | b64decode | from_json).is_laptop is defined
-          - (pm_verify_drift_content.content | b64decode | from_json).init_system is defined
-          - (pm_verify_drift_content.content | b64decode | from_json).battery is defined
+          - (power_management_verify_drift_content.content | b64decode | from_json).governor is defined
+          - (power_management_verify_drift_content.content | b64decode | from_json).is_laptop is defined
+          - (power_management_verify_drift_content.content | b64decode | from_json).init_system is defined
+          - (power_management_verify_drift_content.content | b64decode | from_json).battery is defined
         fail_msg: "Drift state JSON missing expected keys"
         success_msg: "Drift state JSON contains required fields"
 
     - name: Set drift state parsed fact
       ansible.builtin.set_fact:
-        pm_verify_drift_json: "{{ pm_verify_drift_content.content | b64decode | from_json }}"
+        power_management_verify_drift_json: "{{ power_management_verify_drift_content.content | b64decode | from_json }}"
 
     - name: Assert drift governor field contains a valid value
       ansible.builtin.assert:
         that:
-          - pm_verify_drift_json.governor in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative', 'unknown']
-        fail_msg: "Drift state has unexpected governor value: '{{ pm_verify_drift_json.governor }}'"
-        success_msg: "Drift state governor: '{{ pm_verify_drift_json.governor }}'"
+          - power_management_verify_drift_json.governor in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative', 'unknown']
+        fail_msg: "Drift state has unexpected governor value: '{{ power_management_verify_drift_json.governor }}'"
+        success_msg: "Drift state governor: '{{ power_management_verify_drift_json.governor }}'"
 
     - name: Assert drift state governor matches deployed value (desktop, when cpufreq available)
       ansible.builtin.assert:
-        that: pm_verify_drift_json.governor == 'schedutil'
-        fail_msg: "Drift state governor='{{ pm_verify_drift_json.governor }}', expected 'schedutil' for desktop"
-        success_msg: "Drift state governor matches deployed value: schedutil"
+        that: power_management_verify_drift_json.governor == power_management_verify_expected_governor
+        fail_msg: >-
+          Drift state governor='{{ power_management_verify_drift_json.governor }}',
+          expected '{{ power_management_verify_expected_governor }}' for desktop
+        success_msg: "Drift state governor matches deployed value: {{ power_management_verify_expected_governor }}"
       when:
-        - not pm_verify_is_laptop
-        - pm_verify_cpufreq_available.stat.exists | default(false)
+        - not power_management_verify_is_laptop
+        - power_management_verify_cpufreq_available.stat.exists | default(false)
 
     - name: Assert drift state records correct device type (desktop)
       ansible.builtin.assert:
-        that: not (pm_verify_drift_json.is_laptop | bool)
-        fail_msg: "Drift state is_laptop='{{ pm_verify_drift_json.is_laptop }}', expected false for desktop"
+        that: not (power_management_verify_drift_json.is_laptop | bool)
+        fail_msg: "Drift state is_laptop='{{ power_management_verify_drift_json.is_laptop }}', expected false for desktop"
         success_msg: "Drift state device type: desktop"
-      when: not pm_verify_is_laptop
+      when: not power_management_verify_is_laptop
 
     - name: Assert drift state records init system
       ansible.builtin.assert:
-        that: pm_verify_drift_json.init_system == 'systemd'
-        fail_msg: "Drift state init_system='{{ pm_verify_drift_json.init_system }}', expected 'systemd'"
+        that: power_management_verify_drift_json.init_system == 'systemd'
+        fail_msg: "Drift state init_system='{{ power_management_verify_drift_json.init_system }}', expected 'systemd'"
         success_msg: "Drift state init_system: systemd"
 
     # ==== CPU Governor (hardware-dependent, conditional) ====
@@ -457,54 +484,47 @@
     - name: Read current CPU governor
       ansible.builtin.slurp:
         src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-      register: pm_verify_governor
+      register: power_management_verify_governor
       failed_when: false
-      when: pm_verify_cpufreq_available.stat.exists | default(false)
+      when: power_management_verify_cpufreq_available.stat.exists | default(false)
 
     - name: Assert governor is set (when cpufreq available)
       ansible.builtin.assert:
         that:
-          - "'content' in pm_verify_governor"
-          - (pm_verify_governor.content | b64decode | trim) in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative']
+          - "'content' in power_management_verify_governor"
+          - (power_management_verify_governor.content | b64decode | trim) in ['schedutil', 'performance', 'powersave', 'ondemand', 'conservative']
         fail_msg: "CPU governor not set to a valid value"
-        success_msg: "CPU governor: {{ pm_verify_governor.content | b64decode | trim }}"
+        success_msg: "CPU governor: {{ power_management_verify_governor.content | b64decode | trim }}"
       when:
-        - pm_verify_cpufreq_available.stat.exists | default(false)
-        - "'content' in pm_verify_governor"
+        - power_management_verify_cpufreq_available.stat.exists | default(false)
+        - "'content' in power_management_verify_governor"
 
     - name: Assert governor matches configured value (desktop, when cpufreq available)
       ansible.builtin.assert:
         that:
-          - (pm_verify_governor.content | b64decode | trim) == 'schedutil'
+          - (power_management_verify_governor.content | b64decode | trim) == power_management_verify_expected_governor
         fail_msg: >-
-          CPU governor is '{{ pm_verify_governor.content | b64decode | trim }}',
-          expected 'schedutil' (converge configures desktop default).
+          CPU governor is '{{ power_management_verify_governor.content | b64decode | trim }}',
+          expected '{{ power_management_verify_expected_governor }}' (converge configures desktop default).
           Run 'cpupower frequency-info' to diagnose.
-        success_msg: "CPU governor 'schedutil' confirmed"
+        success_msg: "CPU governor '{{ power_management_verify_expected_governor }}' confirmed"
       when:
-        - not pm_verify_is_laptop
-        - pm_verify_cpufreq_available.stat.exists | default(false)
-        - "'content' in pm_verify_governor"
+        - not power_management_verify_is_laptop
+        - power_management_verify_cpufreq_available.stat.exists | default(false)
+        - "'content' in power_management_verify_governor"
 
     # ==== Arch-specific: systemd-rfkill masked (laptop path only, informational) ====
 
-    - name: Check systemd-rfkill masked (Arch laptop only)
-      ansible.builtin.command: systemctl is-enabled systemd-rfkill.service
-      register: pm_verify_rfkill_status
-      changed_when: false
-      failed_when: false
-      when:
-        - ansible_facts['os_family'] == 'Archlinux'
-        - pm_verify_is_laptop
-
     - name: Assert systemd-rfkill masked (Arch laptop)
       ansible.builtin.assert:
-        that: pm_verify_rfkill_status.stdout | trim in ['masked', 'not-found'] or pm_verify_rfkill_status.rc != 0
+        that: >-
+          'systemd-rfkill.service' not in ansible_facts.services or
+          ansible_facts.services['systemd-rfkill.service'].status | default('not-found') in ['masked', 'not-found']
         fail_msg: "systemd-rfkill not masked on Arch laptop"
         success_msg: "systemd-rfkill is masked"
       when:
         - ansible_facts['os_family'] == 'Archlinux'
-        - pm_verify_is_laptop
+        - power_management_verify_is_laptop
 
     # ==== Summary ====
 
@@ -513,11 +533,13 @@
         msg:
           - "All power_management verification checks passed."
           - "OS: {{ ansible_facts['os_family'] }}"
-          - "Device: {{ 'laptop' if pm_verify_is_laptop else 'desktop' }}"
-          - "cpufreq available: {{ pm_verify_cpufreq_available.stat.exists | default(false) }}"
+          - "Device: {{ 'laptop' if power_management_verify_is_laptop else 'desktop' }}"
+          - "cpufreq available: {{ power_management_verify_cpufreq_available.stat.exists | default(false) }}"
+          - "Expected governor: {{ power_management_verify_expected_governor }}"
+          - "Expected hibernate mode: {{ power_management_verify_expected_hibernate_mode }}"
           - "Configs: sleep.conf, logind.conf deployed with correct content"
-          - "Udev rule: {{ 'deployed' if not pm_verify_is_laptop else 'skipped (laptop)' }}"
+          - "Udev rule: {{ 'deployed' if not power_management_verify_is_laptop else 'skipped (laptop)' }}"
           - "Audit: script + service + timer deployed, enabled and active"
-          - "TLP: {{ 'active' if pm_verify_is_laptop else 'not applicable (desktop)' }}"
+          - "TLP: {{ 'active' if power_management_verify_is_laptop else 'not applicable (desktop)' }}"
           - "Drift: state directory and file present with correct permissions"
           - "Conflicts: power-profiles-daemon + auto-cpufreq masked/absent"

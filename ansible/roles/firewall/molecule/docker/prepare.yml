@@ -4,9 +4,9 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Wait for systemd to reach multi-user target
+    - name: Wait for systemd to reach multi-user target  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-system-running --wait
-      register: _prepare_systemd_state
+      register: _firewall_prepare_systemd_state
       changed_when: false
       failed_when: false
       timeout: 30

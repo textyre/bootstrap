@@ -116,9 +116,10 @@ jobs:
         run: yamllint -c ansible/.yamllint ansible/roles/${{ matrix.role }}/
 
       - name: Run ansible-lint
-        run: ansible-lint ansible/roles/${{ matrix.role }}/
+        working-directory: ansible
+        run: ansible-lint roles/${{ matrix.role }}/
         env:
-          ANSIBLE_ROLES_PATH: ansible/roles
+          ANSIBLE_ROLES_PATH: roles
 
   test-docker:
     needs: detect

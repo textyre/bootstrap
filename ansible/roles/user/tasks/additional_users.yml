@@ -21,14 +21,41 @@
   when: user_additional_users | length > 0
   tags: [user, cis_5.5.1, cis_5.5.2]
 
-- name: "CIS 5.4.1 | Set password warn age for additional users (chage -W)"
+- name: "CIS 5.4.1 | Read current password warn age for additional users"
   ansible.builtin.command:
-    cmd: "chage -W {{ item.password_warn_age | default(7) }} {{ item.name }}"
+    cmd: "chage -l {{ item.name }}"
+  register: _user_additional_chage_info
   changed_when: false
+  failed_when: _user_additional_chage_info.rc != 0
   loop: "{{ user_additional_users }}"
+  loop_control:
+    label: "{{ item.name }}"
   when:
     - user_manage_password_aging | bool
     - user_additional_users | length > 0
+  tags: [user, cis_5.4.1]
+
+- name: "CIS 5.4.1 | Set password warn age for additional users (chage -W)"
+  ansible.builtin.command:
+    cmd: "chage -W {{ item.0.password_warn_age | default(7) }} {{ item.0.name }}"
+  changed_when: true
+  failed_when: _user_additional_chage_set.rc != 0
+  register: _user_additional_chage_set
+  loop: "{{ user_additional_users | zip(_user_additional_chage_info.results | default([])) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}"
+  when:
+    - user_manage_password_aging | bool
+    - user_additional_users | length > 0
+    - item.1 is not skipped
+    - >-
+      item.1.stdout_lines
+      | select('search', 'warning')
+      | map('regex_replace', '^.*:\s*', '')
+      | map('trim')
+      | first
+      | default('-1')
+      | int != (item.0.password_warn_age | default(7)) | int
   tags: [user, cis_5.4.1]
 
 - name: "Add additional users to sudo group when sudo: true"

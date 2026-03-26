@@ -1,18 +1,31 @@
 ---
+# --- Defaults-only run (TEST-011) ---
+- name: Converge -- defaults only
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# --- Full configuration run ---
 - name: Converge
   hosts: all
   become: true
   gather_facts: true
 
   roles:
-    - role: shell
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
       vars:
         shell_type: zsh
         shell_set_login: true
+        shell_manage_packages: true
+        shell_manage_xdg: true
+        shell_manage_global_config: true
         shell_global_path:
           - "$HOME/.local/bin"
           - "$HOME/.cargo/bin"
           - "/usr/local/go/bin"
         shell_global_env:
           GOPATH: "$HOME/go"
+        shell_global_env_overwrite: {}
         shell_zsh_zdotdir: true

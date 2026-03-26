@@ -1,0 +1,10 @@
+---
+# OS-specific variables for Fedora/RedHat
+
+# Cron daemon service name
+_vaultwarden_cron_service: crond
+
+# Packages required by the backup subsystem
+_vaultwarden_backup_packages:
+  - cronie
+  - sqlite

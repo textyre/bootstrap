@@ -12,3 +12,6 @@
         teleport_node_name: "molecule-test"
         teleport_session_recording: "node"
         teleport_export_ca_key: false
+        # Service starts but cannot connect to auth server in molecule;
+        # skip in-role service assertion to avoid false failure
+        teleport_verify_service: false

@@ -1,11 +1,25 @@
 ---
-# Arch Linux: Install official packages via pacman
+# Arch Linux: full system upgrade then install official packages
 
-- name: Update pacman package database
+# Full system upgrade — requires community.general.pacman (upgrade: true has no
+# equivalent in ansible.builtin.package; update_cache here subsumes a separate cache step)
+- name: Full system upgrade (pacman -Syu)
   community.general.pacman:
     update_cache: true
+    upgrade: true
+  retries: 3
+  delay: 5
+  register: _packages_upgrade_result
+  until: _packages_upgrade_result is succeeded
+  tags: ['packages', 'install', 'upgrade']
 
 - name: Install packages (pacman)
-  community.general.pacman:
+  ansible.builtin.package:
     name: "{{ packages_all }}"
     state: present
+  retries: 3
+  delay: 5
+  register: _packages_install_result
+  until: _packages_install_result is succeeded
+  when: packages_all | length > 0
+  tags: ['packages', 'install']

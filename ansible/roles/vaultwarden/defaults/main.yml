@@ -2,6 +2,15 @@
 # === Vaultwarden (Self-hosted Bitwarden) ===
 # Менеджер паролей и секретов
 
+# === OS Support ===
+# Supported operating systems for this role
+_vaultwarden_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Включить роль
 vaultwarden_enabled: true
 

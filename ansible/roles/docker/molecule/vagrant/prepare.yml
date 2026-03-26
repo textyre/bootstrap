@@ -7,19 +7,5 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Install docker and shadow packages (Arch)
-      community.general.pacman:
-        name:
-          - docker
-          - shadow
-        state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Install docker.io and uidmap (Ubuntu)
-      ansible.builtin.apt:
-        name:
-          - docker.io
-          - uidmap
-          - python3
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'
+    - name: Platform-specific preparation
+      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"

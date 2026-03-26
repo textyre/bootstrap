@@ -59,8 +59,13 @@ provisioner:
           - /tmp/test-safe-dir
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+
+dependency:
+  name: galaxy
+  options:
+    ignore-errors: true
+  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
+  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
 
 verifier:
   name: ansible

@@ -3,9 +3,7 @@
   hosts: all
   become: true
   gather_facts: true
-
+  vars_files:
+    - vars.yml
   roles:
-    - role: fail2ban
-      vars:
-        fail2ban_sshd_maxretry: 3
-        fail2ban_sshd_bantime: 600
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"

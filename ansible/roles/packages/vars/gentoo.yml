@@ -1,0 +1,6 @@
+---
+# Gentoo — package manager specifics
+# All package lists (packages_base, packages_editors, etc.) are user-supplied via inventory.
+#
+# No install task implemented yet (stub). Add tasks/install-gentoo.yml when Gentoo support
+# is required. Package manager: emerge.

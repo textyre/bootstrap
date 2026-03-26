@@ -16,9 +16,9 @@
   ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
   tags: [ssh]
 
-# Install openssh (OS-specific)
-- name: "Install openssh (OS-specific)"
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+# Install openssh (package names from vars/<os_family>.yml)
+- name: "Install openssh"
+  ansible.builtin.include_tasks: install.yml
   tags: [ssh, install]
 
 # ROLE-008: Report install phase

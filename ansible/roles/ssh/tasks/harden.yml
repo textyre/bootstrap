@@ -26,7 +26,7 @@
 
 # ---- Развёртывание конфигурации sshd ----
 
-- name: Deploy hardened sshd_config
+- name: "CIS 5.2.1 | DISA V-238215 -- Deploy hardened sshd_config"
   ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
@@ -36,7 +36,7 @@
     validate: 'sshd -t -f %s'
     backup: true
   notify: restart sshd
-  tags: ['ssh', 'security']
+  tags: ['ssh', 'security', 'cis_5.2.1', 'stig_v238215']
 
 # Flush handlers: sshd рестартует ПОКА слабые ключи ещё на диске.
 # sshdgenkeys.service видит что все файлы присутствуют → no-op.
@@ -70,20 +70,20 @@
   ansible.builtin.find:
     paths: /etc/ssh
     patterns: "ssh_host_*_key*"
-  register: ssh_existing_host_keys
+  register: _ssh_existing_host_keys
   when: ssh_host_key_cleanup
   tags: ['ssh', 'security']
 
-- name: Remove weak host keys (DSA, ECDSA)
+- name: "CIS 5.2.3 -- Remove weak host keys (DSA, ECDSA)"
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
-  loop: "{{ ssh_existing_host_keys.files | default([]) }}"
+  loop: "{{ _ssh_existing_host_keys.files | default([]) }}"
   loop_control:
     label: "{{ item.path | basename }}"
   when:
     - ssh_host_key_cleanup
     - item.path | basename is match('ssh_host_(dsa|ecdsa)_key')
-  tags: ['ssh', 'security']
+  tags: ['ssh', 'security', 'cis_5.2.3']
   # NOTE: no notify here — sshd was already restarted above (flush_handlers).
   # sshdgenkeys.service will NOT regenerate deleted keys until next sshd restart.

@@ -1,10 +1,36 @@
 ---
 # === System-level shell environment ===
-# validate → install → chsh → xdg → global → verify → report
+# validate -> install -> chsh -> xdg -> global -> verify -> report
 
 - name: Shell role
   tags: ['shell']
   block:
+
+    # ======================================================================
+    # ---- Merge developer profile paths/env (ROLE-009) ----
+    # ======================================================================
+
+    - name: Merge developer PATH additions
+      ansible.builtin.set_fact:
+        shell_global_path: "{{ shell_global_path + shell_developer_path }}"
+      when: "'developer' in (workstation_profiles | default([]))"
+      tags: ['shell', 'profile:developer']
+
+    - name: Merge developer environment variables
+      ansible.builtin.set_fact:
+        shell_global_env: "{{ shell_global_env | combine(shell_developer_env, recursive=True) }}"
+      when: "'developer' in (workstation_profiles | default([]))"
+      tags: ['shell', 'profile:developer']
+
+    # ======================================================================
+    # ---- Merge user overrides for env dict (ROLE-010) ----
+    # ======================================================================
+
+    - name: Merge shell_global_env with overrides
+      ansible.builtin.set_fact:
+        shell_global_env: "{{ shell_global_env | combine(shell_global_env_overwrite, recursive=True) }}"
+      when: shell_global_env_overwrite | length > 0
+      tags: ['shell']
 
     # ======================================================================
     # ---- Resolve user home ----
@@ -43,6 +69,7 @@
 
     - name: Install shell package
       ansible.builtin.include_tasks: install.yml
+      when: shell_manage_packages | bool
       tags: ['shell']
 
     # ======================================================================
@@ -59,6 +86,7 @@
 
     - name: Create XDG directories
       ansible.builtin.include_tasks: xdg.yml
+      when: shell_manage_xdg | bool
       tags: ['shell']
 
     # ======================================================================
@@ -67,6 +95,7 @@
 
     - name: Deploy global shell configuration
       ansible.builtin.include_tasks: global.yml
+      when: shell_manage_global_config | bool
       tags: ['shell']
 
     # ======================================================================

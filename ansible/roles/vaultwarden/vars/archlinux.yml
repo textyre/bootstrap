@@ -1,0 +1,10 @@
+---
+# OS-specific variables for Arch Linux
+
+# Cron daemon service name
+_vaultwarden_cron_service: cronie
+
+# Packages required by the backup subsystem
+_vaultwarden_backup_packages:
+  - cronie
+  - sqlite3

@@ -1,0 +1,5 @@
+---
+# Shared test variables for both converge and verify.
+# Keeps verify assertions in sync with converge overrides (TEST-012).
+fail2ban_sshd_maxretry: 3
+fail2ban_sshd_bantime: 600
