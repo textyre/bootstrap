@@ -1,7 +1,0 @@
----
-# Arch Linux — package manager specifics
-# All package lists (packages_base, packages_editors, etc.) are user-supplied via inventory.
-# OS-specific install logic is in tasks/install-archlinux.yml.
-#
-# Arch uses community.general.pacman for the system upgrade step (upgrade: true has no
-# equivalent in ansible.builtin.package) and ansible.builtin.package for installation.

@@ -2,38 +2,6 @@
 # === In-role verification: check all packages are installed ===
 # Called from tasks/main.yml after installation. Skipped when packages_all is empty.
 
-# Technique 2: runtime check via native package manager
-- name: Verify package installed (pacman -Q)
-  ansible.builtin.command:
-    cmd: "pacman -Q {{ item }}"
-  register: _packages_verify_pacman
-  changed_when: false
-  failed_when: _packages_verify_pacman.rc != 0
-  loop: "{{ packages_all }}"
-  loop_control:
-    label: "{{ item }}"
-  when:
-    - packages_all | length > 0
-    - ansible_facts['os_family'] == 'Archlinux'
-  tags: ['packages']
-
-- name: Verify package installed (dpkg-query)
-  ansible.builtin.command:
-    cmd: "dpkg-query -W -f='${Status}' {{ item }}"
-  register: _packages_verify_dpkg
-  changed_when: false
-  failed_when: >-
-    _packages_verify_dpkg.rc != 0 or
-    'install ok installed' not in _packages_verify_dpkg.stdout
-  loop: "{{ packages_all }}"
-  loop_control:
-    label: "{{ item }}"
-  when:
-    - packages_all | length > 0
-    - ansible_facts['os_family'] == 'Debian'
-  tags: ['packages']
-
-# Technique 3: state assertion via package_facts
 - name: Gather package facts
   ansible.builtin.package_facts:
     manager: auto
