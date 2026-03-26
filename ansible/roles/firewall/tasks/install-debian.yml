@@ -1,10 +1,17 @@
 ---
 # === Debian/Ubuntu: установка nftables ===
 
+# Force apt cache refresh unconditionally — runs even in check_mode plays so
+# the package database is current before the install task tries to look up the
+# package name (Docker images often have an empty/stale apt cache).
+- name: "CIS 3.4.1.1 | Refresh apt cache (Debian)"
+  ansible.builtin.apt:
+    update_cache: true
+  check_mode: false
+  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
+
 - name: "CIS 3.4.1.1 | Ensure nftables is installed (Debian)"
   ansible.builtin.apt:
     name: "{{ _firewall_packages }}"
     state: present
-    update_cache: true
-    cache_valid_time: 3600
   tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
