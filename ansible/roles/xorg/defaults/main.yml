@@ -2,6 +2,15 @@
 # === Конфигурация X11 (Xorg) ===
 # Деплой системных файлов /etc/X11/xorg.conf.d/
 
+xorg_enabled: true
+
+xorg_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Путь к исходным файлам (dotfiles/ в корне репозитория)
 xorg_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}"
 

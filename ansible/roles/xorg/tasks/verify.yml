@@ -1,0 +1,157 @@
+---
+# === Xorg — верификация после конфигурации ===
+
+- name: Set verification target paths
+  ansible.builtin.set_fact:
+    _xorg_verify_conf_dir: "{{ _xorg_conf_dir }}"
+    _xorg_verify_keyboard_path: >-
+      {{
+        (
+          xorg_system_files
+          | selectattr('src', 'equalto', 'etc/X11/xorg.conf.d/00-keyboard.conf')
+          | map(attribute='dest')
+          | first
+        ) | default(_xorg_conf_dir ~ '/00-keyboard.conf')
+      }}
+    _xorg_verify_monitor_path: >-
+      {{
+        (
+          xorg_system_files
+          | selectattr('src', 'equalto', 'etc/X11/xorg.conf.d/10-monitor.conf')
+          | map(attribute='dest')
+          | first
+        ) | default(_xorg_conf_dir ~ '/10-monitor.conf')
+      }}
+  tags: ['xorg']
+
+- name: Verify X11 config directory exists
+  ansible.builtin.stat:
+    path: "{{ _xorg_verify_conf_dir }}"
+  register: _xorg_verify_confdir
+  changed_when: false
+  tags: ['xorg']
+
+- name: Assert X11 config directory state
+  ansible.builtin.assert:
+    that:
+      - _xorg_verify_confdir.stat.exists
+      - _xorg_verify_confdir.stat.isdir
+      - _xorg_verify_confdir.stat.pw_name == 'root'
+      - _xorg_verify_confdir.stat.gr_name == 'root'
+      - _xorg_verify_confdir.stat.mode == '0755'
+    fail_msg: "{{ _xorg_verify_conf_dir }} missing or wrong permissions (expected root:root 0755)"
+    success_msg: "{{ _xorg_verify_conf_dir }} exists with expected ownership and mode"
+  tags: ['xorg']
+
+- name: Verify keyboard config exists
+  ansible.builtin.stat:
+    path: "{{ _xorg_verify_keyboard_path }}"
+  register: _xorg_verify_keyboard
+  changed_when: false
+  tags: ['xorg']
+
+- name: Assert keyboard config state
+  ansible.builtin.assert:
+    that:
+      - _xorg_verify_keyboard.stat.exists
+      - _xorg_verify_keyboard.stat.isreg
+      - _xorg_verify_keyboard.stat.pw_name == 'root'
+      - _xorg_verify_keyboard.stat.gr_name == 'root'
+      - _xorg_verify_keyboard.stat.mode == '0644'
+    fail_msg: "{{ _xorg_verify_keyboard_path }} missing or wrong permissions (expected root:root 0644)"
+    success_msg: "{{ _xorg_verify_keyboard_path }} exists with expected ownership and mode"
+  tags: ['xorg']
+
+- name: Read keyboard config
+  ansible.builtin.slurp:
+    src: "{{ _xorg_verify_keyboard_path }}"
+  register: _xorg_verify_keyboard_raw
+  tags: ['xorg']
+
+- name: Set keyboard config text fact
+  ansible.builtin.set_fact:
+    _xorg_verify_keyboard_text: "{{ _xorg_verify_keyboard_raw.content | b64decode }}"
+  tags: ['xorg']
+
+- name: Assert keyboard config content
+  ansible.builtin.assert:
+    that:
+      - "'XkbLayout' in _xorg_verify_keyboard_text"
+      - "'us' in _xorg_verify_keyboard_text"
+      - _xorg_verify_keyboard_text is regex('Section \"InputClass\"')
+      - _xorg_verify_keyboard_text is regex('EndSection')
+    fail_msg: "Keyboard config missing required X11 structure or layout values"
+    success_msg: "Keyboard config contains the expected X11 InputClass stanza"
+  tags: ['xorg']
+
+- name: Verify monitor config exists
+  ansible.builtin.stat:
+    path: "{{ _xorg_verify_monitor_path }}"
+  register: _xorg_verify_monitor
+  changed_when: false
+  tags: ['xorg']
+
+- name: Assert monitor config state
+  ansible.builtin.assert:
+    that:
+      - _xorg_verify_monitor.stat.exists
+      - _xorg_verify_monitor.stat.isreg
+      - _xorg_verify_monitor.stat.pw_name == 'root'
+      - _xorg_verify_monitor.stat.gr_name == 'root'
+      - _xorg_verify_monitor.stat.mode == '0644'
+    fail_msg: "{{ _xorg_verify_monitor_path }} missing or wrong permissions (expected root:root 0644)"
+    success_msg: "{{ _xorg_verify_monitor_path }} exists with expected ownership and mode"
+  tags: ['xorg']
+
+- name: Read monitor config
+  ansible.builtin.slurp:
+    src: "{{ _xorg_verify_monitor_path }}"
+  register: _xorg_verify_monitor_raw
+  tags: ['xorg']
+
+- name: Set monitor config text fact
+  ansible.builtin.set_fact:
+    _xorg_verify_monitor_text: "{{ _xorg_verify_monitor_raw.content | b64decode }}"
+  tags: ['xorg']
+
+- name: Assert monitor config content
+  ansible.builtin.assert:
+    that:
+      - _xorg_verify_monitor_text is regex('Section \"Monitor\"')
+      - "'Monitor0' in _xorg_verify_monitor_text"
+      - _xorg_verify_monitor_text is regex('Section \"Device\"')
+      - "'modesetting' in _xorg_verify_monitor_text"
+      - _xorg_verify_monitor_text is regex('Section \"Screen\"')
+      - "'Screen0' in _xorg_verify_monitor_text"
+      - _xorg_verify_monitor_text is regex('Modeline.*2560x1440')
+    fail_msg: "Monitor config missing one or more required Monitor/Device/Screen directives"
+    success_msg: "Monitor config contains the expected X11 monitor, device, and screen sections"
+  tags: ['xorg']
+
+- name: Count deployed Xorg config files
+  ansible.builtin.find:
+    paths: "{{ _xorg_verify_conf_dir }}"
+    file_type: file
+  register: _xorg_verify_file_count
+  changed_when: false
+  tags: ['xorg']
+
+- name: Assert deployed file count matches configuration
+  ansible.builtin.assert:
+    that:
+      - _xorg_verify_file_count.matched == (xorg_system_files | length)
+    fail_msg: >-
+      Expected {{ xorg_system_files | length }} files in {{ _xorg_verify_conf_dir }},
+      found {{ _xorg_verify_file_count.matched }}
+    success_msg: "Deployed file count matches xorg_system_files"
+  tags: ['xorg']
+
+- name: Report Xorg verification
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_xorg_phases"
+    common_rpt_phase: "Verify"
+    common_rpt_detail: "files={{ xorg_system_files | length }} confdir=ok"
+  tags: ['xorg', 'report']

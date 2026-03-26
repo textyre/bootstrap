@@ -1,48 +1,51 @@
 ---
-# === Конфигурация X11 (Xorg) ===
-# Деплой файлов /etc/X11/xorg.conf.d/
+# === Xorg — main orchestration ===
 
-- name: Resolve dotfiles source directory
-  ansible.builtin.stat:
-    path: "{{ xorg_source_dir }}"
-  register: xorg_source_stat
-  tags: ['xorg', 'display']
-
-- name: Assert dotfiles source directory exists
-  ansible.builtin.assert:
-    that:
-      - xorg_source_stat.stat.exists
-      - xorg_source_stat.stat.isdir
-    fail_msg: "Директория с исходниками не найдена: {{ xorg_source_dir }}"
-  tags: ['xorg', 'display']
-
-# ---- Создание директорий ----
-
-- name: Create X11 config directories
-  ansible.builtin.file:
-    path: "{{ item.dest | dirname }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  loop: "{{ xorg_system_files }}"
-  tags: ['xorg', 'display']
-
-# ---- Деплой конфигов ----
-
-- name: Deploy Xorg configuration files
-  ansible.builtin.copy:
-    src: "{{ xorg_source_dir }}/{{ item.src }}"
-    dest: "{{ item.dest }}"
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-    mode: "{{ item.mode }}"
-    remote_src: true
-  loop: "{{ xorg_system_files }}"
-  tags: ['xorg', 'display']
-
-- name: Report Xorg configuration
-  ansible.builtin.debug:
-    msg:
-      - "Файлов развёрнуто: {{ xorg_system_files | length }}"
+- name: Xorg role
+  when: xorg_enabled | bool
   tags: ['xorg']
+  block:
+
+    - name: Assert supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in xorg_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ xorg_supported_os | join(', ') }}
+        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+      tags: ['xorg']
+
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['xorg']
+
+    - name: Include OS-specific tasks
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
+      when: ansible_facts['os_family'] in xorg_supported_os
+      tags: ['xorg']
+
+    - name: Report Xorg configuration
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_xorg_phases"
+        common_rpt_phase: "Deploy config"
+        common_rpt_detail: >-
+          files={{ xorg_system_files | length }}
+          os={{ ansible_facts['os_family'] | lower }}
+      tags: ['xorg', 'report']
+
+    - name: Verify Xorg configuration
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['xorg']
+
+    - name: "Xorg -- Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_xorg_phases"
+        common_rpt_title: "xorg"
+      tags: ['xorg', 'report']

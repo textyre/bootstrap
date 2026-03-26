@@ -10,5 +10,11 @@ galaxy_info:
       versions: [all]
     - name: Ubuntu
       versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
   galaxy_tags: [xorg, x11, display, monitor]
 dependencies: []
