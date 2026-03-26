@@ -1,150 +1,207 @@
 ---
 # === Vaultwarden (Self-hosted Bitwarden) ===
 # Менеджер паролей и секретов
+# Validate -> OS vars -> Directories -> DNS -> Admin token -> Docker Compose -> Caddy -> Start -> Backup -> Verify -> Report
 
-# ---- Директории ----
+- name: Vaultwarden role
+  when: vaultwarden_enabled | bool
+  tags: ['vaultwarden']
+  block:
 
-- name: Create Vaultwarden base directory
-  ansible.builtin.file:
-    path: "{{ vaultwarden_base_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    # ======================================================================
+    # ---- Валидация (ROLE-003) ----
+    # ======================================================================
 
-- name: Create Vaultwarden data directory
-  ansible.builtin.file:
-    path: "{{ vaultwarden_base_dir }}/data"
-    state: directory
-    owner: root
-    group: root
-    mode: '0700'
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Validate vaultwarden configuration
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['vaultwarden']
 
-- name: Create Vaultwarden backup directory
-  ansible.builtin.file:
-    path: "{{ vaultwarden_backup_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    # ======================================================================
+    # ---- OS-specific variables (ROLE-001) ----
+    # ======================================================================
 
-# ---- DNS (локальный доступ) ----
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['vaultwarden']
 
-- name: Add Vaultwarden domain to /etc/hosts
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '.*\s{{ vaultwarden_domain | regex_escape }}$'
-    line: "127.0.0.1 {{ vaultwarden_domain }}"
-    state: present
-    unsafe_writes: true
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    # ======================================================================
+    # ---- Директории ----
+    # ======================================================================
 
-# ---- Admin token (генерация при первом запуске) ----
+    - name: Create Vaultwarden base directory
+      ansible.builtin.file:
+        path: "{{ vaultwarden_base_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: ['vaultwarden', 'secrets']
 
-- name: Check if admin token file exists
-  ansible.builtin.stat:
-    path: "{{ vaultwarden_base_dir }}/.admin_token"
-  register: _vaultwarden_token_file
-  when: vaultwarden_enabled and vaultwarden_admin_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Create Vaultwarden data directory
+      ansible.builtin.file:
+        path: "{{ vaultwarden_base_dir }}/data"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      tags: ['vaultwarden', 'secrets']
 
-- name: Generate admin token
-  ansible.builtin.shell:
-    cmd: openssl rand -base64 48 > {{ vaultwarden_base_dir }}/.admin_token
-    creates: "{{ vaultwarden_base_dir }}/.admin_token"
-  when: vaultwarden_enabled and vaultwarden_admin_enabled and not (_vaultwarden_token_file.stat.exists | default(false))
-  tags: ['vaultwarden', 'secrets']
+    - name: Create Vaultwarden backup directory
+      ansible.builtin.file:
+        path: "{{ vaultwarden_backup_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: vaultwarden_backup_enabled | bool
+      tags: ['vaultwarden', 'secrets']
 
-- name: Restrict admin token file permissions
-  ansible.builtin.file:
-    path: "{{ vaultwarden_base_dir }}/.admin_token"
-    owner: root
-    group: root
-    mode: '0600'
-  when: vaultwarden_enabled and vaultwarden_admin_enabled
-  tags: ['vaultwarden', 'secrets']
+    # ======================================================================
+    # ---- DNS (локальный доступ) ----
+    # ======================================================================
 
-- name: Read admin token
-  ansible.builtin.slurp:
-    src: "{{ vaultwarden_base_dir }}/.admin_token"
-  register: vaultwarden_admin_token_raw
-  when: vaultwarden_enabled and vaultwarden_admin_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Add Vaultwarden domain to /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '.*\s{{ vaultwarden_domain | regex_escape }}$'
+        line: "127.0.0.1 {{ vaultwarden_domain }}"
+        state: present
+        unsafe_writes: true
+      tags: ['vaultwarden', 'secrets']
 
-- name: Set admin token fact
-  ansible.builtin.set_fact:
-    vaultwarden_admin_token: "{{ vaultwarden_admin_token_raw.content | b64decode | trim }}"
-  when: vaultwarden_enabled and vaultwarden_admin_enabled
-  tags: ['vaultwarden', 'secrets']
+    # ======================================================================
+    # ---- Admin token (генерация при первом запуске) ----
+    # ======================================================================
 
-# ---- Docker Compose ----
+    - name: Generate admin token
+      ansible.builtin.shell:
+        cmd: "openssl rand -base64 48 > {{ vaultwarden_base_dir }}/.admin_token"
+        creates: "{{ vaultwarden_base_dir }}/.admin_token"
+      when: vaultwarden_admin_enabled | bool
+      tags: ['vaultwarden', 'secrets']
 
-- name: Deploy Vaultwarden docker-compose.yml
-  ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ vaultwarden_base_dir }}/docker-compose.yml"
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Restart vaultwarden
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Restrict admin token file permissions
+      ansible.builtin.file:
+        path: "{{ vaultwarden_base_dir }}/.admin_token"
+        owner: root
+        group: root
+        mode: '0600'
+      when: vaultwarden_admin_enabled | bool
+      tags: ['vaultwarden', 'secrets']
 
-# ---- Caddy site config ----
+    - name: Read admin token
+      ansible.builtin.slurp:
+        src: "{{ vaultwarden_base_dir }}/.admin_token"
+      register: _vaultwarden_admin_token_raw
+      when: vaultwarden_admin_enabled | bool
+      tags: ['vaultwarden', 'secrets']
 
-- name: Deploy Vaultwarden Caddy site config
-  ansible.builtin.template:
-    src: vault.caddy.j2
-    dest: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Reload caddy
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Set admin token fact
+      ansible.builtin.set_fact:
+        _vaultwarden_admin_token: "{{ _vaultwarden_admin_token_raw.content | b64decode | trim }}"
+      when: vaultwarden_admin_enabled | bool
+      tags: ['vaultwarden', 'secrets']
 
-# ---- Запуск ----
+    # ======================================================================
+    # ---- Docker Compose ----
+    # ======================================================================
 
-- name: Start Vaultwarden containers
-  community.docker.docker_compose_v2:
-    project_src: "{{ vaultwarden_base_dir }}"
-    state: present
-  when: vaultwarden_enabled
-  tags: ['vaultwarden', 'secrets', 'molecule-notest']
+    - name: Deploy Vaultwarden docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ vaultwarden_base_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart vaultwarden
+      tags: ['vaultwarden', 'secrets']
 
-# ---- Бэкап ----
+    # ======================================================================
+    # ---- Caddy site config ----
+    # ======================================================================
 
-- name: Deploy Vaultwarden backup script
-  ansible.builtin.template:
-    src: vaultwarden-backup.sh.j2
-    dest: "{{ vaultwarden_base_dir }}/backup.sh"
-    owner: root
-    group: root
-    mode: '0700'
-  when: vaultwarden_enabled and vaultwarden_backup_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Deploy Vaultwarden Caddy site config
+      ansible.builtin.template:
+        src: vault.caddy.j2
+        dest: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload caddy
+      tags: ['vaultwarden', 'secrets']
 
-- name: Ensure cronie service is enabled
-  ansible.builtin.service:
-    name: cronie
-    enabled: true
-    state: started
-  when: vaultwarden_enabled and vaultwarden_backup_enabled
-  tags: ['vaultwarden', 'secrets', 'molecule-notest']
+    # ======================================================================
+    # ---- Запуск ----
+    # ======================================================================
 
-- name: Configure Vaultwarden backup cron job
-  ansible.builtin.cron:
-    name: "Vaultwarden backup"
-    hour: "{{ vaultwarden_backup_cron_hour }}"
-    minute: "{{ vaultwarden_backup_cron_minute }}"
-    job: "{{ vaultwarden_base_dir }}/backup.sh"
-    user: root
-  when: vaultwarden_enabled and vaultwarden_backup_enabled
-  tags: ['vaultwarden', 'secrets']
+    - name: Start Vaultwarden containers
+      community.docker.docker_compose_v2:
+        project_src: "{{ vaultwarden_base_dir }}"
+        state: present
+      tags: ['vaultwarden', 'secrets', 'molecule-notest']
+
+    # ======================================================================
+    # ---- Бэкап ----
+    # ======================================================================
+
+    - name: Deploy Vaultwarden backup script
+      ansible.builtin.template:
+        src: vaultwarden-backup.sh.j2
+        dest: "{{ vaultwarden_base_dir }}/backup.sh"
+        owner: root
+        group: root
+        mode: '0700'
+      when: vaultwarden_backup_enabled | bool
+      tags: ['vaultwarden', 'secrets']
+
+    - name: Ensure cron service is enabled
+      ansible.builtin.service:
+        name: "{{ _vaultwarden_cron_service }}"
+        enabled: true
+        state: started
+      when: vaultwarden_backup_enabled | bool
+      tags: ['vaultwarden', 'secrets', 'molecule-notest']
+
+    - name: Configure Vaultwarden backup cron job
+      ansible.builtin.cron:
+        name: "Vaultwarden backup"
+        hour: "{{ vaultwarden_backup_cron_hour }}"
+        minute: "{{ vaultwarden_backup_cron_minute }}"
+        job: "{{ vaultwarden_base_dir }}/backup.sh"
+        user: root
+      when: vaultwarden_backup_enabled | bool
+      tags: ['vaultwarden', 'secrets']
+
+    # ======================================================================
+    # ---- Проверка (ROLE-005) ----
+    # ======================================================================
+
+    - name: Verify vaultwarden
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['vaultwarden']
+
+    # ======================================================================
+    # ---- Логирование (ROLE-008) ----
+    # ======================================================================
+
+    - name: "Report: Vaultwarden deployment"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Deploy Vaultwarden"
+        common_rpt_detail: >-
+          domain={{ vaultwarden_domain }}
+          admin={{ vaultwarden_admin_enabled | string | lower }}
+          backup={{ vaultwarden_backup_enabled | string | lower }}
+      tags: ['vaultwarden', 'report']
+
+    - name: "Vaultwarden -- Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_title: "vaultwarden"
+      tags: ['vaultwarden', 'report']

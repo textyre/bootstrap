@@ -21,7 +21,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: molecule-notest
+    skip-tags: report,molecule-notest
   inventory:
     group_vars:
       all:
