@@ -2,14 +2,6 @@
 # === sysctl — kernel parameter tuning ===
 # Управление параметрами ядра через /etc/sysctl.d/99-z-ansible.conf
 
-# Supported OS families
-sysctl_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
 # ---- VM / Memory ----
 sysctl_vm_swappiness: 10
 # Security note: Kicksecure использует 1 для минимизации записи sensitive данных в swap.

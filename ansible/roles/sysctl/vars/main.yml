@@ -3,7 +3,12 @@
 # Bridge private (underscore-prefixed) vars used in task when-guards
 # to the public defaults, following project convention.
 
-_sysctl_supported_os: "{{ sysctl_supported_os }}"
+_sysctl_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
 # Package name mapping per OS family
 _sysctl_procps_package:

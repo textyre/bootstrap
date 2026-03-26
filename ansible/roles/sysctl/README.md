@@ -7,9 +7,10 @@ Configures Linux kernel parameters for exploit hardening, network attack surface
 1. **Assert OS support** -- fails immediately if `ansible_facts['os_family']` is not in the supported list (Archlinux, Debian, RedHat, Void, Gentoo)
 2. **Install packages** (`tasks/packages.yml`) -- installs `procps-ng` (Arch/Void/Gentoo) or `procps` (Debian/RedHat) via `ansible.builtin.package`
 3. **Manage services** (`tasks/services.yml`) -- disables `apport.service` on Debian/Ubuntu if `sysctl_fs_suid_dumpable != 2` (apport overwrites this value after boot). Logs outcome if service not found.
-4. **Deploy configuration** (`tasks/deploy.yml`) -- creates `/etc/sysctl.d/` directory, deploys `/etc/sysctl.d/99-z-ansible.conf` from template. **Triggers handler:** if config changed, `sysctl -e -p` reloads parameters before verification.
-5. **Verify parameters** (`tasks/verify.yml`) -- reads 14 key security parameters via `sysctl -n`, reports OK / MISMATCH / NOT SUPPORTED / ERROR for each
-6. **Report** (`tasks/report.yml`) -- writes structured execution report via `common/report_phase` + `report_render`
+4. **Deploy configuration** (`tasks/deploy.yml`) -- creates `/etc/sysctl.d/` directory, deploys `/etc/sysctl.d/99-z-ansible.conf` from template. **Triggers handler:** if config changed, `sysctl -e -p` reloads parameters.
+5. **Flush handlers** -- applies pending `reload sysctl` handler (from step 4) so verification runs against the new configuration
+6. **Verify parameters** (`tasks/verify.yml`) -- reads 14 key security parameters via `sysctl -n`, asserts each matches expected value. Fails if any parameter has a wrong value (rc=255 / kernel-unsupported parameters are skipped gracefully)
+7. **Report** (`tasks/report.yml`) -- writes structured execution report via `common/report_phase` + `report_render`
 
 ### Handlers
 
@@ -107,7 +108,7 @@ These files contain cross-platform mappings. Do not override via inventory -- ed
 
 | File | What it contains | When to edit |
 |------|-----------------|-------------|
-| `vars/main.yml` | `_sysctl_supported_os` bridge, `_sysctl_procps_package` per-OS package name | Adding support for a new distro |
+| `vars/main.yml` | `_sysctl_supported_os` list, `_sysctl_procps_package` per-OS package name | Adding support for a new distro |
 
 ## Examples
 
