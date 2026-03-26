@@ -1,7 +1,7 @@
 # user role
 
 Manages user accounts on workstations: primary owner user, optional additional users,
-sudo hardening, SSH authorized keys, password aging, and umask configuration.
+sudo hardening, password aging, and umask configuration.
 
 ## Variables
 
@@ -14,17 +14,15 @@ sudo hardening, SSH authorized keys, password aging, and umask configuration.
 | `user_owner.groups` | `[user_sudo_group]` | Supplementary groups |
 | `user_owner.password_hash` | `""` (account locked) | Pre-hashed sha512 from vault |
 | `user_owner.update_password` | `on_create` | `always` or `on_create` |
-| `user_owner.ssh_keys` | `[]` | List of public key strings |
 | `user_owner.umask` | `"027"` | CIS 5.4.2 login umask |
-| `user_owner.password_max_age` | `365` | CIS 5.5.1 — days before must change |
-| `user_owner.password_min_age` | `1` | CIS 5.5.2 — days before can change |
+| `user_owner.password_max_age` | `365` | CIS 5.5.1 -- days before must change |
+| `user_owner.password_min_age` | `1` | CIS 5.5.2 -- days before can change |
 | `user_owner.password_warn_age` | `7` | Days before expiry to warn |
 
 ### Feature toggles
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `user_manage_ssh_keys` | `true` | Manage `~/.ssh/authorized_keys` |
 | `user_manage_password_aging` | `true` | Apply `password_expire_max/min` |
 | `user_manage_umask` | `true` | Deploy `/etc/profile.d/umask-<user>.sh` |
 | `user_verify_root_lock` | `true` | Assert root has locked/empty password |
@@ -38,6 +36,11 @@ sudo hardening, SSH authorized keys, password aging, and umask configuration.
 | `user_sudo_use_pty` | `true` | CIS 5.3.5 |
 | `user_sudo_logfile` | `/var/log/sudo.log` | CIS 5.3.7 |
 | `user_sudo_passwd_timeout` | `1` | CIS 5.3.6: minutes to enter password |
+| `user_sudo_log_input` | `false` | Record stdin of sudo sessions |
+| `user_sudo_log_output` | `false` | Record stdout/stderr of sudo sessions |
+| `user_sudo_logrotate_enabled` | `true` | Deploy logrotate for sudo.log |
+| `user_sudo_logrotate_frequency` | `"weekly"` | Rotation frequency |
+| `user_sudo_logrotate_rotate` | `13` | Number of rotations (~90 days) |
 
 ## Profile Behavior
 
@@ -72,16 +75,6 @@ Generate hash:
 python3 -c "import crypt; print(crypt.crypt('mypassword', crypt.mksalt(crypt.METHOD_SHA512)))"
 ```
 
-## SSH Key Setup
-
-```yaml
-user_owner:
-  name: textyre
-  ssh_keys:
-    - "ssh-ed25519 AAAAC3... textyre@laptop"
-    - "ssh-ed25519 AAAAC3... textyre@phone"
-```
-
 ## Additional Users Example
 
 ```yaml
@@ -106,7 +99,6 @@ user_additional_users:
 |--------|---------|---------|
 | 5.3.4 | sudo timestamp_timeout <= 5 min | 5 (dev: 15, security: 0) |
 | 5.3.5 | sudo use_pty | `true` |
-| 5.3.6 | sudo passwd_timeout | 1 minute |
 | 5.3.7 | sudo logfile | `/var/log/sudo.log` |
 | 5.4.2 | umask 027 for users | 027 (owner), 077 (additional) |
 | 5.4.3 | root account locked | assert only (no change) |
@@ -115,7 +107,7 @@ user_additional_users:
 
 ## Dependencies
 
-None. The role is self-contained.
+Requires the `common` role for execution reporting (`report_phase.yml`, `report_render.yml`).
 `ansible.posix` collection required (listed in `ansible/requirements.yml`).
 
 ## Tags
@@ -124,10 +116,13 @@ None. The role is self-contained.
 |-----|-------------|
 | `user` | Everything |
 | `sudo` | sudo install + policy deployment |
-| `ssh` | authorized_keys management |
 | `security` | CIS security checks |
+| `install` | Package installation only |
 | `report` | Reporting tasks only |
 | `cis_5.3.4` | sudo timeout task |
+| `cis_5.3.5` | sudo use_pty task |
+| `cis_5.3.7` | sudo logfile task |
+| `cis_5.4.1` | password warn age |
 | `cis_5.4.2` | umask tasks |
 | `cis_5.4.3` | root lock verification |
 | `cis_5.5.1` | password_expire_max |

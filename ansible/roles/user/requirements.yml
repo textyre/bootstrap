@@ -1,0 +1,6 @@
+---
+# Role dependencies resolved by molecule before converge (TEST-010)
+roles:
+  - name: common
+    src: ../common
+    type: path

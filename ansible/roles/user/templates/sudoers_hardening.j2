@@ -16,3 +16,6 @@ Defaults log_output
 {% if user_sudo_passwd_timeout is defined %}
 Defaults passwd_timeout={{ user_sudo_passwd_timeout }}
 {% endif %}
+{% for key, value in (user_sudo_config_overwrite | default({})).items() %}
+Defaults {{ key }}={{ value }}
+{% endfor %}
