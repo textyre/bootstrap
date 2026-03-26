@@ -7,6 +7,6 @@
 
 - name: Update CA trust
   ansible.builtin.command:
-    cmd: "{{ _caddy_update_ca_trust_cmd[ansible_facts['os_family']] }}"
+    cmd: "{{ _caddy_update_ca_trust_cmd }}"
   changed_when: true
   listen: Update CA trust

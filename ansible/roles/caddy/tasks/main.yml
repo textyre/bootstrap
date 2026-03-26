@@ -17,6 +17,14 @@
       tags: ['caddy']
 
     # ======================================================================
+    # ---- OS-specific vars ----
+    # ======================================================================
+
+    - name: Load OS-specific variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['caddy']
+
+    # ======================================================================
     # ---- Docker network ----
     # ======================================================================
 
@@ -103,7 +111,7 @@
         - name: Deploy Caddy root CA to trust store
           ansible.builtin.copy:
             content: "{{ _caddy_ca_new.content | b64decode }}"
-            dest: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
+            dest: "{{ _caddy_ca_trust_dir }}/{{ _caddy_ca_cert_filename }}"
             owner: root
             group: root
             mode: '0644'
@@ -128,7 +136,7 @@
 
         - name: Check if Zen Browser is installed
           ansible.builtin.stat:
-            path: "{{ _caddy_browser_policy_dir[ansible_facts['os_family']] | dirname }}"
+            path: "{{ _caddy_browser_policy_dir | dirname }}"
           register: _caddy_zen_check
 
         - name: Deploy Zen Browser enterprise root policy
@@ -137,7 +145,7 @@
 
             - name: Create Zen Browser distribution directory
               ansible.builtin.file:
-                path: "{{ _caddy_browser_policy_dir[ansible_facts['os_family']] }}"
+                path: "{{ _caddy_browser_policy_dir }}"
                 state: directory
                 owner: root
                 group: root
@@ -145,7 +153,7 @@
 
             - name: Configure Zen Browser to trust system CA
               ansible.builtin.copy:
-                dest: "{{ _caddy_browser_policy_dir[ansible_facts['os_family']] }}/policies.json"
+                dest: "{{ _caddy_browser_policy_dir }}/policies.json"
                 content: '{"policies":{"Certificates":{"ImportEnterpriseRoots":true}}}'
                 owner: root
                 group: root
@@ -154,7 +162,7 @@
         - name: Report Zen Browser not installed (skipping browser trust)
           ansible.builtin.debug:
             msg: >-
-              Zen Browser not found at {{ _caddy_browser_policy_dir[ansible_facts['os_family']] | dirname }}.
+              Zen Browser not found at {{ _caddy_browser_policy_dir | dirname }}.
               Skipping browser enterprise root trust configuration.
           when: not _caddy_zen_check.stat.exists
 

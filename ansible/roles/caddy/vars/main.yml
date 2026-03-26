@@ -1,31 +1,5 @@
 ---
-# === Caddy — internal OS mappings ===
-
-# CA trust store anchor directory per OS family
-# Where to copy Caddy root CA for system-wide trust
-_caddy_ca_trust_dir:
-  Archlinux: /etc/ca-certificates/trust-source/anchors
-  Debian: /usr/local/share/ca-certificates
-  RedHat: /etc/pki/ca-trust/source/anchors
-  Gentoo: /usr/local/share/ca-certificates
-  Void: /etc/ssl/certs
-
-# Command to update system CA trust after adding a certificate
-_caddy_update_ca_trust_cmd:
-  Archlinux: update-ca-trust
-  Debian: update-ca-certificates
-  RedHat: update-ca-trust
-  Gentoo: update-ca-certificates
-  Void: update-ca-certificates
+# === Caddy -- common internal variables ===
 
 # CA cert filename placed in trust store
 _caddy_ca_cert_filename: "caddy-local.crt"
-
-# Browser distribution directory for enterprise root policy
-# Zen Browser follows Firefox directory structure
-_caddy_browser_policy_dir:
-  Archlinux: /usr/lib/zen-browser/distribution
-  Debian: /usr/lib/zen-browser/distribution
-  RedHat: /usr/lib64/zen-browser/distribution
-  Gentoo: /usr/lib/zen-browser/distribution
-  Void: /usr/lib/zen-browser/distribution
