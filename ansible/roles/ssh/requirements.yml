@@ -1,5 +1,10 @@
 ---
+# Role dependencies for ssh (TEST-010).
+# The 'common' role is used via include_role for report_phase and report_render.
+#
+# Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
+# so the 'common' role is resolved directly from the source tree — no galaxy install required.
+# The dependency section in molecule.yml uses ignore-errors: true so galaxy does not abort
+# when common is not found on Ansible Galaxy (it is a local monorepo role, not a public role).
 roles:
   - name: common
-    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../common"
-    version: master
