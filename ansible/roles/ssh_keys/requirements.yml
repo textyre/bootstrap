@@ -1,0 +1,6 @@
+---
+# TEST-010: Role dependencies for molecule
+roles:
+  - name: common
+    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../common"
+    version: master

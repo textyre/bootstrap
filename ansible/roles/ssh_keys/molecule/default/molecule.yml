@@ -1,5 +1,6 @@
-# ansible/roles/ssh_keys/molecule/default/molecule.yml
 ---
+# ansible/roles/ssh_keys/molecule/default/molecule.yml
+# TEST-002: Default scenario — localhost fast feedback
 driver:
   name: default
   options:
@@ -7,6 +8,12 @@ driver:
 
 platforms:
   - name: Localhost
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
 
 provisioner:
   name: ansible

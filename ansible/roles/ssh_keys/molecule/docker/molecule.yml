@@ -1,5 +1,6 @@
 ---
 # ansible/roles/ssh_keys/molecule/docker/molecule.yml
+# TEST-002: Docker scenario with Arch + Ubuntu platforms
 driver:
   name: docker
 
@@ -33,6 +34,12 @@ platforms:
     dns_servers:
       - 8.8.8.8
       - 8.8.4.4
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
 
 provisioner:
   name: ansible
