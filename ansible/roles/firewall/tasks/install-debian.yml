@@ -7,6 +7,7 @@
 - name: "CIS 3.4.1.1 | Refresh apt cache (Debian)"
   ansible.builtin.apt:
     update_cache: true
+    cache_valid_time: 3600
   check_mode: false
   tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
 
