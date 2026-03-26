@@ -180,8 +180,7 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 | `tasks/keygen.yml` | SSH keypair generation | When changing keygen logic |
 | `tasks/verify.yml` | Post-deploy self-checks | When changing verification logic |
 | `handlers/main.yml` | Empty -- sshd restart handled by ssh role | Rarely |
-| `meta/main.yml` | Galaxy metadata | When changing role metadata |
-| `requirements.yml` | Role dependencies for molecule (common) | When adding role dependencies |
+| `meta/main.yml` | Galaxy metadata and collection dependency docs | When changing role metadata |
 | `molecule/shared/` | Shared converge and verify playbooks | When changing test coverage |
 | `molecule/default/` | Local test scenario | When changing local test config |
 | `molecule/docker/` | Docker CI scenario (Arch + Ubuntu) | When changing container test config |

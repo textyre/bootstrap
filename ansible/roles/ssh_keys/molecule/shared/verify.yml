@@ -16,7 +16,7 @@
   gather_facts: true
 
   vars:
-    _verify_test_user: "{{ molecule_test_user | default('testuser') }}"
+    _verify_test_user: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
     _verify_test_home: "/home/{{ _verify_test_user }}"
 
   tasks:

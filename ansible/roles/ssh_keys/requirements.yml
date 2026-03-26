@@ -1,8 +1,0 @@
----
-# Role dependencies resolved by molecule before converge.
-# Collection dependencies (ansible.posix, community.crypto) are in ansible/requirements.yml.
-
-roles:
-  - name: common
-    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../common"
-    version: master

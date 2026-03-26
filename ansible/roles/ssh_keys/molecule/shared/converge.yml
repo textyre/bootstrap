@@ -9,9 +9,9 @@
 
   vars:
     # Test accounts using the shared data model.
-    # molecule_test_user is set by prepare.yml (defaults to "testuser").
+    # ssh_keys_molecule_test_user is set by prepare.yml (defaults to "testuser").
     accounts:
-      - name: "{{ molecule_test_user | default('testuser') }}"
+      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
         state: present
         ssh_keys:
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
@@ -33,7 +33,7 @@
 
   vars:
     accounts:
-      - name: "{{ molecule_test_user | default('testuser') }}"
+      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
         state: present
         ssh_keys:
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
