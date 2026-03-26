@@ -1,4 +1,5 @@
 ---
 # TEST-003: Stub converge for default scenario.
 # Delegates to the shared converge playbook so all scenarios share one source of truth.
-- ansible.builtin.import_playbook: ../shared/converge.yml
+- name: Converge
+  ansible.builtin.import_playbook: ../shared/converge.yml
