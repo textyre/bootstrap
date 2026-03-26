@@ -81,13 +81,10 @@
         state: directory
         mode: '0755'
 
-    - name: "VirtualBox: Mount GA ISO"
-      ansible.posix.mount:
-        src: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
-        path: /mnt/vbox_iso
-        fstype: iso9660
-        opts: loop,ro
-        state: mounted
+    - name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso /mnt/vbox_iso"
+      changed_when: true
 
     - name: "VirtualBox: Run VBoxLinuxAdditions.run"
       ansible.builtin.command:
@@ -187,10 +184,10 @@
       tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
   always:
-    - name: "VirtualBox: Unmount ISO"
-      ansible.posix.mount:
-        path: /mnt/vbox_iso
-        state: absent
+    - name: "VirtualBox: Unmount ISO"  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: umount /mnt/vbox_iso
+      changed_when: false
       failed_when: false
 
     - name: "VirtualBox: Remove ISO mount point"

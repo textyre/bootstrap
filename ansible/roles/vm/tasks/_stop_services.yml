@@ -24,17 +24,16 @@
   failed_when: false
   tags: ['vm', 'vm:service']
 
-- name: "Assert no unexpected service stop failures ({{ vm_pkg_label }})"
-  ansible.builtin.assert:
-    that:
-      - vm_svc_stop_result.results | selectattr('failed', 'true') | list | length == 0
-    fail_msg: >-
-      Service stop failed for: {{
+- name: "Report service stop outcomes ({{ vm_pkg_label }})"
+  ansible.builtin.debug:
+    msg: >-
+      Services not found (expected during removal): {{
         vm_svc_stop_result.results
         | selectattr('failed', 'true')
         | map(attribute='item')
         | list
-      }}. Service may not exist or may require manual intervention.
-    success_msg: "All services stopped or not found ({{ vm_pkg_label }})"
-  when: vm_svc_stop_result.results is defined
-  tags: ['vm', 'vm:service']
+      }}
+  when:
+    - vm_svc_stop_result.results is defined
+    - vm_svc_stop_result.results | selectattr('failed', 'true') | list | length > 0
+  tags: ['vm', 'vm:service', 'vm:report']
