@@ -1,6 +1,6 @@
 ---
 # === Vaultwarden (Self-hosted Bitwarden) ===
-# Менеджер паролей и секретов
+# Self-hosted password and secrets manager
 # Validate -> OS vars -> Directories -> DNS -> Admin token -> Docker Compose -> Caddy -> Start -> Backup -> Verify -> Report
 
 - name: Vaultwarden role
@@ -9,7 +9,7 @@
   block:
 
     # ======================================================================
-    # ---- Валидация (ROLE-003) ----
+    # ---- Validate (ROLE-003) ----
     # ======================================================================
 
     - name: Validate vaultwarden configuration
@@ -24,8 +24,27 @@
       ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
       tags: ['vaultwarden']
 
+    # ---- Merge security config with user overrides (ROLE-010) ----
+
+    - name: Merge security configuration with user overrides
+      ansible.builtin.set_fact:
+        _vaultwarden_security_merged: >-
+          {{ vaultwarden_security | combine(vaultwarden_security_overwrite, recursive=True) }}
+      tags: ['vaultwarden']
+
+    - name: "Report: Validate"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Validate"
+        common_rpt_detail: >-
+          os={{ ansible_facts['os_family'] }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- Директории ----
+    # ---- Directories ----
     # ======================================================================
 
     - name: Create Vaultwarden base directory
@@ -56,8 +75,20 @@
       when: vaultwarden_backup_enabled | bool
       tags: ['vaultwarden', 'secrets']
 
+    - name: "Report: Directories"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Directories"
+        common_rpt_detail: >-
+          base={{ vaultwarden_base_dir }}
+          backup={{ vaultwarden_backup_enabled | string | lower }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- DNS (локальный доступ) ----
+    # ---- DNS (local access) ----
     # ======================================================================
 
     - name: Add Vaultwarden domain to /etc/hosts
@@ -69,16 +100,47 @@
         unsafe_writes: true
       tags: ['vaultwarden', 'secrets']
 
+    - name: "Report: DNS"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "DNS"
+        common_rpt_detail: >-
+          domain={{ vaultwarden_domain }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- Admin token (генерация при первом запуске) ----
+    # ---- Admin token (ROLE-011: Ansible-native generation) ----
     # ======================================================================
 
-    - name: Generate admin token
-      ansible.builtin.shell:
-        cmd: "openssl rand -base64 48 > {{ vaultwarden_base_dir }}/.admin_token"
-        creates: "{{ vaultwarden_base_dir }}/.admin_token"
+    - name: Check if admin token file exists
+      ansible.builtin.stat:
+        path: "{{ vaultwarden_base_dir }}/.admin_token"
+      register: _vaultwarden_token_file
       when: vaultwarden_admin_enabled | bool
       tags: ['vaultwarden', 'secrets']
+
+    - name: Generate admin token (Ansible-native)
+      when:
+        - vaultwarden_admin_enabled | bool
+        - not (_vaultwarden_token_file.stat.exists | default(false))
+      tags: ['vaultwarden', 'secrets']
+      block:
+        - name: Generate random bytes for admin token
+          ansible.builtin.command:
+            cmd: openssl rand -base64 48
+          register: _vaultwarden_token_generated
+          changed_when: false
+
+        - name: Write admin token file
+          ansible.builtin.copy:
+            content: "{{ _vaultwarden_token_generated.stdout }}"
+            dest: "{{ vaultwarden_base_dir }}/.admin_token"
+            owner: root
+            group: root
+            mode: '0600'
 
     - name: Restrict admin token file permissions
       ansible.builtin.file:
@@ -102,6 +164,17 @@
       when: vaultwarden_admin_enabled | bool
       tags: ['vaultwarden', 'secrets']
 
+    - name: "Report: Admin token"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Admin token"
+        common_rpt_detail: >-
+          enabled={{ vaultwarden_admin_enabled | string | lower }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
     # ---- Docker Compose ----
     # ======================================================================
@@ -115,6 +188,17 @@
         mode: '0644'
       notify: Restart vaultwarden
       tags: ['vaultwarden', 'secrets']
+
+    - name: "Report: Docker Compose"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Docker Compose"
+        common_rpt_detail: >-
+          network={{ vaultwarden_docker_network }}
+      tags: ['vaultwarden', 'report']
 
     # ======================================================================
     # ---- Caddy site config ----
@@ -130,8 +214,19 @@
       notify: Reload caddy
       tags: ['vaultwarden', 'secrets']
 
+    - name: "Report: Caddy"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Caddy"
+        common_rpt_detail: >-
+          site={{ vaultwarden_domain }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- Запуск ----
+    # ---- Start ----
     # ======================================================================
 
     - name: Start Vaultwarden containers
@@ -140,8 +235,19 @@
         state: present
       tags: ['vaultwarden', 'secrets', 'molecule-notest']
 
+    - name: "Report: Start"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Start"
+        common_rpt_detail: >-
+          compose={{ vaultwarden_base_dir }}
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- Бэкап ----
+    # ---- Backup ----
     # ======================================================================
 
     - name: Deploy Vaultwarden backup script
@@ -172,30 +278,40 @@
       when: vaultwarden_backup_enabled | bool
       tags: ['vaultwarden', 'secrets']
 
+    - name: "Report: Backup"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_vaultwarden_phases"
+        common_rpt_phase: "Backup"
+        common_rpt_detail: >-
+          enabled={{ vaultwarden_backup_enabled | string | lower }}
+          keep={{ vaultwarden_backup_keep_days }}d
+      tags: ['vaultwarden', 'report']
+
     # ======================================================================
-    # ---- Проверка (ROLE-005) ----
+    # ---- Verify (ROLE-005) ----
     # ======================================================================
 
     - name: Verify vaultwarden
       ansible.builtin.include_tasks: verify.yml
       tags: ['vaultwarden']
 
-    # ======================================================================
-    # ---- Логирование (ROLE-008) ----
-    # ======================================================================
-
-    - name: "Report: Vaultwarden deployment"
+    - name: "Report: Verify"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_phase.yml
       vars:
         common_rpt_fact: "_vaultwarden_phases"
-        common_rpt_phase: "Deploy Vaultwarden"
+        common_rpt_phase: "Verify"
         common_rpt_detail: >-
-          domain={{ vaultwarden_domain }}
-          admin={{ vaultwarden_admin_enabled | string | lower }}
-          backup={{ vaultwarden_backup_enabled | string | lower }}
+          in-role checks passed
       tags: ['vaultwarden', 'report']
+
+    # ======================================================================
+    # ---- Report (ROLE-008) ----
+    # ======================================================================
 
     - name: "Vaultwarden -- Execution Report"
       ansible.builtin.include_role:
