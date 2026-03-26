@@ -1,5 +1,5 @@
 ---
-- name: "Install OpenSSH packages (RedHat)"
+- name: "Install OpenSSH packages"
   ansible.builtin.package:
     name: "{{ ssh_packages }}"
     state: present
