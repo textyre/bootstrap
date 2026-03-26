@@ -1,6 +1,25 @@
 ---
 # === Базовый firewall (nftables) ===
 # Минимальный набор правил для рабочей станции
+# preflight → install → configure → service → verify → report
+
+# ======================================================================
+# ---- Preflight ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _firewall_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _firewall_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['firewall']
+
+# ======================================================================
+# ---- Install ----
+# ======================================================================
 
 - name: Install nftables (OS-specific)
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
@@ -46,6 +65,19 @@
     - (firewall_enabled | bool) and (firewall_start_service | bool)
     - "'chain input' not in (_firewall_nft_ruleset.stdout | default(''))"
   tags: ['firewall', 'service']
+
+# ======================================================================
+# ---- Verify ----
+# ======================================================================
+
+- name: Flush handlers before verification
+  ansible.builtin.meta: flush_handlers
+  tags: ['firewall']
+
+- name: Verify firewall
+  ansible.builtin.include_tasks: verify.yml
+  when: firewall_enabled | bool
+  tags: ['firewall']
 
 # ---- Отчёт о выполнении ----
 

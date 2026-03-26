@@ -2,6 +2,15 @@
 # === Базовый firewall (nftables) ===
 # Минимальный набор правил для рабочей станции
 
+# === OS Support ===
+# Supported operating systems for this role
+_firewall_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Включить firewall (развернуть конфиг и управлять сервисом)
 firewall_enabled: true
 
