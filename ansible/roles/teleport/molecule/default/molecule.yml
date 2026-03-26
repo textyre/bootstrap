@@ -10,7 +10,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,service
+    skip-tags: report
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

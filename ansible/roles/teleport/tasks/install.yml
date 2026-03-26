@@ -56,17 +56,25 @@
           {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture]
              | default(ansible_architecture) }}
 
-    - name: "Check if teleport binary already installed"
-      ansible.builtin.stat:
-        path: /usr/local/bin/teleport
-      register: _teleport_binary_stat
+    - name: "Check installed Teleport version"
+      ansible.builtin.command:
+        cmd: teleport version
+      register: _teleport_installed_version
+      changed_when: false
+      failed_when: false
+
+    - name: "Determine if Teleport install/upgrade is needed"
+      ansible.builtin.set_fact:
+        _teleport_needs_install: >-
+          {{ _teleport_installed_version.rc != 0
+             or ('v' ~ teleport_version) not in _teleport_installed_version.stdout }}
 
     - name: "Download Teleport binary"
       ansible.builtin.get_url:
         url: "https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ teleport_arch }}-bin.tar.gz"
         dest: "/tmp/teleport-{{ teleport_version }}-{{ teleport_arch }}.tar.gz"
         mode: "0644"
-      when: not _teleport_binary_stat.stat.exists
+      when: _teleport_needs_install | bool
 
     - name: "Extract Teleport binary"
       ansible.builtin.unarchive:
@@ -74,7 +82,7 @@
         dest: /usr/local/bin/
         remote_src: true
         extra_opts: [--strip-components=1]
-      when: not _teleport_binary_stat.stat.exists
+      when: _teleport_needs_install | bool
 
     - name: "Deploy teleport systemd unit for binary install"
       ansible.builtin.copy:

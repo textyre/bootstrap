@@ -1,17 +1,34 @@
 ---
 # === Export Teleport CA public key for ssh role integration ===
 
+- name: "Check tctl is available"
+  ansible.builtin.command:
+    cmd: "command -v tctl"
+  register: _teleport_tctl_check
+  changed_when: false
+  failed_when: false
+  tags: [teleport, security]
+
+- name: "Assert tctl is available for CA export"
+  ansible.builtin.assert:
+    that:
+      - _teleport_tctl_check.rc == 0
+    fail_msg: >-
+      tctl binary not found in PATH. CA export requires tctl
+      to be installed and accessible.
+  tags: [teleport, security]
+
 - name: "Export Teleport user CA public key"
   ansible.builtin.command:
     cmd: "tctl auth export --type=user"
-  register: teleport_user_ca
+  register: _teleport_user_ca
   changed_when: false
-  failed_when: teleport_user_ca.rc != 0
+  failed_when: _teleport_user_ca.rc != 0
   tags: [teleport, security]
 
 - name: "Deploy CA public key for sshd"
   ansible.builtin.copy:
-    content: "{{ teleport_user_ca.stdout }}\n"
+    content: "{{ _teleport_user_ca.stdout }}\n"
     dest: "{{ teleport_ca_keys_file }}"
     owner: root
     group: root
