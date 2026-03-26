@@ -15,8 +15,15 @@ teleport_install_method: >-
   {{ {'Archlinux': 'package', 'Debian': 'repo', 'RedHat': 'repo'}[ansible_facts['os_family']]
      | default('binary') }}
 
-# Core configuration
+# --- ROLE-010: Per-subsystem toggles ---
+# Master toggle — set false to skip the entire role
 teleport_enabled: true
+# Per-phase toggles — control which phases execute independently
+teleport_manage_install: true
+teleport_manage_config: true
+teleport_manage_service: true
+
+# Core configuration
 teleport_version: "17.4.10"
 teleport_auth_server: ""
 teleport_join_token: ""
@@ -32,3 +39,9 @@ teleport_enhanced_recording: false
 # CA integration with ssh role
 teleport_export_ca_key: true
 teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub
+
+# --- ROLE-010: Override dict for teleport.yaml template ---
+# Merged on top of the rendered config; allows injecting arbitrary
+# teleport.yaml keys without modifying the template.
+# Example:  teleport_config_overwrite: { teleport: { diag_addr: "0.0.0.0:3000" } }
+teleport_config_overwrite: {}

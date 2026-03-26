@@ -63,6 +63,13 @@
       changed_when: false
       failed_when: false
 
+    - name: "Report installed Teleport version check outcome"
+      ansible.builtin.debug:
+        msg: >-
+          Teleport version check {{ 'succeeded: ' ~ _teleport_installed_version.stdout | default('')
+          if _teleport_installed_version.rc == 0
+          else 'not found (rc=' ~ _teleport_installed_version.rc ~ ') — will install fresh' }}
+
     - name: "Determine if Teleport install/upgrade is needed"
       ansible.builtin.set_fact:
         _teleport_needs_install: >-
