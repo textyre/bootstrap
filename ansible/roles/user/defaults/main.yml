@@ -63,6 +63,12 @@ user_sudo_log_input: false             # Record stdin of sudo sessions
 user_sudo_log_output: false            # Record stdout/stderr of sudo sessions
 user_sudo_passwd_timeout: 1            # Minutes to enter password
 
+# --- ROLE-010: User-provided sudo config overrides ---
+# Additional sudoers directives merged into the template.
+# Each key is a Defaults directive name, value is the directive value.
+# Example: { env_reset: true, secure_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin" }
+user_sudo_config_overwrite: {}
+
 # Logrotate for sudo.log
 user_sudo_logrotate_enabled: true
 user_sudo_logrotate_frequency: "weekly"

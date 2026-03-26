@@ -18,8 +18,8 @@
   tags: [user]
 
 # Install sudo
-- name: Install sudo (OS-specific)
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+- name: Install sudo
+  ansible.builtin.include_tasks: install.yml
   tags: [user, sudo, install]
 
 # ROLE-008: Report install phase
