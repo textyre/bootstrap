@@ -107,7 +107,7 @@ These files contain cross-platform mappings. Do not override via inventory -- ed
 
 | File | What it contains | When to edit |
 |------|-----------------|-------------|
-| `vars/main.yml` | `_sysctl_supported_os` bridge, `_sysctl_procps_package` per-OS package name | Adding support for a new distro |
+| `vars/main.yml` | `_sysctl_supported_os` list, `_sysctl_procps_package` per-OS package name | Adding support for a new distro |
 
 ## Examples
 
