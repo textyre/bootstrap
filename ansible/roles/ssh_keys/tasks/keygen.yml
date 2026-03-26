@@ -1,7 +1,7 @@
 # ansible/roles/ssh_keys/tasks/keygen.yml
 ---
 # === Generate SSH keypairs on target machines ===
-# Moved from ssh role — generates user-side keys (not host keys).
+# .ssh directory creation is handled in main.yml (shared with authorized_keys)
 
 - name: "Generate SSH keypairs for present users"
   block:
@@ -9,30 +9,10 @@
       ansible.builtin.getent:
         database: passwd
         key: "{{ item.name }}"
-      loop: >-
-        {{ ssh_keys_users
-           | selectattr('state', 'defined')
-           | selectattr('state', 'equalto', 'present')
-           | list }}
+      loop: "{{ _ssh_keys_present_users }}"
       loop_control:
         label: "{{ item.name }}"
-      register: ssh_keys_user_info
-      tags: [ssh_keys]
-
-    - name: "Ensure .ssh directory exists"
-      ansible.builtin.file:
-        path: "{{ getent_passwd[item.name][4] }}/.ssh"
-        state: directory
-        owner: "{{ item.name }}"
-        group: "{{ item.name }}"
-        mode: "0700"
-      loop: >-
-        {{ ssh_keys_users
-           | selectattr('state', 'defined')
-           | selectattr('state', 'equalto', 'present')
-           | list }}
-      loop_control:
-        label: "{{ item.name }}"
+      register: _ssh_keys_keygen_user_info
       tags: [ssh_keys]
 
     - name: "Generate SSH key pair ({{ ssh_keys_key_type }})"
@@ -43,11 +23,7 @@
         owner: "{{ item.name }}"
         group: "{{ item.name }}"
         mode: "0600"
-      loop: >-
-        {{ ssh_keys_users
-           | selectattr('state', 'defined')
-           | selectattr('state', 'equalto', 'present')
-           | list }}
+      loop: "{{ _ssh_keys_present_users }}"
       loop_control:
         label: "{{ item.name }}"
       tags: [ssh_keys]
