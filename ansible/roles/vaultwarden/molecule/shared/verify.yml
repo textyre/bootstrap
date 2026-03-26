@@ -155,11 +155,11 @@
           - "'vaultwarden/server:latest' in _vaultwarden_verify_compose_text"
           - "'DOMAIN: \"https://' ~ vaultwarden_domain ~ '\"' in _vaultwarden_verify_compose_text"
           - "'SIGNUPS_ALLOWED: \"' ~ (vaultwarden_signups_allowed | string | lower) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'PASSWORD_ITERATIONS: \"' ~ (vaultwarden_password_iterations | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'LOGIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_login_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'LOGIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_login_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'ADMIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_admin_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'ADMIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_admin_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'PASSWORD_ITERATIONS: \"' ~ (vaultwarden_security.password_iterations | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_security.login_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_security.login_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_security.admin_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_security.admin_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
         fail_msg: >-
           docker-compose.yml missing expected service configuration
           (image, DOMAIN, SIGNUPS_ALLOWED, PASSWORD_ITERATIONS, rate limits)
