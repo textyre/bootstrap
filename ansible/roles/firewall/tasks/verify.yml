@@ -5,13 +5,13 @@
 
 # ---- 1. Config file verification ----
 
-- name: Verify /etc/nftables.conf exists
+- name: "CIS 3.4.1.4 | Verify /etc/nftables.conf exists"
   ansible.builtin.stat:
     path: /etc/nftables.conf
   register: _firewall_verify_conf
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
-- name: Assert nftables.conf exists and has correct permissions
+- name: "CIS 3.4.1.4 | Assert nftables.conf exists and has correct permissions"
   ansible.builtin.assert:
     that:
       - _firewall_verify_conf.stat.exists
@@ -24,33 +24,33 @@
       {{ _firewall_verify_conf.stat.pw_name | default('?') }}:{{ _firewall_verify_conf.stat.gr_name | default('?') }}
       {{ _firewall_verify_conf.stat.mode | default('?') }})
     success_msg: "/etc/nftables.conf exists with correct permissions"
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
-- name: Read nftables.conf content for drop policy check
+- name: "CIS 3.4.1.4 | Read nftables.conf content for drop policy check"
   ansible.builtin.slurp:
     src: /etc/nftables.conf
   register: _firewall_verify_conf_content
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
-- name: Assert input chain has drop policy
+- name: "CIS 3.4.1.4 | Assert input chain has drop policy"
   ansible.builtin.assert:
     that:
       - "'policy drop' in (_firewall_verify_conf_content.content | b64decode)"
     fail_msg: "Input chain default policy is not 'drop' in /etc/nftables.conf"
     success_msg: "Input chain drop policy is correctly set"
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
 # ---- 2. Config syntax verification ----
 
-- name: Verify nftables config syntax
+- name: "CIS 3.4.1.4 | Verify nftables config syntax"
   ansible.builtin.command:
     cmd: nft -c -f /etc/nftables.conf
   register: _firewall_verify_syntax
   changed_when: false
   failed_when: false
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
-- name: Assert nftables config syntax is valid
+- name: "CIS 3.4.1.4 | Assert nftables config syntax is valid"
   ansible.builtin.assert:
     that:
       - _firewall_verify_syntax.rc == 0
@@ -59,7 +59,7 @@
       {{ _firewall_verify_syntax.stderr | default('unknown error') }}
     success_msg: "nftables config syntax is valid"
   when: _firewall_verify_syntax.rc is defined
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.4']
 
 # ---- 3. Runtime state verification ----
 
@@ -69,16 +69,16 @@
       {{ ansible_virtualization_type | default('') in ['docker', 'container', 'lxc'] }}
   tags: ['firewall']
 
-- name: Check nftables service is enabled  # noqa: command-instead-of-module
+- name: "CIS 3.4.1.1 | Check nftables service is enabled"  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: systemctl is-enabled nftables.service
   register: _firewall_verify_svc_enabled
   changed_when: false
   failed_when: false
   when: ansible_facts['service_mgr'] | default('') == 'systemd'
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
 
-- name: Assert nftables service is enabled
+- name: "CIS 3.4.1.1 | Assert nftables service is enabled"
   ansible.builtin.assert:
     that:
       - "'enabled' in _firewall_verify_svc_enabled.stdout"
@@ -89,18 +89,18 @@
   when:
     - firewall_enable_service | bool
     - ansible_facts['service_mgr'] | default('') == 'systemd'
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
 
-- name: Verify nftables ruleset is loaded
+- name: "CIS 3.4.1.1 | Verify nftables ruleset is loaded"
   ansible.builtin.command:
     cmd: nft list tables
   register: _firewall_verify_tables
   changed_when: false
   failed_when: false
   when: not (_firewall_verify_in_container | bool)
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
 
-- name: Assert inet filter table is loaded in runtime
+- name: "CIS 3.4.1.1 | Assert inet filter table is loaded in runtime"
   ansible.builtin.assert:
     that:
       - "'inet filter' in _firewall_verify_tables.stdout"
@@ -111,7 +111,7 @@
   when:
     - not (_firewall_verify_in_container | bool)
     - _firewall_verify_tables.rc == 0
-  tags: ['firewall']
+  tags: ['firewall', 'security', 'cis_3.4.1.1']
 
 # ---- Report verification phase ----
 
