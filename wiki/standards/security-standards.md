@@ -216,6 +216,22 @@ Docker settings reference the CIS Docker Benchmark (separate from the OS benchma
 | faillock even_deny_root | `pam_faillock_even_deny_root: true` | -- | -- | Root subject to lockout |
 | faillock audit | `pam_faillock_audit: true` | -- | -- | Log failed attempts to audit |
 
+### GPU Drivers (`gpu_drivers` role)
+
+No direct CIS Benchmark or DISA STIG controls exist for GPU driver configuration. The settings below follow workstation hardening best practices derived from the general principle of kernel module restriction (analogous to CIS 1.1.1.x filesystem module blacklisting) and the KSPP (Kernel Self-Protection Project) guidance on DRM/KMS. Tag format: `security` + role-scoped tag (no `cis_X.Y.Z` available).
+
+| Setting | Our Variable | CIS Control | Notes |
+|---------|-------------|-------------|-------|
+| NVIDIA DRM KMS modeset=1 | `gpu_drivers_nvidia_kms: true` | -- | Enables kernel mode setting required for Wayland DRM leasing and prevents display buffer access without DRM authentication. Wayland compositor security model requires KMS. KSPP-recommended. Tag: `gpu_security_kms` |
+| Blacklist nouveau module | `gpu_drivers_nvidia_blacklist_nouveau: true` | -- | Prevents kernel module substitution when proprietary NVIDIA driver is active. Analogous to CIS 1.1.1.x (disable unused kernel modules). Tag: `gpu_security_blacklist` |
+| Security management toggle | `gpu_drivers_manage_security: true` | -- | Master toggle for both KMS and blacklist tasks; set to `false` only when nouveau coexistence is required |
+
+**Task name format** (no CIS ID available):
+```yaml
+- name: "Security — NVIDIA DRM KMS modeset enforcement"
+  tags: ['gpu', 'nvidia', 'security', 'gpu_security_kms']
+```
+
 ---
 
 ## Tagging Convention
