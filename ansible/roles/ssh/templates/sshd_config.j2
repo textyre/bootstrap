@@ -244,3 +244,10 @@ Match Group {{ ssh_sftp_chroot_group }}
 # SFTP отключён — подсистема не сконфигурирована
 # Для включения: ssh_sftp_enabled: true
 {% endif %}
+{% if ssh_config_overwrite | length > 0 %}
+
+# ---- Custom overrides (ssh_config_overwrite) ----
+{% for key, value in ssh_config_overwrite.items() %}
+{{ key }} {{ value }}
+{% endfor %}
+{% endif %}

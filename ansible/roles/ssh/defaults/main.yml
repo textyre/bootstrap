@@ -218,6 +218,14 @@ ssh_moduli_cleanup: false
 # Минимальный размер DH-модуля в битах (3072 — рекомендация NIST/Mozilla)
 ssh_moduli_minimum_bits: 3072
 
+# ---- Custom sshd_config overrides ----
+
+# Dict of additional sshd_config directives merged on top of the template.
+# Example: ssh_config_overwrite: { "ClientAliveInterval": "600" }
+# Keys are sshd_config directive names, values are their settings.
+# WARNING: overrides bypass variable validation — ensure values are valid.
+ssh_config_overwrite: {}
+
 # ---- Teleport SSH CA integration ----
 
 # Enable Teleport certificate trust (auto-detected from teleport role via teleport_ca_deployed fact)
