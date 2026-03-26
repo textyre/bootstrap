@@ -275,10 +275,19 @@
         cmd: vulkaninfo --summary
       register: _gpu_drivers_verify_vulkaninfo
       changed_when: false
-      failed_when: false
       when:
         - ansible_virtualization_type != 'docker'
         - gpu_drivers_vulkan_tools
+
+    - name: Assert vulkaninfo ran successfully (real hardware only)
+      ansible.builtin.assert:
+        that: _gpu_drivers_verify_vulkaninfo.rc == 0
+        fail_msg: "vulkaninfo --summary failed (rc={{ _gpu_drivers_verify_vulkaninfo.rc }})"
+        success_msg: "vulkaninfo ran successfully"
+      when:
+        - ansible_virtualization_type != 'docker'
+        - gpu_drivers_vulkan_tools
+        - _gpu_drivers_verify_vulkaninfo is not skipped
 
     # NOTE: Cannot test in Docker — kernel modules require a real
     # kernel with module loading support, not available in containers.
