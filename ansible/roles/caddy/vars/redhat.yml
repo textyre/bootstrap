@@ -1,0 +1,11 @@
+---
+# OS-specific variables for Fedora/RedHat
+
+# CA trust store anchor directory
+_caddy_ca_trust_dir: /etc/pki/ca-trust/source/anchors
+
+# Command to update system CA trust
+_caddy_update_ca_trust_cmd: update-ca-trust
+
+# Browser distribution directory for enterprise root policy
+_caddy_browser_policy_dir: /usr/lib64/zen-browser/distribution

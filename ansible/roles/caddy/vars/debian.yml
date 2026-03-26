@@ -1,0 +1,11 @@
+---
+# OS-specific variables for Debian/Ubuntu
+
+# CA trust store anchor directory
+_caddy_ca_trust_dir: /usr/local/share/ca-certificates
+
+# Command to update system CA trust
+_caddy_update_ca_trust_cmd: update-ca-certificates
+
+# Browser distribution directory for enterprise root policy
+_caddy_browser_policy_dir: /usr/lib/zen-browser/distribution
