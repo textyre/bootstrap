@@ -84,32 +84,32 @@
       ansible.builtin.assert:
         that:
           - "'log-driver' in _docker_verify_daemon_dict"
-          - "_docker_verify_daemon_dict['log-driver'] == docker_daemon_config['log-driver']"
+          - "_docker_verify_daemon_dict['log-driver'] == docker_log_driver"
         fail_msg: >-
-          log-driver not set to '{{ docker_daemon_config['log-driver'] | default('') }}' in daemon.json
+          log-driver not set to '{{ docker_log_driver | default('') }}' in daemon.json
         success_msg: >-
-          log-driver={{ _docker_verify_daemon_dict['log-driver'] }} (expected {{ docker_daemon_config['log-driver'] }})
+          log-driver={{ _docker_verify_daemon_dict['log-driver'] }} (expected {{ docker_log_driver }})
 
     - name: Assert log-opts max-size matches variable
       ansible.builtin.assert:
         that:
           - "'log-opts' in _docker_verify_daemon_dict"
-          - "_docker_verify_daemon_dict['log-opts']['max-size'] == docker_daemon_config['log-opts']['max-size']"
+          - "_docker_verify_daemon_dict['log-opts']['max-size'] == docker_log_max_size"
         fail_msg: >-
-          log-opts.max-size not set to '{{ docker_daemon_config['log-opts']['max-size'] | default('') }}' in daemon.json
+          log-opts.max-size not set to '{{ docker_log_max_size | default('') }}' in daemon.json
         success_msg: >-
           log-opts.max-size={{ _docker_verify_daemon_dict['log-opts']['max-size'] }}
-          (expected {{ docker_daemon_config['log-opts']['max-size'] }})
+          (expected {{ docker_log_max_size }})
 
     - name: Assert log-opts max-file matches variable
       ansible.builtin.assert:
         that:
-          - "_docker_verify_daemon_dict['log-opts']['max-file'] == docker_daemon_config['log-opts']['max-file']"
+          - "_docker_verify_daemon_dict['log-opts']['max-file'] == docker_log_max_file"
         fail_msg: >-
-          log-opts.max-file not set to '{{ docker_daemon_config['log-opts']['max-file'] | default('') }}' in daemon.json
+          log-opts.max-file not set to '{{ docker_log_max_file | default('') }}' in daemon.json
         success_msg: >-
           log-opts.max-file={{ _docker_verify_daemon_dict['log-opts']['max-file'] }}
-          (expected {{ docker_daemon_config['log-opts']['max-file'] }})
+          (expected {{ docker_log_max_file }})
 
     # ---- Security settings ----
 
@@ -251,10 +251,10 @@
 
         - name: Assert logging driver matches
           ansible.builtin.assert:
-            that: "_docker_verify_info['LoggingDriver'] == docker_daemon_config['log-driver']"
+            that: "_docker_verify_info['LoggingDriver'] == docker_log_driver"
             fail_msg: >-
               Docker logging driver mismatch:
-              expected '{{ docker_daemon_config['log-driver'] | default('') }}',
+              expected '{{ docker_log_driver | default('') }}',
               got '{{ _docker_verify_info['LoggingDriver'] }}'
             success_msg: >-
               Logging driver matches: {{ _docker_verify_info['LoggingDriver'] }}

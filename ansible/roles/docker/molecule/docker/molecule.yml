@@ -56,11 +56,9 @@ provisioner:
     group_vars:
       all:
         # Role defaults for verify.yml assertions (group_vars precedence < host_vars)
-        docker_daemon_config:
-          log-driver: "journald"
-          log-opts:
-            max-size: "10m"
-            max-file: "3"
+        docker_log_driver: "journald"
+        docker_log_max_size: "10m"
+        docker_log_max_file: "3"
         docker_daemon_overwrite: {}
         docker_storage_driver: ""
         docker_userns_remap: "default"
@@ -71,7 +69,6 @@ provisioner:
         docker_enable_service: true
         docker_manage_daemon: true
         docker_user: "root"
-        docker_daemon_overwrite: {}
     host_vars:
       # Default security settings (all CIS features enabled)
       # docker_add_user_to_group=false to avoid usermod in containers (unstable in DinD)
