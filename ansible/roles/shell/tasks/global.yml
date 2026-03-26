@@ -13,6 +13,7 @@
     mode: '0644'
     validate: sh -n %s
   when: shell_type in ['bash', 'zsh']
+  changed_when: false
   tags: ['shell', 'configure']
 
 # ---- /etc/zsh/zshenv (zsh only) ----
