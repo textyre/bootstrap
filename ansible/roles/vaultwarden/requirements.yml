@@ -1,0 +1,11 @@
+---
+roles:
+  - name: common
+    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../common"
+    version: master
+  - name: docker
+    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../docker"
+    version: master
+  - name: caddy
+    src: "git+file://{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../caddy"
+    version: master
