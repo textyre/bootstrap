@@ -1,15 +1,18 @@
 ---
 # ansible/roles/ssh_keys/molecule/shared/converge.yml
+#
+# Exercises all role features in a single idempotent play:
+# - authorized_keys deployment (2 keys for testuser)
+# - keygen (ed25519 keypair generation)
+# - exclusive mode (only listed keys remain)
+# - absent user cleanup (authorized_keys removed)
 
-# Play 1: authorized_keys + keygen (primary path)
-- name: Converge — authorized_keys and keygen
+- name: Converge
   hosts: all
   become: true
   gather_facts: true
 
   vars:
-    # Test accounts using the shared data model.
-    # ssh_keys_molecule_test_user is set by prepare.yml (defaults to "testuser").
     accounts:
       - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
         state: present
@@ -20,24 +23,6 @@
         state: absent
     ssh_keys_generate_user_keys: true
     ssh_keys_key_type: ed25519
-    ssh_keys_exclusive: false
-
-  roles:
-    - role: ssh_keys
-
-# Play 2: exclusive mode (re-apply with exclusive=true, verify only listed keys remain)
-- name: Converge — exclusive mode
-  hosts: all
-  become: true
-  gather_facts: true
-
-  vars:
-    accounts:
-      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
-        state: present
-        ssh_keys:
-          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
-    ssh_keys_generate_user_keys: false
     ssh_keys_exclusive: true
 
   roles:

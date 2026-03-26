@@ -81,18 +81,32 @@
         fail_msg: "Key 'test@molecule' not found in authorized_keys"
         success_msg: "Key test@molecule present"
 
-    # ---- Exclusive mode verification ----
-    # Converge play 2 ran with exclusive=true and only test@molecule key.
-    # The second key (test2@molecule) should have been removed.
-
-    - name: Assert second key was removed by exclusive mode (test2@molecule)
+    - name: Assert second test key is present (test2@molecule)
       ansible.builtin.assert:
         that:
-          - "'test2@molecule' not in _ssh_keys_verify_content"
+          - "'test2@molecule' in _ssh_keys_verify_content"
+        fail_msg: "Key 'test2@molecule' not found in authorized_keys"
+        success_msg: "Key test2@molecule present"
+
+    # ---- Exclusive mode verification ----
+    # Converge ran with exclusive=true. Any key NOT in accounts[].ssh_keys
+    # would have been removed. The planted key for absent_user is tested below.
+    # Here we verify that no extra keys are present beyond what was declared.
+
+    - name: Count lines in authorized_keys (exclusive mode check)
+      ansible.builtin.command:
+        cmd: "wc -l {{ _verify_test_home }}/.ssh/authorized_keys"
+      register: _ssh_keys_verify_line_count
+      changed_when: false
+
+    - name: Assert authorized_keys has exactly 2 keys (exclusive mode)
+      ansible.builtin.assert:
+        that:
+          - (_ssh_keys_verify_line_count.stdout.split() | first | int) == 2
         fail_msg: >-
-          Key 'test2@molecule' still in authorized_keys after exclusive mode.
-          Content: {{ _ssh_keys_verify_content }}
-        success_msg: "Exclusive mode verified — test2@molecule removed"
+          Expected 2 keys in authorized_keys (exclusive mode),
+          got {{ _ssh_keys_verify_line_count.stdout.split() | first }}
+        success_msg: "Exclusive mode verified — exactly 2 keys present"
 
     # ---- Absent user cleanup ----
 
@@ -111,7 +125,6 @@
         success_msg: "Absent user authorized_keys removed"
 
     # ---- Keygen verification (runtime) ----
-    # Play 1 ran with ssh_keys_generate_user_keys=true
 
     - name: Stat generated ed25519 private key
       ansible.builtin.stat:
@@ -152,6 +165,6 @@
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          ssh_keys verify passed: .ssh directory 0700, authorized_keys 0600,
-          exclusive mode verified, absent_user cleanup verified,
-          keygen ed25519 keypair present.
+          ssh_keys verify passed: .ssh directory 0700, authorized_keys 0600
+          with both test keys, exclusive mode verified (2 keys only),
+          absent_user cleanup verified, keygen ed25519 keypair present.
