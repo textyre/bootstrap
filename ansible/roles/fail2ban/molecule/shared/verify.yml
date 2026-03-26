@@ -5,6 +5,7 @@
   gather_facts: true
   vars_files:
     - ../../defaults/main.yml
+    - vars.yml
 
   tasks:
 
@@ -81,13 +82,17 @@
 
     - name: Assert maxretry matches converge value
       ansible.builtin.assert:
-        that: _fail2ban_verify_jail_text is regex('(?m)^maxretry = 3$')
-        fail_msg: "maxretry not set to 3 (converge override value)"
+        that: _fail2ban_verify_jail_text is regex('(?m)^maxretry = ' ~ fail2ban_sshd_maxretry | string ~ '$')
+        fail_msg: >-
+          maxretry not set to {{ fail2ban_sshd_maxretry }}
+          (converge override value)
 
     - name: Assert bantime matches converge value
       ansible.builtin.assert:
-        that: _fail2ban_verify_jail_text is regex('(?m)^bantime = 600$')
-        fail_msg: "bantime not set to 600 (converge override value)"
+        that: _fail2ban_verify_jail_text is regex('(?m)^bantime = ' ~ fail2ban_sshd_bantime | string ~ '$')
+        fail_msg: >-
+          bantime not set to {{ fail2ban_sshd_bantime }}
+          (converge override value)
 
     - name: Assert findtime is present
       ansible.builtin.assert:
@@ -126,18 +131,17 @@
     # ---- Service state ----
 
     - name: Check fail2ban service is enabled
-      ansible.builtin.command: systemctl is-enabled fail2ban.service
+      ansible.builtin.systemd:
+        name: fail2ban.service
       register: _fail2ban_verify_svc_enabled
-      changed_when: false
-      failed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert fail2ban service is enabled
       ansible.builtin.assert:
-        that: "'enabled' in _fail2ban_verify_svc_enabled.stdout"
+        that: _fail2ban_verify_svc_enabled.status.UnitFileState == 'enabled'
         fail_msg: >-
           fail2ban.service is not enabled
-          (got '{{ _fail2ban_verify_svc_enabled.stdout | default("unknown") }}')
+          (got '{{ _fail2ban_verify_svc_enabled.status.UnitFileState | default("unknown") }}')
       when: ansible_facts['service_mgr'] == 'systemd'
 
     # ---- Runtime checks (guarded for Docker) ----
@@ -146,18 +150,17 @@
     # iptables kernel modules or log sources.
 
     - name: Check fail2ban service is active
-      ansible.builtin.command: systemctl is-active fail2ban.service
+      ansible.builtin.systemd:
+        name: fail2ban.service
       register: _fail2ban_verify_svc_active
-      changed_when: false
-      failed_when: false
       when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert fail2ban service is active
       ansible.builtin.assert:
-        that: _fail2ban_verify_svc_active.stdout == 'active'
+        that: _fail2ban_verify_svc_active.status.ActiveState == 'active'
         fail_msg: >-
           fail2ban.service is not active
-          (got '{{ _fail2ban_verify_svc_active.stdout | default("unknown") }}')
+          (got '{{ _fail2ban_verify_svc_active.status.ActiveState | default("unknown") }}')
       when:
         - ansible_facts['service_mgr'] == 'systemd'
         - ansible_virtualization_type | default('') != 'docker'
@@ -166,12 +169,12 @@
       ansible.builtin.debug:
         msg: >-
           WARNING: fail2ban.service is not active
-          (got '{{ _fail2ban_verify_svc_active.stdout | default("unknown") }}').
+          (got '{{ _fail2ban_verify_svc_active.status.ActiveState | default("unknown") }}').
           This may be expected in Docker -- iptables backend needs kernel netfilter modules.
       when:
         - ansible_facts['service_mgr'] == 'systemd'
         - ansible_virtualization_type | default('') == 'docker'
-        - _fail2ban_verify_svc_active.stdout | default('') != 'active'
+        - _fail2ban_verify_svc_active.status.ActiveState | default('') != 'active'
 
     - name: Check fail2ban-client status
       ansible.builtin.command: fail2ban-client status
