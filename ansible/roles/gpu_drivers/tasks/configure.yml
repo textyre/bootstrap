@@ -8,7 +8,7 @@
 # analogous to CIS 3.5 kernel module hardening). Controlled by gpu_drivers_manage_security.
 # Tags: security, gpu_security_kms
 
-- name: Deploy NVIDIA DRM KMS modprobe options
+- name: "Security — NVIDIA DRM KMS modeset enforcement"
   ansible.builtin.template:
     src: nvidia-modprobe.conf.j2
     dest: /etc/modprobe.d/nvidia.conf
@@ -39,7 +39,7 @@
 # Analogous to CIS 3.5.x (disable unused kernel modules). Controlled by gpu_drivers_manage_security.
 # Tags: security, gpu_security_blacklist
 
-- name: Deploy nouveau blacklist (proprietary/open-kernel)
+- name: "Security — Blacklist nouveau kernel module"
   ansible.builtin.template:
     src: nvidia-blacklist.conf.j2
     dest: /etc/modprobe.d/nvidia-blacklist.conf
@@ -63,70 +63,21 @@
     or not gpu_drivers_nvidia_blacklist_nouveau
   tags: ['gpu', 'nvidia']
 
-# ---- NVIDIA: suspend/resume systemd services ----
-# ROLE-002: these services are systemd-specific; guarded by service_mgr check.
-# Non-systemd init systems (runit, openrc, s6, dinit) do not use systemd service units.
-# GPU kernel module suspend/resume on non-systemd is handled by the init system's
-# power management hooks — no equivalent service management needed here.
+# ---- NVIDIA: suspend/resume services (ROLE-002: init-specific dispatch) ----
+# nvidia_services_systemd.yml handles systemd service units.
+# Non-systemd inits (runit, openrc, s6, dinit) have no systemd unit equivalent;
+# NVIDIA module suspend/resume on non-systemd is handled by the init's power hooks.
+# with_first_found + skip: true ensures non-systemd systems are a no-op.
 
-- name: Enable NVIDIA suspend/resume systemd services
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    enabled: true
-    daemon_reload: false
-  loop:
-    - nvidia-suspend.service
-    - nvidia-hibernate.service
-    - nvidia-resume.service
+- name: Manage NVIDIA suspend/resume services (init-specific dispatch)
+  ansible.builtin.include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        - "nvidia_services_{{ ansible_facts['service_mgr'] }}.yml"
+      skip: true
   when:
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
-    - gpu_drivers_nvidia_suspend
-    - ansible_facts['service_mgr'] == 'systemd'
-  tags: ['gpu', 'nvidia']
-
-- name: Disable NVIDIA suspend/resume systemd services (not applicable)
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    enabled: false
-    daemon_reload: false
-  loop:
-    - nvidia-suspend.service
-    - nvidia-hibernate.service
-    - nvidia-resume.service
-  register: _gpu_drivers_disable_nvidia_services
-  when: >-
-    not gpu_drivers_has_nvidia
-    or gpu_drivers_nvidia_variant == 'nouveau'
-    or not gpu_drivers_nvidia_suspend
-    or ansible_facts['service_mgr'] != 'systemd'
-  failed_when: false
-  tags: ['gpu', 'nvidia']
-
-# ROLE-013: failed_when: false is acceptable here because the service units may
-# not exist when the NVIDIA driver is not installed. The debug below makes the
-# outcome visible rather than silently swallowing any systemd errors.
-- name: Report NVIDIA suspend service disable outcome
-  ansible.builtin.debug:
-    msg: >-
-      NVIDIA suspend/resume services disable: {{ _gpu_drivers_disable_nvidia_services.results
-        | map(attribute='item') | list }} —
-      {{ 'skipped (NVIDIA active or non-systemd)' if _gpu_drivers_disable_nvidia_services is skipped
-         else 'attempted (services may not exist if driver not installed)' }}
-  when: _gpu_drivers_disable_nvidia_services is defined
-  tags: ['gpu', 'nvidia']
-
-# ROLE-002: note non-systemd path for NVIDIA suspend services.
-- name: Note NVIDIA suspend services skipped on non-systemd init
-  ansible.builtin.debug:
-    msg: >-
-      NVIDIA suspend/resume systemd service units are not managed on
-      {{ ansible_facts['service_mgr'] }} — power management hooks are
-      handled by the init system directly.
-  when:
-    - gpu_drivers_has_nvidia
-    - gpu_drivers_nvidia_suspend
-    - ansible_facts['service_mgr'] != 'systemd'
   tags: ['gpu', 'nvidia']
 
 # ---- VA-API environment variables ----

@@ -66,6 +66,12 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+dependency:
+  name: galaxy
+  enabled: false
+  # 'common' role is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
+  # (galaxy install not needed for local monorepo dependencies — see requirements.yml)
+
 provisioner:
   name: ansible
   options:
