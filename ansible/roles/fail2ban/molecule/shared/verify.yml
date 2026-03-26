@@ -5,6 +5,7 @@
   gather_facts: true
   vars_files:
     - ../../defaults/main.yml
+    - vars.yml
 
   tasks:
 
@@ -81,13 +82,17 @@
 
     - name: Assert maxretry matches converge value
       ansible.builtin.assert:
-        that: _fail2ban_verify_jail_text is regex('(?m)^maxretry = 3$')
-        fail_msg: "maxretry not set to 3 (converge override value)"
+        that: _fail2ban_verify_jail_text is regex('(?m)^maxretry = ' ~ fail2ban_sshd_maxretry | string ~ '$')
+        fail_msg: >-
+          maxretry not set to {{ fail2ban_sshd_maxretry }}
+          (converge override value)
 
     - name: Assert bantime matches converge value
       ansible.builtin.assert:
-        that: _fail2ban_verify_jail_text is regex('(?m)^bantime = 600$')
-        fail_msg: "bantime not set to 600 (converge override value)"
+        that: _fail2ban_verify_jail_text is regex('(?m)^bantime = ' ~ fail2ban_sshd_bantime | string ~ '$')
+        fail_msg: >-
+          bantime not set to {{ fail2ban_sshd_bantime }}
+          (converge override value)
 
     - name: Assert findtime is present
       ansible.builtin.assert:
