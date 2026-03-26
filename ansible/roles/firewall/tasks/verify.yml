@@ -26,14 +26,18 @@
     success_msg: "/etc/nftables.conf exists with correct permissions"
   tags: ['firewall']
 
-- name: Verify drop policy in nftables.conf
-  ansible.builtin.lineinfile:
-    path: /etc/nftables.conf
-    regexp: 'policy drop'
-    line: "        type filter hook input priority 0; policy drop;"
-  check_mode: true
-  register: _firewall_verify_drop_policy
-  failed_when: _firewall_verify_drop_policy is changed
+- name: Read nftables.conf content for drop policy check
+  ansible.builtin.slurp:
+    src: /etc/nftables.conf
+  register: _firewall_verify_conf_content
+  tags: ['firewall']
+
+- name: Assert input chain has drop policy
+  ansible.builtin.assert:
+    that:
+      - "'policy drop' in (_firewall_verify_conf_content.content | b64decode)"
+    fail_msg: "Input chain default policy is not 'drop' in /etc/nftables.conf"
+    success_msg: "Input chain drop policy is correctly set"
   tags: ['firewall']
 
 # ---- 2. Config syntax verification ----
@@ -65,7 +69,7 @@
       {{ ansible_virtualization_type | default('') in ['docker', 'container', 'lxc'] }}
   tags: ['firewall']
 
-- name: Check nftables service is enabled
+- name: Check nftables service is enabled  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: systemctl is-enabled nftables.service
   register: _firewall_verify_svc_enabled

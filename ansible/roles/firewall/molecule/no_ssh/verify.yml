@@ -67,7 +67,7 @@
 
     # ---- Service enabled ----
 
-    - name: Check nftables service is enabled
+    - name: Check nftables service is enabled  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl is-enabled nftables.service
       register: _firewall_verify_svc_enabled
       changed_when: false
