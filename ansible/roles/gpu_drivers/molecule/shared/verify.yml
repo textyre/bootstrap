@@ -1,26 +1,31 @@
 ---
 # Shared verify playbook for gpu_drivers molecule scenarios.
-# Designed for the Intel vendor path (gpu_drivers_vendor: intel, pure Mesa, no DKMS).
+# Covers multiple paths via per-host vars set in molecule.yml provisioner.inventory.host_vars:
+#   - Intel vendor, VA-API enabled  (Archlinux-systemd, Ubuntu-systemd)
+#   - vendor=none                   (Archlinux-vendor-none) — no packages/configs
+#   - Intel vendor, VA-API disabled (Ubuntu-vaapi-off) — packages installed, gpu.conf absent
+#   - Vagrant: Intel vendor, VA-API enabled (arch-vm, ubuntu-base) — default fallback
 #
 # Checks:
-#   - Intel driver packages installed (OS-aware names)
-#   - vulkan-tools installed
-#   - /etc/environment.d/gpu.conf exists with correct content and permissions
+#   - Intel driver packages installed (OS-aware names) — when vendor=intel
+#   - vulkan-tools installed — when vendor!=none and vulkan_tools enabled
+#   - /etc/environment.d/gpu.conf presence/absence based on vaapi flag and vendor
 #   - NVIDIA-specific configs are ABSENT (negative path)
 #   - /etc/modprobe.d/ directory exists
 #   - Hardware-dependent checks (lspci, vulkaninfo) — guarded for Docker
 #
 # Register variables follow ROLE-006: _gpu_drivers_verify_<check>
 
-- name: Verify gpu_drivers role (Intel path)
+- name: Verify gpu_drivers role
   hosts: all
   become: true
   gather_facts: true
   vars:
-    # Mirror the converge override — vendor facts derive from this
-    gpu_drivers_vendor: intel
-    gpu_drivers_vaapi: true
-    gpu_drivers_vulkan_tools: true
+    # Read per-host vars set in molecule.yml provisioner.inventory.host_vars (TEST-011/ROLE-014).
+    # Defaults preserve the original Intel happy-path for vagrant scenario backward compatibility.
+    gpu_drivers_vendor: "{{ hostvars[inventory_hostname]['gpu_drivers_vendor'] | default('intel') }}"
+    gpu_drivers_vaapi: "{{ hostvars[inventory_hostname]['gpu_drivers_vaapi'] | default(true) }}"
+    gpu_drivers_vulkan_tools: "{{ hostvars[inventory_hostname]['gpu_drivers_vulkan_tools'] | default(true) }}"
 
   tasks:
 

@@ -124,7 +124,7 @@
   ansible.builtin.lineinfile:
     path: /etc/modprobe.d/nvidia.conf
     regexp: '^options nvidia-drm modeset='
-    line: "options nvidia-drm modeset=1"
+    line: "options nvidia-drm modeset={{ gpu_drivers_nvidia_kms | int }}"
     state: present
   check_mode: true
   register: _gpu_drivers_verify_modprobe_kms

@@ -3,6 +3,7 @@ driver:
   name: docker
 
 platforms:
+  # ---- Happy path: Intel vendor, VA-API enabled ----
   - name: Archlinux-systemd
     image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
     pre_build_image: true
@@ -33,6 +34,38 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+  # ---- Edge case: vendor=none (no GPU, role must skip all driver tasks) ----
+  - name: Archlinux-vendor-none
+    image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
+    pre_build_image: true
+    command: /usr/lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  # ---- Edge case: vaapi=false (Intel GPU present but VA-API disabled, gpu.conf must be absent) ----
+  - name: Ubuntu-vaapi-off
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
 provisioner:
   name: ansible
   options:
@@ -42,6 +75,25 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  # Per-host vars drive both converge and verify — no hardcoded vendor in playbooks (TEST-011/ROLE-014)
+  inventory:
+    host_vars:
+      Archlinux-systemd:
+        gpu_drivers_vendor: intel
+        gpu_drivers_vaapi: true
+        gpu_drivers_vulkan_tools: true
+      Ubuntu-systemd:
+        gpu_drivers_vendor: intel
+        gpu_drivers_vaapi: true
+        gpu_drivers_vulkan_tools: true
+      Archlinux-vendor-none:
+        gpu_drivers_vendor: none
+        gpu_drivers_vaapi: false
+        gpu_drivers_vulkan_tools: false
+      Ubuntu-vaapi-off:
+        gpu_drivers_vendor: intel
+        gpu_drivers_vaapi: false
+        gpu_drivers_vulkan_tools: true
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
