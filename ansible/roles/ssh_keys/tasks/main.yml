@@ -45,31 +45,33 @@
       tags: [ssh_keys]
 
     # Ensure .ssh directory for all present users (shared by authorized_keys and keygen)
+    # Loops over _ssh_keys_present_users (not just with_keys) so keygen-only users
+    # (state: present, no ssh_keys) also get their .ssh directory created.
     - name: "Ensure .ssh directory exists for present users"
       ansible.builtin.file:
         path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh"
         state: directory
         owner: "{{ item.name }}"
         mode: "0700"
-      loop: "{{ _ssh_keys_present_users_with_keys }}"
+      loop: "{{ _ssh_keys_present_users }}"
       loop_control:
         label: "{{ item.name }}"
       tags: [ssh_keys, security]
 
     # Deploy authorized_keys for present users
-    - name: Manage SSH authorized keys
+    - name: "Manage SSH authorized keys"
       ansible.builtin.include_tasks: authorized_keys.yml
       when: ssh_keys_manage_authorized_keys | bool
       tags: [ssh_keys, security]
 
     # Optional: generate SSH keypairs on target machines
-    - name: Generate user SSH keypairs
+    - name: "Generate user SSH keypairs"
       ansible.builtin.include_tasks: keygen.yml
       when: ssh_keys_generate_user_keys | bool
       tags: [ssh_keys]
 
     # ROLE-005: In-role verification
-    - name: Verify SSH key configuration
+    - name: "Verify SSH key configuration"
       ansible.builtin.include_tasks: verify.yml
       tags: [ssh_keys]
 
@@ -82,8 +84,8 @@
         common_rpt_fact: "_ssh_keys_phases"
         common_rpt_phase: "Authorized keys"
         common_rpt_detail: >-
-          users={{ _ssh_keys_present_users | length }}
-          keygen={{ ssh_keys_generate_user_keys }}
+          present={{ _ssh_keys_present_users_with_keys | length }}
+          absent={{ _ssh_keys_absent_users | length }}
           exclusive={{ ssh_keys_exclusive }}
       when: ssh_keys_manage_authorized_keys | bool
       tags: [ssh_keys, report]

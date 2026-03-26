@@ -5,14 +5,12 @@
 
 - name: "Generate SSH keypairs for present users"
   block:
-    - name: "Get user home directory"
+    # Fetch the full passwd database so getent_passwd is populated for all users.
+    # Calling getent with key: in a loop overwrites getent_passwd on each iteration
+    # (only the last key survives), which breaks the path lookup for earlier users.
+    - name: "Get all user home directories from passwd"
       ansible.builtin.getent:
         database: passwd
-        key: "{{ item.name }}"
-      loop: "{{ _ssh_keys_present_users }}"
-      loop_control:
-        label: "{{ item.name }}"
-      register: _ssh_keys_keygen_user_info
       tags: [ssh_keys]
 
     - name: "Generate SSH key pair ({{ ssh_keys_key_type }})"

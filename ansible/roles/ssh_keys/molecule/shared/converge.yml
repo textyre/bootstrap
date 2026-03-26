@@ -57,6 +57,8 @@
         ssh_keys:
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAISecondTestKey567890abcdefghijklmn test2@molecule"
+      - name: "{{ molecule_keygen_user | default('keygenuser') }}"
+        state: present
       - name: absent_user
         state: absent
     ssh_keys_generate_user_keys: true

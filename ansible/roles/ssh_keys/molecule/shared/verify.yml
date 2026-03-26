@@ -26,6 +26,8 @@
       - "test@molecule"
       - "test2@molecule"
     _verify_expected_key_count: "{{ _verify_expected_keys | length }}"
+    _verify_keygen_user: "{{ molecule_keygen_user | default('keygenuser') }}"
+    _verify_keygen_home: "/home/{{ _verify_keygen_user }}"
 
   tasks:
 
@@ -108,7 +110,7 @@
           got {{ _ssh_keys_verify_line_count.stdout.split() | first }}
         success_msg: "Exclusive mode verified — exactly {{ _verify_expected_key_count }} keys present"
 
-    # ---- Absent user cleanup ----
+    # ---- 4. Absent user cleanup ----
 
     - name: Stat authorized_keys for absent_user
       ansible.builtin.stat:
@@ -160,11 +162,48 @@
           owner={{ _ssh_keys_verify_pubkey.stat.pw_name | default('n/a') }}
         success_msg: "Generated id_{{ _verify_key_type }}.pub exists owned by {{ _verify_test_user }}"
 
+    # ---- 5. Key generation for keygen-only user (ROLE-014) ----
+
+    - name: Stat generated keypair for keygen user
+      ansible.builtin.stat:
+        path: "{{ _verify_keygen_home }}/.ssh/id_ed25519"
+      register: _ssh_keys_verify_keygen_key
+
+    - name: Assert generated keypair exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_keygen_key.stat.exists
+          - _ssh_keys_verify_keygen_key.stat.isreg
+          - _ssh_keys_verify_keygen_key.stat.mode == '0600'
+          - _ssh_keys_verify_keygen_key.stat.pw_name == _verify_keygen_user
+        fail_msg: >-
+          Generated keypair for {{ _verify_keygen_user }}:
+          exists={{ _ssh_keys_verify_keygen_key.stat.exists | default(false) }},
+          mode={{ _ssh_keys_verify_keygen_key.stat.mode | default('n/a') }},
+          owner={{ _ssh_keys_verify_keygen_key.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_ed25519 keypair exists for {{ _verify_keygen_user }}"
+
+    - name: Stat generated public key for keygen user
+      ansible.builtin.stat:
+        path: "{{ _verify_keygen_home }}/.ssh/id_ed25519.pub"
+      register: _ssh_keys_verify_keygen_pub
+
+    - name: Assert generated public key exists for keygen user
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_keygen_pub.stat.exists
+          - _ssh_keys_verify_keygen_pub.stat.isreg
+        fail_msg: >-
+          Generated public key for {{ _verify_keygen_user }} missing at
+          {{ _verify_keygen_home }}/.ssh/id_ed25519.pub
+        success_msg: "Generated id_ed25519.pub exists for {{ _verify_keygen_user }}"
+
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          ssh_keys verify passed: .ssh directory 0700, authorized_keys 0600
-          with {{ _verify_expected_key_count }} test keys, exclusive mode verified,
-          absent_user cleanup verified, keygen {{ _verify_key_type }} keypair present.
+          ssh_keys verify passed: .ssh directory 0700 owned by {{ _verify_test_user }},
+          authorized_keys 0600 with {{ _verify_expected_key_count }} test keys (exclusive mode),
+          absent_user authorized_keys removed,
+          {{ _verify_keygen_user }} keypair generated ({{ _verify_key_type }}).
