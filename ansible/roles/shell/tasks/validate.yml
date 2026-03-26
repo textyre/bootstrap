@@ -29,3 +29,14 @@
       shell_user must be set to a valid username.
       Current value: '{{ shell_user | default("") }}'.
   tags: ['shell']
+
+- name: Assert shell_global_path is a list
+  ansible.builtin.assert:
+    that:
+      - shell_global_path is iterable
+      - shell_global_path is not string
+      - shell_global_path is not mapping
+    fail_msg: >-
+      shell_global_path must be a list of path strings.
+      Got type '{{ shell_global_path | type_debug }}' instead.
+  tags: ['shell']

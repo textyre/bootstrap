@@ -11,6 +11,7 @@
     owner: root
     group: root
     mode: '0644'
+    validate: sh -n %s
   when: shell_type in ['bash', 'zsh']
   tags: ['shell', 'configure']
 
@@ -33,6 +34,7 @@
     owner: root
     group: root
     mode: '0644'
+    validate: sh -n %s
   when: shell_type == 'zsh'
   tags: ['shell', 'configure']
 
@@ -55,6 +57,7 @@
     owner: root
     group: root
     mode: '0644'
+    validate: fish -n %s
   when: shell_type == 'fish'
   tags: ['shell', 'configure']
 
