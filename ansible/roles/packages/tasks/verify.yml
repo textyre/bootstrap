@@ -1,0 +1,31 @@
+---
+# === In-role verification: check all packages are installed ===
+# Called from tasks/main.yml after installation. Skipped when packages_all is empty.
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+  changed_when: false
+  tags: ['packages']
+
+- name: Assert all packages are installed
+  ansible.builtin.assert:
+    that:
+      - item in ansible_facts.packages
+    fail_msg: >-
+      Package '{{ item }}' is not installed on {{ ansible_facts['distribution'] }}.
+      Check that the package name is correct for this OS family ({{ ansible_facts['os_family'] }}).
+    success_msg: "Package '{{ item }}' is installed"
+    quiet: true
+  loop: "{{ packages_all }}"
+  loop_control:
+    label: "{{ item }}"
+  when: packages_all | length > 0
+  tags: ['packages']
+
+- name: Report verification result
+  ansible.builtin.debug:
+    msg: >-
+      packages verify passed: all {{ packages_all | length }} packages confirmed installed
+      on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+  tags: ['packages']
