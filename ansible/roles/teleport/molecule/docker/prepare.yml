@@ -4,19 +4,5 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Update pacman package cache (Arch)
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Update apt cache (Ubuntu)
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-      when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Install ca-certificates (Ubuntu)
-      ansible.builtin.apt:
-        name: ca-certificates
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'
+    - name: Run OS-specific prepare tasks
+      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"

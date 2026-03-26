@@ -1,0 +1,5 @@
+---
+# TEST-003: Stub verify for default scenario.
+# Delegates to the shared verify playbook so all scenarios share one source of truth.
+- name: Verify
+  ansible.builtin.import_playbook: ../shared/verify.yml

@@ -1,14 +1,28 @@
 ---
+# Verification categories skipped:
+#   runtime — 'teleport status' requires a live auth server; not available in molecule.
+#             Service start is verified (systemctl is-enabled), but active/running state
+#             is not asserted because the service cannot join a cluster in CI.
+#   ca_export — 'tctl auth export' requires authenticated access to a running auth server;
+#               teleport_export_ca_key=false is set in converge vars for this reason.
+
 - name: Verify
   hosts: all
   become: true
   gather_facts: true
 
+  vars:
+    # These defaults mirror the values set in molecule/shared/converge.yml.
+    # Override via molecule.yml extra_vars to keep verify in sync with converge.
+    molecule_teleport_node_name: "molecule-test"
+    molecule_teleport_auth_server: "localhost:3025"
+    molecule_teleport_session_recording: "node"
+
   tasks:
     # -----------------------------------------------------------------------
     # 1. Teleport binary
     # -----------------------------------------------------------------------
-    - name: Check teleport binary is in PATH (POSIX command -v)
+    - name: Check teleport binary is in PATH (command -v)
       ansible.builtin.shell:
         cmd: command -v teleport
         executable: /bin/bash
@@ -112,10 +126,10 @@
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert config contains nodename molecule-test
+    - name: Assert config contains expected nodename
       ansible.builtin.assert:
         that:
-          - _teleport_verify_conf_content is regex('(?m)^\s+nodename:\s+["\x27]?molecule-test["\x27]?\s*$')
+          - _teleport_verify_conf_content is regex('(?m)^\s+nodename:\s+["\x27]?' ~ molecule_teleport_node_name ~ '["\x27]?\s*$')
         fail_msg: >
           Config does not contain nodename 'molecule-test'.
           Content: {{ _teleport_verify_conf_content }}
@@ -139,12 +153,12 @@
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert config contains auth_server localhost:3025
+    - name: Assert config contains expected auth_server
       ansible.builtin.assert:
         that:
-          - _teleport_verify_conf_content is regex('(?m)^\s+auth_server:\s+["\x27]?localhost:3025["\x27]?\s*$')
+          - _teleport_verify_conf_content is regex('(?m)^\s+auth_server:\s+["\x27]?' ~ (molecule_teleport_auth_server | regex_escape) ~ '["\x27]?\s*$')
         fail_msg: >
-          Config does not contain 'auth_server: localhost:3025'.
+          Config does not contain 'auth_server: {{ molecule_teleport_auth_server }}'.
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
@@ -176,12 +190,12 @@
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
-    - name: Assert session_recording mode is node
+    - name: Assert session_recording mode matches expected value
       ansible.builtin.assert:
         that:
-          - _teleport_verify_conf_content is regex('(?m)^\s+mode:\s+["\x27]?node["\x27]?\s*$')
+          - _teleport_verify_conf_content is regex('(?m)^\s+mode:\s+["\x27]?' ~ molecule_teleport_session_recording ~ '["\x27]?\s*$')
         fail_msg: >
-          Config does not contain session recording mode 'node'.
+          Config does not contain session recording mode '{{ molecule_teleport_session_recording }}'.
           Content: {{ _teleport_verify_conf_content }}
       when: _teleport_verify_conf_content is defined
 
@@ -213,12 +227,16 @@
           mode={{ _teleport_verify_datadir.stat.mode }}
 
     # -----------------------------------------------------------------------
-    # 5. Systemd unit file (binary install only — all molecule scenarios use binary)
+    # 5. Systemd unit file (binary install, systemd only)
+    # NOTE: All molecule scenarios use binary install method.
+    # Unit file assertions are guarded by service_mgr to avoid failures on
+    # non-systemd platforms (runit, openrc, s6, dinit).
     # -----------------------------------------------------------------------
     - name: Stat /etc/systemd/system/teleport.service
       ansible.builtin.stat:
         path: /etc/systemd/system/teleport.service
       register: _teleport_verify_unit_stat
+      when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: Assert teleport.service unit file exists
       ansible.builtin.assert:
@@ -228,6 +246,9 @@
         fail_msg: >
           /etc/systemd/system/teleport.service does not exist.
           The binary install path must deploy a systemd unit file.
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_verify_unit_stat is defined
 
     - name: Assert teleport.service unit file permissions
       ansible.builtin.assert:
@@ -236,18 +257,26 @@
         fail_msg: >
           /etc/systemd/system/teleport.service has wrong mode:
           {{ _teleport_verify_unit_stat.stat.mode }} (expected 0644)
-      when: _teleport_verify_unit_stat.stat.exists
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_verify_unit_stat is defined
+        - _teleport_verify_unit_stat.stat.exists
 
     - name: Slurp /etc/systemd/system/teleport.service
       ansible.builtin.slurp:
         src: /etc/systemd/system/teleport.service
       register: _teleport_verify_unit_raw
-      when: _teleport_verify_unit_stat.stat.exists
+      when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_verify_unit_stat is defined
+        - _teleport_verify_unit_stat.stat.exists
 
     - name: Decode teleport unit file content
       ansible.builtin.set_fact:
         _teleport_verify_unit_content: "{{ _teleport_verify_unit_raw.content | b64decode }}"
       when:
+        - ansible_facts['service_mgr'] == 'systemd'
+        - _teleport_verify_unit_stat is defined
         - _teleport_verify_unit_stat.stat.exists
         - _teleport_verify_unit_raw.content is defined
 
