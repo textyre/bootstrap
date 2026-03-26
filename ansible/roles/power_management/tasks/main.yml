@@ -59,8 +59,8 @@
   ansible.builtin.import_tasks: collect_facts.yml
   when: power_management_enabled | bool
 
-- name: Assert deploy effectiveness
-  ansible.builtin.import_tasks: assert.yml
+- name: Verify deploy effectiveness
+  ansible.builtin.import_tasks: verify.yml
   when: power_management_enabled | bool
 
 - name: Detect configuration drift

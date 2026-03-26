@@ -1,6 +1,8 @@
 ---
 driver:
-  name: docker
+  name: default
+  options:
+    managed: false
 
 platforms:
   - name: Archlinux-systemd
