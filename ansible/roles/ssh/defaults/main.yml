@@ -17,6 +17,23 @@ ssh_supported_os:
 # Включить hardening sshd (развёртывание конфигурации)
 ssh_harden_sshd: true
 
+# ---- Per-subsystem toggles (ROLE-010) ----
+# Each subsystem can be independently disabled while keeping ssh_harden_sshd: true.
+# When disabled, the corresponding section uses OpenSSH defaults (not rendered in template).
+
+# Manage cryptographic settings (ciphers, MACs, KEX, host key algorithms, RekeyLimit)
+ssh_manage_crypto: true
+# Manage authentication settings (root login, password auth, auth methods, PAM, etc.)
+ssh_manage_auth: true
+# Manage forwarding and tunnel settings (X11, TCP, agent forwarding, tunnels, gateway ports)
+ssh_manage_forwarding: true
+# Manage access control directives (AllowGroups, AllowUsers, DenyGroups, DenyUsers)
+ssh_manage_access_control: true
+# Manage logging settings (LogLevel, SyslogFacility)
+ssh_manage_logging: true
+# Manage session settings (ClientAlive, TCPKeepAlive, MaxStartups, PrintMotd, etc.)
+ssh_manage_session: true
+
 # ---- Сеть и порт ----
 
 # Порт SSH-сервера (стандарт 22; смена снижает шум автосканеров)

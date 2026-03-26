@@ -6,7 +6,7 @@ Hardened OpenSSH server with modern-only cryptography, key-based authentication,
 
 1. **Assert OS** (`tasks/main.yml`) -- fails if `ansible_facts['os_family']` is not in `ssh_supported_os` (Archlinux, Debian, RedHat, Void, Gentoo)
 2. **Load OS variables** (`vars/<os_family>.yml`) -- loads package names and service name mappings per distro
-3. **Install** (`tasks/install-<os_family>.yml`) -- installs OpenSSH via `ansible.builtin.package` using `ssh_packages` from vars
+3. **Install** (`tasks/install.yml`) -- installs OpenSSH via `ansible.builtin.package` using `ssh_packages` from vars
 4. **Report: Install** -- logs install phase via `common/report_phase.yml`
 5. **Preflight lockout protection** (`tasks/preflight.yml`) -- verifies current user is in `ssh_allow_groups`/`ssh_allow_users`, not in `ssh_deny_groups`/`ssh_deny_users`; warns if `~/.ssh/authorized_keys` is missing when password auth is disabled. **Fails if** user would be locked out. Skipped when `ssh_harden_sshd: false`
 6. **Harden** (`tasks/harden.yml`) -- generates ed25519/RSA host keys if absent, deploys `/etc/ssh/sshd_config` from template with `validate: 'sshd -t -f %s'`, disables `sshdgenkeys.service` (systemd only), removes weak host keys (DSA, ECDSA). **Triggers handler:** `restart sshd` on config or key changes. Skipped when `ssh_harden_sshd: false`
@@ -36,6 +36,12 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | Variable | Default | Safety | Description |
 |----------|---------|--------|-------------|
 | `ssh_harden_sshd` | `true` | safe | Master switch -- set `false` to install only, skip hardening |
+| `ssh_manage_crypto` | `true` | safe | Manage cryptographic settings (ciphers, MACs, KEX, host key algorithms, RekeyLimit) |
+| `ssh_manage_auth` | `true` | safe | Manage authentication settings (root login, password auth, auth methods, PAM) |
+| `ssh_manage_forwarding` | `true` | safe | Manage forwarding and tunnel settings (X11, TCP, agent forwarding, tunnels) |
+| `ssh_manage_access_control` | `true` | safe | Manage access control directives (AllowGroups, AllowUsers, DenyGroups, DenyUsers) |
+| `ssh_manage_logging` | `true` | safe | Manage logging settings (LogLevel, SyslogFacility) |
+| `ssh_manage_session` | `true` | safe | Manage session settings (ClientAlive, TCPKeepAlive, MaxStartups, PrintMotd, etc.) |
 | `ssh_port` | `22` | careful | SSH port. Changing requires firewall rule update and client reconfiguration |
 | `ssh_address_family` | `"inet"` | careful | `inet` (IPv4), `inet6` (IPv6), or `any`. Restricting to IPv4 reduces attack surface if IPv6 unused |
 | `ssh_listen_addresses` | `[]` | careful | Bind addresses; empty = all interfaces. Setting to `["127.0.0.1"]` blocks remote access |
