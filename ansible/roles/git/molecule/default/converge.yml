@@ -1,2 +1,3 @@
 ---
-- import_playbook: ../shared/converge.yml
+- name: Converge
+  ansible.builtin.import_playbook: ../shared/converge.yml

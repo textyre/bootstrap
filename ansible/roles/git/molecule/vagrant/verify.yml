@@ -1,2 +1,3 @@
 ---
-- import_playbook: ../shared/verify.yml
+- name: Verify
+  ansible.builtin.import_playbook: ../shared/verify.yml
