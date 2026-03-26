@@ -26,6 +26,17 @@
   ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
   tags: ['docker']
 
+- name: "Report: Preflight"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Preflight"
+    common_rpt_detail: >-
+      os={{ ansible_facts['os_family'] }}
+  tags: ['docker', 'report']
+
 # ======================================================================
 # ---- Конфигурация daemon ----
 # ======================================================================
@@ -69,6 +80,18 @@
   notify: Restart docker
   tags: ['docker', 'docker:configure']
 
+- name: "Report: Configure daemon"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Configure daemon"
+    common_rpt_detail: >-
+      log={{ docker_log_driver }}
+      icc={{ docker_icc }}
+  tags: ['docker', 'report']
+
 # ======================================================================
 # ---- Группа пользователя ----
 # ======================================================================
@@ -88,6 +111,18 @@
   when: docker_add_user_to_group
   tags: ['docker', 'docker:configure']
 
+- name: "Report: User group"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "User group"
+    common_rpt_status: "{{ 'done' if docker_add_user_to_group else 'skip' }}"
+    common_rpt_detail: >-
+      {{ docker_user | default('n/a') if docker_add_user_to_group else 'disabled' }}
+  tags: ['docker', 'report']
+
 # ======================================================================
 # ---- Сервис ----
 # ======================================================================
@@ -100,6 +135,18 @@
   when: docker_enable_service
   tags: ['docker', 'docker:service']
 
+- name: "Report: Service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Service"
+    common_rpt_status: "{{ 'done' if docker_enable_service else 'skip' }}"
+    common_rpt_detail: >-
+      {{ _docker_service_name if docker_enable_service else 'disabled' }}
+  tags: ['docker', 'report']
+
 # ======================================================================
 # ---- Проверка ----
 # ======================================================================
@@ -107,3 +154,27 @@
 - name: Verify Docker configuration
   ansible.builtin.include_tasks: verify.yml
   tags: ['docker']
+
+- name: "Report: Verify"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Verify"
+    common_rpt_detail: >-
+      daemon.json OK
+  tags: ['docker', 'report']
+
+# ======================================================================
+# ---- Отчёт ----
+# ======================================================================
+
+- name: "Docker — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_title: "docker"
+  tags: ['docker', 'report']
