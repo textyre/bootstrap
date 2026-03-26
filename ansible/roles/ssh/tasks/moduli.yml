@@ -10,38 +10,38 @@
 - name: "Check if /etc/ssh/moduli exists"
   ansible.builtin.stat:
     path: /etc/ssh/moduli
-  register: ssh_moduli_file
+  register: _ssh_moduli_file
   tags: [ssh, security, moduli]
 
 - name: "Count weak DH moduli below threshold: {{ ssh_moduli_minimum_bits }}"
   ansible.builtin.command:
     cmd: "awk '$5 < {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
-  register: ssh_weak_moduli
+  register: _ssh_weak_moduli
   changed_when: false
-  when: ssh_moduli_file.stat.exists
+  when: _ssh_moduli_file.stat.exists
   tags: [ssh, security, moduli]
 
 - name: "Filter strong DH moduli at or above threshold: {{ ssh_moduli_minimum_bits }}"
   ansible.builtin.command:
     cmd: "awk '$5 >= {{ ssh_moduli_minimum_bits }}' /etc/ssh/moduli"
-  register: ssh_strong_moduli
+  register: _ssh_strong_moduli
   changed_when: false
   when:
-    - ssh_moduli_file.stat.exists
-    - ssh_weak_moduli.stdout_lines | length > 0
+    - _ssh_moduli_file.stat.exists
+    - _ssh_weak_moduli.stdout_lines | length > 0
   tags: [ssh, security, moduli]
 
 - name: "Deploy filtered moduli file"
   ansible.builtin.copy:
-    content: "{{ ssh_strong_moduli.stdout }}\n"
+    content: "{{ _ssh_strong_moduli.stdout }}\n"
     dest: /etc/ssh/moduli
     owner: root
     group: root
     mode: "0644"
     backup: true
   when:
-    - ssh_moduli_file.stat.exists
-    - ssh_weak_moduli.stdout_lines | default([]) | length > 0
-    - ssh_strong_moduli.stdout | default('') | length > 0
+    - _ssh_moduli_file.stat.exists
+    - _ssh_weak_moduli.stdout_lines | default([]) | length > 0
+    - _ssh_strong_moduli.stdout | default('') | length > 0
   notify: "restart sshd"
   tags: [ssh, security, moduli]

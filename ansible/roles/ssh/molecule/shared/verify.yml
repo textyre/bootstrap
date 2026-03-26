@@ -127,170 +127,170 @@
 
     # ---- Critical security directives ----
 
-    - name: Assert PermitRootLogin no
+    - name: Assert PermitRootLogin
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PermitRootLogin\s+no')
-        fail_msg: "PermitRootLogin is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PermitRootLogin\s+' ~ ssh_permit_root_login)
+        fail_msg: "PermitRootLogin is not set to '{{ ssh_permit_root_login }}'"
 
-    - name: Assert Port 22
+    - name: Assert Port
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('Port\s+22\\b')
-        fail_msg: "Port is not set to 22"
+        that: _ssh_verify_sshd_content is regex('Port\s+' ~ ssh_port | string ~ '\\b')
+        fail_msg: "Port is not set to {{ ssh_port }}"
 
-    - name: Assert AddressFamily inet
+    - name: Assert AddressFamily
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AddressFamily\s+inet\\b')
-        fail_msg: "AddressFamily is not set to 'inet'"
+        that: _ssh_verify_sshd_content is regex('AddressFamily\s+' ~ ssh_address_family ~ '\\b')
+        fail_msg: "AddressFamily is not set to '{{ ssh_address_family }}'"
 
-    - name: Assert PasswordAuthentication no
+    - name: Assert PasswordAuthentication
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PasswordAuthentication\s+no')
-        fail_msg: "PasswordAuthentication is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PasswordAuthentication\s+' ~ ssh_password_authentication)
+        fail_msg: "PasswordAuthentication is not set to '{{ ssh_password_authentication }}'"
 
-    - name: Assert PermitEmptyPasswords no
+    - name: Assert PermitEmptyPasswords
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PermitEmptyPasswords\s+no')
-        fail_msg: "PermitEmptyPasswords is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PermitEmptyPasswords\s+' ~ ssh_permit_empty_passwords)
+        fail_msg: "PermitEmptyPasswords is not set to '{{ ssh_permit_empty_passwords }}'"
 
-    - name: Assert HostbasedAuthentication no
+    - name: Assert HostbasedAuthentication
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('HostbasedAuthentication\s+no')
-        fail_msg: "HostbasedAuthentication is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('HostbasedAuthentication\s+' ~ ssh_hostbased_authentication)
+        fail_msg: "HostbasedAuthentication is not set to '{{ ssh_hostbased_authentication }}'"
 
-    - name: Assert PermitUserEnvironment no
+    - name: Assert PermitUserEnvironment
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PermitUserEnvironment\s+no')
-        fail_msg: "PermitUserEnvironment is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PermitUserEnvironment\s+' ~ ssh_permit_user_environment)
+        fail_msg: "PermitUserEnvironment is not set to '{{ ssh_permit_user_environment }}'"
 
-    - name: Assert StrictModes yes
+    - name: Assert StrictModes
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('StrictModes\s+yes')
-        fail_msg: "StrictModes is not set to 'yes'"
+        that: _ssh_verify_sshd_content is regex('StrictModes\s+' ~ ssh_strict_modes)
+        fail_msg: "StrictModes is not set to '{{ ssh_strict_modes }}'"
 
-    - name: Assert IgnoreRhosts yes
+    - name: Assert IgnoreRhosts
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('IgnoreRhosts\s+yes')
-        fail_msg: "IgnoreRhosts is not set to 'yes'"
+        that: _ssh_verify_sshd_content is regex('IgnoreRhosts\s+' ~ ssh_ignore_rhosts)
+        fail_msg: "IgnoreRhosts is not set to '{{ ssh_ignore_rhosts }}'"
 
     # ---- Authentication methods ----
 
-    - name: Assert AuthenticationMethods publickey
+    - name: Assert AuthenticationMethods
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AuthenticationMethods\s+publickey')
-        fail_msg: "AuthenticationMethods not set to 'publickey'"
+        that: _ssh_verify_sshd_content is regex('AuthenticationMethods\s+' ~ ssh_authentication_methods)
+        fail_msg: "AuthenticationMethods not set to '{{ ssh_authentication_methods }}'"
 
-    - name: Assert PubkeyAuthentication yes
+    - name: Assert PubkeyAuthentication
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PubkeyAuthentication\s+yes')
-        fail_msg: "PubkeyAuthentication is not set to 'yes'"
+        that: _ssh_verify_sshd_content is regex('PubkeyAuthentication\s+' ~ ssh_pubkey_authentication)
+        fail_msg: "PubkeyAuthentication is not set to '{{ ssh_pubkey_authentication }}'"
 
-    - name: Assert UsePAM yes
+    - name: Assert UsePAM
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('UsePAM\s+yes')
-        fail_msg: "UsePAM is not set to 'yes'"
+        that: _ssh_verify_sshd_content is regex('UsePAM\s+' ~ ssh_use_pam)
+        fail_msg: "UsePAM is not set to '{{ ssh_use_pam }}'"
 
-    - name: Assert KbdInteractiveAuthentication no
+    - name: Assert KbdInteractiveAuthentication
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('KbdInteractiveAuthentication\s+no')
-        fail_msg: "KbdInteractiveAuthentication is not set to 'no' (replaces deprecated ChallengeResponseAuthentication)"
+        that: _ssh_verify_sshd_content is regex('KbdInteractiveAuthentication\s+' ~ ssh_kbd_interactive_authentication)
+        fail_msg: "KbdInteractiveAuthentication is not set to '{{ ssh_kbd_interactive_authentication }}'"
 
     # ---- Forwarding and tunnels ----
 
-    - name: Assert X11Forwarding no
+    - name: Assert X11Forwarding
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('X11Forwarding\s+no')
-        fail_msg: "X11Forwarding is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('X11Forwarding\s+' ~ ssh_x11_forwarding)
+        fail_msg: "X11Forwarding is not set to '{{ ssh_x11_forwarding }}'"
 
-    - name: Assert AllowTcpForwarding no
+    - name: Assert AllowTcpForwarding
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AllowTcpForwarding\s+no')
-        fail_msg: "AllowTcpForwarding is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('AllowTcpForwarding\s+' ~ ssh_allow_tcp_forwarding)
+        fail_msg: "AllowTcpForwarding is not set to '{{ ssh_allow_tcp_forwarding }}'"
 
-    - name: Assert AllowAgentForwarding no
+    - name: Assert AllowAgentForwarding
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('AllowAgentForwarding\s+no')
-        fail_msg: "AllowAgentForwarding is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('AllowAgentForwarding\s+' ~ ssh_allow_agent_forwarding)
+        fail_msg: "AllowAgentForwarding is not set to '{{ ssh_allow_agent_forwarding }}'"
 
-    - name: Assert PermitTunnel no
+    - name: Assert PermitTunnel
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PermitTunnel\s+no')
-        fail_msg: "PermitTunnel is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PermitTunnel\s+' ~ ssh_permit_tunnel)
+        fail_msg: "PermitTunnel is not set to '{{ ssh_permit_tunnel }}'"
 
-    - name: Assert GatewayPorts no
+    - name: Assert GatewayPorts
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('GatewayPorts\s+no')
-        fail_msg: "GatewayPorts is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('GatewayPorts\s+' ~ ssh_gateway_ports)
+        fail_msg: "GatewayPorts is not set to '{{ ssh_gateway_ports }}'"
 
     # ---- Logging ----
 
-    - name: Assert LogLevel VERBOSE
+    - name: Assert LogLevel
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('LogLevel\s+VERBOSE')
-        fail_msg: "LogLevel is not set to 'VERBOSE'"
+        that: _ssh_verify_sshd_content is regex('LogLevel\s+' ~ ssh_log_level)
+        fail_msg: "LogLevel is not set to '{{ ssh_log_level }}'"
 
-    - name: Assert SyslogFacility AUTH
+    - name: Assert SyslogFacility
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('SyslogFacility\s+AUTH')
-        fail_msg: "SyslogFacility is not set to 'AUTH'"
+        that: _ssh_verify_sshd_content is regex('SyslogFacility\s+' ~ ssh_syslog_facility)
+        fail_msg: "SyslogFacility is not set to '{{ ssh_syslog_facility }}'"
 
     # ---- Network ----
 
-    - name: Assert UseDNS no
+    - name: Assert UseDNS
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('UseDNS\s+no')
-        fail_msg: "UseDNS is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('UseDNS\s+' ~ ssh_use_dns)
+        fail_msg: "UseDNS is not set to '{{ ssh_use_dns }}'"
 
-    - name: Assert Compression no
+    - name: Assert Compression
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('Compression\s+no')
-        fail_msg: "Compression is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('Compression\s+' ~ ssh_compression)
+        fail_msg: "Compression is not set to '{{ ssh_compression }}'"
 
     # ---- Session limits ----
 
     - name: Assert MaxAuthTries
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('MaxAuthTries\s+3')
-        fail_msg: "MaxAuthTries is not set to 3"
+        that: _ssh_verify_sshd_content is regex('MaxAuthTries\s+' ~ ssh_max_auth_tries | string)
+        fail_msg: "MaxAuthTries is not set to {{ ssh_max_auth_tries }}"
 
     - name: Assert MaxStartups
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('MaxStartups\s+10:30:60')
-        fail_msg: "MaxStartups is not set to '10:30:60'"
+        that: _ssh_verify_sshd_content is regex('MaxStartups\s+' ~ ssh_max_startups)
+        fail_msg: "MaxStartups is not set to '{{ ssh_max_startups }}'"
 
     - name: Assert LoginGraceTime
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('LoginGraceTime\s+60')
-        fail_msg: "LoginGraceTime is not set to 60"
+        that: _ssh_verify_sshd_content is regex('LoginGraceTime\s+' ~ ssh_login_grace_time | string)
+        fail_msg: "LoginGraceTime is not set to {{ ssh_login_grace_time }}"
 
     - name: Assert ClientAliveInterval
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('ClientAliveInterval\s+300')
-        fail_msg: "ClientAliveInterval is not set to 300"
+        that: _ssh_verify_sshd_content is regex('ClientAliveInterval\s+' ~ ssh_client_alive_interval | string)
+        fail_msg: "ClientAliveInterval is not set to {{ ssh_client_alive_interval }}"
 
     - name: Assert ClientAliveCountMax
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('ClientAliveCountMax\s+2')
-        fail_msg: "ClientAliveCountMax is not set to 2"
+        that: _ssh_verify_sshd_content is regex('ClientAliveCountMax\s+' ~ ssh_client_alive_count_max | string)
+        fail_msg: "ClientAliveCountMax is not set to {{ ssh_client_alive_count_max }}"
 
-    - name: Assert TCPKeepAlive no
+    - name: Assert TCPKeepAlive
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('TCPKeepAlive\s+no')
-        fail_msg: "TCPKeepAlive is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('TCPKeepAlive\s+' ~ ssh_tcp_keepalive)
+        fail_msg: "TCPKeepAlive is not set to '{{ ssh_tcp_keepalive }}'"
 
-    - name: Assert PrintMotd no
+    - name: Assert PrintMotd
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PrintMotd\s+no')
-        fail_msg: "PrintMotd is not set to 'no'"
+        that: _ssh_verify_sshd_content is regex('PrintMotd\s+' ~ ssh_print_motd)
+        fail_msg: "PrintMotd is not set to '{{ ssh_print_motd }}'"
 
-    - name: Assert PrintLastLog yes
+    - name: Assert PrintLastLog
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('PrintLastLog\s+yes')
-        fail_msg: "PrintLastLog is not set to 'yes'"
+        that: _ssh_verify_sshd_content is regex('PrintLastLog\s+' ~ ssh_print_last_log)
+        fail_msg: "PrintLastLog is not set to '{{ ssh_print_last_log }}'"
 
     - name: Assert MaxSessions
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('MaxSessions\s+10')
-        fail_msg: "MaxSessions is not set to 10"
+        that: _ssh_verify_sshd_content is regex('MaxSessions\s+' ~ ssh_max_sessions | string)
+        fail_msg: "MaxSessions is not set to {{ ssh_max_sessions }}"
 
     - name: Assert AcceptEnv configured
       ansible.builtin.assert:
@@ -355,8 +355,8 @@
 
     - name: Assert RekeyLimit configured with correct value
       ansible.builtin.assert:
-        that: _ssh_verify_sshd_content is regex('RekeyLimit\s+512M\s+1h')
-        fail_msg: "RekeyLimit is not set to '512M 1h'"
+        that: _ssh_verify_sshd_content is regex('RekeyLimit\s+' ~ ssh_rekey_limit | regex_escape)
+        fail_msg: "RekeyLimit is not set to '{{ ssh_rekey_limit }}'"
 
     - name: Assert hmac-sha2-512-etm in MACs
       ansible.builtin.assert:
