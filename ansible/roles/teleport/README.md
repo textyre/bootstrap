@@ -10,7 +10,7 @@ Installs and configures a Teleport node agent for zero-trust SSH access with cer
 4. **Validate join config** (`tasks/join.yml`) — validates join token configuration
 5. **Install** (`tasks/install.yml`, when `teleport_manage_install: true`) — installs Teleport via package manager (Arch), official APT/YUM repo (Debian/RedHat), or binary CDN download (Void/Gentoo). Binary path: version-checks existing install, downloads only if needed, deploys systemd unit file if `service_mgr == systemd`. **Triggers handler:** daemon-reload if unit file changes.
 6. **Configure** (`tasks/configure.yml`, when `teleport_manage_config: true`) — creates `/var/lib/teleport` (0750), deploys `/etc/teleport.yaml` (0600, no_log). **Triggers handler:** "Restart teleport" if config changes.
-7. **CA export** (`tasks/ca_export.yml`, when `teleport_export_ca_key: true`) — reads Teleport user CA from auth server via `tctl auth export`, writes to `teleport_ca_keys_file`, sets `ssh_teleport_integration: true` fact for the `ssh` role.
+7. **CA export** (`tasks/ca_export.yml`, when `teleport_export_ca_key: true`) — reads Teleport user CA from auth server via `tctl auth export`, writes to `teleport_ca_keys_file`, sets `teleport_ca_deployed: true` fact (the `ssh` role reads this to derive `ssh_teleport_integration`).
 8. **Service** (when `teleport_manage_service: true`) — enables and starts `teleport` service via `ansible.builtin.service` (init-system agnostic).
 9. **Verify** (`tasks/verify.yml`) — checks binary responds to `teleport version`, config file exists with mode 0600, reports service status (does not assert running state — requires live cluster).
 10. **Report** — writes execution summary via `common/report_phase.yml` and `common/report_render.yml`.
