@@ -1,3 +1,2 @@
 ---
-- name: Verify
-- import_playbook: ../shared/verify.yml
+- import_playbook: ../shared/verify.yml  # noqa: name[play]

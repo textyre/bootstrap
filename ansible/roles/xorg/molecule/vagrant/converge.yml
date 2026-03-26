@@ -1,3 +1,2 @@
 ---
-- name: Converge
-- import_playbook: ../shared/converge.yml
+- import_playbook: ../shared/converge.yml  # noqa: name[play]
