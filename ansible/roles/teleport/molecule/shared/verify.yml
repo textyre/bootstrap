@@ -22,9 +22,10 @@
     # -----------------------------------------------------------------------
     # 1. Teleport binary
     # -----------------------------------------------------------------------
-    - name: Check teleport binary is in PATH (which)
-      ansible.builtin.command:
-        cmd: which teleport
+    - name: Check teleport binary is in PATH (command -v)
+      ansible.builtin.shell:
+        cmd: command -v teleport
+        executable: /bin/bash
       register: _teleport_verify_which
       changed_when: false
       failed_when: _teleport_verify_which.rc != 0
