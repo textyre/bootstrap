@@ -1,0 +1,51 @@
+---
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare greeter Vagrant environment
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install python3 for JSON validation on Arch Linux
+      community.general.pacman:
+        name: python
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Install python3 for JSON validation on Debian family
+      ansible.builtin.apt:
+        name: python3
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Create stub greeter dist directory
+      ansible.builtin.file:
+        path: /opt/greeter-stub/greeter/dist/assets
+        state: directory
+        mode: '0755'
+
+    - name: Create stub index.html in dist
+      ansible.builtin.copy:
+        content: |
+          <!DOCTYPE html>
+          <html><head><title>ctOS Greeter Stub</title></head>
+          <body>Stub for molecule testing</body></html>
+        dest: /opt/greeter-stub/greeter/dist/index.html
+        mode: '0644'
+
+    - name: Create stub index.yml (theme metadata)
+      ansible.builtin.copy:
+        content: |
+          primary_html: "index.html"
+          secondary_html: "index.html"
+        dest: /opt/greeter-stub/greeter/index.yml
+        mode: '0644'
+
+    - name: Create /etc/lightdm config directory
+      ansible.builtin.file:
+        path: /etc/lightdm
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
