@@ -7,6 +7,12 @@ driver:
 platforms:
   - name: Localhost
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 provisioner:
   name: ansible
   config_options:
@@ -18,8 +24,8 @@ provisioner:
       localhost:
         ansible_connection: local
   playbooks:
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    converge: converge.yml
+    verify: verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
 

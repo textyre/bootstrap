@@ -1,6 +1,8 @@
 ---
 # === Конфигурация Docker ===
-# Daemon, сервис, группа пользователя
+# Docker daemon configuration: daemon.json, сервис, группа пользователя
+# Security baseline: CIS Docker Benchmark Level 1
+# Reference: wiki/standards/security-standards.md (Docker section)
 
 # Supported OS families (ROLE-003)
 _docker_supported_os:
@@ -10,31 +12,53 @@ _docker_supported_os:
   - Void
   - Gentoo
 
+# --- Subsystem toggles (ROLE-010) ---
+# Each subsystem can be independently disabled
+docker_manage_daemon: true
+docker_add_user_to_group: true
+docker_enable_service: true
+
 # Целевой пользователь (добавляется в группу docker)
 docker_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 
-# Добавить пользователя в группу docker
-docker_add_user_to_group: true
+# --- Daemon configuration (ROLE-010) ---
+# Dict-based config merged with docker_daemon_overwrite in template
+docker_daemon_config:
+  log-driver: "journald"
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
 
-# Включить и запустить сервис
-docker_enable_service: true
+# User overrides merged on top of docker_daemon_config (ROLE-010)
+# Example: docker_daemon_overwrite: { "default-runtime": "nvidia" }
+docker_daemon_overwrite: {}
 
-# Конфигурация daemon.json
-docker_log_driver: "journald"
-docker_log_max_size: "10m"
-docker_log_max_file: "3"
-docker_storage_driver: ""
+# --- CIS Docker Benchmark security settings (ROLE-004) ---
+# Each setting has a CIS control ID and individual toggle for granular control
 
-# Security features (CIS Docker Benchmark defaults)
+# CIS 2.8 — Enable user namespace support (userns-remap)
 # WARNING: userns-remap ломает volume permissions — используйте named volumes
 # или chown 100000:100000 на хосте. Подробности: https://docs.docker.com/engine/security/userns-remap/
-docker_userns_remap: "default"
+# Profile: developer relaxes this (empty string disables)
+docker_userns_remap: >-
+  {{ '' if 'developer' in (workstation_profiles | default([])) else 'default' }}
+
+# CIS 2.1 — Restrict network traffic between containers (icc)
 # ICC false блокирует прямое общение контейнеров через docker0.
 # Используйте user-defined networks (Docker Compose создаёт их автоматически)
-docker_icc: false
+# Profile: developer relaxes this (true allows inter-container communication)
+docker_icc: >-
+  {{ true if 'developer' in (workstation_profiles | default([])) else false }}
+
+# CIS 2.14 — Ensure containers are restricted from acquiring new privileges
 # live-restore позволяет контейнерам работать при рестарте dockerd.
 # Несовместимо с Docker Swarm (не используется в данном проекте)
 docker_live_restore: true
+
+# CIS 5.25 — Ensure that the on-failure container restart policy is set
 # no-new-privileges блокирует повышение привилегий через setuid в контейнерах.
 # При необходимости — per-container override: --security-opt no-new-privileges=false
 docker_no_new_privileges: true
+
+# Storage driver (empty = Docker auto-selects; set e.g. "overlay2" to force)
+docker_storage_driver: ""

@@ -1,8 +1,17 @@
 ---
-- name: Converge
+# Converge — minimal configuration (TEST-011: default-only run)
+- name: Converge — defaults only
   hosts: all
   become: true
   gather_facts: true
-
   roles:
-    - role: docker
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      # No vars — test with pure defaults (TEST-011)
+
+# Converge — representative configuration (TEST-006)
+- name: Converge — full configuration
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
