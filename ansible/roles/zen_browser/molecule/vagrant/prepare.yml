@@ -20,6 +20,7 @@
         name: testuser
         create_home: true
         shell: /bin/bash
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Grant testuser passwordless sudo
       ansible.builtin.copy:
@@ -27,14 +28,14 @@
         content: "testuser ALL=(ALL) NOPASSWD: ALL\n"
         mode: "0440"
         validate: "visudo -cf %s"
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Clone yay from AUR
       become: true
       become_user: testuser
-      ansible.builtin.git:
-        repo: https://aur.archlinux.org/yay.git
-        dest: /home/testuser/yay
-        version: HEAD
+      ansible.builtin.command:
+        cmd: git clone https://aur.archlinux.org/yay.git /home/testuser/yay
+        creates: /home/testuser/yay
       when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Build and install yay
@@ -43,6 +44,6 @@
       ansible.builtin.command:
         cmd: makepkg -si --noconfirm
         chdir: /home/testuser/yay
-      register: _yay_build
-      changed_when: "'yay' not in _yay_build.stdout"
+      register: _zen_browser_yay_build
+      changed_when: "'reinstalling yay' not in _zen_browser_yay_build.stdout"
       when: ansible_facts['os_family'] == 'Archlinux'

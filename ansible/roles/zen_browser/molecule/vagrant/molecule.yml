@@ -10,6 +10,11 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
+  - name: ubuntu-base
+    box: ubuntu-base
+    box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
+    memory: 2048
+    cpus: 2
 
 provisioner:
   name: ansible
@@ -25,6 +30,9 @@ provisioner:
       arch-vm:
         zen_browser_user: testuser
         zen_browser_set_default: false
+      ubuntu-base:
+        # zen_browser is Arch-only; disable on Ubuntu to skip all tasks
+        zen_browser_enabled: false
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

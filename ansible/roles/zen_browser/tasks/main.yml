@@ -164,7 +164,7 @@
           {{ zen_browser_desktop_file if zen_browser_set_default else 'disabled' }}
       tags: ['zen_browser', 'browser', 'report']
 
-    - name: "zen_browser — Execution Report"
+    - name: "Zen Browser — Execution Report"
       ansible.builtin.include_role:
         name: common
         tasks_from: report_render.yml
