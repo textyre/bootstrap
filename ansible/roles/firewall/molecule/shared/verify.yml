@@ -231,7 +231,9 @@
         that: "'enabled' in _firewall_verify_svc_enabled.stdout"
         fail_msg: >-
           nftables.service is not enabled (got '{{ _firewall_verify_svc_enabled.stdout }}').
-      when: firewall_enable_service | bool
+      when:
+        - not _firewall_verify_in_docker
+        - firewall_enable_service | bool
 
     # ---- Service active state (skip in Docker -- nftables needs kernel nf_tables) ----
     # nftables is a Type=oneshot service: after successful execution it goes
