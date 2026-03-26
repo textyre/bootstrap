@@ -42,7 +42,7 @@ teleport_config_overwrite: {}       # Произвольные ключи в tel
   - `/var/lib/teleport/` (0750) — директория данных
   - `/etc/teleport.yaml` (0600) — конфигурация агента (v3-формат)
 - **Systemd unit** (только binary-метод): `/etc/systemd/system/teleport.service`
-- **CA-экспорт**: при `teleport_export_ca_key: true` — записывает CA-ключ в `teleport_ca_keys_file` и устанавливает fact `teleport_ca_deployed: true` (роль `ssh` читает его для вычисления `ssh_teleport_integration`)
+- **CA-экспорт**: при `teleport_export_ca_key: true` — записывает CA-ключ в `teleport_ca_keys_file` и устанавливает fact `ssh_teleport_integration: true` для роли `ssh`
 
 ## Зависимости
 
