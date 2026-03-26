@@ -41,6 +41,22 @@ main.yml
 └── report_render (ROLE-008)
 ```
 
+## Execution flow
+
+1. **Preflight** — asserts the OS family is one of the 5 supported distros (Archlinux, Debian, RedHat, Void, Gentoo). Fails immediately if unsupported.
+2. **Load OS variables** — includes `vars/<os_family>.yml` to resolve package names (`git_packages`, `git_lfs_package`) for the detected OS family.
+3. **Install** (`tasks/install.yml`) — installs `git` via package manager. Installs `git-lfs` if `git_lfs_enabled` is true. Skips LFS package gracefully if toggle is false.
+4. **Configure users** (`tasks/configure_user.yml`) — loops over `[git_owner] + git_additional_users`, running all per-user configuration as `become_user`. For each user:
+   - 4a. **Base config** (`tasks/config_base.yml`) — sets `user.name`, `user.email`, `init.defaultBranch`, `core.editor`, `pull.rebase`, `push.autoSetupRemote`, `core.autocrlf` via `community.general.git_config`. Adds `safe.directory` entries (CVE-2022-24765) idempotently.
+   - 4b. **Extra config** (`tasks/config_extra.yml`) — applies arbitrary key-value pairs from `git_config_extra | combine(git_config_overwrite)`. Skipped if both dicts are empty.
+   - 4c. **Signing** (`tasks/signing.yml`) — validates `signing_key` is set when `signing_method` is `ssh` or `gpg`. Fails if key is empty. Sets `gpg.format`, `user.signingKey`, `commit.gpgSign`. Skipped if `git_manage_signing` is false.
+   - 4d. **Aliases** (`tasks/aliases.yml`) — merges three layers: `git_aliases_preset` + `git_aliases_extra` + `git_aliases_overwrite`. Sets each as `alias.<name>`. Skipped if `git_manage_aliases` is false.
+   - 4e. **Credential** (`tasks/credential.yml`) — sets `credential.helper` per user (user-level override or shared default). Skipped if `git_manage_credential` is false.
+   - 4f. **LFS init** (`tasks/lfs_user.yml`) — runs `git lfs install --skip-repo` to register LFS hooks in the user's gitconfig. Skipped if `git_lfs_enabled` is false.
+   - 4g. **Hooks** — creates `git_hooks_path` directory (`~/.config/git/hooks` by default) and sets `core.hooksPath`. Skipped if `git_manage_hooks` is false.
+5. **Verify** (`tasks/verify.yml`) — checks `git --version`, verifies `user.name` matches expected for owner, validates `commit.gpgSign` if signing is enabled, checks `git lfs version` if LFS is enabled, asserts hooks directory exists if hooks are managed. Fails with descriptive messages on mismatch.
+6. **Report** — writes execution report via `common/report_phase.yml` and `common/report_render.yml` for structured output.
+
 ## Variables
 
 ### User config
@@ -112,6 +128,41 @@ git_owner:
 ## Supported platforms
 
 Archlinux, Debian/Ubuntu, RedHat/Fedora, Void Linux, Gentoo
+
+## Logs
+
+Git is a client-side tool — it does not produce log files or run a service. All output is from Ansible execution.
+
+### Ansible output
+
+| Source | How to access | Contents |
+|--------|--------------|----------|
+| Execution report | Ansible stdout (last task) | Structured phase report: preflight, install, configure users, verify |
+| Per-task output | Ansible stdout with `-v` flag | Individual `community.general.git_config` results, assertion messages |
+| JSON report fact | `_git_phases` Ansible fact | Machine-readable phase data for CI/CD pipelines |
+
+### Reading the output
+
+- Verification failure: look for `FAILED` lines in the verify phase — `fail_msg` shows expected vs actual values
+- Signing misconfiguration: the `Assert commit signing is enabled` task shows the expected `commit.gpgSign` value and what was found
+- Safe directory changes: `CVE-2022-24765 | Add git safe.directory entries` tasks report `changed` when new entries are added
+
+### Log rotation
+
+Not applicable — git does not produce persistent log files. Ansible output is ephemeral unless captured by CI/CD.
+
+## Troubleshooting
+
+| Symptom | Diagnosis | Fix |
+|---------|-----------|-----|
+| Role fails at "Assert supported operating system" | OS family not in the supported list | Check `ansible_facts['os_family']` — must be one of: Archlinux, Debian, RedHat, Void, Gentoo |
+| `signing_method=ssh but signing_key is empty` | User dict has `signing_method: ssh` but no `signing_key` | Set `signing_key` to the SSH public key path (e.g., `~/.ssh/id_ed25519.pub`) |
+| `git user.name mismatch` in verify | `user.name` in gitconfig does not match `git_owner.user_name` | Check if another tool or dotfile overwrites `~/.gitconfig` after the role runs |
+| `git lfs version` fails in verify | git-lfs package not installed | Ensure `git_lfs_enabled: true` (default) and the package name is correct in `vars/<os_family>.yml` |
+| Aliases not applied | `git_manage_aliases` is false | Set `git_manage_aliases: true` in inventory. Check three-layer merge order: preset < extra < overwrite |
+| `credential.helper` not set | Per-user override is empty and shared default was changed | Check `_git_current_user.credential_helper` and `git_credential_helper` — first non-empty wins |
+| Hooks directory missing after role run | `git_manage_hooks` defaults to `false` | Set `git_manage_hooks: true` in inventory to enable global hooks |
+| Safe directory entries duplicated | Multiple runs with different `git_safe_directories` lists | Role checks existing entries idempotently — duplicates indicate manual edits to `~/.gitconfig` |
 
 ## Tags
 
@@ -233,3 +284,26 @@ molecule/
     molecule.yml    # Vagrant driver (Arch + Ubuntu)
     prepare.yml     # Python bootstrap, keyring refresh, apt cache
 ```
+
+## File map
+
+| File | Purpose | Edit? |
+|------|---------|-------|
+| `defaults/main.yml` | All configurable settings: user, toggles, aliases, credential, hooks, extra config | No — override via inventory (`group_vars/` or `host_vars/`) |
+| `vars/archlinux.yml` | Arch Linux package names | Only when changing Arch package names |
+| `vars/debian.yml` | Debian/Ubuntu package names | Only when changing Debian package names |
+| `vars/redhat.yml` | RedHat/Fedora package names | Only when changing RedHat package names |
+| `vars/void.yml` | Void Linux package names | Only when changing Void package names |
+| `vars/gentoo.yml` | Gentoo package names | Only when changing Gentoo package names |
+| `tasks/main.yml` | Execution flow orchestrator — preflight, install, user loop, verify, report | When adding/removing execution phases |
+| `tasks/install.yml` | Package installation (git + git-lfs) | Rarely — package names come from vars |
+| `tasks/configure_user.yml` | Per-user configuration dispatcher — includes all config subtasks | When adding new per-user subsystems |
+| `tasks/config_base.yml` | Core git settings (user.name, editor, safe.directory, etc.) | When adding new base config keys |
+| `tasks/config_extra.yml` | Arbitrary config from `git_config_extra` dict | Rarely |
+| `tasks/signing.yml` | SSH and GPG commit signing configuration | When changing signing logic |
+| `tasks/aliases.yml` | Three-layer alias merge and apply | Rarely |
+| `tasks/credential.yml` | Credential helper configuration | Rarely |
+| `tasks/lfs_user.yml` | Per-user `git lfs install --skip-repo` | Rarely |
+| `tasks/verify.yml` | Post-deploy self-checks (ROLE-005) | When adding new verification assertions |
+| `meta/main.yml` | Role metadata (Galaxy info, dependencies) | When changing role metadata |
+| `molecule/` | Test scenarios (default, docker, vagrant) | When changing test coverage |
