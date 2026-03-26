@@ -2,13 +2,21 @@
 galaxy_info:
   role_name: vaultwarden
   author: textyre
-  description: Vaultwarden (self-hosted Bitwarden) — менеджер паролей и секретов
+  description: Vaultwarden (self-hosted Bitwarden) -- password and secrets manager
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [vaultwarden, bitwarden, passwords, secrets, security]
+    - name: Ubuntu
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [vaultwarden, bitwarden, passwords, secrets, security, docker]
 dependencies:
   - role: docker
   - role: caddy
