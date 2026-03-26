@@ -31,6 +31,14 @@ gpu_drivers_nvidia_blacklist_nouveau: true # blacklist nouveau (proprietary/open
 gpu_drivers_manage_initramfs: true        # regenerate initramfs after driver install
 gpu_drivers_nvidia_suspend: true          # enable nvidia-suspend/hibernate/resume.service (systemd only)
 
+# ---- Security management (ROLE-004) ----
+# Master toggle for security-hardening tasks: KMS modeset enforcement and nouveau blacklisting.
+# Tags: security, gpu_security_kms (KMS), gpu_security_blacklist (module blacklist).
+# CIS mapping: closest benchmark is kernel module restriction (analogous to CIS 3.5 series);
+# no direct GPU CIS/STIG control exists — these are workstation hardening best practices.
+# Set to false only in environments where NVIDIA proprietary drivers must coexist with nouveau.
+gpu_drivers_manage_security: true
+
 # ---- NVIDIA modprobe options (ROLE-010) ----
 # NVreg_PreserveVideoMemoryAllocations=1 is required for stable suspend/resume with NVIDIA.
 # Set to 0 to disable if not using suspend or if causing issues with older cards.

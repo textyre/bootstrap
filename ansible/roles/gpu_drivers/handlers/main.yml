@@ -2,11 +2,17 @@
 # Handlers for gpu_drivers role
 
 # ---- Initramfs regeneration (init-agnostic via listen:) ----
+# changed_when: true is intentional — these commands always regenerate the
+# initramfs image when they run; no "already up to date" exit code exists for
+# mkinitcpio, dracut, or update-initramfs.
+# Idempotence is preserved at the notify level: handlers only fire when a
+# config template task reports changed. On a second run with no config changes
+# no task notifies the handler, so it never executes and changed=0.
 
 - name: Regenerate initramfs (mkinitcpio)
   ansible.builtin.command: mkinitcpio -P
   listen: "regenerate initramfs"
-  changed_when: true
+  changed_when: true  # always produces a new image when it runs — see comment above
   when:
     - gpu_drivers_initramfs_tool is defined
     - gpu_drivers_initramfs_tool == 'mkinitcpio'
@@ -14,7 +20,7 @@
 - name: Regenerate initramfs (dracut)
   ansible.builtin.command: dracut --force
   listen: "regenerate initramfs"
-  changed_when: true
+  changed_when: true  # always produces a new image when it runs — see comment above
   when:
     - gpu_drivers_initramfs_tool is defined
     - gpu_drivers_initramfs_tool == 'dracut'
@@ -22,7 +28,7 @@
 - name: Regenerate initramfs (initramfs-tools)
   ansible.builtin.command: update-initramfs -u -k all
   listen: "regenerate initramfs"
-  changed_when: true
+  changed_when: true  # always produces a new image when it runs — see comment above
   when:
     - gpu_drivers_initramfs_tool is defined
     - gpu_drivers_initramfs_tool == 'initramfs-tools'

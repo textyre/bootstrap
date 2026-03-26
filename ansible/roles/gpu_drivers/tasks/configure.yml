@@ -3,6 +3,10 @@
 # SRP: only deploys config files (modprobe.d, environment.d) and enables services; never installs packages.
 
 # ---- NVIDIA: DRM KMS modprobe options ----
+# Security: nvidia-drm.modeset=1 enables kernel mode setting required for Wayland DRM leasing
+# and prevents display buffer access without DRM authentication (workstation security best practice,
+# analogous to CIS 3.5 kernel module hardening). Controlled by gpu_drivers_manage_security.
+# Tags: security, gpu_security_kms
 
 - name: Deploy NVIDIA DRM KMS modprobe options
   ansible.builtin.template:
@@ -13,10 +17,11 @@
     mode: '0644'
   notify: regenerate initramfs
   when:
+    - gpu_drivers_manage_security | bool
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_kms
-  tags: ['gpu', 'nvidia']
+  tags: ['gpu', 'nvidia', 'security', 'gpu_security_kms']
 
 - name: Remove NVIDIA modprobe options (not applicable)
   ansible.builtin.file:
@@ -29,6 +34,10 @@
   tags: ['gpu', 'nvidia']
 
 # ---- NVIDIA: blacklist nouveau ----
+# Security: blacklisting the nouveau kernel module when the proprietary driver is active prevents
+# module substitution and ensures only the intended driver manages the GPU.
+# Analogous to CIS 3.5.x (disable unused kernel modules). Controlled by gpu_drivers_manage_security.
+# Tags: security, gpu_security_blacklist
 
 - name: Deploy nouveau blacklist (proprietary/open-kernel)
   ansible.builtin.template:
@@ -38,10 +47,11 @@
     group: root
     mode: '0644'
   when:
+    - gpu_drivers_manage_security | bool
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_blacklist_nouveau
-  tags: ['gpu', 'nvidia']
+  tags: ['gpu', 'nvidia', 'security', 'gpu_security_blacklist']
 
 - name: Remove nouveau blacklist (not applicable)
   ansible.builtin.file:
@@ -54,6 +64,10 @@
   tags: ['gpu', 'nvidia']
 
 # ---- NVIDIA: suspend/resume systemd services ----
+# ROLE-002: these services are systemd-specific; guarded by service_mgr check.
+# Non-systemd init systems (runit, openrc, s6, dinit) do not use systemd service units.
+# GPU kernel module suspend/resume on non-systemd is handled by the init system's
+# power management hooks — no equivalent service management needed here.
 
 - name: Enable NVIDIA suspend/resume systemd services
   ansible.builtin.systemd:
@@ -100,6 +114,19 @@
       {{ 'skipped (NVIDIA active or non-systemd)' if _gpu_drivers_disable_nvidia_services is skipped
          else 'attempted (services may not exist if driver not installed)' }}
   when: _gpu_drivers_disable_nvidia_services is defined
+  tags: ['gpu', 'nvidia']
+
+# ROLE-002: note non-systemd path for NVIDIA suspend services.
+- name: Note NVIDIA suspend services skipped on non-systemd init
+  ansible.builtin.debug:
+    msg: >-
+      NVIDIA suspend/resume systemd service units are not managed on
+      {{ ansible_facts['service_mgr'] }} — power management hooks are
+      handled by the init system directly.
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_suspend
+    - ansible_facts['service_mgr'] != 'systemd'
   tags: ['gpu', 'nvidia']
 
 # ---- VA-API environment variables ----
