@@ -5,6 +5,7 @@
   gather_facts: true
   vars_files:
     - ../../defaults/main.yml
+    - ../../vars/main.yml
 
   tasks:
 
@@ -148,10 +149,10 @@
         that: "'Ansible' in _caddy_verify_compose_text"
         fail_msg: "Ansible managed marker not found in docker-compose.yml"
 
-    - name: Assert docker-compose.yml uses caddy:2-alpine image
+    - name: Assert docker-compose.yml uses correct image
       ansible.builtin.assert:
-        that: "'caddy:2-alpine' in _caddy_verify_compose_text"
-        fail_msg: "caddy:2-alpine image not found in docker-compose.yml"
+        that: "'{{ caddy_docker_image }}' in _caddy_verify_compose_text"
+        fail_msg: "{{ caddy_docker_image }} image not found in docker-compose.yml"
 
     - name: Assert docker-compose.yml maps HTTPS port
       ansible.builtin.assert:
@@ -257,19 +258,19 @@
       when: _caddy_verify_docker_info.rc != 0
 
     # ===========================================================
-    # CA trust (Arch Linux + internal TLS only, requires Docker daemon)
+    # CA trust (internal TLS only, requires Docker daemon)
     # ===========================================================
 
     - name: Verify CA trust deployment
       when:
         - caddy_tls_mode == "internal"
         - _caddy_verify_docker_info.rc == 0
-        - ansible_facts['os_family'] == 'Archlinux'
+        - caddy_manage_certs | default(true) | bool
       block:
 
         - name: Stat Caddy root CA in system trust store
           ansible.builtin.stat:
-            path: /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+            path: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
           register: _caddy_verify_ca_cert
 
         - name: Assert Caddy root CA exists in trust store
@@ -279,7 +280,7 @@
               - _caddy_verify_ca_cert.stat.mode == '0644'
             fail_msg: >-
               Caddy root CA not found at
-              /etc/ca-certificates/trust-source/anchors/caddy-local.crt
+              {{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}
               or has wrong permissions
 
     # ===========================================================
@@ -294,4 +295,4 @@
           Docker checks: {{ 'enabled' if _caddy_verify_docker_info.rc == 0 else 'skipped (no daemon)' }}.
           CA trust checks: {{ 'enabled' if (caddy_tls_mode == 'internal' and
           _caddy_verify_docker_info.rc == 0 and
-          ansible_facts['os_family'] == 'Archlinux') else 'skipped' }}.
+          (caddy_manage_certs | default(true) | bool)) else 'skipped' }}.

@@ -1,0 +1,65 @@
+---
+# === Caddy — in-role verification ===
+# Called from main.yml after configuration is complete
+# Verifies the role's contract: Caddy is deployed, configured, and running
+
+# ---- Config file verification ----
+
+- name: Verify Caddyfile exists and is managed
+  ansible.builtin.lineinfile:
+    path: "{{ caddy_base_dir }}/Caddyfile"
+    regexp: '^# Ansible managed'
+    line: "# Ansible managed"
+  check_mode: true
+  register: _caddy_verify_caddyfile
+  failed_when: _caddy_verify_caddyfile is changed
+  tags: ['caddy']
+
+- name: Verify docker-compose.yml exists and is managed
+  ansible.builtin.lineinfile:
+    path: "{{ caddy_base_dir }}/docker-compose.yml"
+    regexp: '^# Ansible managed'
+    line: "# Ansible managed"
+  check_mode: true
+  register: _caddy_verify_compose
+  failed_when: _caddy_verify_compose is changed
+  tags: ['caddy']
+
+# ---- Runtime verification (Docker-dependent) ----
+
+- name: Check Docker daemon availability
+  ansible.builtin.command:
+    cmd: docker info
+  register: _caddy_verify_docker
+  changed_when: false
+  failed_when: false
+  tags: ['caddy']
+
+- name: Verify Caddy container and network
+  when: _caddy_verify_docker.rc == 0
+  tags: ['caddy']
+  block:
+
+    - name: Check caddy container is running
+      ansible.builtin.command:
+        cmd: docker inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' caddy
+      register: _caddy_verify_container
+      changed_when: false
+      failed_when: false
+
+    - name: Assert caddy container is running
+      ansible.builtin.assert:
+        that:
+          - _caddy_verify_container.rc == 0
+          - _caddy_verify_container.stdout == 'running'
+        fail_msg: >-
+          Caddy container is not running.
+          Status: {{ _caddy_verify_container.stdout | default('not found') }}
+        success_msg: "Caddy container is running"
+
+    - name: Validate Caddyfile syntax inside container
+      ansible.builtin.command:
+        cmd: docker exec caddy caddy validate --config /etc/caddy/Caddyfile
+      register: _caddy_verify_syntax
+      changed_when: false
+      failed_when: _caddy_verify_syntax.rc != 0

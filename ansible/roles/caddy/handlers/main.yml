@@ -1,12 +1,12 @@
 ---
 - name: Restart caddy
-  ansible.builtin.command:
-    cmd: docker compose -f {{ caddy_base_dir }}/docker-compose.yml restart
-  changed_when: true
+  community.docker.docker_compose_v2:
+    project_src: "{{ caddy_base_dir }}"
+    state: restarted
   listen: Restart caddy
 
-- name: Reload caddy
+- name: Update CA trust
   ansible.builtin.command:
-    cmd: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+    cmd: "{{ _caddy_update_ca_trust_cmd[ansible_facts['os_family']] }}"
   changed_when: true
-  listen: Reload caddy
+  listen: Update CA trust
