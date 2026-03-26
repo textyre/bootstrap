@@ -45,13 +45,15 @@
       tags: [ssh_keys]
 
     # Ensure .ssh directory for all present users (shared by authorized_keys and keygen)
+    # Loops over _ssh_keys_present_users (not just with_keys) so keygen-only users
+    # (state: present, no ssh_keys) also get their .ssh directory created.
     - name: "Ensure .ssh directory exists for present users"
       ansible.builtin.file:
         path: "{{ '/root' if item.name == 'root' else '/home/' + item.name }}/.ssh"
         state: directory
         owner: "{{ item.name }}"
         mode: "0700"
-      loop: "{{ _ssh_keys_present_users_with_keys }}"
+      loop: "{{ _ssh_keys_present_users }}"
       loop_control:
         label: "{{ item.name }}"
       tags: [ssh_keys, security]

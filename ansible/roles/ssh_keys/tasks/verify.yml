@@ -11,13 +11,12 @@
 #   packages  — role does not install any packages
 #   services  — role does not manage any service unit
 
-- name: "Look up home directories for present users"
+# Fetch the full passwd database once so getent_passwd is populated for all users.
+# Calling getent with key: in a loop overwrites getent_passwd on each iteration,
+# so only the last key survives — subsequent lookups for earlier users would fail.
+- name: "Get all user home directories from passwd"
   ansible.builtin.getent:
     database: passwd
-    key: "{{ item.name }}"
-  loop: "{{ _ssh_keys_present_users_with_keys }}"
-  loop_control:
-    label: "{{ item.name }}"
   tags: [ssh_keys]
 
 - name: "Verify .ssh directory permissions for present users"
