@@ -13,7 +13,9 @@
 
 - name: Set current governor fact
   ansible.builtin.set_fact:
-    power_management_current_governor: "{{ (power_management_governor_raw.content | b64decode | trim) if 'content' in power_management_governor_raw else 'unknown' }}"
+    power_management_current_governor: >-
+      {{ (power_management_governor_raw.content | b64decode | trim)
+         if 'content' in power_management_governor_raw else 'unknown' }}
   tags: ['power', 'cpu']
 
 # ---- Validate governor value ----

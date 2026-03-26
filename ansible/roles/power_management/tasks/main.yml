@@ -162,7 +162,7 @@
   when: power_management_enabled | bool
   tags: ['power', 'report']
 
-- name: "power_management — Execution Report"
+- name: "Power management — Execution Report"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
