@@ -10,4 +10,15 @@
         vault_vaultwarden_admin_token: "molecule-test-token-not-for-production"
 
   roles:
-    - role: vaultwarden
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# TEST-011: Edge case — vaultwarden_enabled: false (skip path)
+- name: Converge — disabled role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        vaultwarden_enabled: false

@@ -15,4 +15,17 @@
   tasks:
     - name: Include vaultwarden role (without meta dependencies)
       ansible.builtin.include_role:
-        name: vaultwarden
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# TEST-011: Edge case — vaultwarden_enabled: false (skip path)
+- name: Converge — disabled role
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Include vaultwarden role disabled (without meta dependencies)
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+      vars:
+        vaultwarden_enabled: false
