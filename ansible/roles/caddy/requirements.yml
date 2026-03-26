@@ -1,0 +1,11 @@
+---
+# Role dependencies for caddy (TEST-010).
+# The 'common' role is used via include_role for report_phase and report_render.
+#
+# Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
+# so the 'common' and 'docker' roles are resolved directly from the source tree — no galaxy
+# install required. The dependency section in meta/main.yml (docker) is a local monorepo role,
+# not a public role.
+roles:
+  - name: common
+  - name: docker

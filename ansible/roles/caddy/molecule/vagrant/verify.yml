@@ -1,0 +1,3 @@
+---
+# TEST-003: stub required in every scenario directory.
+- ansible.builtin.import_playbook: ../shared/verify.yml
