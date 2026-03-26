@@ -1,109 +1,229 @@
 ---
 # === Reverse Proxy (Caddy) ===
-# Развёртывание Caddy в Docker с автоматическим TLS
+# Dockerized HTTPS reverse proxy with automatic TLS
+# Validate -> Network -> Directories -> Config -> Service -> CA Trust -> Browser -> Verify -> Report
 
-# ---- Создание Docker network ----
+- name: Caddy role
+  when: caddy_enabled | bool
+  tags: ['caddy']
+  block:
 
-- name: Create Docker network for proxy
-  community.docker.docker_network:
-    name: "{{ caddy_docker_network }}"
-    state: present
-  when: caddy_enabled
-  tags: ['caddy', 'proxy', 'configure']
+    # ======================================================================
+    # ---- Validation ----
+    # ======================================================================
 
-# ---- Создание директорий ----
+    - name: Include internal variable mappings
+      ansible.builtin.include_vars: main.yml
+      tags: ['caddy']
 
-- name: Create Caddy directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  loop:
-    - "{{ caddy_base_dir }}"
-    - "{{ caddy_base_dir }}/sites"
-    - "{{ caddy_base_dir }}/data"
-    - "{{ caddy_base_dir }}/config"
-  when: caddy_enabled
-  tags: ['caddy', 'proxy', 'configure']
+    - name: Validate caddy configuration
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['caddy']
 
-# ---- Конфигурация ----
+    # ======================================================================
+    # ---- Docker network ----
+    # ======================================================================
 
-- name: Deploy Caddyfile
-  ansible.builtin.template:
-    src: Caddyfile.j2
-    dest: "{{ caddy_base_dir }}/Caddyfile"
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Reload caddy
-  when: caddy_enabled
-  tags: ['caddy', 'proxy', 'configure']
+    - name: Create Docker network for proxy
+      community.docker.docker_network:
+        name: "{{ caddy_docker_network }}"
+        state: present
+      when: caddy_manage_network | bool
+      tags: ['caddy', 'caddy:configure']
 
-- name: Deploy docker-compose.yml
-  ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ caddy_base_dir }}/docker-compose.yml"
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Restart caddy
-  when: caddy_enabled
-  tags: ['caddy', 'proxy', 'configure']
+    - name: "Report: Docker network"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "Docker network"
+        common_rpt_detail: "{{ caddy_docker_network }}"
+        common_rpt_status: "{{ 'done' if caddy_manage_network | bool else 'skip' }}"
+      tags: ['caddy', 'report']
 
-# ---- Сервис ----
+    # ======================================================================
+    # ---- Directories ----
+    # ======================================================================
 
-- name: Start Caddy with docker compose
-  community.docker.docker_compose_v2:
-    project_src: "{{ caddy_base_dir }}"
-    state: present
-  when: caddy_enabled
-  tags: ['caddy', 'proxy', 'service']
+    - name: Create Caddy directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - "{{ caddy_base_dir }}"
+        - "{{ caddy_base_dir }}/sites"
+        - "{{ caddy_base_dir }}/data"
+        - "{{ caddy_base_dir }}/config"
+      tags: ['caddy', 'caddy:configure']
 
-# ---- Доверие к локальному CA (только при tls internal) ----
+    # ======================================================================
+    # ---- Configuration ----
+    # ======================================================================
 
-- name: Copy Caddy root CA to system trust store
-  ansible.builtin.command:
-    cmd: docker cp caddy:/data/caddy/pki/authorities/local/root.crt /etc/ca-certificates/trust-source/anchors/caddy-local.crt
-  changed_when: true
-  when: caddy_enabled and caddy_tls_mode == "internal"
-  tags: ['caddy', 'proxy', 'configure']
+    - name: Deploy Caddyfile
+      ansible.builtin.template:
+        src: Caddyfile.j2
+        dest: "{{ caddy_base_dir }}/Caddyfile"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload caddy
+      tags: ['caddy', 'caddy:configure']
 
-- name: Fix Caddy root CA permissions
-  ansible.builtin.file:
-    path: /etc/ca-certificates/trust-source/anchors/caddy-local.crt
-    mode: '0644'
-  when: caddy_enabled and caddy_tls_mode == "internal"
-  tags: ['caddy', 'proxy', 'configure']
+    - name: Deploy docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ caddy_base_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart caddy
+      tags: ['caddy', 'caddy:configure']
 
-- name: Update system CA trust
-  ansible.builtin.command:
-    cmd: update-ca-trust
-  changed_when: true
-  when: caddy_enabled and caddy_tls_mode == "internal"
-  tags: ['caddy', 'proxy', 'configure']
+    - name: "Report: Configuration"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "Configuration"
+        common_rpt_detail: "tls={{ caddy_tls_mode }}"
+      tags: ['caddy', 'report']
 
-# ---- Доверие к CA в браузерах (Firefox/Zen не используют системный trust store) ----
+    # ======================================================================
+    # ---- Service ----
+    # ======================================================================
 
-- name: Create Zen Browser distribution directory
-  ansible.builtin.file:
-    path: /usr/lib/zen-browser/distribution
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  when: caddy_enabled and caddy_tls_mode == "internal"
-  failed_when: false
-  tags: ['caddy', 'proxy', 'configure']
+    - name: Start Caddy with docker compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ caddy_base_dir }}"
+        state: present
+      tags: ['caddy', 'caddy:service']
 
-- name: Configure Zen Browser to trust system CA
-  ansible.builtin.copy:
-    dest: /usr/lib/zen-browser/distribution/policies.json
-    content: '{"policies":{"Certificates":{"ImportEnterpriseRoots":true}}}'
-    owner: root
-    group: root
-    mode: '0644'
-  when: caddy_enabled and caddy_tls_mode == "internal"
-  failed_when: false
-  tags: ['caddy', 'proxy', 'configure']
+    - name: "Report: Service"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "Service"
+        common_rpt_detail: "{{ caddy_container_name }}"
+      tags: ['caddy', 'report']
+
+    # ======================================================================
+    # ---- CA trust (internal TLS only) ----
+    # ======================================================================
+
+    - name: Deploy CA trust to host system
+      when:
+        - caddy_tls_mode == "internal"
+        - caddy_manage_certs | bool
+      tags: ['caddy', 'caddy:configure']
+      block:
+
+        - name: Extract Caddy root CA from container
+          ansible.builtin.command:
+            cmd: >-
+              docker cp {{ caddy_container_name }}:/data/caddy/pki/authorities/local/root.crt
+              {{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}
+            creates: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
+          register: _caddy_ca_extract
+
+        - name: Set Caddy root CA permissions
+          ansible.builtin.file:
+            path: "{{ _caddy_ca_trust_dir[ansible_facts['os_family']] }}/{{ _caddy_ca_cert_filename }}"
+            mode: '0644'
+
+        - name: Update system CA trust database
+          ansible.builtin.command:
+            cmd: "{{ _caddy_update_ca_trust_cmd[ansible_facts['os_family']] }}"
+          changed_when: _caddy_ca_extract is changed
+
+    - name: "Report: CA trust"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "CA trust"
+        common_rpt_detail: "{{ ansible_facts['os_family'] }}"
+        common_rpt_status: "{{ 'done' if (caddy_tls_mode == 'internal' and caddy_manage_certs | bool) else 'skip' }}"
+      tags: ['caddy', 'report']
+
+    # ======================================================================
+    # ---- Browser enterprise root import (internal TLS only) ----
+    # ======================================================================
+
+    - name: Configure browsers to trust system CA
+      when:
+        - caddy_tls_mode == "internal"
+        - caddy_manage_browser_trust | bool
+      tags: ['caddy', 'caddy:configure']
+      block:
+
+        - name: Check browser distribution directories exist
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop: "{{ _caddy_browser_policy_dirs }}"
+          register: _caddy_browser_dirs
+
+        - name: Deploy browser enterprise root policy
+          ansible.builtin.copy:
+            dest: "{{ item.item }}/policies.json"
+            content: "{{ _caddy_browser_policy | to_nice_json }}\n"
+            owner: root
+            group: root
+            mode: '0644'
+          loop: "{{ _caddy_browser_dirs.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: item.stat.exists
+
+    - name: "Report: Browser trust"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "Browser trust"
+        common_rpt_status: "{{ 'done' if (caddy_tls_mode == 'internal' and caddy_manage_browser_trust | bool) else 'skip' }}"
+      tags: ['caddy', 'report']
+
+    # ======================================================================
+    # ---- Verification ----
+    # ======================================================================
+
+    - name: Flush handlers before verification
+      ansible.builtin.meta: flush_handlers
+      tags: ['caddy']
+
+    - name: Verify caddy
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['caddy']
+
+    # ======================================================================
+    # ---- Execution report ----
+    # ======================================================================
+
+    - name: "Report: Verification"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_phase: "Verification"
+        common_rpt_detail: "passed"
+      tags: ['caddy', 'report']
+
+    - name: "Caddy -- Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_caddy_phases"
+        common_rpt_title: "caddy"
+      tags: ['caddy', 'report']

@@ -1,8 +1,8 @@
 # {{ ansible_managed }}
 services:
   caddy:
-    image: caddy:2-alpine
-    container_name: caddy
+    image: {{ caddy_image }}
+    container_name: {{ caddy_container_name }}
     restart: unless-stopped
     ports:
       - "{{ caddy_https_port }}:443"

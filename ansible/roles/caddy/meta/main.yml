@@ -2,12 +2,24 @@
 galaxy_info:
   role_name: caddy
   author: textyre
-  description: Reverse proxy (Caddy) — единый HTTPS proxy для self-hosted сервисов
+  description: Dockerized HTTPS reverse proxy for self-hosted services
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [caddy, proxy, https, reverseproxy]
+    - name: Ubuntu
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: EL
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+  galaxy_tags: [caddy, proxy, https, reverseproxy, docker]
 dependencies:
   - role: docker

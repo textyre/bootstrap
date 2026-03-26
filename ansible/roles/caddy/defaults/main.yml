@@ -1,24 +1,58 @@
 ---
 # === Reverse Proxy (Caddy) ===
-# Единый HTTPS reverse proxy для всех self-hosted сервисов
+# Dockerized HTTPS reverse proxy for all self-hosted services
 
-# Включить роль
+# === OS Support ===
+# Supported operating systems for this role
+_caddy_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Gentoo
+  - Void
+
+# === Core ===
+
+# Enable/disable the entire role
 caddy_enabled: true
 
-# Базовая директория
+# Base directory for all Caddy files (Caddyfile, docker-compose.yml, data, config)
 caddy_base_dir: "/opt/caddy"
 
-# HTTPS порт
+# Docker image for the Caddy container
+caddy_image: "caddy:2-alpine"
+
+# Container name
+caddy_container_name: "caddy"
+
+# === Network ===
+
+# HTTPS port exposed on the host (mapped to container port 443)
 caddy_https_port: 443
 
-# HTTP порт (для редиректа на HTTPS)
+# HTTP port exposed on the host (mapped to container port 80, redirect to HTTPS)
 caddy_http_port: 80
 
-# TLS режим: "internal" (self-signed) или "acme" (Let's Encrypt)
+# Docker network name shared with backend services
+caddy_docker_network: "proxy"
+
+# === TLS ===
+
+# TLS mode: "internal" (self-signed local CA) or "acme" (Let's Encrypt)
 caddy_tls_mode: "internal"
 
-# Email для Let's Encrypt (только при caddy_tls_mode: acme)
+# Email for Let's Encrypt ACME (required when caddy_tls_mode: acme)
 caddy_tls_email: ""
 
-# Docker network для связи с сервисами
-caddy_docker_network: "proxy"
+# === Subsystem toggles ===
+
+# Manage Docker network creation (set false if network is managed externally)
+caddy_manage_network: true
+
+# Manage CA trust deployment to host system (internal TLS only)
+# Copies Caddy's root CA into OS trust store and updates trust database
+caddy_manage_certs: true
+
+# Manage browser enterprise root import policy (internal TLS only)
+# Configures Firefox/Zen Browser to trust system CA certificates
+caddy_manage_browser_trust: true

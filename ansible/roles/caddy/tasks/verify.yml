@@ -1,0 +1,95 @@
+---
+# === Caddy -- in-role verification ===
+# Called from main.yml after configuration is applied
+# Verifies the role's contract: directories, configs, Docker state
+
+# ---- Config file verification (check_mode + lineinfile) ----
+
+- name: Verify Caddyfile exists
+  ansible.builtin.stat:
+    path: "{{ caddy_base_dir }}/Caddyfile"
+  register: _caddy_verify_caddyfile
+  tags: ['caddy']
+
+- name: Assert Caddyfile exists
+  ansible.builtin.assert:
+    that:
+      - _caddy_verify_caddyfile.stat.exists
+      - _caddy_verify_caddyfile.stat.isreg
+    fail_msg: "Caddyfile not found at {{ caddy_base_dir }}/Caddyfile"
+    success_msg: "Caddyfile exists at {{ caddy_base_dir }}/Caddyfile"
+    quiet: true
+  tags: ['caddy']
+
+- name: Verify docker-compose.yml exists
+  ansible.builtin.stat:
+    path: "{{ caddy_base_dir }}/docker-compose.yml"
+  register: _caddy_verify_compose
+  tags: ['caddy']
+
+- name: Assert docker-compose.yml exists
+  ansible.builtin.assert:
+    that:
+      - _caddy_verify_compose.stat.exists
+      - _caddy_verify_compose.stat.isreg
+    fail_msg: "docker-compose.yml not found at {{ caddy_base_dir }}/docker-compose.yml"
+    success_msg: "docker-compose.yml exists at {{ caddy_base_dir }}/docker-compose.yml"
+    quiet: true
+  tags: ['caddy']
+
+# ---- Runtime verification (Docker state) ----
+
+- name: Check Docker daemon is available
+  ansible.builtin.command:
+    cmd: docker info
+  register: _caddy_verify_docker
+  changed_when: false
+  failed_when: false
+  tags: ['caddy']
+
+- name: Docker runtime verification
+  when: _caddy_verify_docker.rc == 0
+  tags: ['caddy']
+  block:
+
+    - name: Check caddy container status
+      ansible.builtin.command:
+        cmd: "docker inspect --format '{{ '{{' }}.State.Status{{ '}}' }}' {{ caddy_container_name }}"
+      register: _caddy_verify_container
+      changed_when: false
+      failed_when: false
+
+    - name: Assert caddy container is running
+      ansible.builtin.assert:
+        that:
+          - _caddy_verify_container.rc == 0
+          - _caddy_verify_container.stdout == 'running'
+        fail_msg: >-
+          Caddy container '{{ caddy_container_name }}' is not running.
+          Status: {{ _caddy_verify_container.stdout | default('container not found') }}
+        success_msg: "Caddy container is running"
+        quiet: true
+
+    - name: Validate Caddyfile syntax inside container
+      ansible.builtin.command:
+        cmd: "docker exec {{ caddy_container_name }} caddy validate --config /etc/caddy/Caddyfile"
+      register: _caddy_verify_syntax
+      changed_when: false
+      failed_when: false
+
+    - name: Assert Caddyfile syntax is valid
+      ansible.builtin.assert:
+        that:
+          - _caddy_verify_syntax.rc == 0
+        fail_msg: >-
+          Caddyfile validation failed: {{ _caddy_verify_syntax.stderr | default('') }}
+        success_msg: "Caddyfile syntax is valid"
+        quiet: true
+
+- name: Warn if Docker daemon not available
+  ansible.builtin.debug:
+    msg: >-
+      Docker daemon not available (rc={{ _caddy_verify_docker.rc }}).
+      Skipping container and network runtime checks.
+  when: _caddy_verify_docker.rc != 0
+  tags: ['caddy']

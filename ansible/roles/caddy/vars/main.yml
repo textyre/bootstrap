@@ -1,0 +1,33 @@
+---
+# === Internal mappings (not for user override) ===
+
+# Path to OS trust store directory where CA certificates should be placed
+_caddy_ca_trust_dir:
+  Archlinux: /etc/ca-certificates/trust-source/anchors
+  Debian: /usr/local/share/ca-certificates
+  RedHat: /etc/pki/ca-trust/source/anchors
+  Gentoo: /usr/local/share/ca-certificates
+  Void: /etc/ssl/certs
+
+# Command to update the system CA trust database after adding a certificate
+_caddy_update_ca_trust_cmd:
+  Archlinux: update-ca-trust
+  Debian: update-ca-certificates
+  RedHat: update-ca-trust
+  Gentoo: update-ca-certificates
+  Void: update-ca-certificates
+
+# CA certificate filename placed in the trust store
+_caddy_ca_cert_filename: "caddy-local.crt"
+
+# Path to browser distribution directories for enterprise root import policy
+# Firefox-based browsers (Zen, Firefox) use policies.json for enterprise settings
+_caddy_browser_policy_dirs:
+  - /usr/lib/zen-browser/distribution
+  - /usr/lib/firefox/distribution
+
+# Browser enterprise root import policy content
+_caddy_browser_policy:
+  policies:
+    Certificates:
+      ImportEnterpriseRoots: true

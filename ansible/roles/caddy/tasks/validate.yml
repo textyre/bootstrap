@@ -1,0 +1,44 @@
+---
+# === Caddy -- input validation ===
+# Called at the start of main.yml before any actions
+
+- name: Assert OS is supported by caddy role
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _caddy_supported_os
+    fail_msg: >-
+      Caddy role is not supported on {{ ansible_facts['os_family'] }} OS.
+      Supported operating systems: {{ _caddy_supported_os | join(', ') }}.
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['caddy']
+
+- name: Assert caddy_tls_mode is valid
+  ansible.builtin.assert:
+    that:
+      - caddy_tls_mode in ['internal', 'acme']
+    fail_msg: >-
+      caddy_tls_mode must be 'internal' or 'acme'.
+      Current value: '{{ caddy_tls_mode }}'.
+  tags: ['caddy']
+
+- name: Assert caddy_tls_email is set when using ACME
+  ansible.builtin.assert:
+    that:
+      - caddy_tls_email | length > 0
+    fail_msg: >-
+      caddy_tls_email is required when caddy_tls_mode is 'acme'.
+      Set caddy_tls_email to a valid email address for Let's Encrypt.
+  when: caddy_tls_mode == "acme"
+  tags: ['caddy']
+
+- name: Assert port numbers are valid
+  ansible.builtin.assert:
+    that:
+      - caddy_https_port | int > 0
+      - caddy_https_port | int <= 65535
+      - caddy_http_port | int > 0
+      - caddy_http_port | int <= 65535
+    fail_msg: >-
+      Port numbers must be between 1 and 65535.
+      caddy_https_port={{ caddy_https_port }}, caddy_http_port={{ caddy_http_port }}.
+  tags: ['caddy']

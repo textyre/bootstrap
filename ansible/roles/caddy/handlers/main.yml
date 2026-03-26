@@ -1,12 +1,25 @@
 ---
-- name: Restart caddy
-  ansible.builtin.command:
-    cmd: docker compose -f {{ caddy_base_dir }}/docker-compose.yml restart
-  changed_when: true
-  listen: Restart caddy
+# Handlers for caddy role
+# Handler chain: validate config inside container -> restart/reload
 
-- name: Reload caddy
+- name: Validate Caddyfile before reload
   ansible.builtin.command:
-    cmd: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-  changed_when: true
-  listen: Reload caddy
+    cmd: "docker exec {{ caddy_container_name }} caddy validate --config /etc/caddy/Caddyfile"
+  listen: "Reload caddy"
+  register: _caddy_validate_reload
+  changed_when: false
+  failed_when: _caddy_validate_reload.rc != 0
+
+- name: Reload caddy configuration
+  ansible.builtin.command:
+    cmd: "docker exec {{ caddy_container_name }} caddy reload --config /etc/caddy/Caddyfile"
+  listen: "Reload caddy"
+  register: _caddy_reload_result
+  changed_when: _caddy_reload_result.rc == 0
+  failed_when: _caddy_reload_result.rc != 0
+
+- name: Restart caddy container
+  community.docker.docker_compose_v2:
+    project_src: "{{ caddy_base_dir }}"
+    state: restarted
+  listen: "Restart caddy"
