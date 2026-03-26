@@ -48,9 +48,18 @@
   loop_control:
     label: "{{ item.name }} ({{ 'required' if item.required else 'optional' }})"
   register: _vm_svc_result
-  failed_when:
-    - _vm_svc_result is failed
-    - item.required
+  failed_when: false
+  tags: ['vm', 'vm:service']
+
+- name: "Fail if required service failed to start ({{ vm_svc_label }})"
+  ansible.builtin.fail:
+    msg: "Required service '{{ item.item.name }}' failed to start"
+  loop: "{{ _vm_svc_result.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.failed
+    - item.item.required
   tags: ['vm', 'vm:service']
 
 - name: "Check journald for service errors ({{ vm_svc_label }})"
