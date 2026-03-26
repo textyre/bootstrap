@@ -9,4 +9,5 @@
     sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
   args:
     creates: "{{ chezmoi_user_home | default('~') }}/.local/bin/chezmoi"
+  when: chezmoi_install_method == 'script'
   tags: ['chezmoi', 'dotfiles', 'install']

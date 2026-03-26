@@ -1,8 +1,25 @@
 ---
 # === Деплой дотфайлов через chezmoi ===
 # Установка, инициализация, применение
+# preflight → paths → install → validate-source → wallpapers → apply → verify → report
 
+# ======================================================================
+# ---- Preflight (ROLE-003) ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _chezmoi_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _chezmoi_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['chezmoi', 'dotfiles']
+
+# ======================================================================
 # ---- Resolve paths (нужно до install для script метода) ----
+# ======================================================================
 
 - name: Get user home directory
   ansible.builtin.getent:
@@ -15,20 +32,12 @@
     chezmoi_user_home: "{{ getent_passwd[chezmoi_user][4] }}"
   tags: ['chezmoi', 'dotfiles']
 
+# ======================================================================
 # ---- Установка chezmoi (OS-specific) ----
+# ======================================================================
 
 - name: Install chezmoi (OS-specific)
   ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['chezmoi', 'dotfiles', 'install']
-
-- name: Install chezmoi via official script
-  become: true
-  become_user: "{{ chezmoi_user }}"
-  ansible.builtin.shell: |
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
-  args:
-    creates: "{{ chezmoi_user_home }}/.local/bin/chezmoi"
-  when: chezmoi_install_method == 'script'
   tags: ['chezmoi', 'dotfiles', 'install']
 
 - name: Resolve chezmoi binary path
@@ -39,7 +48,9 @@
          else chezmoi_user_home ~ '/.local/bin/chezmoi' }}
   tags: ['chezmoi', 'dotfiles']
 
+# ======================================================================
 # ---- Validate source ----
+# ======================================================================
 
 - name: Resolve chezmoi source directory
   ansible.builtin.stat:
@@ -55,7 +66,9 @@
     fail_msg: "Директория с дотфайлами не найдена: {{ chezmoi_source_dir }}"
   tags: ['chezmoi', 'dotfiles']
 
+# ======================================================================
 # ---- Подготовка: обои ----
+# ======================================================================
 
 - name: Check wallpapers source directory
   ansible.builtin.stat:
@@ -84,20 +97,41 @@
   when: chezmoi_wallpapers_dir.stat.exists
   tags: ['chezmoi', 'dotfiles']
 
-# ---- Инициализация и применение ----
+# ======================================================================
+# ---- Инициализация и применение (idempotent) ----
+# ======================================================================
 
-- name: Initialize chezmoi from local source
+- name: Check if chezmoi config already exists (idempotence guard)
+  ansible.builtin.stat:
+    path: "{{ chezmoi_user_home }}/.config/chezmoi/chezmoi.toml"
+  register: _chezmoi_config_stat
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Initialize chezmoi from local source (first run)
   become: true
   become_user: "{{ chezmoi_user }}"
-  ansible.builtin.command: >
+  ansible.builtin.command: >-
     {{ _chezmoi_bin }} init
-    --source "{{ chezmoi_source_dir }}"
+    --source {{ chezmoi_source_dir }}
     --promptChoice "Choose color theme={{ chezmoi_theme_name }}"
     --apply
   args:
     chdir: "{{ chezmoi_user_home }}"
-  register: chezmoi_apply
-  changed_when: chezmoi_apply.rc == 0
+  register: _chezmoi_init
+  changed_when: true
+  when: not _chezmoi_config_stat.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Apply chezmoi dotfiles (subsequent runs)
+  become: true
+  become_user: "{{ chezmoi_user }}"
+  ansible.builtin.command: >-
+    {{ _chezmoi_bin }} apply --source {{ chezmoi_source_dir }}
+  args:
+    chdir: "{{ chezmoi_user_home }}"
+  register: _chezmoi_apply
+  changed_when: _chezmoi_apply.stdout | length > 0
+  when: _chezmoi_config_stat.stat.exists
   tags: ['chezmoi', 'dotfiles']
 
 - name: Verify no nested chezmoidata (guard against stale theme data)
@@ -105,15 +139,64 @@
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command:
     cmd: find {{ chezmoi_source_dir }} -mindepth 2 -name '.chezmoidata' -type d
-  register: chezmoi_nested_check
+  register: _chezmoi_nested_check
   changed_when: false
-  failed_when: chezmoi_nested_check.stdout | length > 0
+  failed_when: _chezmoi_nested_check.stdout | length > 0
   tags: ['chezmoi', 'dotfiles']
 
-- name: Report chezmoi deployment
-  ansible.builtin.debug:
-    msg:
-      - "Пользователь: {{ chezmoi_user }}"
-      - "Источник: {{ chezmoi_source_dir }}"
-      - "chezmoi init --apply выполнен"
+# ======================================================================
+# ---- Проверка (ROLE-005) ----
+# ======================================================================
+
+- name: Verify chezmoi deployment
+  ansible.builtin.include_tasks: verify.yml
   tags: ['chezmoi', 'dotfiles']
+
+# ======================================================================
+# ---- Логирование (ROLE-008) ----
+# ======================================================================
+
+- name: "Report: chezmoi install"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_chezmoi_phases"
+    common_rpt_phase: "Install chezmoi"
+    common_rpt_detail: >-
+      method={{ chezmoi_install_method }}
+      bin={{ _chezmoi_bin }}
+  tags: ['chezmoi', 'report']
+
+- name: "Report: chezmoi apply"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_chezmoi_phases"
+    common_rpt_phase: "Apply dotfiles"
+    common_rpt_detail: >-
+      user={{ chezmoi_user }}
+      source={{ chezmoi_source_dir }}
+  tags: ['chezmoi', 'report']
+
+- name: "Report: chezmoi verify"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_chezmoi_phases"
+    common_rpt_phase: "Verify"
+    common_rpt_detail: >-
+      bin={{ _chezmoi_bin }}
+      ver={{ _chezmoi_verify_version.stdout | default('unknown') | trim }}
+  tags: ['chezmoi', 'report']
+
+- name: "chezmoi — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_chezmoi_phases"
+    common_rpt_title: "chezmoi"
+  tags: ['chezmoi', 'report']
