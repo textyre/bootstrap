@@ -3,4 +3,4 @@
   ansible.builtin.package:
     name: "{{ fail2ban_packages }}"
     state: present
-  tags: [fail2ban, install]
+  tags: [fail2ban, install, security]

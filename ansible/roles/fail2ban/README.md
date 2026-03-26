@@ -4,7 +4,7 @@ Protects SSH against brute-force attacks with progressive ban escalation.
 
 ## Execution flow
 
-1. **Assert OS** (`tasks/main.yml`) -- fails if `ansible_facts['os_family']` is not in `fail2ban_supported_os`
+1. **Assert OS** (`tasks/main.yml`) -- fails if `ansible_facts['os_family']` is not in `_fail2ban_supported_os`
 2. **Load OS vars** (`vars/<os_family>.yml`) -- loads package names and service name map for the detected OS family
 3. **Install** (`tasks/install.yml`) -- installs fail2ban via `ansible.builtin.package` using OS-specific package list
 4. **Configure** (`tasks/configure.yml`) -- deploys `/etc/fail2ban/jail.d/sshd.conf` from Jinja2 template. **Triggers handler:** if config changed, fail2ban will be restarted before verification.

@@ -1,8 +1,8 @@
 ---
 # === fail2ban — защита от brute-force атак ===
 
-# ROLE-003: Поддерживаемые ОС
-fail2ban_supported_os:
+# ROLE-003: Поддерживаемые ОС (underscore prefix — internal variable)
+_fail2ban_supported_os:
   - Archlinux
   - Debian
   - RedHat
@@ -11,20 +11,54 @@ fail2ban_supported_os:
 
 # ---- Главный переключатель ----
 fail2ban_enabled: true
+
+# Start the fail2ban service after configuration.
+# Set false in Docker/container environments where iptables/netfilter is unavailable.
 fail2ban_start_service: true
 
 # ---- SSH jail ----
+
+# Enable the sshd jail. Set false only if SSH is not exposed or another IPS covers it.
 fail2ban_sshd_enabled: true
+
+# SSH port to monitor. Inherits from ssh_port if defined; override for non-standard ports.
 fail2ban_sshd_port: "{{ ssh_port | default(22) }}"
+
+# Max authentication failures before ban. Lower = stricter (3 for high-security),
+# higher = more tolerant of typos (5–10 for shared workstations).
 fail2ban_sshd_maxretry: 5
+
+# Sliding window (seconds) for counting failures. 600 = 10 min.
+# Too short: attacker can spread attempts over time to evade detection.
+# Too long: legitimate users with intermittent failures accumulate strikes.
 fail2ban_sshd_findtime: 600
+
+# Ban duration (seconds). 3600 = 1 hour.
+# Short bans (60–300s) deter casual scanners; long bans (3600+) deter persistent attackers
+# but risk locking out legitimate users behind shared IPs (NAT, VPN).
 fail2ban_sshd_bantime: 3600
+
+# Progressive ban escalation: each repeat offense doubles the ban duration.
+# Disable if predictable ban times are required (e.g., compliance reporting).
 fail2ban_sshd_bantime_increment: true
+
+# Upper bound for progressive bans (seconds). 86400 = 24 hours.
+# Prevents indefinite bans from bantime_increment escalation.
 fail2ban_sshd_bantime_maxtime: 86400
+
+# Log backend: auto (systemd journal if available, else polling), systemd, polling, pyinotify.
+# Use 'polling' in containers or when journal is unavailable.
+# Use 'systemd' on hosts with python-systemd for lower latency detection.
 fail2ban_sshd_backend: auto
+
+# Ban action override. Empty = fail2ban default (iptables-multiport on most systems).
+# Set to 'nftables-multiport' for nftables-only hosts, or 'firewallcmd-rich-rules' for firewalld.
 fail2ban_sshd_banaction: ""
 
 # ---- Белый список ----
+
+# IPs/CIDRs that are never banned. Always include loopback.
+# Add management IPs or VPN ranges to prevent self-lockout.
 fail2ban_ignoreip:
   - 127.0.0.1/8
   - "::1"
