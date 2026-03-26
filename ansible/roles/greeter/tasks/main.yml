@@ -91,10 +91,18 @@
         dest: "/usr/share/web-greeter/themes/{{ greeter_theme }}/"
         owner: root
         group: root
-        mode: '0644'
-        directory_mode: '0755'
+        mode: preserve
         remote_src: true
       when: _greeter_theme_needs_deploy | bool
+      tags: ['greeter', 'display']
+
+    - name: Ensure ctOS theme directory permissions are correct
+      ansible.builtin.file:
+        path: "/usr/share/web-greeter/themes/{{ greeter_theme }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
       tags: ['greeter', 'display']
 
     - name: Deploy index.yml theme metadata
