@@ -2,13 +2,29 @@
 # === Конфигурация LightDM ===
 # Display manager: конфиг, скрипт резолюции, сервис
 
+# Включить/выключить всю роль целиком.
+# Safety: safe — set false to skip this role entirely on a specific host
+lightdm_enabled: true
+
+# === OS Support ===
+# Supported operating systems for this role
+_lightdm_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Путь к исходным файлам (dotfiles/ в корне репозитория)
+# Safety: safe — override via inventory to point at your dotfiles checkout
 lightdm_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}"
 
-# Включить и запустить сервис
+# Включить и запустить сервис.
+# Safety: safe — set false in headless/container test environments
 lightdm_enable_service: true
 
 # Системные файлы для деплоя
+# Safety: careful — changing paths or permissions may break LightDM startup
 lightdm_system_files:
   - src: "etc/lightdm/lightdm.conf.d/10-config.conf"
     dest: "/etc/lightdm/lightdm.conf.d/10-config.conf"

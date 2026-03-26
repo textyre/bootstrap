@@ -165,16 +165,18 @@
       failed_when: false
       when:
         - lightdm_enable_service | default(true) | bool
+        - ansible_facts['service_mgr'] == 'systemd'
         - ansible_virtualization_type | default('') != 'docker'
 
     - name: Assert lightdm service is enabled
       ansible.builtin.assert:
-        that: _lightdm_verify_svc_enabled.stdout is regex('^enabled')
+        that: _lightdm_verify_svc_enabled.stdout | default('') is regex('^enabled')
         fail_msg: >-
           lightdm.service is not enabled
           (got '{{ _lightdm_verify_svc_enabled.stdout | default('') }}').
       when:
         - lightdm_enable_service | default(true) | bool
+        - ansible_facts['service_mgr'] == 'systemd'
         - ansible_virtualization_type | default('') != 'docker'
 
     - name: Service check skipped info
