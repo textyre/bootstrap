@@ -44,6 +44,17 @@
   when: power_management_is_laptop
   tags: ['power', 'facts']
 
+- name: Log TLP status check failure
+  ansible.builtin.debug:
+    msg: >-
+      tlp-stat -s failed (rc={{ power_management_fact_tlp_status_raw.rc }}).
+      stderr: {{ power_management_fact_tlp_status_raw.stderr | default('') }}.
+      TLP may not be installed or is not functional.
+  when:
+    - power_management_is_laptop
+    - power_management_fact_tlp_status_raw.rc | default(0) != 0
+  tags: ['power', 'facts']
+
 # ---- Charge thresholds ----
 
 - name: Read BAT0 charge start threshold

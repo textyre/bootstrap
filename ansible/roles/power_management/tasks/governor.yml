@@ -35,7 +35,7 @@
 # ---- Set governor via cpupower ----
 
 - name: Set CPU governor via cpupower
-  ansible.builtin.command: cpupower frequency-set -g {{ power_management_cpu_governor }}
+  ansible.builtin.command: "cpupower frequency-set -g {{ power_management_cpu_governor }}"
   register: power_management_governor_set
   changed_when: power_management_current_governor != power_management_cpu_governor
   when:
