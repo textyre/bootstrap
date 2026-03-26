@@ -1,0 +1,11 @@
+---
+# === Internal mappings (not user-facing) ===
+
+# Service name per init system
+# Teleport uses the same service name across all init systems
+teleport_service_name:
+  systemd: teleport
+  runit: teleport
+  openrc: teleport
+  s6: teleport
+  dinit: teleport
