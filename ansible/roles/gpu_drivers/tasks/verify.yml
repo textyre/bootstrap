@@ -104,6 +104,7 @@
     fail_msg: "/etc/modprobe.d/nvidia.conf is missing but NVIDIA KMS is enabled"
     success_msg: "/etc/modprobe.d/nvidia.conf exists"
   when:
+    - gpu_drivers_manage_security | bool
     - gpu_drivers_has_nvidia
     - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
     - gpu_drivers_nvidia_kms
@@ -115,7 +116,8 @@
     fail_msg: "/etc/modprobe.d/nvidia.conf exists but should be absent (KMS disabled or non-NVIDIA)"
     success_msg: "/etc/modprobe.d/nvidia.conf is correctly absent"
   when: >-
-    not gpu_drivers_has_nvidia
+    not gpu_drivers_manage_security | bool
+    or not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']

@@ -28,7 +28,8 @@
     path: /etc/modprobe.d/nvidia.conf
     state: absent
   when: >-
-    not gpu_drivers_has_nvidia
+    not gpu_drivers_manage_security | bool
+    or not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_kms
   tags: ['gpu', 'nvidia']
@@ -58,7 +59,8 @@
     path: /etc/modprobe.d/nvidia-blacklist.conf
     state: absent
   when: >-
-    not gpu_drivers_has_nvidia
+    not gpu_drivers_manage_security | bool
+    or not gpu_drivers_has_nvidia
     or gpu_drivers_nvidia_variant == 'nouveau'
     or not gpu_drivers_nvidia_blacklist_nouveau
   tags: ['gpu', 'nvidia']
