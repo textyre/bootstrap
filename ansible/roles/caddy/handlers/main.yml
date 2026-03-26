@@ -4,3 +4,9 @@
     project_src: "{{ caddy_base_dir }}"
     state: restarted
   listen: Restart caddy
+
+- name: Update CA trust
+  ansible.builtin.command:
+    cmd: "{{ _caddy_update_ca_trust_cmd[ansible_facts['os_family']] }}"
+  changed_when: true
+  listen: Update CA trust

@@ -38,8 +38,8 @@
     - name: Wait for Docker daemon to be ready
       ansible.builtin.command:
         cmd: docker info
-      register: _prepare_docker_info
+      register: _caddy_prepare_docker_info
       retries: 10
       delay: 3
-      until: _prepare_docker_info.rc == 0
+      until: _caddy_prepare_docker_info.rc == 0
       changed_when: false
