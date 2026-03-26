@@ -26,6 +26,12 @@ provisioner:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 verifier:
   name: ansible
 

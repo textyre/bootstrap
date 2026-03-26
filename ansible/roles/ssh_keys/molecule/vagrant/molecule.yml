@@ -17,6 +17,12 @@ platforms:
     memory: 2048
     cpus: 2
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 provisioner:
   name: ansible
   options:

@@ -1,5 +1,15 @@
 ---
 # ansible/roles/ssh_keys/molecule/shared/verify.yml
+#
+# Verification categories covered:
+#   permissions  — .ssh directory mode, authorized_keys mode, keypair mode
+#   config files — authorized_keys exists with correct content
+#   runtime      — generated keypair exists
+#
+# Verification categories skipped:
+#   packages  — role does not install any packages
+#   services  — role does not manage any service unit
+
 - name: Verify ssh_keys role
   hosts: all
   become: true
@@ -11,7 +21,7 @@
 
   tasks:
 
-    # ---- .ssh directory ----
+    # ---- .ssh directory (permissions) ----
 
     - name: Stat .ssh directory
       ansible.builtin.stat:
@@ -30,8 +40,9 @@
           exists={{ _ssh_keys_verify_dir.stat.exists | default(false) }},
           mode={{ _ssh_keys_verify_dir.stat.mode | default('n/a') }},
           owner={{ _ssh_keys_verify_dir.stat.pw_name | default('n/a') }}
+        success_msg: ".ssh directory 0700 owned by {{ _verify_test_user }}"
 
-    # ---- authorized_keys file ----
+    # ---- authorized_keys file (config files + permissions) ----
 
     - name: Stat authorized_keys
       ansible.builtin.stat:
@@ -50,6 +61,7 @@
           exists={{ _ssh_keys_verify_authkeys.stat.exists | default(false) }},
           mode={{ _ssh_keys_verify_authkeys.stat.mode | default('n/a') }},
           owner={{ _ssh_keys_verify_authkeys.stat.pw_name | default('n/a') }}
+        success_msg: "authorized_keys 0600 owned by {{ _verify_test_user }}"
 
     # ---- Key content ----
 
@@ -67,12 +79,20 @@
         that:
           - "'test@molecule' in _ssh_keys_verify_content"
         fail_msg: "Key 'test@molecule' not found in authorized_keys"
+        success_msg: "Key test@molecule present"
 
-    - name: Assert second test key is present (test2@molecule)
+    # ---- Exclusive mode verification ----
+    # Converge play 2 ran with exclusive=true and only test@molecule key.
+    # The second key (test2@molecule) should have been removed.
+
+    - name: Assert second key was removed by exclusive mode (test2@molecule)
       ansible.builtin.assert:
         that:
-          - "'test2@molecule' in _ssh_keys_verify_content"
-        fail_msg: "Key 'test2@molecule' not found in authorized_keys"
+          - "'test2@molecule' not in _ssh_keys_verify_content"
+        fail_msg: >-
+          Key 'test2@molecule' still in authorized_keys after exclusive mode.
+          Content: {{ _ssh_keys_verify_content }}
+        success_msg: "Exclusive mode verified — test2@molecule removed"
 
     # ---- Absent user cleanup ----
 
@@ -88,12 +108,50 @@
         fail_msg: >-
           authorized_keys for absent_user should have been removed
           but still exists at /home/absent_user/.ssh/authorized_keys
+        success_msg: "Absent user authorized_keys removed"
+
+    # ---- Keygen verification (runtime) ----
+    # Play 1 ran with ssh_keys_generate_user_keys=true
+
+    - name: Stat generated ed25519 private key
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh/id_ed25519"
+      register: _ssh_keys_verify_privkey
+
+    - name: Assert generated private key exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_privkey.stat.exists
+          - _ssh_keys_verify_privkey.stat.mode == '0600'
+          - _ssh_keys_verify_privkey.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          Generated private key:
+          exists={{ _ssh_keys_verify_privkey.stat.exists | default(false) }},
+          mode={{ _ssh_keys_verify_privkey.stat.mode | default('n/a') }},
+          owner={{ _ssh_keys_verify_privkey.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_ed25519 private key 0600 owned by {{ _verify_test_user }}"
+
+    - name: Stat generated ed25519 public key
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh/id_ed25519.pub"
+      register: _ssh_keys_verify_pubkey
+
+    - name: Assert generated public key exists
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_pubkey.stat.exists
+          - _ssh_keys_verify_pubkey.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          Generated public key:
+          exists={{ _ssh_keys_verify_pubkey.stat.exists | default(false) }},
+          owner={{ _ssh_keys_verify_pubkey.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_ed25519.pub exists owned by {{ _verify_test_user }}"
 
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          ssh_keys verify passed: .ssh directory 0700 owned by {{ _verify_test_user }},
-          authorized_keys 0600 with both test keys present,
-          absent_user authorized_keys removed.
+          ssh_keys verify passed: .ssh directory 0700, authorized_keys 0600,
+          exclusive mode verified, absent_user cleanup verified,
+          keygen ed25519 keypair present.
