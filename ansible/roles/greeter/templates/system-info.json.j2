@@ -4,11 +4,11 @@
   "ip_address": "{{ ansible_default_ipv4.address | default('0.0.0.0') }}",
   "hostname": "{{ ansible_hostname | default('unknown') }}",
   "project_version": "{{ greeter_ctos_version }}",
-  "timezone": "{{ _greeter_timezone.stdout | default('UTC') }}",
+  "timezone": "{{ _greeter_timezone }}",
   "region_prefix": "{{ greeter_region_prefix }}",
-  "systemd_version": "{{ _greeter_systemd_ver.stdout | default('unknown') }}",
+  "systemd_version": "{{ _greeter_systemd_ver }}",
   "machine_id": "{{ ansible_machine_id | default('unknown') }}",
-  "display_output": "{{ _greeter_display_name.stdout | default('unknown') }}",
-  "display_resolution": "{{ _greeter_display_res.stdout | default('unknown') }}",
-  "ssh_fingerprint": "{{ _greeter_ssh_fp_hash.stdout | default('unknown') }}"
+  "display_output": "{{ _greeter_display_name }}",
+  "display_resolution": "{{ _greeter_display_res }}",
+  "ssh_fingerprint": "{{ _greeter_ssh_fp_hash }}"
 }

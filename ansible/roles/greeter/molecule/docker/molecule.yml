@@ -40,13 +40,11 @@ verifier:
   name: ansible
 
 scenario:
-  # idempotence is omitted: two shell tasks (clean + fix permissions) use
-  # changed_when: true and would always report changed. Refactoring those
-  # tasks is out of scope for this testing plan.
   test_sequence:
     - syntax
     - create
     - prepare
     - converge
+    - idempotence
     - verify
     - destroy
