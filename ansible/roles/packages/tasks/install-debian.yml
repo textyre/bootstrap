@@ -1,9 +1,19 @@
 ---
-# Debian/Ubuntu: Install packages via apt
+# Debian/Ubuntu: update cache then install packages
 
-- name: Install packages (apt)
+# cache_valid_time requires ansible.builtin.apt (no generic equivalent in ansible.builtin.package)
+- name: Update apt cache (Debian/Ubuntu)
   ansible.builtin.apt:
-    name: "{{ packages_all }}"
-    state: present
     update_cache: true
     cache_valid_time: 3600
+
+- name: Install packages (apt)
+  ansible.builtin.package:
+    name: "{{ packages_all }}"
+    state: present
+  retries: 3
+  delay: 5
+  register: _packages_install_result
+  until: _packages_install_result is succeeded
+  when: packages_all | length > 0
+  tags: ['packages', 'install']
