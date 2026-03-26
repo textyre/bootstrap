@@ -10,3 +10,19 @@
         power_management_device_type: desktop
         power_management_assert_strict: true
         power_management_audit_battery: false
+
+  # Export converge settings for data-driven verification
+  post_tasks:
+    - name: Set verification facts from converge vars
+      ansible.builtin.set_fact:
+        pm_verify_expected_governor: schedutil
+        pm_verify_expected_hibernate_mode: platform
+        pm_verify_expected_lid_switch: suspend
+        pm_verify_expected_lid_switch_ac: suspend
+        pm_verify_expected_lid_switch_docked: ignore
+        pm_verify_expected_power_key: poweroff
+        pm_verify_expected_suspend_key: suspend
+        pm_verify_expected_hibernate_key: ignore
+        pm_verify_expected_idle_action: ignore
+        pm_verify_expected_idle_action_sec: 30min
+        pm_verify_expected_audit_schedule: daily

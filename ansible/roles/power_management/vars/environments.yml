@@ -1,0 +1,16 @@
+---
+# === power_management / vars — init-system service name mappings ===
+
+_power_management_service:
+  systemd: tlp
+  runit: tlp
+  openrc: tlp
+  s6: tlp
+  dinit: tlp
+
+_power_management_cpupower_service:
+  systemd: cpupower
+  runit: cpupower
+  openrc: cpupower
+  s6: cpupower
+  dinit: cpupower

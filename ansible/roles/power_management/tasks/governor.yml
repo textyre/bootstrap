@@ -76,7 +76,7 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']
 
 - name: Deploy cpupower service dropin override
@@ -93,7 +93,7 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']
 
 - name: Enable cpupower service
@@ -103,5 +103,5 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']

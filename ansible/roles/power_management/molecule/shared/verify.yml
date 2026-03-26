@@ -145,11 +145,13 @@
         that: "'Managed by Ansible' in pm_verify_sleep_text"
         fail_msg: "sleep.conf missing Ansible managed header"
 
-    - name: Assert sleep.conf contains HibernateMode=platform
+    - name: Assert sleep.conf contains expected HibernateMode
       ansible.builtin.assert:
-        that: "'HibernateMode=platform' in pm_verify_sleep_text"
-        fail_msg: "sleep.conf does not contain HibernateMode=platform"
-        success_msg: "sleep.conf HibernateMode=platform confirmed"
+        that: "'HibernateMode=' ~ pm_verify_expected_hibernate_mode in pm_verify_sleep_text"
+        fail_msg: >-
+          sleep.conf does not contain HibernateMode={{ pm_verify_expected_hibernate_mode }}.
+          Content: {{ pm_verify_sleep_text | regex_search('HibernateMode=.*') | default('not found') }}
+        success_msg: "sleep.conf HibernateMode={{ pm_verify_expected_hibernate_mode }} confirmed"
 
     - name: Assert sleep.conf contains [Sleep] section
       ansible.builtin.assert:
@@ -185,14 +187,14 @@
     - name: Assert logind.conf contains expected directives
       ansible.builtin.assert:
         that:
-          - "'HandleLidSwitch=suspend' in pm_verify_logind_text"
-          - "'HandleLidSwitchExternalPower=suspend' in pm_verify_logind_text"
-          - "'HandleLidSwitchDocked=ignore' in pm_verify_logind_text"
-          - "'HandlePowerKey=poweroff' in pm_verify_logind_text"
-          - "'HandleSuspendKey=suspend' in pm_verify_logind_text"
-          - "'HandleHibernateKey=ignore' in pm_verify_logind_text"
-          - "'IdleAction=ignore' in pm_verify_logind_text"
-          - "'IdleActionSec=30min' in pm_verify_logind_text"
+          - "'HandleLidSwitch=' ~ pm_verify_expected_lid_switch in pm_verify_logind_text"
+          - "'HandleLidSwitchExternalPower=' ~ pm_verify_expected_lid_switch_ac in pm_verify_logind_text"
+          - "'HandleLidSwitchDocked=' ~ pm_verify_expected_lid_switch_docked in pm_verify_logind_text"
+          - "'HandlePowerKey=' ~ pm_verify_expected_power_key in pm_verify_logind_text"
+          - "'HandleSuspendKey=' ~ pm_verify_expected_suspend_key in pm_verify_logind_text"
+          - "'HandleHibernateKey=' ~ pm_verify_expected_hibernate_key in pm_verify_logind_text"
+          - "'IdleAction=' ~ pm_verify_expected_idle_action in pm_verify_logind_text"
+          - "'IdleActionSec=' ~ pm_verify_expected_idle_action_sec in pm_verify_logind_text"
         fail_msg: "logind.conf missing expected directives"
         success_msg: "logind.conf contains all expected power action directives"
 
@@ -231,9 +233,11 @@
         that:
           - "'SUBSYSTEM==\"cpu\"' in (pm_verify_udev_content.content | b64decode)"
           - "'scaling_governor' in (pm_verify_udev_content.content | b64decode)"
-          - "'schedutil' in (pm_verify_udev_content.content | b64decode)"
-        fail_msg: "udev rule does not contain expected governor configuration"
-        success_msg: "udev rule contains correct governor (schedutil)"
+          - "pm_verify_expected_governor in (pm_verify_udev_content.content | b64decode)"
+        fail_msg: >-
+          udev rule does not contain expected governor '{{ pm_verify_expected_governor }}'.
+          Content: {{ pm_verify_udev_content.content | b64decode }}
+        success_msg: "udev rule contains correct governor ({{ pm_verify_expected_governor }})"
       when:
         - not pm_verify_is_laptop
         - pm_verify_udev_content is not skipped
@@ -315,14 +319,14 @@
         src: /etc/systemd/system/power-audit.timer
       register: pm_verify_audit_timer_content
 
-    - name: Assert power-audit.timer contains OnCalendar directive
+    - name: Assert power-audit.timer contains expected directives
       ansible.builtin.assert:
         that:
-          - "'OnCalendar=daily' in (pm_verify_audit_timer_content.content | b64decode)"
+          - "'OnCalendar=' ~ pm_verify_expected_audit_schedule in (pm_verify_audit_timer_content.content | b64decode)"
           - "'RandomizedDelaySec=' in (pm_verify_audit_timer_content.content | b64decode)"
           - "'Persistent=true' in (pm_verify_audit_timer_content.content | b64decode)"
-        fail_msg: "power-audit.timer missing expected timer directives"
-        success_msg: "power-audit.timer contains OnCalendar=daily + RandomizedDelaySec + Persistent"
+        fail_msg: "power-audit.timer missing expected timer directives (expected OnCalendar={{ pm_verify_expected_audit_schedule }})"
+        success_msg: "power-audit.timer contains OnCalendar={{ pm_verify_expected_audit_schedule }} + RandomizedDelaySec + Persistent"
 
     - name: Check power-audit.timer is enabled
       ansible.builtin.command: systemctl is-enabled power-audit.timer
@@ -432,9 +436,11 @@
 
     - name: Assert drift state governor matches deployed value (desktop, when cpufreq available)
       ansible.builtin.assert:
-        that: pm_verify_drift_json.governor == 'schedutil'
-        fail_msg: "Drift state governor='{{ pm_verify_drift_json.governor }}', expected 'schedutil' for desktop"
-        success_msg: "Drift state governor matches deployed value: schedutil"
+        that: pm_verify_drift_json.governor == pm_verify_expected_governor
+        fail_msg: >-
+          Drift state governor='{{ pm_verify_drift_json.governor }}',
+          expected '{{ pm_verify_expected_governor }}' for desktop
+        success_msg: "Drift state governor matches deployed value: {{ pm_verify_expected_governor }}"
       when:
         - not pm_verify_is_laptop
         - pm_verify_cpufreq_available.stat.exists | default(false)
@@ -475,12 +481,12 @@
     - name: Assert governor matches configured value (desktop, when cpufreq available)
       ansible.builtin.assert:
         that:
-          - (pm_verify_governor.content | b64decode | trim) == 'schedutil'
+          - (pm_verify_governor.content | b64decode | trim) == pm_verify_expected_governor
         fail_msg: >-
           CPU governor is '{{ pm_verify_governor.content | b64decode | trim }}',
-          expected 'schedutil' (converge configures desktop default).
+          expected '{{ pm_verify_expected_governor }}' (converge configures desktop default).
           Run 'cpupower frequency-info' to diagnose.
-        success_msg: "CPU governor 'schedutil' confirmed"
+        success_msg: "CPU governor '{{ pm_verify_expected_governor }}' confirmed"
       when:
         - not pm_verify_is_laptop
         - pm_verify_cpufreq_available.stat.exists | default(false)
@@ -515,6 +521,8 @@
           - "OS: {{ ansible_facts['os_family'] }}"
           - "Device: {{ 'laptop' if pm_verify_is_laptop else 'desktop' }}"
           - "cpufreq available: {{ pm_verify_cpufreq_available.stat.exists | default(false) }}"
+          - "Expected governor: {{ pm_verify_expected_governor }}"
+          - "Expected hibernate mode: {{ pm_verify_expected_hibernate_mode }}"
           - "Configs: sleep.conf, logind.conf deployed with correct content"
           - "Udev rule: {{ 'deployed' if not pm_verify_is_laptop else 'skipped (laptop)' }}"
           - "Audit: script + service + timer deployed, enabled and active"

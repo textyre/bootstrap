@@ -1,0 +1,14 @@
+---
+# === power_management / vars — Void Linux ===
+# NOTE: Stub — full implementation pending when Void testing is available
+
+_power_management_packages_base:
+  - cpupower
+
+_power_management_packages_laptop:
+  - tlp
+
+_power_management_service_tlp: tlp
+_power_management_service_cpupower: cpupower
+
+_power_management_mask_rfkill: []
