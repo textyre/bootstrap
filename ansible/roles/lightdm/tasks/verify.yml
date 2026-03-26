@@ -1,0 +1,172 @@
+---
+# === LightDM — верификация после конфигурации ===
+# Вызывается через include_tasks из main.yml
+
+# ---- Директория конфигов ----
+
+- name: Stat /etc/lightdm/lightdm.conf.d directory
+  ansible.builtin.stat:
+    path: /etc/lightdm/lightdm.conf.d
+  register: _lightdm_verify_confdir
+  tags: ['lightdm']
+
+- name: Assert config directory exists
+  ansible.builtin.assert:
+    that:
+      - _lightdm_verify_confdir.stat.exists
+      - _lightdm_verify_confdir.stat.isdir
+    fail_msg: "/etc/lightdm/lightdm.conf.d directory missing"
+    quiet: true
+  tags: ['lightdm']
+
+# ---- Файлы развёрнуты с правильными правами ----
+
+- name: Stat deployed config files
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+  register: _lightdm_verify_files
+  loop: "{{ lightdm_system_files }}"
+  tags: ['lightdm']
+
+- name: Assert all config files exist
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - item.stat.pw_name == (lightdm_system_files[index].owner)
+      - item.stat.gr_name == (lightdm_system_files[index].group)
+      - item.stat.mode == (lightdm_system_files[index].mode)
+    fail_msg: >-
+      File {{ lightdm_system_files[index].dest }} missing or wrong permissions
+      (expected {{ lightdm_system_files[index].owner }}:{{ lightdm_system_files[index].group }}
+      {{ lightdm_system_files[index].mode }},
+      got {{ item.stat.pw_name | default('?') }}:{{ item.stat.gr_name | default('?') }}
+      {{ item.stat.mode | default('?') }})
+    quiet: true
+  loop: "{{ _lightdm_verify_files.results }}"
+  loop_control:
+    index_var: index
+  tags: ['lightdm']
+
+# ---- 10-config.conf: содержимое ----
+
+- name: Read 10-config.conf content
+  ansible.builtin.slurp:
+    src: /etc/lightdm/lightdm.conf.d/10-config.conf
+  register: _lightdm_verify_config_raw
+  tags: ['lightdm']
+
+- name: Set config text fact
+  ansible.builtin.set_fact:
+    _lightdm_verify_config_text: "{{ _lightdm_verify_config_raw.content | b64decode }}"
+  tags: ['lightdm']
+
+- name: Assert config contains Seat section
+  ansible.builtin.assert:
+    that: "'[Seat:*]' in _lightdm_verify_config_text"
+    fail_msg: "'[Seat:*]' section header missing from 10-config.conf"
+    quiet: true
+  tags: ['lightdm']
+
+- name: Assert config specifies greeter-session
+  ansible.builtin.assert:
+    that: _lightdm_verify_config_text is regex('greeter-session=\S+')
+    fail_msg: "'greeter-session' directive missing or empty in 10-config.conf"
+    quiet: true
+  tags: ['lightdm']
+
+- name: Assert config specifies display-setup-script pointing to resolution script
+  ansible.builtin.assert:
+    that: "'add-and-set-resolution.sh' in _lightdm_verify_config_text"
+    fail_msg: "display-setup-script does not reference add-and-set-resolution.sh"
+    quiet: true
+  tags: ['lightdm']
+
+# ---- add-and-set-resolution.sh: содержимое ----
+
+- name: Read resolution script content
+  ansible.builtin.slurp:
+    src: /etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
+  register: _lightdm_verify_script_raw
+  tags: ['lightdm']
+
+- name: Set script text fact
+  ansible.builtin.set_fact:
+    _lightdm_verify_script_text: "{{ _lightdm_verify_script_raw.content | b64decode }}"
+  tags: ['lightdm']
+
+- name: Assert script has bash shebang
+  ansible.builtin.assert:
+    that: _lightdm_verify_script_text is regex('^#!/bin/bash')
+    fail_msg: "Resolution script missing #!/bin/bash shebang"
+    quiet: true
+  tags: ['lightdm']
+
+- name: Assert script uses xrandr
+  ansible.builtin.assert:
+    that: "'xrandr' in _lightdm_verify_script_text"
+    fail_msg: "Resolution script does not contain xrandr commands"
+    quiet: true
+  tags: ['lightdm']
+
+- name: Assert script always exits 0 (prevents LightDM restart loop)
+  ansible.builtin.assert:
+    that: "'exit 0' in _lightdm_verify_script_text"
+    fail_msg: >-
+      Resolution script does not contain 'exit 0'.
+      Non-zero exit causes LightDM infinite restart loop.
+    quiet: true
+  tags: ['lightdm']
+
+# ---- Сервис — systemd ----
+
+- name: Check lightdm service is enabled (systemd)
+  ansible.builtin.command:
+    cmd: >-
+      systemctl is-enabled
+      {{ _lightdm_service[ansible_facts['service_mgr']] | default('lightdm') }}.service
+  register: _lightdm_verify_svc_enabled
+  changed_when: false
+  failed_when: false
+  when:
+    - lightdm_enable_service | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+    - ansible_virtualization_type | default('') != 'docker'
+  tags: ['lightdm']
+
+- name: Assert lightdm service is enabled (systemd)
+  ansible.builtin.assert:
+    that: _lightdm_verify_svc_enabled.stdout | default('') is regex('^enabled')
+    fail_msg: >-
+      lightdm.service is not enabled
+      (got '{{ _lightdm_verify_svc_enabled.stdout | default('') }}').
+    quiet: true
+  when:
+    - lightdm_enable_service | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+    - ansible_virtualization_type | default('') != 'docker'
+  tags: ['lightdm']
+
+# ---- Сервис — runit ----
+# TODO: Add runit service verification when Void Linux is exercised in CI.
+# Expected check: stat /var/service/lightdm → exists and is a symlink
+
+- name: Service check skipped (runit — not yet implemented)
+  ansible.builtin.debug:
+    msg: "lightdm service verification on runit is not yet implemented (TODO)"
+  when:
+    - lightdm_enable_service | bool
+    - ansible_facts['service_mgr'] == 'runit'
+  tags: ['lightdm']
+
+# ---- Сервис — openrc ----
+# TODO: Add openrc service verification when Gentoo is exercised in CI.
+# Expected check: rc-update show default | grep lightdm
+
+- name: Service check skipped (openrc — not yet implemented)
+  ansible.builtin.debug:
+    msg: "lightdm service verification on openrc is not yet implemented (TODO)"
+  when:
+    - lightdm_enable_service | bool
+    - ansible_facts['service_mgr'] == 'openrc'
+  tags: ['lightdm']

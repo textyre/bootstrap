@@ -1,0 +1,83 @@
+---
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (role-specific)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install lightdm (Arch)
+      community.general.pacman:
+        name: lightdm
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Install lightdm (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: lightdm
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Create dotfiles fixture directory
+      ansible.builtin.file:
+        path: /tmp/dotfiles/etc/lightdm/lightdm.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create fixture 10-config.conf
+      ansible.builtin.copy:
+        dest: /tmp/dotfiles/etc/lightdm/lightdm.conf.d/10-config.conf
+        content: |
+          [Seat:*]
+          greeter-session=nody-greeter
+          xserver-command=X -br
+          display-setup-script=/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh 2560 1440 60
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create fixture add-and-set-resolution.sh
+      ansible.builtin.copy:
+        dest: /tmp/dotfiles/etc/lightdm/lightdm.conf.d/add-and-set-resolution.sh
+        content: |
+          #!/bin/bash
+          set -x
+
+          x="$1"
+          y="$2"
+          freq="$3"
+
+          if [ $# -ne 3 ]; then
+            echo "Usage: $0 x y freq"
+            exit 0
+          fi
+
+          output=$( xrandr | (grep -m1 ' connected primary' || grep -m1 ' connected') | cut -d' ' -f1 )
+          mode=$( cvt "$x" "$y" "$freq" | grep -v '^#' | cut -d' ' -f3- )
+          modename="${x}x${y}"
+
+          xrandr --newmode $modename $mode
+          xrandr --addmode "$output" "$modename"
+          xrandr --output "$output" --mode "$modename"
+
+          xsetroot -solid "#000000"
+
+          # Always return success or lightdm goes into infinite loop
+          exit 0
+        owner: root
+        group: root
+        mode: '0755'

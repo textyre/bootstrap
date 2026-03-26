@@ -1,0 +1,10 @@
+---
+# === LightDM — Gentoo ===
+# NOTE: LightDM uses the same service name on all supported distros and init systems.
+# This file exists to satisfy ROLE-001 per-distro vars structure.
+_lightdm_service:
+  systemd: lightdm
+  runit: lightdm
+  openrc: lightdm
+  s6: lightdm
+  dinit: lightdm
