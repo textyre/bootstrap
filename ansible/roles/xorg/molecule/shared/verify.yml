@@ -6,14 +6,36 @@
 
   tasks:
 
+    - name: Set verify target paths
+      ansible.builtin.set_fact:
+        _xorg_verify_conf_dir: "/etc/X11/xorg.conf.d"
+        _xorg_verify_keyboard_path: >-
+          {{
+            (
+              xorg_system_files
+              | selectattr('src', 'equalto', 'etc/X11/xorg.conf.d/00-keyboard.conf')
+              | map(attribute='dest')
+              | first
+            ) | default('/etc/X11/xorg.conf.d/00-keyboard.conf')
+          }}
+        _xorg_verify_monitor_path: >-
+          {{
+            (
+              xorg_system_files
+              | selectattr('src', 'equalto', 'etc/X11/xorg.conf.d/10-monitor.conf')
+              | map(attribute='dest')
+              | first
+            ) | default('/etc/X11/xorg.conf.d/10-monitor.conf')
+          }}
+
     # ---- Directory exists ----
 
-    - name: Stat /etc/X11/xorg.conf.d/
+    - name: Stat X11 config directory
       ansible.builtin.stat:
-        path: /etc/X11/xorg.conf.d
+        path: "{{ _xorg_verify_conf_dir }}"
       register: _xorg_verify_confdir
 
-    - name: Assert /etc/X11/xorg.conf.d/ exists and is a directory
+    - name: Assert X11 config directory exists and is a directory
       ansible.builtin.assert:
         that:
           - _xorg_verify_confdir.stat.exists
@@ -21,13 +43,13 @@
           - _xorg_verify_confdir.stat.pw_name == 'root'
           - _xorg_verify_confdir.stat.gr_name == 'root'
           - _xorg_verify_confdir.stat.mode == '0755'
-        fail_msg: "/etc/X11/xorg.conf.d/ missing or wrong permissions (expected root:root 0755)"
+        fail_msg: "{{ _xorg_verify_conf_dir }} missing or wrong permissions (expected root:root 0755)"
 
     # ---- 00-keyboard.conf ----
 
-    - name: Stat /etc/X11/xorg.conf.d/00-keyboard.conf
+    - name: Stat keyboard config
       ansible.builtin.stat:
-        path: /etc/X11/xorg.conf.d/00-keyboard.conf
+        path: "{{ _xorg_verify_keyboard_path }}"
       register: _xorg_verify_keyboard
 
     - name: Assert 00-keyboard.conf exists with correct permissions
@@ -38,11 +60,11 @@
           - _xorg_verify_keyboard.stat.pw_name == 'root'
           - _xorg_verify_keyboard.stat.gr_name == 'root'
           - _xorg_verify_keyboard.stat.mode == '0644'
-        fail_msg: "00-keyboard.conf missing or wrong permissions (expected root:root 0644)"
+        fail_msg: "{{ _xorg_verify_keyboard_path }} missing or wrong permissions (expected root:root 0644)"
 
     - name: Read 00-keyboard.conf
       ansible.builtin.slurp:
-        src: /etc/X11/xorg.conf.d/00-keyboard.conf
+        src: "{{ _xorg_verify_keyboard_path }}"
       register: _xorg_verify_keyboard_raw
 
     - name: Assert keyboard config content is present
@@ -71,9 +93,9 @@
 
     # ---- 10-monitor.conf ----
 
-    - name: Stat /etc/X11/xorg.conf.d/10-monitor.conf
+    - name: Stat monitor config
       ansible.builtin.stat:
-        path: /etc/X11/xorg.conf.d/10-monitor.conf
+        path: "{{ _xorg_verify_monitor_path }}"
       register: _xorg_verify_monitor
 
     - name: Assert 10-monitor.conf exists with correct permissions
@@ -84,11 +106,11 @@
           - _xorg_verify_monitor.stat.pw_name == 'root'
           - _xorg_verify_monitor.stat.gr_name == 'root'
           - _xorg_verify_monitor.stat.mode == '0644'
-        fail_msg: "10-monitor.conf missing or wrong permissions (expected root:root 0644)"
+        fail_msg: "{{ _xorg_verify_monitor_path }} missing or wrong permissions (expected root:root 0644)"
 
     - name: Read 10-monitor.conf
       ansible.builtin.slurp:
-        src: /etc/X11/xorg.conf.d/10-monitor.conf
+        src: "{{ _xorg_verify_monitor_path }}"
       register: _xorg_verify_monitor_raw
 
     - name: Assert monitor config content is present
@@ -132,22 +154,24 @@
 
     - name: Find all files in /etc/X11/xorg.conf.d/
       ansible.builtin.find:
-        paths: /etc/X11/xorg.conf.d
+        paths: "{{ _xorg_verify_conf_dir }}"
         file_type: file
       register: _xorg_verify_file_count
 
-    - name: Assert exactly 2 config files deployed
+    - name: Assert deployed file count matches configuration
       ansible.builtin.assert:
         that:
-          - _xorg_verify_file_count.matched == 2
-        fail_msg: "Expected 2 files in /etc/X11/xorg.conf.d/, found {{ _xorg_verify_file_count.matched }}"
+          - _xorg_verify_file_count.matched == (xorg_system_files | length)
+        fail_msg: >-
+          Expected {{ xorg_system_files | length }} files in {{ _xorg_verify_conf_dir }},
+          found {{ _xorg_verify_file_count.matched }}
 
     # ---- Summary ----
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
-          Xorg verify passed: /etc/X11/xorg.conf.d/ exists (root:root 0755),
-          00-keyboard.conf deployed (root:root 0644, XkbLayout present),
-          10-monitor.conf deployed (root:root 0644, Monitor/Device/Screen sections present),
-          2 config files total.
+          Xorg verify passed: {{ _xorg_verify_conf_dir }} exists (root:root 0755),
+          keyboard config deployed (root:root 0644, XkbLayout present),
+          monitor config deployed (root:root 0644, Monitor/Device/Screen sections present),
+          {{ xorg_system_files | length }} config files total.

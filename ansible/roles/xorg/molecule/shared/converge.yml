@@ -8,3 +8,29 @@
     - role: xorg
       vars:
         xorg_source_dir: /tmp/xorg_test_dotfiles
+
+- name: Negative test — invalid xorg_source_dir
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Attempt role with missing dotfiles source (should fail)
+      block:
+        - name: Run xorg role with invalid source directory
+          ansible.builtin.include_role:
+            name: xorg
+          vars:
+            xorg_source_dir: /tmp/xorg_missing_dotfiles
+
+        - name: Fail if role did not reject missing source directory
+          ansible.builtin.fail:
+            msg: "Role should have rejected missing xorg_source_dir"
+
+      rescue:
+        - name: Assert failure mentions missing source directory
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result.msg is search('исходниками не найдена|source')
+            fail_msg: "Role failed, but error message did not mention missing source directory"
+            success_msg: "Role correctly rejected missing xorg_source_dir"

@@ -1,0 +1,44 @@
+---
+# === Конфигурация X11 (Xorg) ===
+# Общая логика деплоя, вызывается из OS-specific task files
+
+- name: Resolve dotfiles source directory
+  ansible.builtin.stat:
+    path: "{{ xorg_source_dir }}"
+  register: xorg_source_stat
+  changed_when: false
+  tags: ['xorg', 'display']
+
+- name: Assert dotfiles source directory exists
+  ansible.builtin.assert:
+    that:
+      - xorg_source_stat.stat.exists
+      - xorg_source_stat.stat.isdir
+    fail_msg: "Директория с исходниками не найдена: {{ xorg_source_dir }}"
+    success_msg: "Директория с исходниками найдена: {{ xorg_source_dir }}"
+  tags: ['xorg', 'display']
+
+- name: Create X11 config directories
+  ansible.builtin.file:
+    path: "{{ item.dest | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ xorg_system_files }}"
+  loop_control:
+    label: "{{ item.dest | dirname }}"
+  tags: ['xorg', 'display']
+
+- name: Deploy Xorg configuration files
+  ansible.builtin.copy:
+    src: "{{ xorg_source_dir }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    remote_src: true
+  loop: "{{ xorg_system_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  tags: ['xorg', 'display']

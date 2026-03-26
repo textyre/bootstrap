@@ -1,0 +1,3 @@
+---
+_xorg_conf_dir: /etc/X11/xorg.conf.d
+_xorg_platform_name: Ubuntu / Debian
