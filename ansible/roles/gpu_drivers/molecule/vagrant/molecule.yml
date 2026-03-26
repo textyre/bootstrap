@@ -18,9 +18,11 @@ platforms:
 
 dependency:
   name: galaxy
-  enabled: false
-  # 'common' role is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
-  # (galaxy install not needed for local monorepo dependencies — see requirements.yml)
+  options:
+    ignore-errors: true
+  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
+  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
+  # ignore-errors: true prevents galaxy from aborting when common is not found.
 
 provisioner:
   name: ansible
