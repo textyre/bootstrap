@@ -1,0 +1,49 @@
+---
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare zen_browser (Vagrant)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install base-devel and git (required to build AUR packages)
+      community.general.pacman:
+        name:
+          - base-devel
+          - git
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Create non-root test user for AUR builds
+      ansible.builtin.user:
+        name: testuser
+        create_home: true
+        shell: /bin/bash
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Grant testuser passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/testuser
+        content: "testuser ALL=(ALL) NOPASSWD: ALL\n"
+        mode: "0440"
+        validate: "visudo -cf %s"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Clone yay from AUR
+      become: true
+      become_user: testuser
+      ansible.builtin.command:
+        cmd: git clone https://aur.archlinux.org/yay.git /home/testuser/yay
+        creates: /home/testuser/yay
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Build and install yay
+      become: true
+      become_user: testuser
+      ansible.builtin.command:
+        cmd: makepkg -si --noconfirm
+        chdir: /home/testuser/yay
+      register: _zen_browser_yay_build
+      changed_when: "'reinstalling yay' not in _zen_browser_yay_build.stdout"
+      when: ansible_facts['os_family'] == 'Archlinux'

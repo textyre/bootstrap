@@ -9,11 +9,12 @@
   tasks:
 
     # ---- Platform guard ----
+    # zen_browser is Arch-only. On non-Arch hosts (e.g. ubuntu-base in vagrant
+    # scenario) the role is disabled via zen_browser_enabled: false — skip verify.
 
-    - name: Assert we are on Arch Linux
-      ansible.builtin.assert:
-        that: ansible_facts['os_family'] == 'Archlinux'
-        fail_msg: "zen_browser verify requires Arch Linux"
+    - name: Skip verification on non-Arch host
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
 
     # ---- SUDO_ASKPASS helper cleaned up ----
 
