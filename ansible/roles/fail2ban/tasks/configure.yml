@@ -1,5 +1,5 @@
 ---
-- name: "Deploy SSH jail configuration"
+- name: "Security — Deploy SSH jail configuration"
   ansible.builtin.template:
     src: jail_sshd.conf.j2
     dest: /etc/fail2ban/jail.d/sshd.conf
@@ -7,4 +7,4 @@
     group: root
     mode: "0644"
   notify: "restart fail2ban"
-  tags: [fail2ban]
+  tags: [fail2ban, security]

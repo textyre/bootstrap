@@ -19,6 +19,7 @@
       ansible.builtin.assert:
         that: "'fail2ban' in ansible_facts.packages"
         fail_msg: "fail2ban package not found in installed packages"
+        success_msg: "fail2ban package is installed"
 
     - name: Verify fail2ban-client is available
       ansible.builtin.command:
@@ -47,6 +48,10 @@
           (expected root:root 0644, got {{ _fail2ban_verify_jail_conf.stat.pw_name | default('?') }}:{{
           _fail2ban_verify_jail_conf.stat.gr_name | default('?') }} {{
           _fail2ban_verify_jail_conf.stat.mode | default('?') }})
+        success_msg: >-
+          /etc/fail2ban/jail.d/sshd.conf exists with correct permissions
+          ({{ _fail2ban_verify_jail_conf.stat.pw_name }}:{{ _fail2ban_verify_jail_conf.stat.gr_name }}
+          {{ _fail2ban_verify_jail_conf.stat.mode }})
 
     # ---- Configuration file: content ----
 
@@ -59,6 +64,7 @@
       ansible.builtin.assert:
         that: "'content' in _fail2ban_verify_jail_raw"
         fail_msg: "slurp did not return content for jail config"
+        success_msg: "jail config content was read successfully"
 
     - name: Set jail config text fact
       ansible.builtin.set_fact:
@@ -68,16 +74,19 @@
       ansible.builtin.assert:
         that: "'Ansible' in _fail2ban_verify_jail_text"
         fail_msg: "Ansible managed marker not found -- config may not be template-generated"
+        success_msg: "Ansible managed marker is present in jail config"
 
     - name: Assert sshd jail section present
       ansible.builtin.assert:
         that: "'[sshd]' in _fail2ban_verify_jail_text"
         fail_msg: "[sshd] section not found in jail config"
+        success_msg: "[sshd] section is present in jail config"
 
     - name: Assert jail is enabled
       ansible.builtin.assert:
         that: "'enabled = true' in _fail2ban_verify_jail_text"
         fail_msg: "sshd jail is not enabled in config"
+        success_msg: "sshd jail is enabled in config"
       when: fail2ban_sshd_enabled | bool
 
     - name: Assert maxretry matches converge value
@@ -86,6 +95,7 @@
         fail_msg: >-
           maxretry not set to {{ fail2ban_sshd_maxretry }}
           (converge override value)
+        success_msg: "maxretry = {{ fail2ban_sshd_maxretry }} is correctly configured"
 
     - name: Assert bantime matches converge value
       ansible.builtin.assert:
@@ -93,39 +103,46 @@
         fail_msg: >-
           bantime not set to {{ fail2ban_sshd_bantime }}
           (converge override value)
+        success_msg: "bantime = {{ fail2ban_sshd_bantime }} is correctly configured"
 
     - name: Assert findtime is present
       ansible.builtin.assert:
         that: _fail2ban_verify_jail_text is regex('(?m)^findtime = ')
         fail_msg: "findtime directive missing from jail config"
+        success_msg: "findtime directive is present in jail config"
 
     - name: Assert backend is present
       ansible.builtin.assert:
         that: _fail2ban_verify_jail_text is regex('(?m)^backend = ')
         fail_msg: "backend directive missing from jail config"
+        success_msg: "backend directive is present in jail config"
 
     - name: Assert bantime.increment is configured
       ansible.builtin.assert:
         that: "'bantime.increment = true' in _fail2ban_verify_jail_text"
         fail_msg: "bantime.increment not enabled (expected progressive ban escalation)"
+        success_msg: "bantime.increment = true is correctly configured"
       when: fail2ban_sshd_bantime_increment | bool
 
     - name: Assert bantime.maxtime is configured
       ansible.builtin.assert:
         that: _fail2ban_verify_jail_text is regex('(?m)^bantime\.maxtime = ')
         fail_msg: "bantime.maxtime directive missing (required when bantime.increment is true)"
+        success_msg: "bantime.maxtime directive is present in jail config"
       when: fail2ban_sshd_bantime_increment | bool
 
     - name: Assert ignoreip whitelist is present
       ansible.builtin.assert:
         that: _fail2ban_verify_jail_text is regex('(?m)^ignoreip = ')
         fail_msg: "ignoreip whitelist missing from jail config"
+        success_msg: "ignoreip whitelist is present in jail config"
       when: fail2ban_ignoreip | length > 0
 
     - name: Assert localhost is in ignoreip
       ansible.builtin.assert:
         that: "'127.0.0.1/8' in _fail2ban_verify_jail_text"
         fail_msg: "127.0.0.1/8 not in ignoreip whitelist"
+        success_msg: "127.0.0.1/8 is present in ignoreip whitelist"
       when: "'127.0.0.1/8' in fail2ban_ignoreip"
 
     # ---- Service state ----
@@ -142,6 +159,7 @@
         fail_msg: >-
           fail2ban.service is not enabled
           (got '{{ _fail2ban_verify_svc_enabled.status.UnitFileState | default("unknown") }}')
+        success_msg: "fail2ban.service is enabled"
       when: ansible_facts['service_mgr'] == 'systemd'
 
     # ---- Runtime checks (guarded for Docker) ----
@@ -161,6 +179,7 @@
         fail_msg: >-
           fail2ban.service is not active
           (got '{{ _fail2ban_verify_svc_active.status.ActiveState | default("unknown") }}')
+        success_msg: "fail2ban.service is active"
       when:
         - ansible_facts['service_mgr'] == 'systemd'
         - ansible_virtualization_type | default('') != 'docker'
@@ -189,6 +208,7 @@
         fail_msg: >-
           fail2ban-client status failed (rc={{ _fail2ban_verify_client_status.rc }}).
           stderr: {{ _fail2ban_verify_client_status.stderr | default('') }}
+        success_msg: "fail2ban-client status reports healthy (rc=0)"
       when: ansible_virtualization_type | default('') != 'docker'
 
     - name: Assert sshd jail is listed
@@ -197,6 +217,7 @@
         fail_msg: >-
           sshd jail not listed in fail2ban-client status output.
           stdout: {{ _fail2ban_verify_client_status.stdout }}
+        success_msg: "sshd jail is listed in fail2ban-client status output"
       when:
         - fail2ban_sshd_enabled | bool
         - ansible_virtualization_type | default('') != 'docker'
@@ -219,6 +240,7 @@
           fail2ban sshd jail status check failed.
           rc={{ _fail2ban_verify_sshd_status.rc }},
           stdout: {{ _fail2ban_verify_sshd_status.stdout | default('') }}
+        success_msg: "sshd jail is active and reporting correctly"
       when:
         - fail2ban_sshd_enabled | bool
         - ansible_virtualization_type | default('') != 'docker'
@@ -249,6 +271,7 @@
         fail_msg: >-
           fail2ban-client status failed in Docker despite server being reachable.
           stderr: {{ _fail2ban_verify_client_status_docker.stderr | default('') }}
+        success_msg: "fail2ban-client status reports healthy in Docker (rc=0)"
       when:
         - ansible_virtualization_type | default('') == 'docker'
         - _fail2ban_verify_ping.rc | default(1) == 0

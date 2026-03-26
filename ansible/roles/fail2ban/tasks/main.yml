@@ -4,7 +4,7 @@
 
 - name: Fail2ban role
   when: fail2ban_enabled | bool
-  tags: ['fail2ban']
+  tags: ['fail2ban', 'security']
   block:
 
     # ======================================================================
@@ -14,15 +14,15 @@
     - name: "Assert supported operating system"
       ansible.builtin.assert:
         that:
-          - ansible_facts['os_family'] in fail2ban_supported_os
+          - ansible_facts['os_family'] in _fail2ban_supported_os
         fail_msg: >-
           OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ fail2ban_supported_os | join(', ') }}
-      tags: [fail2ban]
+          Supported: {{ _fail2ban_supported_os | join(', ') }}
+      tags: [fail2ban, security]
 
     - name: "Include OS-specific variables"
       ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-      tags: [fail2ban]
+      tags: [fail2ban, security]
 
     # ======================================================================
     # ---- Установка ----
@@ -30,32 +30,32 @@
 
     - name: "Install fail2ban"
       ansible.builtin.include_tasks: install.yml
-      tags: [fail2ban, install]
+      tags: [fail2ban, install, security]
 
     # ======================================================================
     # ---- Конфигурация ----
     # ======================================================================
 
-    - name: "Configure fail2ban"
+    - name: "Security — Deploy SSH brute-force protection configuration"
       ansible.builtin.include_tasks: configure.yml
-      tags: [fail2ban]
+      tags: [fail2ban, security]
 
     # ======================================================================
     # ---- Запуск ----
     # ======================================================================
 
-    - name: "Enable fail2ban"
+    - name: "Security — Enable fail2ban service"
       ansible.builtin.service:
         name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         enabled: true
-      tags: [fail2ban, service]
+      tags: [fail2ban, service, security]
 
-    - name: "Start fail2ban"
+    - name: "Security — Start fail2ban service"
       ansible.builtin.service:
         name: "{{ fail2ban_service_name[ansible_facts['service_mgr']] | default('fail2ban') }}"
         state: started
       when: fail2ban_start_service | bool
-      tags: [fail2ban, service]
+      tags: [fail2ban, service, security]
 
     # ======================================================================
     # ---- Flush handlers (apply pending restart before verify) ----

@@ -4,56 +4,54 @@
 
 ## Цель
 
-Защита от brute-force атак через автоматическое блокирование IP-адресов после множественных неудачных попыток входа. Отслеживает логи SSH, HTTP/HTTPS и других сервисов для выявления подозрительной активности и добавляет правила блокировки в firewall (nftables/iptables).
+Защита от brute-force атак через автоматическое блокирование IP-адресов после множественных неудачных попыток входа по SSH. Отслеживает логи SSH-сервиса и добавляет правила блокировки через настроенный banaction (iptables/nftables/firewalld).
 
 ## Ключевые переменные (defaults)
 
 ```yaml
-fail2ban_enabled: true                    # Включить fail2ban
-fail2ban_bantime: 3600                    # Время блокировки в секундах (1 час)
-fail2ban_findtime: 600                    # Окно времени для подсчета попыток (10 минут)
-fail2ban_maxretry: 5                      # Максимум попыток до блокировки
-fail2ban_destemail: root@localhost        # Email для уведомлений
-fail2ban_sender: fail2ban@localhost       # Отправитель email
-fail2ban_action: action_                  # Действие: action_ (ban only), action_mw (ban+email)
+fail2ban_enabled: true                           # Включить роль fail2ban
+fail2ban_start_service: true                     # Запускать сервис (false для контейнеров)
 
-# Jail configurations
-fail2ban_ssh_enabled: true                # Защита SSH
-fail2ban_ssh_port: 22                     # Порт SSH
-fail2ban_ssh_maxretry: 3                  # SSH: строже лимит
+# SSH jail
+fail2ban_sshd_enabled: true                      # Включить sshd jail
+fail2ban_sshd_port: "{{ ssh_port | default(22) }}" # Порт SSH (наследует ssh_port)
+fail2ban_sshd_maxretry: 5                        # Попытки до бана (3 — строго, 10 — мягко)
+fail2ban_sshd_findtime: 600                      # Окно подсчёта попыток, сек (10 мин)
+fail2ban_sshd_bantime: 3600                      # Длительность бана, сек (1 час)
+fail2ban_sshd_bantime_increment: true            # Прогрессивный бан (удвоение при повторах)
+fail2ban_sshd_bantime_maxtime: 86400             # Верхняя граница прогрессивного бана (24 ч)
+fail2ban_sshd_backend: auto                      # Бэкенд логов: auto, systemd, polling
+fail2ban_sshd_banaction: ""                       # Действие бана (пусто = iptables-multiport)
 
-fail2ban_http_enabled: false              # Защита HTTP (nginx/apache)
-fail2ban_http_maxretry: 5                 # HTTP: попытки до блокировки
-
-fail2ban_custom_jails: []                 # Список дополнительных jails: [{name, enabled, port, filter, logpath}]
+# Белый список
+fail2ban_ignoreip:                               # IP/CIDR, которые никогда не банятся
+  - 127.0.0.1/8
+  - "::1"
 ```
 
 ## Что настраивает
 
 - Конфигурационные файлы:
-  - `/etc/fail2ban/fail2ban.local` — глобальная конфигурация
-  - `/etc/fail2ban/jail.local` — настройка jails (SSH, HTTP/HTTPS)
-  - `/etc/fail2ban/filter.d/` — кастомные фильтры (опционально)
-- Сервис: `fail2ban.service` (enabled + started)
-- Логи: `/var/log/fail2ban.log`
+  - `/etc/fail2ban/jail.d/sshd.conf` — конфигурация SSH jail (template)
+- Сервис: `fail2ban` (enabled + started)
+- Пакеты: `fail2ban` (OS-specific через vars/)
 
 **Arch Linux:**
 - Пакет: `fail2ban`
-- Интеграция с `nftables` через backend в `jail.local`
 
 **Debian/Ubuntu:**
 - Пакет: `fail2ban`
-- Интеграция с `iptables` или `nftables` (автодетект)
+
+**Fedora/RHEL:**
+- Пакет: `fail2ban`
 
 ## Зависимости
 
-- `firewall` — fail2ban добавляет правила в активный firewall
-- `ssh` — для jail sshd требуется настроенный sshd
-- `journald` (опционально) — для чтения логов из systemd journal
+- `common` — для report_phase и report_render (execution report)
 
 ## Tags
 
-- `fail2ban`, `security`, `ips`
+- `fail2ban`, `security`, `install`, `service`, `report`
 
 ---
 
