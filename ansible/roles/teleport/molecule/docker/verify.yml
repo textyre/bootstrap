@@ -1,4 +1,5 @@
 ---
 # TEST-003: Stub verify for docker scenario.
 # Delegates to the shared verify playbook so all scenarios share one source of truth.
-- ansible.builtin.import_playbook: ../shared/verify.yml
+- name: Verify
+  ansible.builtin.import_playbook: ../shared/verify.yml

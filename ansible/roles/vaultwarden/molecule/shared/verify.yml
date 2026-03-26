@@ -323,7 +323,9 @@
       register: _vaultwarden_verify_container
       changed_when: false
       failed_when: false
-      when: ansible_facts['virtualization_type'] | default('') != 'docker'
+      when:
+        - ansible_facts['virtualization_type'] | default('') != 'docker'
+        - vaultwarden_compose_manage | default(true) | bool
 
     - name: Assert vaultwarden container is running
       ansible.builtin.assert:
@@ -339,6 +341,7 @@
       when:
         - ansible_facts['virtualization_type'] | default('') != 'docker'
         - _vaultwarden_verify_container is defined
+        - vaultwarden_compose_manage | default(true) | bool
 
     # ---- Summary ----
 
