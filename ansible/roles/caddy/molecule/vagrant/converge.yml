@@ -1,0 +1,4 @@
+---
+# TEST-003: stub required in every scenario directory.
+- name: Converge
+  ansible.builtin.import_playbook: ../shared/converge.yml
