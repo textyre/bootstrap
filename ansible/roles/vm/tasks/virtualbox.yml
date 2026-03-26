@@ -42,12 +42,12 @@
     name: "{{ vm_packages_virtualbox_guest }}"
     state: present
   when:
-    - _vm_vbox_control_check.rc != 0
+    - vm_vbox_control_check.rc != 0
     - vm_packages_virtualbox_guest | length > 0
   register: vm_vbox_initial_install
   retries: 3
   delay: 5
-  until: _vm_vbox_initial_install is succeeded
+  until: vm_vbox_initial_install is succeeded
   notify: "Restart virtualbox services"
   tags: ['vm', 'vbox', 'vm:install']
 
@@ -75,7 +75,7 @@
   register: vm_vbox_pkg_install
   retries: 3
   delay: 5
-  until: _vm_vbox_pkg_install is succeeded
+  until: vm_vbox_pkg_install is succeeded
   notify: "Restart virtualbox services"
   tags: ['vm', 'vbox', 'vm:install']
 
@@ -175,7 +175,7 @@
   vars:
     vm_reboot_label: "VirtualBox"
     vm_reboot_condition: >-
-      {{ ((_vm_vbox_pkg_install is defined and _vm_vbox_pkg_install is changed)
+      {{ ((vm_vbox_pkg_install is defined and vm_vbox_pkg_install is changed)
           or (vm_vbox_iso_installed | default(false)))
          and ('vboxguest' not in (_vm_lsmod_output.stdout | default(''))) }}
   tags: ['vm', 'vbox']

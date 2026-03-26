@@ -41,11 +41,11 @@
 
     - name: "VirtualBox: Install build dependencies"
       ansible.builtin.package:
-        name: "{{ ['gcc', 'make', 'perl'] + (['linux-lts-headers'] if '-lts' in _vm_vbox_kernel_for_iso.stdout else ['linux-headers']) }}"
+        name: "{{ ['gcc', 'make', 'perl'] + (['linux-lts-headers'] if '-lts' in vm_vbox_kernel_for_iso.stdout else ['linux-headers']) }}"
         state: present
       retries: 3
       delay: 5
-      until: _vm_vbox_build_deps is succeeded
+      until: vm_vbox_build_deps is succeeded
       register: vm_vbox_build_deps
 
     - name: "VirtualBox: Stop vboxservice"
@@ -81,10 +81,13 @@
         state: directory
         mode: '0755'
 
-    - name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
-      ansible.builtin.command:
-        cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso /mnt/vbox_iso"
-      changed_when: true
+    - name: "VirtualBox: Mount GA ISO"
+      ansible.posix.mount:
+        src: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
+        path: /mnt/vbox_iso
+        fstype: iso9660
+        opts: loop,ro
+        state: mounted
 
     - name: "VirtualBox: Run VBoxLinuxAdditions.run"
       ansible.builtin.command:
@@ -126,12 +129,14 @@
     - name: "VirtualBox: Reload systemd daemon"
       ansible.builtin.systemd:
         daemon_reload: true
+      when: ansible_facts['service_mgr'] == 'systemd'
 
     - name: "VirtualBox: Enable vboxadd-service"
       ansible.builtin.systemd:
         name: vboxadd-service
         enabled: true
         state: started
+      when: ansible_facts['service_mgr'] == 'systemd'
       failed_when: false
 
     - name: "VirtualBox: Mark ISO installation complete"
@@ -183,9 +188,9 @@
 
   always:
     - name: "VirtualBox: Unmount ISO"
-      ansible.builtin.command:
-        cmd: umount /mnt/vbox_iso
-      changed_when: false
+      ansible.posix.mount:
+        path: /mnt/vbox_iso
+        state: absent
       failed_when: false
 
     - name: "VirtualBox: Remove ISO mount point"

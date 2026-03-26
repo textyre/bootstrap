@@ -1,0 +1,130 @@
+---
+# =========================================================================
+# verify.yml
+# =========================================================================
+# In-role self-verification (ROLE-005).
+#
+# Runs after installation to confirm the role achieved its desired state.
+# Skips checks that are not applicable to the current environment.
+#
+# Verification categories:
+#   1. Fact file content (config file check via slurp + assert)
+#   2. Hypervisor state (runtime checks where applicable)
+#   3. Environment sanity (variable assertions)
+# =========================================================================
+
+# ---- 1. Fact file verification (all guest paths) ----
+
+- name: "Verify: Stat VM guest fact file"
+  ansible.builtin.stat:
+    path: /etc/ansible/facts.d/vm_guest.fact
+  register: _vm_verify_fact_stat
+  when:
+    - vm_is_guest | bool
+    - vm_state == 'present'
+  changed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "Verify: Assert fact file exists for guest"
+  ansible.builtin.assert:
+    that:
+      - _vm_verify_fact_stat.stat.exists
+    fail_msg: >-
+      /etc/ansible/facts.d/vm_guest.fact not found after install.
+      _set_facts.yml should have created it.
+    success_msg: "Guest fact file exists"
+  when:
+    - vm_is_guest | bool
+    - vm_state == 'present'
+    - _vm_verify_fact_stat is not skipped
+  tags: ['vm', 'vm:verify']
+
+- name: "Verify: Read fact file content"
+  ansible.builtin.slurp:
+    src: /etc/ansible/facts.d/vm_guest.fact
+  register: _vm_verify_fact_content
+  when:
+    - vm_is_guest | bool
+    - vm_state == 'present'
+    - _vm_verify_fact_stat is not skipped
+    - _vm_verify_fact_stat.stat.exists | default(false)
+  tags: ['vm', 'vm:verify']
+
+- name: "Verify: Assert fact file has correct content"
+  ansible.builtin.assert:
+    that:
+      - (_vm_verify_fact_content.content | b64decode | from_json).is_guest == true
+      - (_vm_verify_fact_content.content | b64decode | from_json).is_container == false
+      - (_vm_verify_fact_content.content | b64decode | from_json).hypervisor == vm_hypervisor
+    fail_msg: >-
+      vm_guest.fact content invalid:
+      expected is_guest=true, is_container=false, hypervisor={{ vm_hypervisor }}.
+      Got: {{ _vm_verify_fact_content.content | b64decode }}
+    success_msg: "Fact file content correct (hypervisor={{ vm_hypervisor }})"
+  when:
+    - vm_is_guest | bool
+    - vm_state == 'present'
+    - _vm_verify_fact_content is not skipped
+    - "'content' in _vm_verify_fact_content"
+  tags: ['vm', 'vm:verify']
+
+- name: "Verify: Assert fact file absent after removal"
+  ansible.builtin.stat:
+    path: /etc/ansible/facts.d/vm_guest.fact
+  register: _vm_verify_fact_absent
+  when:
+    - vm_state == 'absent'
+  changed_when: false
+  tags: ['vm', 'vm:verify']
+
+# ---- 2. Container path sanity ----
+
+- name: "Verify: Assert no fact file in container"
+  ansible.builtin.stat:
+    path: /etc/ansible/facts.d/vm_guest.fact
+  register: _vm_verify_container_fact
+  when:
+    - vm_is_container | bool
+    - vm_state == 'present'
+  changed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "Verify: Assert fact file NOT created in container"
+  ansible.builtin.assert:
+    that:
+      - not _vm_verify_container_fact.stat.exists
+    fail_msg: >-
+      vm_guest.fact should NOT exist in container environment
+      (vm_is_guest=false for container type)
+    success_msg: "Correct: no guest fact file in container"
+  when:
+    - vm_is_container | bool
+    - vm_state == 'present'
+    - _vm_verify_container_fact is not skipped
+  tags: ['vm', 'vm:verify']
+
+# ---- 3. Environment variable sanity ----
+
+- name: "Verify: Assert hypervisor detection is valid"
+  ansible.builtin.assert:
+    that:
+      - vm_virt_type is defined
+      - vm_virt_role is defined
+      - vm_hypervisor is defined
+    fail_msg: "Virtualization facts missing — gather_facts must be enabled"
+    success_msg: "Virtualization facts present ({{ vm_virt_type }}/{{ vm_virt_role }})"
+  tags: ['vm', 'vm:verify']
+
+# ---- 4. Report ----
+
+- name: "Report: Verify"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Verify"
+    common_rpt_detail: >-
+      hypervisor={{ vm_hypervisor }},
+      state={{ vm_state }}
+  tags: ['vm', 'vm:verify', 'vm:report']

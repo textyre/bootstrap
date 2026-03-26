@@ -5,6 +5,16 @@
 
 # ---- Prerequisites ----
 
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _vm_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _vm_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['vm']
+
 - name: Validate role prerequisites
   ansible.builtin.assert:
     that:
@@ -115,6 +125,13 @@
     - vm_state == 'absent'
     - vm_is_guest | bool
   tags: ['vm']
+
+# ---- Verify ----
+
+- name: Verify vm role state
+  ansible.builtin.include_tasks:
+    file: verify.yml
+  tags: ['vm', 'vm:verify']
 
 # ---- Execution report ----
 

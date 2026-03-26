@@ -24,7 +24,7 @@
     failed: "{{ item.failed | default(false) | bool }}"
     common_rpt_status_mark: "{{ '- skipped' if failed else '+ stopped' }}"
     detail: "{{ (item.msg | default('not found')) | truncate(28, true, '..') if failed else 'disabled' }}"
-    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(_st) }} | {{ '%-28s' | format(detail) }} |"
+    row: "| {{ '%-20s' | format(item.item | truncate(20, true, '..')) }} | {{ '%-10s' | format(common_rpt_status_mark) }} | {{ '%-28s' | format(detail) }} |"
   loop: "{{ vm_svc_stop_result.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
