@@ -1,7 +1,7 @@
 # {{ ansible_managed }}
 services:
   caddy:
-    image: caddy:2-alpine
+    image: {{ caddy_docker_image }}
     container_name: caddy
     restart: unless-stopped
     ports:

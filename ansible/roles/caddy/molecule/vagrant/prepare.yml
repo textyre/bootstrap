@@ -1,0 +1,12 @@
+---
+- name: Bootstrap Vagrant VM
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (role-specific)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Ensure Docker is available (caddy depends on docker role)
+      ansible.builtin.debug:
+        msg: "Docker role dependency will be resolved via meta/main.yml"

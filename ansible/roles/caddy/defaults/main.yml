@@ -2,6 +2,15 @@
 # === Reverse Proxy (Caddy) ===
 # Единый HTTPS reverse proxy для всех self-hosted сервисов
 
+# === OS Support ===
+# Supported operating systems for this role
+_caddy_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Gentoo
+  - Void
+
 # Включить роль
 caddy_enabled: true
 
@@ -22,3 +31,19 @@ caddy_tls_email: ""
 
 # Docker network для связи с сервисами
 caddy_docker_network: "proxy"
+
+# === Per-subsystem toggles (ROLE-010) ===
+
+# Manage Docker network creation
+caddy_manage_network: true
+
+# Manage CA certificate trust (copy root CA to system trust store)
+# Only applies when caddy_tls_mode: internal
+caddy_manage_certs: true
+
+# Manage browser enterprise root trust (Zen Browser / Firefox)
+# Only applies when caddy_tls_mode: internal
+caddy_manage_browser_trust: true
+
+# Docker image for Caddy container
+caddy_docker_image: "caddy:2-alpine"
