@@ -1,0 +1,56 @@
+---
+# === chezmoi — верификация после деплоя (ROLE-005) ===
+# Вызывается из tasks/main.yml через include_tasks
+# Проверяет: бинарник доступен, версия корректна, source directory существует
+
+# ---- Tier 1: бинарник отвечает на --version ----
+
+- name: Verify chezmoi binary responds to --version
+  ansible.builtin.command: "{{ _chezmoi_bin }} --version"
+  register: _chezmoi_verify_version
+  changed_when: false
+  failed_when: _chezmoi_verify_version.rc != 0
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Assert chezmoi version output is valid
+  ansible.builtin.assert:
+    that:
+      - _chezmoi_verify_version.stdout is regex('^chezmoi version v[0-9]+\.[0-9]+')
+    fail_msg: >-
+      chezmoi --version output does not match expected format.
+      Got: {{ _chezmoi_verify_version.stdout }}
+    success_msg: "chezmoi {{ _chezmoi_verify_version.stdout | trim }} is operational"
+  tags: ['chezmoi', 'dotfiles']
+
+# ---- Tier 2: source directory присутствует ----
+
+- name: Check chezmoi source directory still accessible
+  ansible.builtin.stat:
+    path: "{{ chezmoi_source_dir }}"
+  register: _chezmoi_verify_source
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Assert chezmoi source directory is accessible post-apply
+  ansible.builtin.assert:
+    that:
+      - _chezmoi_verify_source.stat.exists
+      - _chezmoi_verify_source.stat.isdir
+    fail_msg: "chezmoi source directory missing post-apply: {{ chezmoi_source_dir }}"
+    success_msg: "chezmoi source directory accessible: {{ chezmoi_source_dir }}"
+  tags: ['chezmoi', 'dotfiles']
+
+# ---- Tier 2: конфигурационный файл chezmoi развёрнут ----
+
+- name: Check chezmoi config file deployed
+  ansible.builtin.stat:
+    path: "{{ chezmoi_user_home }}/.config/chezmoi/chezmoi.toml"
+  register: _chezmoi_verify_config_file
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Assert chezmoi config file exists after apply
+  ansible.builtin.assert:
+    that:
+      - _chezmoi_verify_config_file.stat.exists
+    fail_msg: "chezmoi config not found at {{ chezmoi_user_home }}/.config/chezmoi/chezmoi.toml"
+    success_msg: "chezmoi config deployed at {{ chezmoi_user_home }}/.config/chezmoi/chezmoi.toml"
+  tags: ['chezmoi', 'dotfiles']

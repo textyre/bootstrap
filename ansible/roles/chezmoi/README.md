@@ -1,62 +1,75 @@
 # chezmoi
 
-Deploys user dotfiles via [chezmoi](https://www.chezmoi.io/): installs the binary, initializes chezmoi from a local source directory, and applies all managed dotfiles to the target user's home.
+Deploys user dotfiles via [chezmoi](https://www.chezmoi.io/): installs the binary, initialises from a local source directory, and applies all managed dotfiles to the target user's home.
 
-## What this role does
+## Execution flow
 
-- [x] Resolves the target user's home directory via `getent`
-- [x] Installs `chezmoi` via OS package manager (`pacman`, `apt`) or official install script
-- [x] Asserts the dotfiles source directory exists before proceeding
-- [x] Copies wallpapers from the source dir to `~/.local/share/wallpapers/` (if present)
-- [x] Runs `chezmoi init --source <dir> --apply` with an optional theme prompt choice
-- [x] Guards against stale nested `.chezmoidata` directories
-- [x] Reports deployment summary
+1. **Preflight** — asserts `ansible_facts['os_family']` is one of the five supported families; fails fast with a clear message if not.
+2. **Resolve paths** — resolves the target user's home directory via `getent passwd`.
+3. **Install** (`tasks/install-<os_family>.yml`) — installs chezmoi via OS package manager (`pacman` on Arch) or official install script (`~/.local/bin/chezmoi`). Skipped silently if the binary already exists (`creates:` guard on the script).
+4. **Resolve binary path** — sets `_chezmoi_bin` to `/usr/bin/chezmoi` (pacman) or `~/.local/bin/chezmoi` (script).
+5. **Validate source** — asserts `chezmoi_source_dir` exists and is a directory on the remote host. Fails with path in error if missing.
+6. **Wallpapers** — if `chezmoi_source_dir/wallpapers/` exists, deploys wallpapers to `~/.local/share/wallpapers/`.
+7. **Initialize chezmoi** (first run only) — runs `chezmoi init --source <dir> --promptChoice "..." --apply`. Skipped if `~/.config/chezmoi/chezmoi.toml` already exists. Always reports `changed`.
+8. **Apply chezmoi** (subsequent runs) — runs `chezmoi apply --source <dir>`. Reports `changed` only if chezmoi modifies files; `ok` when nothing changes (idempotent).
+9. **Nested chezmoidata guard** — runs `find` to detect stale `.chezmoidata` dirs nested inside the source; fails if any found.
+10. **Verify** (`tasks/verify.yml`) — checks binary responds to `--version`, asserts version format, checks source dir is still accessible, asserts `chezmoi.toml` config was deployed.
+11. **Report** — writes execution report via `common/report_phase` + `common/report_render`.
 
-## Requirements
+### Handlers
 
-- Ansible 2.15+
-- Target host: Arch Linux or Debian/Ubuntu
-- The dotfiles source directory must be accessible on the **remote** host (sync it before running the role, or set `chezmoi_source_dir` to a pre-existing path)
-- `curl` available on host when `chezmoi_install_method: script`
+None. chezmoi does not manage system services.
 
-## Role Variables
+## Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `chezmoi_user` | current sudo user or `ansible_user_id` | Target user whose dotfiles are deployed |
-| `chezmoi_source_dir` | `$REPO_ROOT/dotfiles` (or `dotfiles_base_dir`) | Path to the chezmoi source directory on the **remote** host |
-| `chezmoi_install_method` | `pacman` | Installation method: `pacman`, `apt` (via OS-specific tasks), or `script` (official install script → `~/.local/bin/chezmoi`) |
-| `chezmoi_theme_name` | `dracula` | Theme passed to chezmoi via `--promptChoice "Choose color theme=<value>"` |
+### Configurable (`defaults/main.yml`)
 
-### Derived / verify-only variables
+Override via inventory (`group_vars/` or `host_vars/`). Never edit `defaults/main.yml` directly.
 
-These are not in `defaults/main.yml` but can be set in molecule inventory to control verify behaviour:
+| Variable | Default | Safety | Description |
+|----------|---------|--------|-------------|
+| `chezmoi_enabled` | `true` | safe | Set `false` to skip the role entirely |
+| `chezmoi_user` | `$SUDO_USER` or `ansible_user_id` | safe | Target user whose dotfiles are deployed |
+| `chezmoi_source_dir` | `$REPO_ROOT/dotfiles` | careful | Path to chezmoi source directory **on the remote host**. Must exist before the role runs. |
+| `chezmoi_install_method` | `pacman` | careful | `pacman` (Arch only) or `script` (official install script → `~/.local/bin/chezmoi`). Wrong method for the OS silently skips install. |
+| `chezmoi_theme_name` | `dracula` | safe | Theme name passed via `--promptChoice "Choose color theme=<value>"` on first init only. No effect on subsequent runs (config already exists). |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `chezmoi_verify_has_dotfiles` | `false` | Assert `~/.local/share/chezmoi` was initialized |
-| `chezmoi_verify_fixture` | `false` | Assert `~/.chezmoi_test_marker` exists (fixture/stub dotfiles scenarios) |
-| `chezmoi_verify_full` | `false` | Run full dotfile checks (Arch + real dotfiles source) |
+### Internal mappings (`vars/`)
 
-## Dependencies
+Do not override via inventory. Edit only when adding distro support.
 
-None.
+| File | What it contains | When to edit |
+|------|-----------------|-------------|
+| `vars/main.yml` | `_chezmoi_packages`: OS-family → package name (Arch=`chezmoi`, others=N/A). chezmoi has no service mapping. | Adding a new distro that ships chezmoi as a package |
 
-## Example Playbook
+## Examples
+
+### Deploying dotfiles for a specific user
 
 ```yaml
-- hosts: workstations
-  roles:
-    - role: chezmoi
-      vars:
-        chezmoi_user: alice
-        chezmoi_source_dir: /home/alice/bootstrap/dotfiles
-        chezmoi_theme_name: dracula
+# In host_vars/<hostname>/chezmoi.yml:
+chezmoi_user: alice
+chezmoi_source_dir: /opt/bootstrap/dotfiles
+chezmoi_theme_name: nord
 ```
 
-### With the workstation playbook
+### Skipping the role on a specific host
 
-The role is driven by `chezmoi_source_dir`. The bootstrap repository syncs dotfiles to the remote host before invoking the role:
+```yaml
+# In host_vars/<hostname>/chezmoi.yml:
+chezmoi_enabled: false
+```
+
+### Using script install on Ubuntu
+
+```yaml
+# In host_vars/ubuntu-workstation/chezmoi.yml:
+chezmoi_install_method: script
+chezmoi_user: bob
+chezmoi_source_dir: /opt/dotfiles
+```
+
+### With the workstation playbook (sync dotfiles first)
 
 ```yaml
 - hosts: workstation
@@ -71,51 +84,121 @@ The role is driven by `chezmoi_source_dir`. The bootstrap repository syncs dotfi
         chezmoi_source_dir: /opt/dotfiles
 ```
 
-## Tags
+## Cross-platform details
 
-| Tag | Effect |
-|-----|--------|
-| `chezmoi` | All tasks |
-| `dotfiles` | All tasks (alias) |
-| `install` | Installation tasks only |
+| Aspect | Arch Linux | Ubuntu / Debian | Fedora / RedHat | Void Linux | Gentoo |
+|--------|-----------|-----------------|-----------------|------------|--------|
+| Package available | yes (`pacman`) | no | no | no | no |
+| Default install method | `pacman` | `script` | `script` | `script` | `script` |
+| Binary path (pacman) | `/usr/bin/chezmoi` | — | — | — | — |
+| Binary path (script) | `~/.local/bin/chezmoi` | `~/.local/bin/chezmoi` | `~/.local/bin/chezmoi` | `~/.local/bin/chezmoi` | `~/.local/bin/chezmoi` |
+| `curl` required | only if method=script | yes | yes | yes | yes |
+
+chezmoi has no system service and does not interact with init systems.
+
+## Logs
+
+### Ansible execution report
+
+The role emits a structured execution report at the end of each run via `common/report_render.yml`, visible in Ansible stdout. Phases reported: Install chezmoi, Apply dotfiles, Verify.
+
+To replay just the report without re-running the role:
+
+```bash
+ansible-playbook workstation.yml --tags report
+```
+
+### chezmoi runtime output
+
+chezmoi does not write persistent log files. All output goes to stdout during the `chezmoi apply` run, captured in the Ansible task output. To inspect state on the target host:
+
+```bash
+# As the target user:
+chezmoi status           # pending changes
+chezmoi diff             # diff of pending changes
+chezmoi doctor           # self-diagnostic
+```
+
+### Files written by this role
+
+| File | Path | Contents | Rotation |
+|------|------|----------|----------|
+| chezmoi config | `~/.config/chezmoi/chezmoi.toml` | Source dir, theme setting | Manual — do not delete unless re-initialising |
+| Wallpapers | `~/.local/share/wallpapers/` | Copied from source if present | None — static files |
+
+## Troubleshooting
+
+| Symptom | Diagnosis | Fix |
+|---------|-----------|-----|
+| Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` on the host; only Archlinux/Debian/RedHat/Void/Gentoo are supported |
+| Role fails at "Assert chezmoi source directory exists" | `chezmoi_source_dir` does not exist on the remote | Sync dotfiles before the role runs; verify path with `stat {{ chezmoi_source_dir }}` on the remote |
+| chezmoi binary missing after script install | `curl` not installed, or home dir path incorrect | Ensure `curl` is in `prepare.yml`; check `chezmoi_user_home` resolves via `getent passwd <user>` |
+| `chezmoi apply` reports `changed` every run | `chezmoi.toml` missing so init runs every time | Check `~/.config/chezmoi/chezmoi.toml` exists; if corrupt, delete and re-run to force clean re-init |
+| "Nested chezmoidata" task fails | Stale `.chezmoidata` dir nested inside source tree | Remove nested `.chezmoidata` dirs; root-level `chezmoi_source_dir/.chezmoidata` is expected |
+| Theme not applied after change | `--promptChoice` runs only on first init | Delete `~/.config/chezmoi/chezmoi.toml` and re-run to force re-init with new theme |
 
 ## Testing
 
-Tests use [Molecule](https://molecule.readthedocs.io/).
+Both scenarios are required (TEST-002). Run Docker for fast feedback, Vagrant for full validation.
 
-### Scenarios
+| Scenario | Command | When to use | What it tests |
+|----------|---------|-------------|---------------|
+| Docker (fast) | `molecule test` | After changing variables or task logic | Idempotence, pacman + script install, fixture marker deploy |
+| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic | Real packages, Arch + Ubuntu matrix, real home directories |
 
-| Scenario | Driver | Platforms | Notes |
-|----------|--------|-----------|-------|
-| `default` | none (localhost) | localhost (connection: local) | Fast smoke test against real dotfiles; requires `REPO_ROOT` set |
-| `docker` | Docker | `arch-systemd` container | Uses fixture dotfiles under `/opt/dotfiles`; validates binary install + apply |
-| `vagrant` | Vagrant + libvirt | `arch-vm`, `ubuntu-base` | Full VM test; covers both `pacman` and `script` install methods |
+### Success criteria
 
-### Running
+- All steps complete: `syntax → converge → idempotence → verify → destroy`
+- Idempotence step: `changed=0` (second run — `chezmoi apply` has no pending changes)
+- Verify step: all assertions pass with `success_msg`
+- Final line: no `failed` tasks
+
+### What the tests verify
+
+| Category | What is checked | Requirement |
+|----------|----------------|-------------|
+| Binary | chezmoi at expected path; `--version` exits 0 | TEST-008 |
+| Version format | stdout matches `^chezmoi version v[0-9]+\.[0-9]+` | TEST-008 |
+| Config | `~/.config/chezmoi/chezmoi.toml` exists after apply | TEST-008 |
+| Fixture marker | `~/.chezmoi_test_marker` deployed with correct content | TEST-008 |
+| Source dir | `chezmoi_source_dir` accessible after apply | TEST-008 |
+
+### Common test failures
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `chezmoi package not found` on Arch | Stale pacman cache | `molecule destroy && molecule test` to rebuild container |
+| Idempotence failure: `changed=1` | Fixture dotfiles have differences chezmoi always re-applies | Check source fixture has stable content; verify `.chezmoi.toml.tmpl` is static |
+| `Assert chezmoi version output` fails | Binary not at expected path | Verify `chezmoi_install_method` matches the OS in molecule host_vars |
+| `Assert fixture marker` fails | prepare.yml did not create fixture files | Run `molecule prepare -s docker` and verify `/opt/dotfiles/dot_chezmoi_test_marker` exists |
+| Vagrant: Python interpreter not found | prepare.yml missing Python bootstrap step | Add `ansible.builtin.raw: pacman -Sy --noconfirm python` for Arch prepare step |
+
+## Tags
+
+| Tag | What it runs | Use case |
+|-----|-------------|----------|
+| `chezmoi` | Entire role | Full apply |
+| `dotfiles` | Entire role (alias) | Same as `chezmoi` |
+| `install` | Install tasks only | Re-install binary without re-applying dotfiles |
+| `report` | Logging/report tasks only | Re-generate execution report |
+
+Command example:
 
 ```bash
-# From the role directory
-cd ansible/roles/chezmoi
-
-# Default scenario (localhost, real dotfiles)
-molecule test -s default
-
-# Docker scenario
-molecule test -s docker
-
-# Vagrant scenario (requires libvirt + Vagrant)
-molecule test -s vagrant
-
-# Run only converge (no destroy)
-molecule converge -s docker
-
-# Run only verify
-molecule verify -s docker
+ansible-playbook workstation.yml --tags install
 ```
 
-### What the verify checks
+## File map
 
-1. **Tier 1 — binary**: `chezmoi` is on `PATH` or at `~/.local/bin/chezmoi`; `chezmoi --version` exits 0
-2. **Tier 1 — source dir**: `~/.local/share/chezmoi` exists and is a directory (when `chezmoi_verify_has_dotfiles`)
-3. **Tier 1 — fixture marker**: `~/.chezmoi_test_marker` deployed by stub dotfiles (when `chezmoi_verify_fixture`)
-4. **Tier 2 — dotfiles**: selected real dotfile paths exist in `$HOME` (when `chezmoi_verify_full`)
+| File | Purpose | Edit? |
+|------|---------|-------|
+| `defaults/main.yml` | All configurable settings | No — override via inventory |
+| `vars/main.yml` | OS-family package name mappings | Only when adding a distro that ships chezmoi as a package |
+| `tasks/main.yml` | Execution flow orchestrator | When adding/removing phases |
+| `tasks/verify.yml` | Post-deploy self-check | When changing verification logic |
+| `tasks/install-archlinux.yml` | Arch-specific install (pacman) | When changing Arch install method |
+| `tasks/install-debian.yml` | Debian/Ubuntu install (script) | When changing Debian install method |
+| `meta/main.yml` | Role metadata and supported platforms | Only when adding distro support |
+| `molecule/docker/` | Docker test scenario (Arch + Ubuntu containers) | When changing test coverage |
+| `molecule/vagrant/` | Vagrant test scenario (Arch + Ubuntu VMs) | When changing full-VM test coverage |
+| `molecule/shared/` | Shared converge + verify playbooks | When changing test logic shared by both scenarios |
