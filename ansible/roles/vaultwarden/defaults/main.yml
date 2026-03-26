@@ -85,12 +85,7 @@ vaultwarden_backup_cron_minute: "0"
 # security profile: disable admin panel and signups by default
 # developer profile: keep admin enabled for development convenience
 vaultwarden_profile_admin_enabled: >-
-  {% set p = workstation_profiles | default([]) -%}
-  {% if 'security' in p -%}false
-  {%- elif 'developer' in p -%}true
-  {%- else -%}true{%- endif %}
+  {{ false if 'security' in (workstation_profiles | default([])) else true }}
 
 vaultwarden_profile_signups_allowed: >-
-  {% set p = workstation_profiles | default([]) -%}
-  {% if 'security' in p -%}false
-  {%- else -%}true{%- endif %}
+  {{ false if 'security' in (workstation_profiles | default([])) else true }}
