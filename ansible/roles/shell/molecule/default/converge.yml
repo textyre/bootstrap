@@ -1,2 +1,3 @@
 ---
-- import_playbook: ../shared/converge.yml
+- name: Converge
+  import_playbook: ../shared/converge.yml
