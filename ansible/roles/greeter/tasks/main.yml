@@ -47,6 +47,8 @@
         set -o pipefail &&
         cd {{ greeter_dist_dir | quote }} &&
         find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+      args:
+        executable: /bin/bash
       register: _greeter_source_dist_checksum
       changed_when: false
       tags: ['greeter', 'display']
@@ -61,6 +63,8 @@
         else
           echo absent;
         fi
+      args:
+        executable: /bin/bash
       register: _greeter_target_dist_checksum
       changed_when: false
       failed_when: false
@@ -138,6 +142,8 @@
         for d in /sys/class/drm/card*-*; do
           [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && basename "$d" | sed 's/^card[0-9]*-//' && break;
         done
+      args:
+        executable: /bin/bash
       register: _greeter_display_name_cmd
       changed_when: false
       failed_when: false
@@ -149,6 +155,8 @@
         for d in /sys/class/drm/card*-*; do
           [ "$(cat "$d/status" 2>/dev/null)" = "connected" ] && head -1 "$d/modes" && break;
         done
+      args:
+        executable: /bin/bash
       register: _greeter_display_res_cmd
       changed_when: false
       failed_when: false
@@ -160,6 +168,8 @@
         ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 2>/dev/null
         || ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub -E sha256 2>/dev/null
         || echo "unknown"
+      args:
+        executable: /bin/bash
       register: _greeter_ssh_fp_raw
       changed_when: false
       failed_when: false
