@@ -6,6 +6,9 @@
 sysctl_supported_os:
   - Archlinux
   - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
 # ---- VM / Memory ----
 sysctl_vm_swappiness: 10
@@ -53,9 +56,14 @@ sysctl_kernel_kptr_restrict: 2
 # Ограничить dmesg для непривилегированных пользователей. KSPP=yes
 sysctl_kernel_dmesg_restrict: 1
 
+# ptrace: 0=no restrictions (gaming, Wine/Proton needs this)
 # ptrace: 1=только child-процессы (dev, gdb ./app работает)
 # ptrace: 2=только root (ломает gdb --pid=, strace -p, perf record -p)
-sysctl_kernel_yama_ptrace_scope: 1
+# Profile-aware: gaming=0, developer=1, security=2, default=1
+sysctl_kernel_yama_ptrace_scope: >-
+  {{ 0 if 'gaming' in (workstation_profiles | default([]))
+     else (2 if 'security' in (workstation_profiles | default([]))
+     else 1) }}
 
 # Ограничить доступ к perf counters (Spectre side-channel). KSPP=yes. DISA STIG V-258076
 sysctl_kernel_perf_event_paranoid: 3

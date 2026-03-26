@@ -4,3 +4,11 @@
 # to the public defaults, following project convention.
 
 _sysctl_supported_os: "{{ sysctl_supported_os }}"
+
+# Package name mapping per OS family
+_sysctl_procps_package:
+  Archlinux: procps-ng
+  Debian: procps
+  RedHat: procps-ng
+  Void: procps-ng
+  Gentoo: procps

@@ -1,13 +1,59 @@
 ---
 # === sysctl: report ===
+# Structured execution report via common/report_phase + report_render
 
-- name: Report sysctl configuration
-  ansible.builtin.debug:
-    msg:
-      - "sysctl drop-in: /etc/sysctl.d/99-z-ansible.conf"
-      - "vm.swappiness={{ sysctl_vm_swappiness }}"
-      - "fs.inotify.max_user_watches={{ sysctl_fs_inotify_max_user_watches }}"
-      - "net.core.somaxconn={{ sysctl_net_core_somaxconn }}"
-      - "Security hardening: {{ 'включён' if sysctl_security_enabled else 'выключен' }}"
-      - "Custom params: {{ sysctl_custom_params | length }}"
-  tags: ['sysctl']
+- name: "Report: Install packages"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Install packages"
+    common_rpt_detail: >-
+      {{ _sysctl_procps_package[ansible_facts['os_family']] | default('procps') }}
+  tags: ['sysctl', 'report']
+
+- name: "Report: Manage services"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Manage services"
+    common_rpt_detail: >-
+      apport={{ 'disabled' if (ansible_facts['os_family'] == 'Debian'
+        and sysctl_security_enabled | bool
+        and sysctl_security_filesystem_hardening | bool) else 'n/a' }}
+  tags: ['sysctl', 'report']
+
+- name: "Report: Deploy configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Deploy configuration"
+    common_rpt_detail: >-
+      /etc/sysctl.d/99-z-ansible.conf
+      security={{ sysctl_security_enabled }}
+  tags: ['sysctl', 'report']
+
+- name: "Report: Verify parameters"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Verify parameters"
+    common_rpt_detail: >-
+      live sysctl -n checks
+  tags: ['sysctl', 'report']
+
+- name: "sysctl -- Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_title: "sysctl"
+  tags: ['sysctl', 'report']
