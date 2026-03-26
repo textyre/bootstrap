@@ -1,0 +1,15 @@
+---
+# === power_management / vars — Debian/Ubuntu ===
+
+_power_management_packages_base:
+  - linux-tools-common
+
+_power_management_packages_laptop:
+  - tlp
+  - tlp-rdw
+
+_power_management_service_tlp: tlp
+_power_management_service_cpupower: cpupower
+
+# Debian does not have systemd-rfkill conflicts with TLP
+_power_management_mask_rfkill: []

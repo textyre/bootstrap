@@ -13,7 +13,9 @@
 
 - name: Set current governor fact
   ansible.builtin.set_fact:
-    power_management_current_governor: "{{ (power_management_governor_raw.content | b64decode | trim) if 'content' in power_management_governor_raw else 'unknown' }}"
+    power_management_current_governor: >-
+      {{ (power_management_governor_raw.content | b64decode | trim)
+         if 'content' in power_management_governor_raw else 'unknown' }}
   tags: ['power', 'cpu']
 
 # ---- Validate governor value ----
@@ -76,7 +78,7 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']
 
 - name: Deploy cpupower service dropin override
@@ -93,7 +95,7 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']
 
 - name: Enable cpupower service
@@ -103,5 +105,5 @@
   when:
     - not power_management_is_laptop
     - power_management_governor_persist == 'service'
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['power', 'cpu']

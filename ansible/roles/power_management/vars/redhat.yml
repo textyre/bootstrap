@@ -1,0 +1,15 @@
+---
+# === power_management / vars — RedHat/Fedora ===
+# NOTE: Stub — full implementation pending when Fedora testing is available
+
+_power_management_packages_base:
+  - kernel-tools
+
+_power_management_packages_laptop:
+  - tlp
+  - tlp-rdw
+
+_power_management_service_tlp: tlp
+_power_management_service_cpupower: cpupower
+
+_power_management_mask_rfkill: []

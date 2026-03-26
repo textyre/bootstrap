@@ -3,28 +3,30 @@
 # Disable services that conflict with TLP and manual governor control
 
 # ---- power-profiles-daemon ----
+# Masked on laptops (conflicts with TLP) and desktops with persistent governor
+# (conflicts with manual cpupower settings).
 
-- name: Stop and mask power-profiles-daemon (laptop — conflicts with TLP)
+- name: Stop and mask power-profiles-daemon
   ansible.builtin.systemd:
     name: power-profiles-daemon
     state: stopped
     masked: true
+  register: _power_management_ppd_mask
   failed_when: false
   when:
-    - power_management_is_laptop
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
+    - power_management_is_laptop or power_management_governor_persist != 'oneshot'
   tags: ['power', 'conflicts']
 
-- name: Stop and mask power-profiles-daemon (desktop — conflicts with manual governor)
-  ansible.builtin.systemd:
-    name: power-profiles-daemon
-    state: stopped
-    masked: true
-  failed_when: false
+- name: Report power-profiles-daemon mask outcome
+  ansible.builtin.debug:
+    msg: >-
+      power-profiles-daemon mask:
+      {{ 'succeeded' if _power_management_ppd_mask is not failed
+         else 'service not found or already masked (expected on clean systems)' }}
   when:
-    - not power_management_is_laptop
-    - power_management_init == 'systemd'
-    - power_management_governor_persist != 'oneshot'
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _power_management_ppd_mask is defined
   tags: ['power', 'conflicts']
 
 # ---- auto-cpufreq ----
@@ -34,7 +36,19 @@
     name: auto-cpufreq
     state: stopped
     masked: true
+  register: _power_management_autocpufreq_mask
   failed_when: false
   when:
-    - power_management_init == 'systemd'
+    - ansible_facts['service_mgr'] == 'systemd'
+  tags: ['power', 'conflicts']
+
+- name: Report auto-cpufreq mask outcome
+  ansible.builtin.debug:
+    msg: >-
+      auto-cpufreq mask:
+      {{ 'succeeded' if _power_management_autocpufreq_mask is not failed
+         else 'service not found or already masked (expected on clean systems)' }}
+  when:
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _power_management_autocpufreq_mask is defined
   tags: ['power', 'conflicts']

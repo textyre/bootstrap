@@ -26,7 +26,7 @@
 
 - name: Detect init system
   ansible.builtin.set_fact:
-    power_management_init: "{{ ansible_service_mgr | default('unknown') }}"
+    power_management_init: "{{ ansible_facts['service_mgr'] | default('unknown') }}"
   tags: ['power', 'detect']
 
 # ---- CPU vendor detection ----
