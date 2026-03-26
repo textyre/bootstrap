@@ -19,11 +19,31 @@
   no_log: true
   tags: [user, cis_5.5.1, cis_5.5.2]
 
+- name: "CIS 5.4.1 | Read current password warn age for owner"
+  ansible.builtin.command:
+    cmd: "chage -l {{ user_owner.name }}"
+  register: _user_owner_chage_info
+  changed_when: false
+  failed_when: _user_owner_chage_info.rc != 0
+  when: user_manage_password_aging | bool
+  tags: [user, cis_5.4.1]
+
 - name: "CIS 5.4.1 | Set password warn age for owner (chage -W)"
   ansible.builtin.command:
     cmd: "chage -W {{ user_owner.password_warn_age | default(7) }} {{ user_owner.name }}"
-  changed_when: false
-  when: user_manage_password_aging | bool
+  changed_when: true
+  failed_when: _user_owner_chage_set.rc != 0
+  register: _user_owner_chage_set
+  when:
+    - user_manage_password_aging | bool
+    - >-
+      _user_owner_chage_info.stdout_lines
+      | select('search', 'warning')
+      | map('regex_replace', '^.*:\s*', '')
+      | map('trim')
+      | first
+      | default('-1')
+      | int != (user_owner.password_warn_age | default(7)) | int
   tags: [user, cis_5.4.1]
 
 - name: "CIS 5.4.2 | Deploy umask profile for owner"
