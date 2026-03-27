@@ -36,6 +36,17 @@
              + (packages_viewers | default([]))
              + (packages_distro[ansible_facts['os_family']] | default([])) }}
 
+    - name: Build Arch Linux AUR verification list
+      ansible.builtin.set_fact:
+        _packages_verify_aur: >-
+          {{ (yay_packages_aur | default([]))
+             if ansible_facts['os_family'] == 'Archlinux'
+             else [] }}
+
+    - name: Build final verification list
+      ansible.builtin.set_fact:
+        _packages_verify_expected_all: "{{ _packages_verify_expected + _packages_verify_aur }}"
+
     # ---- Verify each package is installed via native package manager ----
 
     - name: "Verify package installed (pacman -Q): {{ item }}"
@@ -44,7 +55,7 @@
       register: _packages_verify_pacman
       changed_when: false
       failed_when: _packages_verify_pacman.rc != 0
-      loop: "{{ _packages_verify_expected }}"
+      loop: "{{ _packages_verify_expected_all }}"
       loop_control:
         label: "{{ item }}"
       when: ansible_facts['os_family'] == 'Archlinux'
@@ -57,7 +68,7 @@
       failed_when: >-
         _packages_verify_dpkg.rc != 0 or
         'install ok installed' not in _packages_verify_dpkg.stdout
-      loop: "{{ _packages_verify_expected }}"
+      loop: "{{ _packages_verify_expected_all }}"
       loop_control:
         label: "{{ item }}"
       when: ansible_facts['os_family'] == 'Debian'
@@ -79,10 +90,10 @@
           Run 'pacman -Q {{ item }}' or 'dpkg-query -l {{ item }}' to investigate.
         success_msg: "Package '{{ item }}' confirmed in package facts"
         quiet: true
-      loop: "{{ _packages_verify_expected }}"
+      loop: "{{ _packages_verify_expected_all }}"
       loop_control:
         label: "{{ item }}"
-      when: _packages_verify_expected | length > 0
+      when: _packages_verify_expected_all | length > 0
 
     # ---- Summary ----
 
@@ -91,5 +102,5 @@
         msg: >-
           packages verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          all {{ _packages_verify_expected | length }} packages verified
+          all {{ _packages_verify_expected_all | length }} packages verified
           via native package manager and package facts.

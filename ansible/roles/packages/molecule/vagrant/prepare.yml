@@ -1,3 +1,18 @@
 ---
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare packages role
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Set up yay backend for packages role (Arch)
+      ansible.builtin.include_role:
+        name: yay
+      vars:
+        yay_manage_setup: true
+        yay_manage_aur_packages: false
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - yay_packages_aur | default([]) | length > 0

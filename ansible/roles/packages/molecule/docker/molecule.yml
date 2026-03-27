@@ -103,6 +103,8 @@ provisioner:
         packages_viewers: [bat, jq]
         packages_distro:
           Archlinux: [base-devel, pacman-contrib, perl]
+        yay_packages_aur: [rofi-greenclip]
+        yay_packages_aur_remove_conflicts: []
 
       Ubuntu-systemd:
         # Ubuntu-compatible equivalents (different names where needed, Arch-only packages excluded)
@@ -142,6 +144,8 @@ provisioner:
         packages_search: []
         packages_viewers: []
         packages_distro: {}
+        yay_packages_aur: []
+        yay_packages_aur_remove_conflicts: []
 
       Ubuntu-empty:
         packages_base: []

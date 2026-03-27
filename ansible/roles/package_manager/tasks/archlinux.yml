@@ -15,7 +15,10 @@
     name: reflector
   tags: ['mirrors', 'reflector', 'molecule-notest']
 
-- name: Install yay AUR helper
+- name: Set up yay AUR helper
   ansible.builtin.import_role:
     name: yay
-  tags: ['aur', 'yay', 'molecule-notest']
+  vars:
+    yay_manage_setup: true
+    yay_manage_aur_packages: false
+  tags: ['aur', 'yay', 'setup', 'molecule-notest']

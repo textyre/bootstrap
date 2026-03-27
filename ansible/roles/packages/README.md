@@ -1,16 +1,16 @@
 # packages
 
-Installs workstation packages via OS-native package managers (pacman, apt).
+Installs workstation packages via OS-native package managers and, on Arch Linux, via AUR through `yay`.
 
 ## Execution flow
 
 1. **Guard** — skips entire role if `packages_enabled: false`
 2. **Preflight assert** — fails fast with a clear message if the OS family is not in `_packages_supported_os`; supported: Archlinux, Debian, RedHat, Void, Gentoo
-3. **Build package list** — aggregates 16 category lists plus `packages_distro[os_family]` into `packages_all`
+3. **Build package lists** — aggregates 16 category lists plus `packages_distro[os_family]` into `packages_all`, and builds `packages_aur_all` from `yay_packages_aur` on Arch
 4. **OS-specific install** (`tasks/install-archlinux.yml` or `tasks/install-debian.yml`)
-   - **Arch:** runs `pacman -Syu` (full upgrade, tagged `upgrade`) then installs `packages_all` via `ansible.builtin.package`. Both steps retry up to 3 times on transient mirror failures. Skipped when `packages_all` is empty.
+   - **Arch:** runs `pacman -Syu` (full upgrade, tagged `upgrade`), installs `packages_all` via `ansible.builtin.package`, then installs `packages_aur_all` via `yay` in install-only mode. Official packages always land before any AUR build.
    - **Debian/Ubuntu:** updates apt cache (`cache_valid_time: 3600`) then installs `packages_all` via `ansible.builtin.package`. Install retries up to 3 times. Skipped when `packages_all` is empty.
-5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all`; skipped when `packages_all` is empty:
+5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all + packages_aur_all`; skipped when both lists are empty:
    - **Technique 1 (runtime):** `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian) — direct native package manager check
    - **Technique 2 (state):** `package_facts` + assert — confirms package is in Ansible's fact database
 6. **Report** — calls `common/report_phase.yml` for each phase (verify + install) and `common/report_render.yml` to emit a structured execution table (skipped via `--skip-tags report` in CI)
@@ -18,7 +18,7 @@ Installs workstation packages via OS-native package managers (pacman, apt).
 ### Failure behavior
 
 - **Step 2 (preflight):** hard fail with `fail_msg` listing supported OS families
-- **Step 4 (install):** retries 3× with 5s delay; fails if all retries exhausted with the package manager's error message
+- **Step 4 (install):** retries 3× with 5s delay for native package manager steps; AUR install fails with the underlying `yay`/`kewlfft.aur` error if helper setup or build fails
 - **Step 5 (verify):** fails with `fail_msg` naming the missing package and diagnostic commands to run
 
 ## Variables
@@ -48,6 +48,8 @@ Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/mai
 | `packages_viewers` | `[]` | safe | File viewers (bat, jq) |
 | `packages_distro` | `{}` | safe | Distro-specific extras keyed by `os_family` (e.g. `Archlinux`, `Debian`) |
 | `_packages_supported_os` | 5-entry list | internal | Do not change — defines the supported OS families for the preflight assert |
+
+Arch Linux AUR inputs (`yay_packages_aur`, `yay_packages_aur_remove_conflicts`) remain defined in inventory and are consumed by this role after official packages are installed.
 
 ## Examples
 
@@ -127,6 +129,7 @@ This role does not create log files. All output is written to Ansible stdout.
 | Role fails at preflight with "OS family not supported" | `ansible -m setup <host> \| grep os_family` — check actual os_family value | Add the host to a supported distro or check if `ansible_facts['os_family']` returns unexpected value |
 | Package install fails with "target not found" (Arch) | `pacman -Ss <pkg>` on host — package may not exist or name is wrong | Check exact package name in Arch repos; Arch names differ from Debian (e.g. `openssh` vs `openssh-client`) |
 | Package install fails with "unable to locate package" (Ubuntu) | `apt-cache search <pkg>` on host — package may need a PPA or different name | Check Ubuntu package name; some Arch packages have no direct apt equivalent |
+| AUR install fails with `yay_manage_aur_packages=true ... requires an existing yay binary` | `package_manager` or yay setup phase was skipped before running `packages` | Run `package_manager` first, or pre-provision `yay` in the scenario/play before `packages` |
 | Verify fails with "Package X not found in package facts" | `pacman -Q <pkg>` or `dpkg -l <pkg>` on host | Package manager installed it but `package_facts` module used different name format — check for epoch prefix (e.g. `1:vim`) |
 | Idempotence failure: second converge shows `changed=1` | Look for which task changed — usually `pacman -Syu` when system has pending updates | Add `--skip-tags upgrade` to molecule options; the upgrade step is intentionally non-idempotent when updates are available |
 | Role skips silently with no output | Check `packages_enabled` in host/group vars — may be `false` | Set `packages_enabled: true` or remove the override |
@@ -137,8 +140,8 @@ Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platfor
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, task logic, or adding packages | Logic correctness, idempotence, Arch + Ubuntu full list + empty-list edge cases |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or when Docker results are suspicious | Real VM, real package manager, Arch VM + Ubuntu VM |
+| Docker (fast) | `molecule test -s docker` | After changing variables, task logic, or adding packages | Logic correctness, idempotence, Arch + Ubuntu full list, Arch AUR path, empty-list edge cases |
+| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or when Docker results are suspicious | Real VM, real package manager, Arch VM + Ubuntu VM, yay-backed AUR install |
 
 ### Success criteria
 
@@ -173,6 +176,7 @@ Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platfor
 |-----|-------------|----------|
 | `packages` | Entire role | Full apply |
 | `packages,install` | Build list + install step only | Re-install packages without re-running verify or report |
+| `aur` | Arch AUR install path inside `packages` | Skip or target only the yay-backed portion |
 | `packages,install,upgrade` | System upgrade + install (Arch only) | Force full upgrade |
 | `report` | Report tasks only | Re-generate execution report |
 

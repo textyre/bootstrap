@@ -8,15 +8,55 @@
     fail_msg: "yay role requires Arch Linux"
   tags: ['aur', 'setup', 'install']
 
+- name: Assert yay role has at least one enabled phase
+  ansible.builtin.assert:
+    that:
+      - yay_manage_setup | bool or yay_manage_aur_packages | bool
+    fail_msg: >-
+      yay role has nothing to do: enable yay_manage_setup and/or
+      yay_manage_aur_packages.
+    success_msg: "yay role phase selection is valid"
+  tags: ['aur', 'setup', 'install']
+
+- name: Check yay is available for AUR-only mode
+  ansible.builtin.command:
+    cmd: yay --version
+  register: _yay_existing_binary_check
+  changed_when: false
+  failed_when: false
+  when:
+    - yay_manage_aur_packages | bool
+    - not (yay_manage_setup | bool)
+    - yay_packages_aur | default([]) | length > 0
+  tags: ['aur', 'install']
+
+- name: Assert yay exists for AUR-only mode
+  ansible.builtin.assert:
+    that:
+      - _yay_existing_binary_check.rc == 0
+    fail_msg: >-
+      yay_manage_aur_packages=true with yay_manage_setup=false requires an
+      existing yay binary. Run package_manager or yay setup first.
+    success_msg: "Existing yay binary detected for AUR-only mode"
+  when:
+    - yay_manage_aur_packages | bool
+    - not (yay_manage_setup | bool)
+    - yay_packages_aur | default([]) | length > 0
+  tags: ['aur', 'install']
+
 - name: Set up AUR builder user
   ansible.builtin.include_tasks: setup-aur-builder.yml
+  when: yay_manage_setup | bool
   tags: ['aur', 'setup']
 
 - name: Set up yay binary
   ansible.builtin.include_tasks: setup-yay-binary.yml
+  when: yay_manage_setup | bool
   tags: ['aur', 'setup']
 
 - name: Manage AUR packages
   ansible.builtin.include_tasks: manage-aur-packages.yml
-  when: yay_packages_aur | default([]) | length > 0
+  when:
+    - yay_manage_aur_packages | bool
+    - yay_packages_aur | default([]) | length > 0
   tags: ['aur', 'install']

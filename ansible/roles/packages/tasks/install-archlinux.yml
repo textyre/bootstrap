@@ -23,3 +23,19 @@
   until: _packages_install_result is succeeded
   when: packages_all | length > 0
   tags: ['packages', 'install']
+
+- name: Install AUR packages (yay)
+  ansible.builtin.include_role:
+    name: yay
+    apply:
+      tags:
+        - packages
+        - install
+        - aur
+  vars:
+    yay_manage_setup: false
+    yay_manage_aur_packages: true
+    yay_packages_aur: "{{ packages_aur_all }}"
+    yay_packages_official: "{{ packages_all }}"
+  when: packages_aur_all | length > 0
+  tags: ['packages', 'install', 'aur']

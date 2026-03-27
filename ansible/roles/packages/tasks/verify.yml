@@ -1,6 +1,6 @@
 ---
-# === In-role verification: check all packages are installed ===
-# Called from tasks/main.yml after installation. Skipped when packages_all is empty.
+# === In-role verification: check official + AUR packages are installed ===
+# Called from tasks/main.yml after installation. Skipped when package lists are empty.
 
 # Technique 2: runtime check via native package manager
 - name: Verify package installed (pacman -Q)
@@ -9,11 +9,11 @@
   register: _packages_verify_pacman
   changed_when: false
   failed_when: _packages_verify_pacman.rc != 0
-  loop: "{{ packages_all }}"
+  loop: "{{ packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
   when:
-    - packages_all | length > 0
+    - packages_verify_all | length > 0
     - ansible_facts['os_family'] == 'Archlinux'
   tags: ['packages']
 
@@ -25,11 +25,11 @@
   failed_when: >-
     _packages_verify_dpkg.rc != 0 or
     'install ok installed' not in _packages_verify_dpkg.stdout
-  loop: "{{ packages_all }}"
+  loop: "{{ packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
   when:
-    - packages_all | length > 0
+    - packages_verify_all | length > 0
     - ansible_facts['os_family'] == 'Debian'
   tags: ['packages']
 
@@ -49,15 +49,18 @@
       Check that the package name is correct for this OS family ({{ ansible_facts['os_family'] }}).
     success_msg: "Package '{{ item }}' is installed"
     quiet: true
-  loop: "{{ packages_all }}"
+  loop: "{{ packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
-  when: packages_all | length > 0
+  when: packages_verify_all | length > 0
   tags: ['packages']
 
 - name: Report verification result
   ansible.builtin.debug:
     msg: >-
-      packages verify passed: all {{ packages_all | length }} packages confirmed installed
+      packages verify passed:
+      {{ packages_verify_all | length }} total
+      ({{ packages_all | length }} official +
+      {{ packages_aur_all | length }} AUR) packages confirmed installed
       on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
   tags: ['packages']

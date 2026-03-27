@@ -1,6 +1,6 @@
 ---
-# === Official package installation ===
-# AUR packages → yay role. Services → docker/lightdm roles. Groups → user role.
+# === Workstation package installation ===
+# Official packages install directly. AUR packages install via yay on Arch Linux.
 
 - name: Packages role
   when: packages_enabled | bool
@@ -43,6 +43,19 @@
              + (packages_distro[ansible_facts['os_family']] | default([])) }}
       tags: ['packages', 'install']
 
+    - name: Build Arch Linux AUR package list
+      ansible.builtin.set_fact:
+        packages_aur_all: >-
+          {{ yay_packages_aur | default([])
+             if ansible_facts['os_family'] == 'Archlinux'
+             else [] }}
+      tags: ['packages', 'install', 'aur']
+
+    - name: Build combined verification package list
+      ansible.builtin.set_fact:
+        packages_verify_all: "{{ packages_all + packages_aur_all }}"
+      tags: ['packages']
+
     # ---- OS-specific package installation ----
 
     - name: Install packages (OS-specific)
@@ -64,7 +77,9 @@
       vars:
         common_rpt_fact: "_packages_phases"
         common_rpt_phase: "Install packages"
-        common_rpt_detail: "{{ packages_all | length }} pkgs on {{ ansible_facts['os_family'] }}"
+        common_rpt_detail: >-
+          {{ packages_all | length }} official +
+          {{ packages_aur_all | length }} AUR on {{ ansible_facts['os_family'] }}
       tags: ['packages', 'report']
 
     - name: "Report: Package verification"
@@ -74,7 +89,10 @@
       vars:
         common_rpt_fact: "_packages_phases"
         common_rpt_phase: "Verify packages"
-        common_rpt_detail: "{{ packages_all | length }} pkgs verified on {{ ansible_facts['os_family'] }}"
+        common_rpt_detail: >-
+          {{ packages_verify_all | length }} packages verified
+          ({{ packages_all | length }} official +
+          {{ packages_aur_all | length }} AUR) on {{ ansible_facts['os_family'] }}
       tags: ['packages', 'report']
 
     - name: "Packages -- Execution Report"

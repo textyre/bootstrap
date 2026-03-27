@@ -1,6 +1,6 @@
 # yay
 
-AUR helper installation and AUR package management for Arch Linux.
+AUR helper installation and AUR package management backend for Arch Linux.
 
 ## What this role does
 
@@ -10,6 +10,7 @@ AUR helper installation and AUR package management for Arch Linux.
 - [x] Checks if yay is already installed and validates shared libraries (`ldd`) to detect breakage after Go upgrades
 - [x] Builds yay from source via `makepkg` as `aur_builder` (clones from AUR, compiles, installs via `pacman -U`)
 - [x] Cleans up build artifacts (`/tmp/yay_build_*`) in an `always:` block
+- [x] Supports split execution: setup-only or AUR-install-only via role flags
 - [x] Optionally installs AUR packages via `kewlfft.aur.aur` with `use: yay`
 - [x] Optionally removes conflicting official packages before AUR installs
 - [x] Validates AUR vs official package conflicts via `validate-aur-conflicts.sh`
@@ -19,6 +20,8 @@ AUR helper installation and AUR package management for Arch Linux.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `yay_source_url` | `https://aur.archlinux.org/yay.git` | AUR git repo URL |
+| `yay_manage_setup` | `true` | Run setup phase (`aur_builder`, sudoers, yay binary) |
+| `yay_manage_aur_packages` | `true` | Run AUR package installation phase |
 | `yay_builder_user` | `aur_builder` | Dedicated non-root build user name |
 | `yay_builder_sudoers_file` | `yay-aur-builder` | Sudoers drop-in filename in `/etc/sudoers.d/` |
 | `yay_build_deps` | `[base-devel, git, go]` | Packages required to build yay from source |
@@ -33,7 +36,7 @@ Arch Linux only. The role asserts `os_family == Archlinux` and fails on any othe
 
 ## Tags
 
-`aur`, `aur:setup` (user + sudoers + binary only), `aur:install` (AUR package management only)
+`aur`, `setup`, `install`
 
 ## External dependencies
 
@@ -88,4 +91,6 @@ Verify assertions (14 total):
 
 **Broken libs detection:**  After major Go upgrades, shared libs can become invalid. The role runs `ldd /usr/bin/yay` before skipping the build — if `"not found"` appears in output, the binary is rebuilt.
 
-**AUR package management is optional:**  Leave `yay_packages_aur: []` (the default) to install only yay itself without managing any AUR packages.
+**AUR package management is optional:** Leave `yay_packages_aur: []` (the default) to install only yay itself without managing any AUR packages.
+
+**Split role usage:** `package_manager` calls this role with `yay_manage_setup: true` and `yay_manage_aur_packages: false`; `packages` calls it the other way around after official packages are installed.

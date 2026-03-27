@@ -13,12 +13,18 @@ if [[ ! -f /etc/arch-release ]]; then
     exit 1
 fi
 
-# Install ansible if missing
+# Install ansible and dependencies if missing
 if ! command -v ansible-playbook &>/dev/null; then
     echo "==> Installing Ansible..."
-    sudo pacman -Syu --needed --noconfirm ansible
+    sudo pacman -Syu --needed --noconfirm ansible python-rich
 else
     echo "==> Ansible already installed"
+fi
+
+# Ensure python-rich is installed (required by callback plugin)
+if ! python3 -c "import rich" &>/dev/null; then
+    echo "==> Installing python-rich..."
+    sudo pacman -S --needed --noconfirm python-rich
 fi
 
 # Install go-task if missing

@@ -55,6 +55,8 @@ provisioner:
         packages_viewers: [bat, jq]
         packages_distro:
           Archlinux: [base-devel, pacman-contrib, perl]
+        yay_packages_aur: [rofi-greenclip]
+        yay_packages_aur_remove_conflicts: []
 
       ubuntu-base:
         # Ubuntu-compatible equivalents (different names where needed, Arch-only packages excluded)

@@ -2,7 +2,8 @@
 # === manage-aur-packages: установка AUR пакетов через yay ===
 # Использует yay backend из kewlfft.aur.
 # Требует NOPASSWD sudoers для pacman (настраивается в setup-aur-builder.yml).
-# Контракт: caller передаёт yay_packages_official и yay_packages_aur из group_vars.
+# Контракт: caller передаёт yay_packages_official и yay_packages_aur
+# (обычно packages role передаёт packages_all как official backend list).
 
 - name: Remove packages conflicting with AUR replacements
   community.general.pacman:

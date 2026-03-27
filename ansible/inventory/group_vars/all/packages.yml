@@ -1,6 +1,6 @@
 ---
 # === ЦЕНТРАЛЬНЫЙ РЕЕСТР ПАКЕТОВ ===
-# Единственный источник данных для ролей packages, yay.
+# Единственный источник данных для ролей packages и yay backend.
 # Роли содержат только логику; данные живут здесь.
 #
 # Сервисы (docker, lightdm) → соответствующие роли docker/lightdm
@@ -13,13 +13,13 @@
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
 
 # ============================================================
-#  yay (AUR helper) — роль roles/yay
+#  yay backend — setup в roles/package_manager, install в roles/packages
 # ============================================================
 
 # URL репозитория yay в AUR
 yay_source_url: "https://aur.archlinux.org/yay.git"
 
-# Зависимости для сборки yay из исходников
+# Зависимости для сборки yay из исходников (setup helper)
 yay_build_deps:
   - base-devel
   - git
@@ -171,8 +171,8 @@ vm_packages_hyperv_guest:
 vm_packages_kvm_guest:
   - qemu-guest-agent         # Guest Agent (filesystem freeze, shutdown, exec)
 
-# --- Агрегированный список официальных пакетов (для conflict validation в роли yay) ---
-# Роль yay не знает о внутренней структуре packages_*; она получает один список.
+# --- Агрегированный список официальных пакетов (для standalone yay / conflict validation) ---
+# В основном workstation flow roles/packages передаёт packages_all в yay автоматически.
 # ВАЖНО: использует ansible_facts['os_family'] → плей должен иметь gather_facts: true.
 yay_packages_official: >-
   {{ packages_base
@@ -201,7 +201,7 @@ yay_packages_aur_remove_conflicts:
   - lightdm-gtk-greeter # заменяется на nody-greeter из AUR
 
 # --- AUR пакеты (только Arch Linux, через yay) ---
-# yay устанавливается отдельной ролью (roles/yay)
+# roles/package_manager поднимает yay binary, roles/packages использует его для установки.
 yay_packages_aur:
   - i3-rounded-border-patch-git   # i3 с патчем для скруглённых углов
   - i3lock-color                  # lock screen с кастомизацией цветов

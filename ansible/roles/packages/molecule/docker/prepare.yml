@@ -14,3 +14,13 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Set up yay backend for packages role (Arch)
+      ansible.builtin.include_role:
+        name: yay
+      vars:
+        yay_manage_setup: true
+        yay_manage_aur_packages: false
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - yay_packages_aur | default([]) | length > 0

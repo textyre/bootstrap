@@ -5,6 +5,11 @@
 # URL репозитория yay в AUR
 yay_source_url: "https://aur.archlinux.org/yay.git"
 
+# Управление фазами роли.
+# По умолчанию роль сохраняет старое поведение: setup helper + install AUR packages.
+yay_manage_setup: true
+yay_manage_aur_packages: true
+
 # Системный пользователь для сборки AUR-пакетов.
 # makepkg нельзя запускать от root; этот user НЕ совпадает с личным аккаунтом.
 # Ref: https://github.com/kewlfft/ansible-aur#create-the-aur_builder-user

@@ -34,7 +34,7 @@ task workstation # Применить все роли
 - **vconsole** — шрифт и клавиатура TTY
 - **ntp** — chrony + NTS серверы
 - **ntp_audit** — аудит NTP синхронизации
-- **package_manager** — pacman.conf, зеркала
+- **package_manager** — pacman.conf, зеркала, yay binary
 - **pam_hardening** — PAM faillock, brute-force защита
 - **vm** — гостевые утилиты VirtualBox/VMware/Hyper-V
 
@@ -44,7 +44,7 @@ task workstation # Применить все роли
 - **power_management** — TLP, питание
 
 ### Phase 2: Package Infrastructure
-- **packages** — установка всех пакетов (pacman + AUR)
+- **packages** — установка всех пакетов (official repos + AUR)
 
 ### Phase 3: User & Access
 - **user** — пользователь, sudo, группы, SSH ключи, пароли
