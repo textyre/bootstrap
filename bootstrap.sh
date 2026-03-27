@@ -21,9 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANSIBLE_DIR="${SCRIPT_DIR}/ansible"
 
 "${SCRIPT_DIR}/scripts/install-deps.sh"
-"${SCRIPT_DIR}/scripts/setup-vault-pass.sh"
 "${SCRIPT_DIR}/scripts/setup-venv.sh"
-"${SCRIPT_DIR}/scripts/setup-vault.sh"
 "${SCRIPT_DIR}/scripts/setup-galaxy.sh"
 
 echo "==> Running workstation playbook..."

@@ -2,9 +2,9 @@
 # ssh-scp-to.sh - Copy files TO the VM
 #
 # Usage:
-#   ./scripts/ssh-scp-to.sh <local-path> <remote-path>
-#   ./scripts/ssh-scp-to.sh ./file.txt /home/user/
-#   ./scripts/ssh-scp-to.sh -r ./dir/ /home/user/dir/
+#   ./scripts/ssh-scp-to.sh [-r] <local-path>... <remote-path>
+#   ./scripts/ssh-scp-to.sh file.txt /home/user/
+#   ./scripts/ssh-scp-to.sh -r dir1/ dir2/ file.txt /home/user/dest/
 
 set -euo pipefail
 
@@ -12,7 +12,7 @@ SSH_HOST="${SSH_HOST:-arch-127.0.0.1-2222}"
 SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 [-r] <local-path> <remote-path>" >&2
+    echo "Usage: $0 [-r] <local-path>... <remote-path>" >&2
     echo "  -r  Copy directories recursively" >&2
     exit 1
 fi
@@ -23,7 +23,9 @@ if [[ "$1" == "-r" ]]; then
     shift
 fi
 
-LOCAL_PATH="$1"
-REMOTE_PATH="$2"
+# Last argument is remote path, everything else is local sources
+ARGS=("$@")
+REMOTE_PATH="${ARGS[-1]}"
+LOCAL_PATHS=("${ARGS[@]:0:$#-1}")
 
-scp $RECURSIVE $SSH_OPTS "$LOCAL_PATH" "$SSH_HOST:$REMOTE_PATH"
+scp $RECURSIVE $SSH_OPTS "${LOCAL_PATHS[@]}" "$SSH_HOST:$REMOTE_PATH"

@@ -8,9 +8,15 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 ANSIBLE_DIR="${REPO_ROOT}/ansible"
 VENV_DIR="${ANSIBLE_DIR}/.venv"
 
-if [[ -d "${VENV_DIR}" ]]; then
-    echo "==> Python venv already exists"
+if [[ -x "${VENV_DIR}/bin/python" ]] && "${VENV_DIR}/bin/python" -c "import ansible" 2>/dev/null; then
+    echo "==> Python venv already exists and working"
     exit 0
+fi
+
+# Remove broken/incompatible venv
+if [[ -d "${VENV_DIR}" ]]; then
+    echo "==> Removing broken venv..."
+    rm -rf "${VENV_DIR}"
 fi
 
 echo "==> Creating Python virtualenv..."
