@@ -1,7 +1,7 @@
 ---
-# === PAM faillock — Void Linux ===
+# === PAM faillock — Arch Linux ===
 # Uses shared system-auth configuration
 
-- name: Configure PAM stack (Void — system-auth)
+- name: Configure PAM stack (Arch — system-auth)
   ansible.builtin.include_tasks: faillock_systemauth.yml
   tags: ['pam_hardening', 'pam', 'security', 'faillock']

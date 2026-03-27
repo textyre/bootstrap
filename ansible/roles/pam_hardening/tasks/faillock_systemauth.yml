@@ -1,5 +1,5 @@
 ---
-# === PAM faillock — Arch Linux (also used by Void, Gentoo) ===
+# === PAM faillock — system-auth distros (Arch, Gentoo, Void) ===
 # Ensures pam_faillock.so is active in /etc/pam.d/system-auth.
 # Parameters read from /etc/security/faillock.conf (not inline).
 #
