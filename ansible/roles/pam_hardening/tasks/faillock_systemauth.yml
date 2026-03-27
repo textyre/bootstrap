@@ -1,0 +1,50 @@
+---
+# === PAM faillock — Arch Linux (also used by Void, Gentoo) ===
+# Ensures pam_faillock.so is active in /etc/pam.d/system-auth.
+# Parameters read from /etc/security/faillock.conf (not inline).
+#
+# Control flags come from _pam_hardening_faillock_pam[os_family] so each
+# distro keeps its native pambase conventions:
+#   Arch   — preauth required, authfail [default=die], authsucc (no account)
+#   Gentoo — preauth requisite, authfail [default=die], account (no authsucc)
+#   Void   — no faillock by default, full insertion needed
+#
+# The regexp in each lineinfile matches any existing control field,
+# preventing duplicates regardless of what pambase ships.
+
+- name: Set PAM control facts for {{ ansible_facts['os_family'] }}
+  ansible.builtin.set_fact:
+    _pam_fl: "{{ _pam_hardening_faillock_pam[ansible_facts['os_family']] }}"
+  tags: ['pam_hardening']
+
+# preauth: ensure present before pam_unix.so
+- name: "CIS 5.4.2 | Ensure pam_faillock preauth in system-auth"
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    regexp: '^auth\s+\S+\s+pam_faillock\.so\s+preauth\s*$'
+    line: "auth       {{ _pam_fl.preauth_control }}                    pam_faillock.so      preauth"
+    insertbefore: '^-?auth.*pam_unix\.so'
+    state: present
+    backup: true
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
+
+# authfail: ensure present after pam_unix.so
+- name: "CIS 5.4.2 | Ensure pam_faillock authfail in system-auth"
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    regexp: '^auth\s+.*pam_faillock\.so\s+authfail\s*$'
+    line: "auth       {{ _pam_fl.authfail_control }}               pam_faillock.so      authfail"
+    insertafter: '^auth.*pam_unix\.so'
+    state: present
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
+
+# account: only needed on distros without authsucc in the auth stack
+- name: "CIS 5.4.2 | Ensure pam_faillock account in system-auth"
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/system-auth
+    regexp: '^account\s+\S+\s+pam_faillock\.so\s*$'
+    line: 'account    required                    pam_faillock.so'
+    insertafter: '^account'
+    state: present
+  when: _pam_fl.needs_account | bool
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']

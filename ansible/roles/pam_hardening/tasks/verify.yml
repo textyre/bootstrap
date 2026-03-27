@@ -31,7 +31,7 @@
   block:
     - name: Read system-auth for verification
       ansible.builtin.command:
-        cmd: grep -c 'pam_faillock.so' /etc/pam.d/system-auth
+        cmd: grep -c '^[^#]*pam_faillock\.so' /etc/pam.d/system-auth
       register: _pam_hardening_verify_pam_stack
       changed_when: false
       failed_when: false
@@ -44,9 +44,9 @@
           - (_pam_hardening_verify_pam_stack.stdout | int) >= 3
         fail_msg: >-
           pam_faillock.so not found in /etc/pam.d/system-auth
-          (expected preauth + authfail + account = 3 lines).
+          (expected preauth + authfail + authsucc/account >= 3 lines).
           Got {{ _pam_hardening_verify_pam_stack.stdout | default('0') }} matches.
-        success_msg: "pam_faillock.so active in system-auth"
+        success_msg: "pam_faillock.so active in system-auth ({{ _pam_hardening_verify_pam_stack.stdout }} entries)"
       tags: ['pam_hardening']
 
 # Debian / Ubuntu — check common-auth

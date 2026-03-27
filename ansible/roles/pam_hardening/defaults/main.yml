@@ -31,3 +31,23 @@ pam_hardening_faillock_local_users_only: false
 
 # nodelay: убрать задержку после неудачного входа (pam >= 1.5.1)
 pam_hardening_faillock_nodelay: false
+
+# Per-distro PAM control flags for pam_faillock.so in system-auth.
+# Each distro ships different defaults in pambase — we preserve them.
+#   preauth_control  — control field for the preauth line
+#   authfail_control — control field for the authfail line
+#   needs_account    — whether account pam_faillock.so is needed
+#                      (false when distro uses authsucc in auth stack)
+_pam_hardening_faillock_pam:
+  Archlinux:
+    preauth_control: "required"
+    authfail_control: "[default=die]"
+    needs_account: false          # Arch pambase uses authsucc instead
+  Gentoo:
+    preauth_control: "requisite"
+    authfail_control: "[default=die]"
+    needs_account: true           # Gentoo pambase uses account, not authsucc
+  Void:
+    preauth_control: "required"
+    authfail_control: "[default=die]"
+    needs_account: true           # Void has no faillock by default — full insert
