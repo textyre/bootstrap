@@ -48,12 +48,12 @@ verifier:
   name: ansible
 
 scenario:
-  # No idempotence: chezmoi init --apply always reports changed.
   # fixture dotfiles: no Arch-specific configs, so chezmoi_verify_full stays false.
   test_sequence:
     - syntax
     - create
     - prepare
     - converge
+    - idempotence
     - verify
     - destroy

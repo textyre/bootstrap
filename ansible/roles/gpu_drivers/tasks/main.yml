@@ -10,6 +10,11 @@
     - name: Preflight checks
       ansible.builtin.import_tasks: preflight.yml
 
+    # Load OS-specific internal variable mappings (ROLE-001)
+    - name: Load OS-specific variable mappings
+      ansible.builtin.include_vars: "vars/{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['gpu', 'drivers']
+
     - name: Detect GPU vendor
       ansible.builtin.import_tasks: detect.yml
 
@@ -21,6 +26,15 @@
 
     - name: Manage initramfs
       ansible.builtin.import_tasks: initramfs.yml
+
+    # Flush handlers so initramfs is up to date before verification
+    - name: Flush handlers before verification
+      ansible.builtin.meta: flush_handlers
+      tags: ['gpu', 'drivers']
+
+    - name: Verify GPU driver configuration (ROLE-005)
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['gpu', 'drivers']
 
     - name: Report GPU configuration
       ansible.builtin.import_tasks: report.yml

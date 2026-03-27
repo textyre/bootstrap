@@ -1,0 +1,7 @@
+---
+# Debian/Ubuntu — package manager specifics
+# All package lists (packages_base, packages_editors, etc.) are user-supplied via inventory.
+# OS-specific install logic is in tasks/install-debian.yml.
+#
+# Debian uses ansible.builtin.apt for cache update (cache_valid_time has no equivalent in
+# ansible.builtin.package) and ansible.builtin.package for installation.

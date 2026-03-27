@@ -1,5 +1,6 @@
 ---
 # ansible/roles/ssh_keys/molecule/docker/molecule.yml
+# TEST-002: Docker scenario with Arch + Ubuntu platforms
 driver:
   name: docker
 

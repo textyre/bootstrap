@@ -1,8 +1,33 @@
 ---
-- name: Converge
+# TEST-011: Play 1 runs with minimal/default-equivalent vars (empty user_name,
+# no hooks, no extra config, no safe dirs) to exercise the empty-input paths.
+# Explicit vars here override any inventory host_vars set by molecule scenarios.
+- name: Converge — minimal defaults
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    git_owner:
+      name: root
+      user_name: ""
+      user_email: ""
+      signing_method: none
+      signing_key: ""
+      credential_helper: ""
+    git_manage_hooks: false
+    git_config_extra: {}
+    git_safe_directories: []
+
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# TEST-011: Play 2 runs with full configuration from scenario inventory vars
+# (user_name, hooks, extra config, safe dirs), exercising all subsystems.
+- name: Converge — full configuration
   hosts: all
   become: true
   gather_facts: true
 
   roles:
-    - role: git
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"

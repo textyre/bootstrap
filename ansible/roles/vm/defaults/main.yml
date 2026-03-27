@@ -2,6 +2,14 @@
 # === Virtualization guest tools (VirtualBox, VMware, Hyper-V, KVM) ===
 # Packages defined in group_vars/all/packages.yml
 
+# Supported OS families (ROLE-003: Five Distros Only)
+_vm_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 vm_packages_virtualbox_guest:
   - virtualbox-guest-utils
 vm_packages_vmware_guest:

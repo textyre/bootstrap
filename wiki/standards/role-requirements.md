@@ -4,6 +4,8 @@
 > Implementation patterns: [[Ansible-Patterns]]
 > Security control mappings: [[Security Standards|standards/security-standards]]
 > Profile definitions: [[Workstation Profiles|standards/workstation-profiles]]
+> README structure: [[README Requirements|standards/readme-requirements]]
+> Testing specification: [[Testing Requirements|standards/testing-requirements]]
 
 ## Scope
 
@@ -272,85 +274,23 @@ sysctl_kernel_yama_ptrace_scope: 1   # 1=child-only (dev), 2=root-only (prod)
 **Category:** Testing
 **Priority:** MUST
 **Rationale:** Molecule tests must validate both the role's configuration actions and that the in-role verification logic (ROLE-005) correctly detects misconfigurations. Without negative tests, verification code may pass regardless of actual state.
-**Standards:** ---
+**Standards:** Full testing specification: [[Testing Requirements|standards/testing-requirements]]
 
-**Implementation Pattern:**
-```yaml
-# molecule/default/converge.yml — apply role with standard config
----
-- name: Converge
-  hosts: all
-  become: true
-  gather_facts: true
-  pre_tasks:
-    - name: Assert test environment
-      ansible.builtin.assert:
-        that: ansible_facts['os_family'] == 'Archlinux'
-  roles:
-    - role: <role_name>
+This requirement defines the WHAT — every role must have molecule tests. For the HOW — scenario structure (TEST-002, TEST-003), converge standards (TEST-006), verification depth (TEST-008), and all other testing details — see the Testing Requirements specification.
 
-# molecule/default/verify.yml — verify post-apply state
----
-- name: Verify
-  hosts: all
-  become: true
-  gather_facts: false
-  tasks:
-    # Positive: verify config was applied
-    - name: Check config file exists
-      ansible.builtin.stat:
-        path: /etc/chrony.conf
-      register: _<role>_verify_conf
-      failed_when: not _<role>_verify_conf.stat.exists
-
-    # Positive: verify service state
-    - name: Check service is enabled
-      ansible.builtin.command:
-        cmd: systemctl is-enabled chronyd
-      register: _<role>_verify_svc
-      changed_when: false
-      failed_when: "'enabled' not in _<role>_verify_svc.stdout"
-
-# molecule/default/molecule.yml
----
-driver:
-  name: default
-platforms:
-  - name: instance
-    managed: false
-provisioner:
-  name: ansible
-  inventory:
-    host_vars:
-      instance:
-        ansible_connection: local
-  config_options:
-    defaults:
-      callbacks_enabled: profile_tasks
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
-  env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
-verifier:
-  name: ansible
-scenario:
-  test_sequence:
-    - syntax
-    - converge
-    - verify
-```
-
-**Verification Criteria:**
-- `molecule/default/converge.yml` exercises the role with representative configuration
-- `molecule/default/verify.yml` checks actual system state (files, services, permissions), not just Ansible return codes
-- Register variables in verify.yml follow `_<role>_verify_<check>` naming convention
-- `molecule.yml` uses `driver: default` with `managed: false` for localhost testing
-- Test sequence includes at minimum: `syntax`, `converge`, `verify`
+**Summary Verification Criteria:**
+- `molecule/default/` and `molecule/vagrant/` scenarios both exist (TEST-002)
+- `converge.yml` exercises the role with representative configuration (TEST-006)
+- `verify.yml` checks actual system state with 4+ verification categories (TEST-008)
+- Register variables follow `_<role>_verify_<check>` naming convention
+- `idempotence` in every `test_sequence` (TEST-007)
+- yamllint + ansible-lint pass with zero errors (TEST-005)
 
 **Anti-patterns:**
 - Tests that only check "role ran without errors" (no state verification)
 - Verify.yml that duplicates converge.yml logic instead of checking outcomes
-- Missing `vault_password_file` when role depends on vault variables
-- Using `docker` or `vagrant` drivers (project uses localhost execution)
+- Missing vagrant scenario (only Docker — misses platform-specific bugs)
+- No idempotence step (the #1 bypass — see TEST-007)
 
 ---
 
@@ -629,6 +569,140 @@ sysctl_kernel_yama_ptrace_scope: 1   # 1=child-only, 2=root-only
 
 ---
 
+### ROLE-012: Install & Download Quality
+
+**Category:** Quality
+**Priority:** MUST
+**Rationale:** Roles that download binaries from external sources must do so cleanly: no dead install methods, no duplicate tasks, no stale paths. Every install path that exists must actually work today — "future" fallbacks are dead code until they are real.
+**Standards:** ---
+
+**Implementation Pattern:**
+```yaml
+# CORRECT: single URI task with conditional URL — no duplicate tasks
+- name: Query GitHub release
+  ansible.builtin.uri:
+    url: >-
+      {{ hostctl_github_api }}/repos/{{ hostctl_github_repo }}/releases/{{
+        'latest' if hostctl_version == 'latest'
+        else 'tags/v' ~ hostctl_version }}
+    headers:
+      Accept: application/vnd.github+json   # current header per GitHub docs
+
+# CORRECT: single download task — optional checksum via default(omit)
+- name: Download archive
+  ansible.builtin.get_url:
+    url: "{{ _binary_url | trim }}"         # trim trailing whitespace from YAML scalars
+    dest: /tmp/binary.tar.gz
+    checksum: "{{ _binary_checksum | default(omit) }}"
+
+# CORRECT: verify binary via PATH, not hardcoded install dir
+- name: Verify binary is available
+  ansible.builtin.command: command -v hostctl
+  changed_when: false
+  failed_when: _verify.rc != 0
+  register: _verify
+
+# CORRECT: prefer split/select/splitlines over regex for text parsing
+- name: Extract checksum
+  ansible.builtin.set_fact:
+    _checksum: >-
+      sha256:{{ _checksums_content.splitlines()
+        | select('search', _tarball_name)
+        | first | split() | first }}
+```
+
+**Verification Criteria:**
+- One task per logical operation — no pair of tasks that do the same thing with minor conditional differences
+- External API headers match current documentation — verify before writing, not after
+- URL and path variables built from YAML `>-` or `|-` scalars (not bare `>`), or `| trim` applied before use in `get_url` / `uri`
+- Binary availability verified via `command -v <bin>`, not hardcoded install path
+- Text parsing prefers `split` / `splitlines` / `select` over `regex_search` where data is line-structured
+
+**Anti-patterns:**
+- Two `uri` tasks for "latest" and "pinned" versions with duplicate body — merge via conditional URL
+- Two `get_url` tasks for "with checksum" and "without checksum" — use `| default(omit)`
+- `failed_when: false` on package manager install with no downstream assert — silent dead code
+- Install method included "for future use" when no working package currently exists
+- `hostctl_install_dir/hostctl` in final verify when AUR/package manager may place binary elsewhere
+
+---
+
+### ROLE-013: Error Visibility
+
+**Category:** Quality
+**Priority:** MUST
+**Rationale:** Silent failures produce false confidence. A role that swallows errors and falls through to the next method gives no signal when something is genuinely broken. Every failure must be either handled explicitly (with a visible message and a real fallback) or surfaced immediately.
+**Standards:** ---
+
+**Implementation Pattern:**
+```yaml
+# CORRECT: failed_when: false only when fallback exists and is logged
+- name: Try package manager install
+  ansible.builtin.package:
+    name: hostctl
+    state: present
+  register: _pkg_result
+  failed_when: false
+
+- name: Report package install outcome
+  ansible.builtin.debug:
+    msg: >-
+      Package install {{ 'succeeded' if _pkg_result is not failed
+      else 'failed — falling back to GitHub releases' }}
+
+- name: Assert fallback will run if needed
+  ansible.builtin.assert:
+    that: _pkg_result is not failed or _fallback_available | bool
+    fail_msg: "Package install failed and no fallback is configured"
+
+# CORRECT: command tasks always have explicit changed_when and failed_when
+- name: Check installed version
+  ansible.builtin.command: hostctl --version
+  register: _ver
+  changed_when: false        # read-only — never counts as a change
+  failed_when: _ver.rc != 0  # explicit — fail if binary is broken
+```
+
+**Verification Criteria:**
+- `failed_when: false` appears only when there is a visible `debug` or `assert` below it explaining the outcome
+- `ansible.builtin.command` and `ansible.builtin.shell` tasks always declare both `changed_when` and `failed_when` explicitly
+- No task silently produces `ok` when the underlying operation failed
+- Role tests (verify.yml) surface failures via `assert` or `failed_when`, never `ignore_errors: true` without a follow-up assert
+
+**Anti-patterns:**
+- `failed_when: false` with no downstream logging or fallback verification
+- `command` task with default `changed_when` (every run shows yellow `changed`)
+- `command` task with default `failed_when` on a probe command that is expected to fail on first run
+- `ignore_errors: true` without a subsequent `assert` that checks the registered result
+
+---
+
+### ROLE-014: Test Coverage Completeness
+
+**Category:** Testing
+**Priority:** MUST
+**Rationale:** Tests that always pass regardless of actual state are worse than no tests — they create false confidence. Coverage must be driven by role inputs (not hardcoded), must exercise edge cases, and must verify network-dependent tasks as first-class requirements.
+**Standards:** Full testing specification: [[Testing Requirements|standards/testing-requirements]]
+
+This requirement defines the WHAT — test coverage must be complete. For the HOW — data-driven verification (TEST-012), edge cases (TEST-011), cross-platform coverage (TEST-013), and dependency management (TEST-010) — see the Testing Requirements specification.
+
+**Summary Verification Criteria:**
+- No hardcoded values in verify.yml — all from extra-vars or vars_files (TEST-012)
+- Edge cases covered: empty inputs, default-only runs, all `state` variants (TEST-011)
+- Both Arch + Ubuntu exercised in both scenarios (TEST-013)
+- Network-dependent tasks exercised in at least one scenario (TEST-013)
+- Role dependencies declared in `requirements.yml` and resolved by molecule (TEST-010)
+- Negative tests present for error handling paths (TEST-011, SHOULD)
+
+**Anti-patterns:**
+- `verify_version_string: "1.1.4"` hardcoded in `verify.yml` — diverges silently when converge version changes
+- No test case for `hostctl_profiles: {}` or other empty-input edge cases
+- `idempotence` missing from `test_sequence`
+- All network tasks skipped in every scenario via `molecule-notest` — no scenario actually exercises the download path
+- Handler with `changed_when: true` that fires on idempotence run, causing false `changed` report
+
+---
+
 ## Post-Creation Checklist
 
 Use this checklist when creating or reviewing a role. One checkbox per requirement.
@@ -650,7 +724,7 @@ Use this checklist when creating or reviewing a role. One checkbox per requireme
 
 ### Testing
 
-- [ ] ROLE-006: `molecule/default/verify.yml` tests both applied state and verification logic
+- [ ] ROLE-006: Both `molecule/default/` and `molecule/vagrant/` scenarios present; verify.yml covers 4+ categories (see [[Testing Requirements|standards/testing-requirements]])
 
 ### Observability
 
@@ -662,8 +736,21 @@ Use this checklist when creating or reviewing a role. One checkbox per requireme
 - [ ] ROLE-009: Profile-dependent settings guarded with `workstation_profiles` check and safe default
 - [ ] ROLE-010: Per-subsystem toggles, dict-based config for complex settings, `_overwrite` dict for user customization
 
+### Install & Download
+
+- [ ] ROLE-012: No dead install methods; one task per logical operation; `| trim` on URL vars; binary verified via `command -v`; text parsing via `split`/`splitlines` not regex; API headers match current docs
+
+### Error Handling
+
+- [ ] ROLE-013: `failed_when: false` only with downstream debug/assert; `command`/`shell` tasks have explicit `changed_when` and `failed_when`; no silent fallbacks
+
+### Test Coverage
+
+- [ ] ROLE-014: No hardcoded versions in verify.yml; edge cases covered; Arch + Ubuntu in both scenarios; idempotence everywhere (see [[Testing Requirements|standards/testing-requirements]])
+
 ### Documentation
 
+- [ ] README complies with [[README Requirements|standards/readme-requirements]] (README-001 through README-010)
 - [ ] `wiki/roles/<role_name>.md` exists with variables, dependencies, tags, and audit events
 - [ ] `defaults/main.yml` has inline comments explaining each variable and its tradeoffs
 

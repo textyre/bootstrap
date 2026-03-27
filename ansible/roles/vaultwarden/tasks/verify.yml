@@ -1,0 +1,129 @@
+---
+# === Vaultwarden -- in-role verification (ROLE-005) ===
+# Verifies the role's configuration is correct after applying changes.
+# Called from main.yml via include_tasks.
+
+# ---- Config file verification (check_mode lineinfile) ----
+
+- name: Verify /etc/hosts contains vaultwarden domain
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '.*\s{{ vaultwarden_domain | regex_escape }}$'
+    line: "127.0.0.1 {{ vaultwarden_domain }}"
+  check_mode: true
+  register: _vaultwarden_verify_hosts
+  failed_when: _vaultwarden_verify_hosts is changed
+  tags: ['vaultwarden']
+
+# ---- File existence verification ----
+
+- name: Verify docker-compose.yml exists
+  ansible.builtin.stat:
+    path: "{{ vaultwarden_base_dir }}/docker-compose.yml"
+  register: _vaultwarden_verify_compose
+  tags: ['vaultwarden']
+
+- name: Assert docker-compose.yml is deployed
+  ansible.builtin.assert:
+    that:
+      - _vaultwarden_verify_compose.stat.exists
+      - _vaultwarden_verify_compose.stat.mode == '0644'
+    fail_msg: >-
+      {{ vaultwarden_base_dir }}/docker-compose.yml missing or wrong permissions
+    success_msg: "docker-compose.yml verified (mode {{ _vaultwarden_verify_compose.stat.mode | default('N/A') }})"
+    quiet: true
+  tags: ['vaultwarden']
+
+- name: Verify Caddy site config exists
+  ansible.builtin.stat:
+    path: "{{ caddy_base_dir | default('/opt/caddy') }}/sites/vault.caddy"
+  register: _vaultwarden_verify_caddy
+  tags: ['vaultwarden']
+
+- name: Assert Caddy site config is deployed
+  ansible.builtin.assert:
+    that:
+      - _vaultwarden_verify_caddy.stat.exists
+      - _vaultwarden_verify_caddy.stat.mode == '0644'
+    fail_msg: >-
+      Caddy site config missing or wrong permissions
+    success_msg: "Caddy site config verified (mode {{ _vaultwarden_verify_caddy.stat.mode | default('N/A') }})"
+    quiet: true
+  tags: ['vaultwarden']
+
+# ---- Admin token verification ----
+
+- name: Verify admin token file exists
+  ansible.builtin.stat:
+    path: "{{ vaultwarden_base_dir }}/.admin_token"
+  register: _vaultwarden_verify_token
+  when: vaultwarden_admin_enabled
+  tags: ['vaultwarden']
+
+- name: Assert admin token file has correct permissions
+  ansible.builtin.assert:
+    that:
+      - _vaultwarden_verify_token.stat.exists
+      - _vaultwarden_verify_token.stat.mode == '0600'
+    fail_msg: >-
+      Admin token file missing or wrong permissions (expected 0600)
+    success_msg: "Admin token file verified (mode {{ _vaultwarden_verify_token.stat.mode | default('N/A') }})"
+    quiet: true
+  when: vaultwarden_admin_enabled
+  tags: ['vaultwarden']
+
+# ---- Backup subsystem verification ----
+
+- name: Verify backup script exists
+  ansible.builtin.stat:
+    path: "{{ vaultwarden_base_dir }}/backup.sh"
+  register: _vaultwarden_verify_backup
+  when: vaultwarden_backup_enabled
+  tags: ['vaultwarden']
+
+- name: Assert backup script is deployed and executable
+  ansible.builtin.assert:
+    that:
+      - _vaultwarden_verify_backup.stat.exists
+      - _vaultwarden_verify_backup.stat.executable
+      - _vaultwarden_verify_backup.stat.mode == '0700'
+    fail_msg: >-
+      Backup script missing or not executable (expected 0700)
+    success_msg: "Backup script verified (mode {{ _vaultwarden_verify_backup.stat.mode | default('N/A') }})"
+    quiet: true
+  when: vaultwarden_backup_enabled
+  tags: ['vaultwarden']
+
+# ---- Container verification (VM only) ----
+# ROLE-013: failed_when: false with guaranteed downstream assert.
+# The assert runs unconditionally (within the VM guard) so that
+# an empty stdout (container not running) produces a visible failure
+# instead of being silently skipped.
+
+- name: Check vaultwarden container is running
+  ansible.builtin.command:
+    cmd: >-
+      docker ps --filter name=vaultwarden --filter status=running
+      --format '{% raw %}{{ .Names }}{% endraw %}'
+  register: _vaultwarden_verify_container
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['virtualization_type'] | default('') != 'docker'
+  tags: ['vaultwarden', 'molecule-notest']
+
+- name: Assert vaultwarden container is running
+  ansible.builtin.assert:
+    that:
+      - _vaultwarden_verify_container.stdout is defined
+      - "'vaultwarden' in _vaultwarden_verify_container.stdout"
+    fail_msg: >-
+      Vaultwarden container is not running.
+      Output: {{ _vaultwarden_verify_container.stdout | default('empty') }}
+    success_msg: >-
+      Vaultwarden container is running
+      ({{ _vaultwarden_verify_container.stdout | default('') | trim }})
+    quiet: true
+  when:
+    - ansible_facts['virtualization_type'] | default('') != 'docker'
+    - _vaultwarden_verify_container is defined
+  tags: ['vaultwarden', 'molecule-notest']

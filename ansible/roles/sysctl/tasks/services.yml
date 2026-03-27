@@ -13,10 +13,24 @@
     name: apport
     state: stopped
     enabled: false
+  register: _sysctl_apport_result
   when:
     - ansible_facts['os_family'] == 'Debian'
     - sysctl_security_enabled | bool
     - sysctl_security_filesystem_hardening | bool
     - sysctl_fs_suid_dumpable | int != 2
   failed_when: false
+  tags: ['sysctl', 'services']
+
+- name: Report apport disable outcome
+  ansible.builtin.debug:
+    msg: >-
+      apport service {{ 'disabled successfully' if (_sysctl_apport_result is not failed)
+      else 'not found or already disabled — this is expected if apport is not installed' }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - _sysctl_apport_result is defined
+    - sysctl_security_enabled | bool
+    - sysctl_security_filesystem_hardening | bool
+    - sysctl_fs_suid_dumpable | int != 2
   tags: ['sysctl', 'services']

@@ -1,0 +1,10 @@
+---
+# OS-specific variables for Debian/Ubuntu
+
+# Cron daemon service name
+_vaultwarden_cron_service: cron
+
+# Packages required by the backup subsystem
+_vaultwarden_backup_packages:
+  - cron
+  - sqlite3

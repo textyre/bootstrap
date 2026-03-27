@@ -1,0 +1,71 @@
+---
+# === Greeter — in-role verification (ROLE-005) ===
+# Verifies deployed files and rendered content after configuration.
+
+# ---- Config file verification ----
+
+- name: Verify web-greeter config references the selected theme
+  ansible.builtin.lineinfile:
+    path: /etc/lightdm/web-greeter.yml
+    regexp: '^    theme: '
+    line: "    theme: {{ greeter_theme }}"
+  check_mode: true
+  register: _greeter_verify_config_theme
+  failed_when: _greeter_verify_config_theme is changed
+  tags: ['greeter']
+
+- name: Verify web-greeter config has expected screensaver timeout
+  ansible.builtin.lineinfile:
+    path: /etc/lightdm/web-greeter.yml
+    regexp: '^    screensaver_timeout: '
+    line: "    screensaver_timeout: {{ greeter_screensaver_timeout }}"
+  check_mode: true
+  register: _greeter_verify_config_timeout
+  failed_when: _greeter_verify_config_timeout is changed
+  tags: ['greeter']
+
+# ---- Runtime/content verification ----
+
+- name: Validate rendered system-info.json is valid JSON
+  ansible.builtin.command:
+    cmd: python3 -m json.tool /usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json
+  changed_when: false
+  register: _greeter_verify_system_info_json
+  failed_when: _greeter_verify_system_info_json.rc != 0
+  tags: ['greeter']
+
+- name: Read rendered system-info.json
+  ansible.builtin.slurp:
+    src: "/usr/share/web-greeter/themes/{{ greeter_theme }}/system-info.json"
+  register: _greeter_verify_system_info_raw
+  tags: ['greeter']
+
+- name: Parse rendered system-info.json
+  ansible.builtin.set_fact:
+    _greeter_verify_system_info: "{{ _greeter_verify_system_info_raw.content | b64decode | from_json }}"
+  tags: ['greeter']
+
+- name: Assert rendered system-info.json contains collected values
+  ansible.builtin.assert:
+    that:
+      - _greeter_verify_system_info.project_version == greeter_ctos_version
+      - _greeter_verify_system_info.timezone == _greeter_timezone
+      - _greeter_verify_system_info.systemd_version == _greeter_systemd_ver
+      - _greeter_verify_system_info.display_output == _greeter_display_name
+      - _greeter_verify_system_info.display_resolution == _greeter_display_res
+      - _greeter_verify_system_info.ssh_fingerprint == _greeter_ssh_fp_hash
+    fail_msg: "system-info.json does not match the normalized greeter facts"
+    quiet: true
+  tags: ['greeter']
+
+# ---- Report ----
+
+- name: "Report: Verification"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_greeter_phases"
+    common_rpt_phase: "Verify greeter"
+    common_rpt_detail: "theme={{ greeter_theme }} json=ok"
+  tags: ['greeter', 'report']

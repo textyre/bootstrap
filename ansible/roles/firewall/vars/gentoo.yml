@@ -1,0 +1,3 @@
+---
+_firewall_packages:
+  - net-firewall/nftables

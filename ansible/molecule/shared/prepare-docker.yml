@@ -1,0 +1,34 @@
+---
+# Shared Docker prepare — import at the TOP of every role's
+# molecule/docker/prepare.yml to ensure package databases are fresh.
+#
+# Usage in role prepare.yml:
+#
+#   - name: Bootstrap Docker container
+#     ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+#
+#   - name: Prepare (role-specific)
+#     hosts: all
+#     become: true
+#     gather_facts: true
+#     tasks:
+#       - name: Install role-specific deps
+#         ...
+
+- name: Bootstrap Docker container
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    # ---- Arch Linux ----
+    - name: Update pacman package cache (Arch)
+      community.general.pacman:
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    # ---- Ubuntu/Debian ----
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'

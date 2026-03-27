@@ -1,59 +1,120 @@
 ---
 # === Конфигурация LightDM ===
 # Display manager: конфиг, скрипт резолюции, сервис
+# Preflight → OS vars → Dirs → Deploy → Service → Verify → Report
 
-- name: Resolve dotfiles source directory
-  ansible.builtin.stat:
-    path: "{{ lightdm_source_dir }}"
-  register: lightdm_source_stat
-  tags: ['lightdm', 'display']
-
-- name: Assert dotfiles source directory exists
-  ansible.builtin.assert:
-    that:
-      - lightdm_source_stat.stat.exists
-      - lightdm_source_stat.stat.isdir
-    fail_msg: "Директория с исходниками не найдена: {{ lightdm_source_dir }}"
-  tags: ['lightdm', 'display']
-
-# ---- Создание директорий ----
-
-- name: Create LightDM config directories
-  ansible.builtin.file:
-    path: "{{ item.dest | dirname }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  loop: "{{ lightdm_system_files }}"
-  tags: ['lightdm', 'display']
-
-# ---- Деплой конфигов ----
-
-- name: Deploy LightDM configuration files
-  ansible.builtin.copy:
-    src: "{{ lightdm_source_dir }}/{{ item.src }}"
-    dest: "{{ item.dest }}"
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-    mode: "{{ item.mode }}"
-    remote_src: true
-  loop: "{{ lightdm_system_files }}"
-  tags: ['lightdm', 'display']
-
-# ---- Сервис ----
-
-- name: Enable and start LightDM service
-  ansible.builtin.service:
-    name: lightdm
-    enabled: true
-    state: started
-  when: lightdm_enable_service
-  tags: ['lightdm', 'display', 'service']
-
-- name: Report LightDM configuration
-  ansible.builtin.debug:
-    msg:
-      - "Файлов развёрнуто: {{ lightdm_system_files | length }}"
-      - "Сервис: {{ 'enabled' if lightdm_enable_service else 'disabled' }}"
+- name: LightDM role
+  when: lightdm_enabled | bool
   tags: ['lightdm']
+  block:
+
+    # ======================================================================
+    # ---- Preflight ----
+    # ======================================================================
+
+    - name: Assert supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] in _lightdm_supported_os
+        fail_msg: >-
+          OS family '{{ ansible_facts['os_family'] }}' is not supported.
+          Supported: {{ _lightdm_supported_os | join(', ') }}
+        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+      tags: ['lightdm', 'display']
+
+    # NOTE: This role uses include_vars (not include_tasks) for OS dispatch
+    # because all per-OS differences are variable values only (_lightdm_service map).
+    # There are no OS-specific task files — only an OS-specific service name map.
+    # Per ROLE-001, the spirit of the requirement is distro-agnostic operation via
+    # per-distro vars files; include_vars is the correct tool when tasks are identical.
+    - name: Include OS-specific variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['lightdm', 'display']
+
+    - name: Resolve dotfiles source directory
+      ansible.builtin.stat:
+        path: "{{ lightdm_source_dir }}"
+      register: lightdm_source_stat
+      tags: ['lightdm', 'display']
+
+    - name: Assert dotfiles source directory exists
+      ansible.builtin.assert:
+        that:
+          - lightdm_source_stat.stat.exists
+          - lightdm_source_stat.stat.isdir
+        fail_msg: "Директория с исходниками не найдена: {{ lightdm_source_dir }}"
+      tags: ['lightdm', 'display']
+
+    # ======================================================================
+    # ---- Создание директорий ----
+    # ======================================================================
+
+    - name: Create LightDM config directories
+      ansible.builtin.file:
+        path: "{{ item.dest | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop: "{{ lightdm_system_files }}"
+      tags: ['lightdm', 'display']
+
+    # ======================================================================
+    # ---- Деплой конфигов ----
+    # ======================================================================
+
+    - name: Deploy LightDM configuration files
+      ansible.builtin.copy:
+        src: "{{ lightdm_source_dir }}/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+        remote_src: true
+      loop: "{{ lightdm_system_files }}"
+      tags: ['lightdm', 'display']
+
+    # ======================================================================
+    # ---- Сервис ----
+    # ======================================================================
+
+    - name: Enable and start LightDM service
+      ansible.builtin.service:
+        name: "{{ _lightdm_service[ansible_facts['service_mgr']] | default('lightdm') }}"
+        enabled: true
+        state: started
+      when: lightdm_enable_service | bool
+      tags: ['lightdm', 'display', 'service']
+
+    # ======================================================================
+    # ---- Проверка ----
+    # ======================================================================
+
+    - name: Verify LightDM configuration
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['lightdm', 'display']
+
+    # ======================================================================
+    # ---- Логирование ----
+    # ======================================================================
+
+    - name: "Report: LightDM"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_lightdm_phases"
+        common_rpt_phase: "Configure LightDM"
+        common_rpt_detail: >-
+          files={{ lightdm_system_files | length }}
+          service={{ 'enabled' if lightdm_enable_service | bool else 'disabled' }}
+      tags: ['lightdm', 'report']
+
+    - name: "LightDM — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_lightdm_phases"
+        common_rpt_title: "lightdm"
+      tags: ['lightdm', 'report']

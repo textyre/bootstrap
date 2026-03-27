@@ -33,5 +33,13 @@
         state: present
         timeout: 30
 
+    # chrony needs time to sync with NTP servers after start.
+    # Without this, audit script reports sync_status='error' (correct but premature).
+    # Pattern: ntp role uses same waitsync in tasks/verify.yml:51-55.
+    - name: Wait for chronyd to synchronize (up to 60s)
+      ansible.builtin.command:
+        cmd: chronyc waitsync 30 0 0 2
+      changed_when: false
+
   roles:
     - role: ntp_audit

@@ -14,5 +14,9 @@ galaxy_info:
       versions: [all]
     - name: Fedora
       versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
   galaxy_tags: [security, pam, hardening, faillock]
 dependencies: []

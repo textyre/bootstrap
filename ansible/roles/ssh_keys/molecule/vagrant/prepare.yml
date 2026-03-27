@@ -15,6 +15,13 @@
         create_home: true
         shell: /bin/bash
 
+    - name: Create keygen test user (no ssh_keys, only keygen)
+      ansible.builtin.user:
+        name: keygenuser
+        state: present
+        create_home: true
+        shell: /bin/bash
+
     - name: Create absent_user with pre-existing authorized_keys
       ansible.builtin.user:
         name: absent_user
@@ -36,7 +43,8 @@
         owner: absent_user
         mode: "0600"
 
-    - name: Set molecule_test_user fact
+    - name: Set molecule test user facts
       ansible.builtin.set_fact:
-        molecule_test_user: testuser
+        ssh_keys_molecule_test_user: testuser
+        molecule_keygen_user: keygenuser
         cacheable: true

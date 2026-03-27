@@ -1,7 +1,8 @@
 # Purpose: Vagrant/KVM-based Molecule tests. Detects changed vagrant-capable
 #          roles and runs molecule test -s vagrant for each on arch and ubuntu.
 # Triggers: push/PR to master (ansible/roles/**, requirements.txt,
-#           requirements-molecule-vagrant.txt), workflow_dispatch
+#           requirements-molecule-vagrant.txt),
+#           weekly schedule (Monday 08:00 UTC), workflow_dispatch
 # Uses:    arch-base.box (github.com/textyre/arch-images releases)
 #          ubuntu-base.box (github.com/textyre/ubuntu-images releases)
 # Notes:   Only roles with molecule/vagrant/molecule.yml are tested here.
@@ -26,6 +27,8 @@ on:
       - 'ansible/requirements.txt'
       - 'ansible/requirements-molecule-vagrant.txt'
       - '.github/workflows/molecule-vagrant.yml'
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly Monday 08:00 UTC — drift detection (after Docker workflow)
   workflow_dispatch:
     inputs:
       role_filter:

@@ -1,6 +1,7 @@
 ---
 # === hostctl — profile deployment ===
-# Deploys /etc/hostctl/<name>.hosts files and applies them via handler.
+# Manages /etc/hostctl/<name>.hosts files and /etc/hosts entries.
+# Profile states: present (default), absent, disabled.
 
 - name: Create /etc/hostctl directory
   ansible.builtin.file:
@@ -10,7 +11,9 @@
     group: root
     mode: '0755'
 
-- name: Deploy hostctl profile files
+# ---- Present profiles: deploy file + apply to /etc/hosts ----
+
+- name: Deploy present profile files
   ansible.builtin.template:
     src: profile.j2
     dest: "/etc/hostctl/{{ item.key }}.hosts"
@@ -18,16 +21,101 @@
     group: root
     mode: '0644'
   loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) == 'present'
   notify: apply hostctl profiles
+
+# ---- Disabled profiles: deploy file + disable in /etc/hosts ----
+
+- name: Deploy disabled profile files
+  ansible.builtin.template:
+    src: profile.j2
+    dest: "/etc/hostctl/{{ item.key }}.hosts"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) == 'disabled'
+
+- name: Check disabled profile status in hostctl
+  ansible.builtin.command: "hostctl status {{ item.key }}"
+  loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) == 'disabled'
+  register: _hostctl_disabled_status
+  changed_when: false
+  failed_when: false
+
+- name: Add entries for new disabled profiles
+  ansible.builtin.shell: |
+    {% for entry in item.item.value.entries %}
+    hostctl add domains {{ item.item.key }} {{ entry.host }} --ip {{ entry.ip }}
+    {% endfor %}
+  loop: "{{ _hostctl_disabled_status.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key | default('skip') }}"
+  when:
+    - item is not skipped
+    - item.item.key not in item.stdout
+  changed_when: true
+
+- name: Disable hostctl profiles
+  ansible.builtin.command: "hostctl disable {{ item.item.key }}"
+  loop: "{{ _hostctl_disabled_status.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key | default('skip') }}"
+  register: _hostctl_disable_exec
+  when:
+    - item is not skipped
+    - item.item.key not in item.stdout or '| on' in item.stdout
+  changed_when: true
+  failed_when: >-
+    _hostctl_disable_exec.rc | default(0) != 0
+    and 'unknown profile name' not in (_hostctl_disable_exec.stderr | default(''))
+
+# ---- Absent profiles: remove file + remove from /etc/hosts ----
+
+- name: Remove absent profile files
+  ansible.builtin.file:
+    path: "/etc/hostctl/{{ item.key }}.hosts"
+    state: absent
+  loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) == 'absent'
+
+- name: Check absent profile status in hostctl
+  ansible.builtin.command: "hostctl status {{ item.key }}"
+  loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) == 'absent'
+  register: _hostctl_absent_status
+  changed_when: false
+  failed_when: false
+
+- name: Remove absent profiles from hostctl
+  ansible.builtin.command: "hostctl remove {{ item.item.key }}"
+  loop: "{{ _hostctl_absent_status.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key | default('skip') }}"
+  register: _hostctl_remove_exec
+  when:
+    - item is not skipped
+    - item.item.key in item.stdout
+  changed_when: true
+  failed_when: >-
+    _hostctl_remove_exec.rc | default(0) != 0
+    and 'unknown profile name' not in (_hostctl_remove_exec.stderr | default(''))
+
+# ---- Verify present/disabled profile files deployed ----
 
 - name: Verify profile files deployed
   ansible.builtin.stat:
     path: "/etc/hostctl/{{ item.key }}.hosts"
   register: hostctl_profile_stat
   loop: "{{ hostctl_profiles | dict2items }}"
+  when: (item.value.state | default('present')) in ['present', 'disabled']
 
-- name: Assert all profile files exist
+- name: Assert profile files exist
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: "hostctl profile file missing: /etc/hostctl/{{ item.item.key }}.hosts"
-  loop: "{{ hostctl_profile_stat.results }}"
+  loop: "{{ hostctl_profile_stat.results | default([]) }}"
+  when: item is not skipped
+  loop_control:
+    label: "{{ item.item.key | default('skip') }}"

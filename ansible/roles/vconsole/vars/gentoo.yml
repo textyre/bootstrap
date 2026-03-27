@@ -1,0 +1,5 @@
+---
+# === Vconsole packages — Gentoo ===
+
+_vconsole_font_package: "sys-fonts/terminus-font"
+_vconsole_gpm_package: "sys-libs/gpm"

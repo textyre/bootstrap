@@ -1,0 +1,43 @@
+---
+# Edge case testing for NTP role
+# Three scenarios in sequence to test role behavior with unusual configurations
+
+- name: "Edge Case 1: Auto-detect disabled with manual refclocks"
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    # Disable auto-detection, use manual refclock configuration
+    ntp_auto_detect: false
+    ntp_refclocks: []  # Empty refclocks = no special hardware clock handling
+    ntp_servers:
+      - { host: "time.cloudflare.com", nts: true, iburst: true }
+  roles:
+    - role: ntp
+
+- name: "Edge Case 2: Pool-based sources only (empty ntp_servers)"
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    # Use only pool-type sources, no individual servers
+    ntp_servers: []  # Empty server list
+    ntp_pools:
+      - { host: "pool.ntp.org", iburst: true, maxsources: 4 }
+  roles:
+    - role: ntp
+
+- name: "Edge Case 3: NTP server mode with ACL (ntp_allow configured)"
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    # Configure role to act as NTP server, allowing specific networks
+    ntp_servers:
+      - { host: "time.cloudflare.com", nts: true, iburst: true }
+      - { host: "time.nist.gov", nts: true, iburst: true }
+    ntp_allow:
+      - "127.0.0.0/8"     # Localhost
+      - "::1"             # IPv6 localhost
+  roles:
+    - role: ntp

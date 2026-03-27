@@ -37,6 +37,12 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
+
 provisioner:
   name: ansible
   options:
@@ -53,6 +59,7 @@ provisioner:
         docker_log_driver: "journald"
         docker_log_max_size: "10m"
         docker_log_max_file: "3"
+        docker_daemon_overwrite: {}
         docker_storage_driver: ""
         docker_userns_remap: "default"
         docker_icc: false
@@ -60,6 +67,7 @@ provisioner:
         docker_no_new_privileges: true
         docker_add_user_to_group: true
         docker_enable_service: true
+        docker_manage_daemon: true
         docker_user: "root"
     host_vars:
       # Default security settings (all CIS features enabled)
@@ -88,8 +96,8 @@ provisioner:
         docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    converge: converge.yml
+    verify: verify.yml
 
 verifier:
   name: ansible

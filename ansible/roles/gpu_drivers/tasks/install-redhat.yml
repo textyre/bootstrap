@@ -1,0 +1,12 @@
+---
+# RedHat/Fedora GPU driver installation — STUB
+# TODO: Implement when Fedora support is added to this role.
+# Fedora ships nvidia drivers via RPM Fusion (non-free) and mesa for AMD/Intel.
+
+- name: RedHat GPU driver installation not yet implemented
+  ansible.builtin.debug:
+    msg: >-
+      gpu_drivers: RedHat/Fedora driver installation is not yet implemented.
+      GPU detection ran successfully but no packages were installed.
+      Implement tasks/install-redhat.yml to add Fedora support.
+  tags: ['gpu', 'drivers']

@@ -3,7 +3,7 @@
 
 - name: Install GPM
   ansible.builtin.package:
-    name: gpm
+    name: "{{ _vconsole_gpm_package }}"
     state: present
   when: vconsole_gpm_enabled
   tags: ['vconsole']

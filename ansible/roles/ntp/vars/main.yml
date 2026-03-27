@@ -8,7 +8,7 @@ ntp_service_name:
   Archlinux: chronyd
   Debian: chrony
   RedHat: chronyd
-  Alpine: chronyd
+  Gentoo: chronyd
   Void: chronyd
 
 # Путь к конфигурационному файлу chrony по OS family
@@ -17,7 +17,7 @@ ntp_conf_path:
   Archlinux: /etc/chrony.conf
   Debian: /etc/chrony/chrony.conf
   RedHat: /etc/chrony.conf
-  Alpine: /etc/chrony.conf
+  Gentoo: /etc/chrony.conf
   Void: /etc/chrony.conf
 
 # Имя пакета NTP по OS family
@@ -25,7 +25,7 @@ ntp_package:
   Archlinux: chrony
   Debian: chrony
   RedHat: chrony
-  Alpine: chrony
+  Gentoo: chrony
   Void: chrony
 
 # Имя системного пользователя chrony по OS family
@@ -34,5 +34,5 @@ ntp_user:
   Archlinux: chrony
   Debian: _chrony
   RedHat: chrony
-  Alpine: chrony
+  Gentoo: chrony
   Void: chrony

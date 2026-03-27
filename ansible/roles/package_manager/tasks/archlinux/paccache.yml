@@ -2,9 +2,10 @@
 # === Arch Linux: paccache timer ===
 
 - name: Install pacman-contrib (provides paccache)
-  community.general.pacman:
+  ansible.builtin.package:
     name: pacman-contrib
     state: present
+    update_cache: true
   when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']
 
@@ -29,7 +30,7 @@
       ExecStart=
       ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
   when: package_manager_paccache_enabled
-  notify: daemon-reload
+  notify: Reload systemd daemon
   tags: ['packages', 'paccache']
 
 - name: Enable and start paccache.timer
@@ -38,5 +39,7 @@
     enabled: true
     state: started
     daemon_reload: false
-  when: package_manager_paccache_enabled
+  when:
+    - package_manager_paccache_enabled
+    - ansible_facts['service_mgr'] == 'systemd'
   tags: ['packages', 'paccache']

@@ -27,9 +27,9 @@
     - name: Assert zipapp has correct permissions and ownership
       ansible.builtin.assert:
         that:
-          - ntp_audit_verify_script.stat.mode == '0755'
-          - ntp_audit_verify_script.stat.pw_name == 'root'
-          - ntp_audit_verify_script.stat.gr_name == 'root'
+          - _ntp_audit_verify_script.stat.mode == '0755'
+          - _ntp_audit_verify_script.stat.pw_name == 'root'
+          - _ntp_audit_verify_script.stat.gr_name == 'root'
         fail_msg: "ntp-audit zipapp has wrong permissions or owner"
 
     # ---- Run ntp-audit and verify clean exit ----
@@ -69,7 +69,7 @@
 
     - name: Parse last audit log line as JSON
       ansible.builtin.set_fact:
-        _ntp_audit_verify_log_json: "{{ ntp_audit_verify_last_line.stdout | from_json }}"
+        _ntp_audit_verify_log_json: "{{ _ntp_audit_verify_last_line.stdout | from_json }}"
 
     - name: Assert all required JSON keys are present
       ansible.builtin.assert:
@@ -116,9 +116,9 @@
     - name: Assert logrotate config has correct permissions
       ansible.builtin.assert:
         that:
-          - ntp_audit_verify_logrotate.stat.mode == '0644'
-          - ntp_audit_verify_logrotate.stat.pw_name == 'root'
-          - ntp_audit_verify_logrotate.stat.gr_name == 'root'
+          - _ntp_audit_verify_logrotate.stat.mode == '0644'
+          - _ntp_audit_verify_logrotate.stat.pw_name == 'root'
+          - _ntp_audit_verify_logrotate.stat.gr_name == 'root'
         fail_msg: "logrotate config has wrong permissions or owner"
 
     - name: Read logrotate config content

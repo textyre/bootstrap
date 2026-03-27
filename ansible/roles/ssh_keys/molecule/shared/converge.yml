@@ -1,23 +1,69 @@
 ---
 # ansible/roles/ssh_keys/molecule/shared/converge.yml
-- name: Converge
+#
+# TEST-011: Multiple converge runs for edge case coverage:
+#   1. Minimal configuration (defaults only) — most common production path
+#   2. Disabled authorized_keys management — skip path
+#   3. Full configuration — all features enabled
+
+# --- Play 1: Default-only (minimal) configuration ---
+# Tests: ssh_keys_manage_authorized_keys=true (default),
+#         ssh_keys_generate_user_keys=false (default),
+#         ssh_keys_exclusive=false (default)
+- name: Converge -- minimal configuration (defaults only)
   hosts: all
   become: true
   gather_facts: true
 
   vars:
-    # Test accounts using the shared data model.
-    # molecule_test_user is set by prepare.yml (defaults to "testuser").
     accounts:
-      - name: "{{ molecule_test_user | default('testuser') }}"
+      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
+        state: present
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
+
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# --- Play 2: Disabled authorized_keys management ---
+# Tests the skip path: ssh_keys_manage_authorized_keys=false
+- name: Converge -- authorized_keys management disabled
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    ssh_keys_manage_authorized_keys: false
+    accounts:
+      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
+        state: present
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
+
+  roles:
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+
+# --- Play 3: Full configuration (all features enabled) ---
+# Tests: keygen, exclusive mode, absent user cleanup
+- name: Converge -- full configuration
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    accounts:
+      - name: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
         state: present
         ssh_keys:
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey1234567890abcdefghijklmnop test@molecule"
           - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAISecondTestKey567890abcdefghijklmn test2@molecule"
+      - name: "{{ molecule_keygen_user | default('keygenuser') }}"
+        state: present
       - name: absent_user
         state: absent
-    ssh_keys_generate_user_keys: false
-    ssh_keys_exclusive: false
+    ssh_keys_generate_user_keys: true
+    ssh_keys_key_type: ed25519
+    ssh_keys_exclusive: true
 
   roles:
-    - role: ssh_keys
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"

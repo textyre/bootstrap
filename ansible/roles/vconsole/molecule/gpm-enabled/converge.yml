@@ -1,0 +1,15 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    vconsole_console: "us"
+    vconsole_console_font: "ter-v16n"
+    vconsole_console_font_map: "8859-2"
+    vconsole_console_font_unimap: ""
+    vconsole_gpm_enabled: true  # TEST: GPM daemon enabled
+
+  roles:
+    - role: vconsole

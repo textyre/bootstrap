@@ -1,0 +1,5 @@
+---
+# === Caddy -- common internal variables ===
+
+# CA cert filename placed in trust store
+_caddy_ca_cert_filename: "caddy-local.crt"

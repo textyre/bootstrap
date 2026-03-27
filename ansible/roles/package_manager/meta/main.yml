@@ -2,7 +2,7 @@
 galaxy_info:
   role_name: package_manager
   author: textyre
-  description: Конфигурация пакетного менеджера (pacman, apt, dnf, xbps)
+  description: Configure system package manager (pacman, apt, dnf, xbps, portage)
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -10,11 +10,14 @@ galaxy_info:
       versions: [all]
     - name: Debian
       versions: [all]
-    - name: Ubuntu
-      versions: [all]
     - name: Fedora
       versions: [all]
     - name: Void Linux
       versions: [all]
-  galaxy_tags: [packages, pacman, apt, dnf, xbps, system]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [packages, pacman, apt, dnf, xbps, portage, system]
+# Runtime deps: reflector, yay (imported in tasks/archlinux.yml, tagged
+# molecule-notest). Available via ANSIBLE_ROLES_PATH, not declared here
+# to avoid auto-execution before the role.
 dependencies: []

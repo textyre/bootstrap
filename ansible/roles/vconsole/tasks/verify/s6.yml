@@ -1,0 +1,7 @@
+---
+# === Verify console keymap — s6 init system (stub) ===
+
+- name: Unsupported init system (s6) — console keymap verify skipped
+  ansible.builtin.debug:
+    msg: "Console keymap verification skipped: s6 init system is not yet supported by vconsole role."
+  tags: ['vconsole']

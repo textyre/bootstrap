@@ -2,6 +2,14 @@
 # === PAM hardening ===
 # Конфигурация PAM-модулей безопасности
 
+# Supported OS families for this role
+_pam_hardening_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # PAM faillock (защита от brute-force)
 pam_hardening_faillock_enabled: true
 pam_hardening_faillock_deny: 3              # Блокировка после N попыток
@@ -23,7 +31,3 @@ pam_hardening_faillock_local_users_only: false
 
 # nodelay: убрать задержку после неудачного входа (pam >= 1.5.1)
 pam_hardening_faillock_nodelay: false
-
-# x11_skip: не учитывать попытки входа из X11-сессий (screensaver)
-# Важно при deny=3 и GUI (lightdm/xorg) — иначе screensaver заблокирует аккаунт
-pam_hardening_faillock_x11_skip: false

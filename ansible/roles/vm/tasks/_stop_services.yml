@@ -23,3 +23,17 @@
   register: vm_svc_stop_result
   failed_when: false
   tags: ['vm', 'vm:service']
+
+- name: "Report service stop outcomes ({{ vm_pkg_label }})"
+  ansible.builtin.debug:
+    msg: >-
+      Services not found (expected during removal): {{
+        vm_svc_stop_result.results
+        | selectattr('failed', 'true')
+        | map(attribute='item')
+        | list
+      }}
+  when:
+    - vm_svc_stop_result.results is defined
+    - vm_svc_stop_result.results | selectattr('failed', 'true') | list | length > 0
+  tags: ['vm', 'vm:service', 'vm:report']

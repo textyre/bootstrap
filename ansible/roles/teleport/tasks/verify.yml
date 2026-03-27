@@ -4,29 +4,48 @@
 - name: "Verify teleport binary exists"
   ansible.builtin.command:
     cmd: "teleport version"
-  register: teleport_verify_version
+  register: _teleport_verify_version
   changed_when: false
-  failed_when: teleport_verify_version.rc != 0
+  failed_when: _teleport_verify_version.rc != 0
   tags: [teleport]
 
 - name: "Verify teleport configuration exists"
   ansible.builtin.stat:
     path: /etc/teleport.yaml
-  register: teleport_verify_config
+  register: _teleport_verify_config
   tags: [teleport]
 
 - name: "Assert teleport configuration exists"
   ansible.builtin.assert:
     that:
-      - teleport_verify_config.stat.exists
-      - teleport_verify_config.stat.mode == '0600'
+      - _teleport_verify_config.stat.exists
+      - _teleport_verify_config.stat.mode == '0600'
     fail_msg: "Teleport configuration missing or wrong permissions"
   tags: [teleport]
 
 - name: "Verify teleport service is running"
   ansible.builtin.command:
     cmd: "teleport status"
-  register: teleport_verify_status
+  register: _teleport_verify_status
   changed_when: false
   failed_when: false
+  tags: [teleport]
+
+- name: "Report teleport service status"
+  ansible.builtin.debug:
+    msg: >-
+      teleport status {{ 'succeeded' if _teleport_verify_status.rc == 0
+      else 'failed (rc=' ~ _teleport_verify_status.rc ~ ') — service may not be running yet: '
+      ~ (_teleport_verify_status.stderr | default('')) }}
+  tags: [teleport]
+
+- name: "Assert teleport service is responsive"
+  ansible.builtin.assert:
+    that:
+      - _teleport_verify_status.rc == 0
+    fail_msg: >-
+      teleport status returned rc={{ _teleport_verify_status.rc }}.
+      stderr: {{ _teleport_verify_status.stderr | default('') }}
+    success_msg: "Teleport service is running and responsive"
+  when: teleport_verify_service | default(true) | bool
   tags: [teleport]

@@ -2,11 +2,24 @@
 galaxy_info:
   role_name: lightdm
   author: textyre
-  description: "Конфигурация LightDM (display manager, resolution script, сервис)"
+  description: >-
+    LightDM display manager configuration deployment — config files,
+    resolution script, and service state. Supports Arch Linux,
+    Debian/Ubuntu, RedHat/Fedora, Void Linux, and Gentoo.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-  galaxy_tags: [lightdm, display, xorg]
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+    - name: EL
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+  galaxy_tags: [lightdm, display, xorg, greeter]
 dependencies: []

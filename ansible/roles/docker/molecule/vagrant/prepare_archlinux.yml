@@ -1,0 +1,7 @@
+---
+- name: "Prepare: install docker and shadow packages"
+  community.general.pacman:
+    name:
+      - docker
+      - shadow
+    state: present

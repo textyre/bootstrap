@@ -2,6 +2,13 @@
 # === gpu_drivers / preflight — Assertions before any driver actions ===
 # SRP: only validates preconditions; never installs or configures.
 
+# Gather package facts so the pciutils assertion below can check installed packages.
+# This also makes facts available to verify.yml without a duplicate gather.
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+  tags: ['gpu', 'drivers']
+
 - name: Assert OS family is supported
   ansible.builtin.assert:
     that: ansible_facts['os_family'] in gpu_drivers_supported_os

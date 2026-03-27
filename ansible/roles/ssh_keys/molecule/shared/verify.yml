@@ -1,17 +1,37 @@
 ---
 # ansible/roles/ssh_keys/molecule/shared/verify.yml
+#
+# TEST-012: All test values derived from variables, not hardcoded.
+#
+# Verification categories covered:
+#   permissions  — .ssh directory mode, authorized_keys mode, keypair mode
+#   config files — authorized_keys exists with correct content
+#   runtime      — generated keypair exists
+#
+# Verification categories skipped:
+#   packages  — role does not install any packages
+#   services  — role does not manage any service unit
+
 - name: Verify ssh_keys role
   hosts: all
   become: true
   gather_facts: true
 
   vars:
-    _verify_test_user: "{{ molecule_test_user | default('testuser') }}"
+    # TEST-012: Single source of truth — matches converge play 3 (full config)
+    _verify_test_user: "{{ ssh_keys_molecule_test_user | default('testuser') }}"
     _verify_test_home: "/home/{{ _verify_test_user }}"
+    _verify_key_type: ed25519
+    _verify_expected_keys:
+      - "test@molecule"
+      - "test2@molecule"
+    _verify_expected_key_count: "{{ _verify_expected_keys | length }}"
+    _verify_keygen_user: "{{ molecule_keygen_user | default('keygenuser') }}"
+    _verify_keygen_home: "/home/{{ _verify_keygen_user }}"
 
   tasks:
 
-    # ---- .ssh directory ----
+    # ---- .ssh directory (permissions) ----
 
     - name: Stat .ssh directory
       ansible.builtin.stat:
@@ -30,8 +50,9 @@
           exists={{ _ssh_keys_verify_dir.stat.exists | default(false) }},
           mode={{ _ssh_keys_verify_dir.stat.mode | default('n/a') }},
           owner={{ _ssh_keys_verify_dir.stat.pw_name | default('n/a') }}
+        success_msg: ".ssh directory 0700 owned by {{ _verify_test_user }}"
 
-    # ---- authorized_keys file ----
+    # ---- authorized_keys file (config files + permissions) ----
 
     - name: Stat authorized_keys
       ansible.builtin.stat:
@@ -50,8 +71,9 @@
           exists={{ _ssh_keys_verify_authkeys.stat.exists | default(false) }},
           mode={{ _ssh_keys_verify_authkeys.stat.mode | default('n/a') }},
           owner={{ _ssh_keys_verify_authkeys.stat.pw_name | default('n/a') }}
+        success_msg: "authorized_keys 0600 owned by {{ _verify_test_user }}"
 
-    # ---- Key content ----
+    # ---- Key content (TEST-012: driven from _verify_expected_keys) ----
 
     - name: Read authorized_keys content
       ansible.builtin.slurp:
@@ -62,19 +84,33 @@
       ansible.builtin.set_fact:
         _ssh_keys_verify_content: "{{ _ssh_keys_verify_content_raw.content | b64decode }}"
 
-    - name: Assert first test key is present (test@molecule)
+    - name: Assert all expected keys are present
       ansible.builtin.assert:
         that:
-          - "'test@molecule' in _ssh_keys_verify_content"
-        fail_msg: "Key 'test@molecule' not found in authorized_keys"
+          - "item in _ssh_keys_verify_content"
+        fail_msg: "Key '{{ item }}' not found in authorized_keys"
+        success_msg: "Key {{ item }} present"
+      loop: "{{ _verify_expected_keys }}"
 
-    - name: Assert second test key is present (test2@molecule)
+    # ---- Exclusive mode verification ----
+    # Converge ran with exclusive=true. Verify no extra keys beyond expected count.
+
+    - name: Count lines in authorized_keys (exclusive mode check)
+      ansible.builtin.command:
+        cmd: "wc -l {{ _verify_test_home }}/.ssh/authorized_keys"
+      register: _ssh_keys_verify_line_count
+      changed_when: false
+
+    - name: Assert authorized_keys has exactly the expected number of keys (exclusive mode)
       ansible.builtin.assert:
         that:
-          - "'test2@molecule' in _ssh_keys_verify_content"
-        fail_msg: "Key 'test2@molecule' not found in authorized_keys"
+          - (_ssh_keys_verify_line_count.stdout.split() | first | int) == (_verify_expected_key_count | int)
+        fail_msg: >-
+          Expected {{ _verify_expected_key_count }} keys in authorized_keys (exclusive mode),
+          got {{ _ssh_keys_verify_line_count.stdout.split() | first }}
+        success_msg: "Exclusive mode verified — exactly {{ _verify_expected_key_count }} keys present"
 
-    # ---- Absent user cleanup ----
+    # ---- 4. Absent user cleanup ----
 
     - name: Stat authorized_keys for absent_user
       ansible.builtin.stat:
@@ -88,6 +124,79 @@
         fail_msg: >-
           authorized_keys for absent_user should have been removed
           but still exists at /home/absent_user/.ssh/authorized_keys
+        success_msg: "Absent user authorized_keys removed"
+
+    # ---- Keygen verification (runtime, TEST-012: key type from variable) ----
+
+    - name: Stat generated private key
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh/id_{{ _verify_key_type }}"
+      register: _ssh_keys_verify_privkey
+
+    - name: Assert generated private key exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_privkey.stat.exists
+          - _ssh_keys_verify_privkey.stat.mode == '0600'
+          - _ssh_keys_verify_privkey.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          Generated private key:
+          exists={{ _ssh_keys_verify_privkey.stat.exists | default(false) }},
+          mode={{ _ssh_keys_verify_privkey.stat.mode | default('n/a') }},
+          owner={{ _ssh_keys_verify_privkey.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_{{ _verify_key_type }} private key 0600 owned by {{ _verify_test_user }}"
+
+    - name: Stat generated public key
+      ansible.builtin.stat:
+        path: "{{ _verify_test_home }}/.ssh/id_{{ _verify_key_type }}.pub"
+      register: _ssh_keys_verify_pubkey
+
+    - name: Assert generated public key exists
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_pubkey.stat.exists
+          - _ssh_keys_verify_pubkey.stat.pw_name == _verify_test_user
+        fail_msg: >-
+          Generated public key:
+          exists={{ _ssh_keys_verify_pubkey.stat.exists | default(false) }},
+          owner={{ _ssh_keys_verify_pubkey.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_{{ _verify_key_type }}.pub exists owned by {{ _verify_test_user }}"
+
+    # ---- 5. Key generation for keygen-only user (ROLE-014) ----
+
+    - name: Stat generated keypair for keygen user
+      ansible.builtin.stat:
+        path: "{{ _verify_keygen_home }}/.ssh/id_ed25519"
+      register: _ssh_keys_verify_keygen_key
+
+    - name: Assert generated keypair exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_keygen_key.stat.exists
+          - _ssh_keys_verify_keygen_key.stat.isreg
+          - _ssh_keys_verify_keygen_key.stat.mode == '0600'
+          - _ssh_keys_verify_keygen_key.stat.pw_name == _verify_keygen_user
+        fail_msg: >-
+          Generated keypair for {{ _verify_keygen_user }}:
+          exists={{ _ssh_keys_verify_keygen_key.stat.exists | default(false) }},
+          mode={{ _ssh_keys_verify_keygen_key.stat.mode | default('n/a') }},
+          owner={{ _ssh_keys_verify_keygen_key.stat.pw_name | default('n/a') }}
+        success_msg: "Generated id_ed25519 keypair exists for {{ _verify_keygen_user }}"
+
+    - name: Stat generated public key for keygen user
+      ansible.builtin.stat:
+        path: "{{ _verify_keygen_home }}/.ssh/id_ed25519.pub"
+      register: _ssh_keys_verify_keygen_pub
+
+    - name: Assert generated public key exists for keygen user
+      ansible.builtin.assert:
+        that:
+          - _ssh_keys_verify_keygen_pub.stat.exists
+          - _ssh_keys_verify_keygen_pub.stat.isreg
+        fail_msg: >-
+          Generated public key for {{ _verify_keygen_user }} missing at
+          {{ _verify_keygen_home }}/.ssh/id_ed25519.pub
+        success_msg: "Generated id_ed25519.pub exists for {{ _verify_keygen_user }}"
 
     # ---- Summary ----
 
@@ -95,5 +204,6 @@
       ansible.builtin.debug:
         msg: >-
           ssh_keys verify passed: .ssh directory 0700 owned by {{ _verify_test_user }},
-          authorized_keys 0600 with both test keys present,
-          absent_user authorized_keys removed.
+          authorized_keys 0600 with {{ _verify_expected_key_count }} test keys (exclusive mode),
+          absent_user authorized_keys removed,
+          {{ _verify_keygen_user }} keypair generated ({{ _verify_key_type }}).

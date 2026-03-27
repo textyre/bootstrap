@@ -4,7 +4,15 @@
   become: true
   gather_facts: true
 
-  roles:
-    - role: xorg
-      vars:
-        xorg_source_dir: /tmp/xorg_test_dotfiles
+  tasks:
+    - name: Import shared converge tasks
+      ansible.builtin.import_tasks: tasks/converge_apply.yml
+
+- name: Negative test — invalid xorg_source_dir
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Import shared negative converge tasks
+      ansible.builtin.import_tasks: tasks/converge_negative.yml

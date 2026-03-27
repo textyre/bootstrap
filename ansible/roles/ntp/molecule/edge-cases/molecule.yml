@@ -1,0 +1,39 @@
+---
+# Edge case scenarios for NTP role:
+# - ntp_auto_detect: false (manual configuration, no auto-detection)
+# - Empty ntp_servers with ntp_pools set (pool-based sources only)
+# - ntp_allow with values (NTP server mode ACL)
+
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: Localhost
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
+      callbacks_enabled: profile_tasks
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+  playbooks:
+    converge: converge.yml
+    verify: ../shared/verify.yml
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - syntax
+    - converge
+    - idempotence
+    - verify

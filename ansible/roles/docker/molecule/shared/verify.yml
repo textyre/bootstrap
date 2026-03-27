@@ -1,4 +1,7 @@
 ---
+# Verification categories skipped:
+#   packages  — role does not install Docker; packages are a prerequisite
+
 - name: Verify Docker role
   hosts: all
   become: true
@@ -23,6 +26,10 @@
           - _docker_verify_dir.stat.gr_name == 'root'
           - _docker_verify_dir.stat.mode == '0755'
         fail_msg: "/etc/docker missing or wrong permissions (expected root:root 0755)"
+        success_msg: >-
+          /etc/docker exists: owner={{ _docker_verify_dir.stat.pw_name }},
+          group={{ _docker_verify_dir.stat.gr_name }},
+          mode={{ _docker_verify_dir.stat.mode }}
 
     # ==========================================================
     # daemon.json -- existence and validity
@@ -42,6 +49,10 @@
           - _docker_verify_daemon_json.stat.gr_name == 'root'
           - _docker_verify_daemon_json.stat.mode == '0644'
         fail_msg: "/etc/docker/daemon.json missing or wrong permissions (expected root:root 0644)"
+        success_msg: >-
+          daemon.json exists: owner={{ _docker_verify_daemon_json.stat.pw_name }},
+          group={{ _docker_verify_daemon_json.stat.gr_name }},
+          mode={{ _docker_verify_daemon_json.stat.mode }}
 
     - name: Validate daemon.json is valid JSON  # noqa: command-instead-of-module
       ansible.builtin.command: python3 -c "import json; json.load(open('/etc/docker/daemon.json'))"
@@ -63,6 +74,7 @@
         that:
           - "'content' in _docker_verify_daemon_raw"
         fail_msg: "Failed to read /etc/docker/daemon.json content"
+        success_msg: "daemon.json content read successfully"
 
     - name: Parse daemon.json into dict
       ansible.builtin.set_fact:
@@ -73,20 +85,31 @@
         that:
           - "'log-driver' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['log-driver'] == docker_log_driver"
-        fail_msg: "log-driver not set to '{{ docker_log_driver | default('') }}' in daemon.json"
+        fail_msg: >-
+          log-driver not set to '{{ docker_log_driver | default('') }}' in daemon.json
+        success_msg: >-
+          log-driver={{ _docker_verify_daemon_dict['log-driver'] }} (expected {{ docker_log_driver }})
 
     - name: Assert log-opts max-size matches variable
       ansible.builtin.assert:
         that:
           - "'log-opts' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['log-opts']['max-size'] == docker_log_max_size"
-        fail_msg: "log-opts.max-size not set to '{{ docker_log_max_size | default('') }}' in daemon.json"
+        fail_msg: >-
+          log-opts.max-size not set to '{{ docker_log_max_size | default('') }}' in daemon.json
+        success_msg: >-
+          log-opts.max-size={{ _docker_verify_daemon_dict['log-opts']['max-size'] }}
+          (expected {{ docker_log_max_size }})
 
     - name: Assert log-opts max-file matches variable
       ansible.builtin.assert:
         that:
           - "_docker_verify_daemon_dict['log-opts']['max-file'] == docker_log_max_file"
-        fail_msg: "log-opts.max-file not set to '{{ docker_log_max_file | default('') }}' in daemon.json"
+        fail_msg: >-
+          log-opts.max-file not set to '{{ docker_log_max_file | default('') }}' in daemon.json
+        success_msg: >-
+          log-opts.max-file={{ _docker_verify_daemon_dict['log-opts']['max-file'] }}
+          (expected {{ docker_log_max_file }})
 
     # ---- Security settings ----
 
@@ -96,7 +119,9 @@
           - "'userns-remap' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['userns-remap'] == docker_userns_remap"
         fail_msg: "userns-remap not set to '{{ docker_userns_remap | default('') }}' in daemon.json"
-      when: docker_userns_remap | length > 0
+        success_msg: >-
+          userns-remap={{ _docker_verify_daemon_dict['userns-remap'] }} (expected {{ docker_userns_remap }})
+      when: docker_userns_remap | string | length > 0
 
     - name: Assert icc is false in daemon.json (when docker_icc is false)
       ansible.builtin.assert:
@@ -104,6 +129,7 @@
           - "'icc' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['icc'] == false"
         fail_msg: "icc not set to false in daemon.json"
+        success_msg: "icc={{ _docker_verify_daemon_dict['icc'] }} (expected false)"
       when: not (docker_icc | default(false) | bool)
 
     - name: Assert live-restore is true in daemon.json (when enabled)
@@ -112,7 +138,8 @@
           - "'live-restore' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['live-restore'] == true"
         fail_msg: "live-restore not set to true in daemon.json"
-      when: docker_live_restore
+        success_msg: "live-restore={{ _docker_verify_daemon_dict['live-restore'] }} (expected true)"
+      when: docker_live_restore | bool
 
     - name: Assert no-new-privileges is true in daemon.json (when enabled)
       ansible.builtin.assert:
@@ -120,7 +147,8 @@
           - "'no-new-privileges' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['no-new-privileges'] == true"
         fail_msg: "no-new-privileges not set to true in daemon.json"
-      when: docker_no_new_privileges
+        success_msg: "no-new-privileges={{ _docker_verify_daemon_dict['no-new-privileges'] }} (expected true)"
+      when: docker_no_new_privileges | bool
 
     # ==========================================================
     # Docker group exists
@@ -140,7 +168,8 @@
           docker group does not exist
           (getent rc: {{ _docker_verify_group.rc }},
           output: {{ _docker_verify_group.stdout | default('') }})
-      when: docker_add_user_to_group | default(true)
+        success_msg: "docker group exists: {{ _docker_verify_group.stdout | default('') }}"
+      when: docker_add_user_to_group | default(true) | bool
 
     # ==========================================================
     # User group membership
@@ -161,7 +190,9 @@
         fail_msg: >-
           User not in docker group
           (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
-      when: docker_add_user_to_group | default(true)
+        success_msg: >-
+          User in docker group: {{ _docker_verify_user_groups.stdout | default('') }}
+      when: docker_add_user_to_group | default(true) | bool
 
     # ==========================================================
     # Service state (skipped in Docker-in-Docker containers)
@@ -169,7 +200,7 @@
 
     - name: Verify Docker service
       when:
-        - docker_enable_service | default(true)
+        - docker_enable_service | default(true) | bool
         - ansible_virtualization_type | default('') != 'docker'
       block:
 
@@ -184,6 +215,9 @@
             fail_msg: >-
               docker.service is not enabled
               (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
+            success_msg: >-
+              docker.service is enabled:
+              {{ ansible_facts.services['docker.service'].status | default('unknown') }}
 
         - name: Assert docker.service is running
           ansible.builtin.assert:
@@ -192,6 +226,9 @@
             fail_msg: >-
               docker.service is not running
               (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
+            success_msg: >-
+              docker.service is running:
+              {{ ansible_facts.services['docker.service'].state | default('unknown') }}
 
     # ==========================================================
     # Runtime verification via docker info (non-container only)
@@ -199,7 +236,7 @@
 
     - name: Verify Docker runtime settings
       when:
-        - docker_enable_service | default(true)
+        - docker_enable_service | default(true) | bool
         - ansible_virtualization_type | default('') != 'docker'
       block:
 
@@ -219,12 +256,15 @@
               Docker logging driver mismatch:
               expected '{{ docker_log_driver | default('') }}',
               got '{{ _docker_verify_info['LoggingDriver'] }}'
+            success_msg: >-
+              Logging driver matches: {{ _docker_verify_info['LoggingDriver'] }}
 
         - name: Assert live-restore is active (when enabled)
           ansible.builtin.assert:
             that: "_docker_verify_info['LiveRestoreEnabled'] == true"
             fail_msg: "Docker live-restore not active in runtime"
-          when: docker_live_restore
+            success_msg: "live-restore active in runtime"
+          when: docker_live_restore | bool
 
         - name: Assert Docker security options include no-new-privileges (when enabled)
           ansible.builtin.assert:
@@ -232,7 +272,10 @@
             fail_msg: >-
               no-new-privileges not found in Docker SecurityOptions:
               {{ _docker_verify_info['SecurityOptions'] }}
-          when: docker_no_new_privileges
+            success_msg: >-
+              no-new-privileges found in SecurityOptions:
+              {{ _docker_verify_info['SecurityOptions'] | join(', ') }}
+          when: docker_no_new_privileges | bool
 
         - name: Assert Docker security options include userns (when userns-remap configured)
           ansible.builtin.assert:
@@ -240,7 +283,10 @@
             fail_msg: >-
               userns not found in Docker SecurityOptions:
               {{ _docker_verify_info['SecurityOptions'] }}
-          when: docker_userns_remap | length > 0
+            success_msg: >-
+              userns found in SecurityOptions:
+              {{ _docker_verify_info['SecurityOptions'] | join(', ') }}
+          when: docker_userns_remap | string | length > 0
 
         - name: Assert storage driver at runtime matches variable (when non-empty)
           ansible.builtin.assert:
@@ -249,6 +295,8 @@
               Storage driver mismatch:
               expected '{{ docker_storage_driver | default('') }}',
               got '{{ _docker_verify_info['Driver'] | default('') }}'
+            success_msg: >-
+              Storage driver matches: {{ _docker_verify_info['Driver'] }}
           when: docker_storage_driver | default('') | length > 0
 
     # ==========================================================
@@ -260,6 +308,7 @@
         that:
           - "'icc' not in _docker_verify_daemon_dict"
         fail_msg: "'icc' key should be absent in daemon.json when docker_icc is true (Docker default: ICC enabled)"
+        success_msg: "icc key correctly absent from daemon.json (docker_icc=true)"
       when: docker_icc | default(false) | bool
 
     - name: Assert userns-remap key is ABSENT from daemon.json (when disabled)
@@ -267,13 +316,15 @@
         that:
           - "'userns-remap' not in _docker_verify_daemon_dict"
         fail_msg: "'userns-remap' key should be absent in daemon.json when docker_userns_remap is empty"
-      when: docker_userns_remap | default('') | length == 0
+        success_msg: "userns-remap key correctly absent from daemon.json (disabled)"
+      when: docker_userns_remap | default('') | string | length == 0
 
     - name: Assert live-restore key is ABSENT from daemon.json (when disabled)
       ansible.builtin.assert:
         that:
           - "'live-restore' not in _docker_verify_daemon_dict"
         fail_msg: "'live-restore' key should be absent in daemon.json when docker_live_restore is false"
+        success_msg: "live-restore key correctly absent from daemon.json (disabled)"
       when: not (docker_live_restore | default(true) | bool)
 
     - name: Assert no-new-privileges key is ABSENT from daemon.json (when disabled)
@@ -281,6 +332,7 @@
         that:
           - "'no-new-privileges' not in _docker_verify_daemon_dict"
         fail_msg: "'no-new-privileges' key should be absent in daemon.json when docker_no_new_privileges is false"
+        success_msg: "no-new-privileges key correctly absent from daemon.json (disabled)"
       when: not (docker_no_new_privileges | default(true) | bool)
 
     - name: Assert user is NOT in docker group (when add_user_to_group disabled)
@@ -290,6 +342,8 @@
         fail_msg: >-
           User should NOT be in docker group when docker_add_user_to_group is false
           (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
+        success_msg: >-
+          User correctly not in docker group (add_user_to_group=false)
       when: not (docker_add_user_to_group | default(true) | bool)
 
     - name: Assert storage-driver key is ABSENT from daemon.json (when default empty)
@@ -297,6 +351,7 @@
         that:
           - "'storage-driver' not in _docker_verify_daemon_dict"
         fail_msg: "'storage-driver' should be absent in daemon.json when docker_storage_driver is empty"
+        success_msg: "storage-driver key correctly absent from daemon.json (empty)"
       when: docker_storage_driver | default('') | length == 0
 
     - name: Assert storage-driver in daemon.json (when non-empty)
@@ -305,6 +360,9 @@
           - "'storage-driver' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['storage-driver'] == docker_storage_driver"
         fail_msg: "storage-driver not set to '{{ docker_storage_driver | default('') }}' in daemon.json"
+        success_msg: >-
+          storage-driver={{ _docker_verify_daemon_dict['storage-driver'] }}
+          (expected {{ docker_storage_driver }})
       when: docker_storage_driver | default('') | length > 0
 
     # ==========================================================
@@ -316,5 +374,5 @@
         msg: >-
           Docker role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
-          Service checks: {{ 'enabled' if (docker_enable_service | default(true) and
+          Service checks: {{ 'enabled' if (docker_enable_service | default(true) | bool and
           ansible_virtualization_type | default('') != 'docker') else 'skipped (container)' }}.

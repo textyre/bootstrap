@@ -7,10 +7,13 @@
 # ---- Detect initramfs tool ----
 
 - name: Check if dracut is available (non-Arch systems)
-  ansible.builtin.command: which dracut
+  ansible.builtin.find:
+    paths:
+      - /usr/bin
+      - /usr/sbin
+    patterns: dracut
+    file_type: any
   register: gpu_drivers_dracut_check
-  changed_when: false
-  failed_when: false
   when:
     - ansible_facts['os_family'] != 'Archlinux'
     - gpu_drivers_manage_initramfs
@@ -21,7 +24,7 @@
     gpu_drivers_initramfs_tool: >-
       {{ 'mkinitcpio' if ansible_facts['os_family'] == 'Archlinux'
          else ('dracut' if (gpu_drivers_dracut_check is not skipped
-                           and gpu_drivers_dracut_check.rc == 0)
+                           and gpu_drivers_dracut_check.matched > 0)
          else 'initramfs-tools') }}
   when: gpu_drivers_manage_initramfs
   tags: ['gpu', 'nvidia']

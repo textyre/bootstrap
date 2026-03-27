@@ -69,8 +69,18 @@ def collect() -> ChronyData:
             f"{result.stdout!r}"
         )
 
+    # chrony >= 4.x outputs string leap status with -c ("Normal", "Not synchronised")
+    # older versions output numeric (0, 1, 2, 3). Handle both.
+    _LEAP_MAP = {
+        'Normal': 0, 'Insert second': 1, 'Delete second': 2, 'Not synchronised': 3,
+    }
+
     try:
-        leap = int(fields[13])
+        leap_raw = fields[13]
+        try:
+            leap = int(leap_raw)
+        except ValueError:
+            leap = _LEAP_MAP.get(leap_raw, 3)
         return ChronyData(
             reference_id=fields[0],
             reference_name=fields[1],

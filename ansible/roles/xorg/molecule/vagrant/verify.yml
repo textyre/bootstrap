@@ -1,0 +1,9 @@
+---
+- name: Verify xorg role (config file assertions)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Import shared verify tasks
+      ansible.builtin.import_tasks: ../shared/tasks/verify.yml

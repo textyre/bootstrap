@@ -2,6 +2,15 @@
 # === NTP — валидация входных переменных ===
 # Вызывается в начале main.yml до любых действий
 
+- name: Assert OS is supported by NTP role
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ntp_supported_os
+    fail_msg: >-
+      NTP role is not supported on {{ ansible_facts['os_family'] }} OS.
+      Supported operating systems: {{ _ntp_supported_os | join(', ') }}.
+  tags: ['ntp']
+
 - name: Assert at least one NTP source is configured
   ansible.builtin.assert:
     that:

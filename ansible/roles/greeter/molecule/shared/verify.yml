@@ -3,12 +3,6 @@
 # Checks ACTUAL system state: config files, theme deployment, permissions,
 # system-info.json content validity.
 #
-# NOTE: Known variable naming bug — tasks register greeter_* but
-# system-info.json.j2 references _greeter_* (with underscore prefix).
-# Shell-sourced fields (timezone, display_name, etc.) render as fallback
-# values. We verify those fields exist with non-empty values but do NOT
-# assert specific shell output until the bug is fixed.
-
 - name: Verify greeter role
   hosts: all
   become: true
@@ -204,6 +198,55 @@
           - _greeter_verify_sysinfo_data.hostname | length > 0
           - _greeter_verify_sysinfo_data.hostname != 'unknown'
         fail_msg: "system-info.json hostname field is empty or 'unknown'"
+
+    - name: Collect current timezone for comparison
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: _greeter_verify_timezone_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: Assert timezone field matches runtime value when probe succeeds
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.timezone == (_greeter_verify_timezone_runtime.stdout | trim)
+        fail_msg: "system-info.json timezone does not match timedatectl output"
+      when:
+        - _greeter_verify_timezone_runtime.rc == 0
+        - _greeter_verify_timezone_runtime.stdout | trim | length > 0
+
+    - name: Collect current systemd version for comparison
+      ansible.builtin.command: systemctl --version
+      register: _greeter_verify_systemd_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: Assert systemd_version field matches runtime value when probe succeeds
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.systemd_version == (_greeter_verify_systemd_runtime.stdout_lines[0].split()[1])
+        fail_msg: "system-info.json systemd_version does not match systemctl output"
+      when:
+        - _greeter_verify_systemd_runtime.rc == 0
+        - _greeter_verify_systemd_runtime.stdout_lines | length > 0
+        - (_greeter_verify_systemd_runtime.stdout_lines[0].split() | length) > 1
+
+    - name: Collect current SSH fingerprint for comparison
+      ansible.builtin.shell: >
+        set -o pipefail;
+        ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 2>/dev/null
+        || ssh-keygen -lf /etc/ssh/ssh_host_rsa_key.pub -E sha256 2>/dev/null
+      register: _greeter_verify_ssh_runtime
+      changed_when: false
+      failed_when: false
+
+    - name: Assert ssh_fingerprint field matches runtime value when probe succeeds
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_sysinfo_data.ssh_fingerprint == (_greeter_verify_ssh_runtime.stdout.split()[1])
+        fail_msg: "system-info.json ssh_fingerprint does not match host key fingerprint"
+      when:
+        - _greeter_verify_ssh_runtime.rc == 0
+        - (_greeter_verify_ssh_runtime.stdout.split() | length) > 1
 
     # ---- index.yml ----
 

@@ -1,6 +1,11 @@
 ---
 # === ntp_audit — runtime NTP health audit ===
 
+# Supported OS families (ROLE-003)
+_ntp_audit_supported_os:
+  - Archlinux
+  - Debian
+
 ntp_audit_enabled: true
 
 # Audit schedule interval

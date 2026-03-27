@@ -1,0 +1,6 @@
+---
+# === RedHat (Fedora): dispatcher ===
+
+- name: Configure dnf
+  ansible.builtin.include_tasks: fedora/dnf.yml
+  tags: ['packages', 'dnf']

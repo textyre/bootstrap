@@ -50,8 +50,8 @@
       {{ vm_vbox_guest_version_raw.stdout | default('')
          | regex_replace('[^0-9.].*', '') }}
   when:
-    - _vm_vbox_host_version_raw.rc | default(1) == 0
-    - _vm_vbox_guest_version_raw.rc | default(1) == 0
+    - (vm_vbox_host_version_raw.rc | default(1)) == 0
+    - (vm_vbox_guest_version_raw.rc | default(1)) == 0
   tags: ['vm', 'vbox', 'vm:verify']
 
 - name: "VirtualBox: Report detected versions"

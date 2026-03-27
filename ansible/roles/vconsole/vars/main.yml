@@ -1,6 +1,10 @@
 ---
-# Поддерживаемые init-системы для vconsole
+# Supported init systems for vconsole (ROLE-002)
+# systemd, runit, openrc: fully implemented
+# s6, dinit: stub implementations with debug messages
 vconsole_supported_inits:
   - systemd
   - openrc
   - runit
+  - s6
+  - dinit

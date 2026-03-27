@@ -3,6 +3,12 @@
 # validate → Настройка → Проверка → Логирование
 # Диспатч через with_first_found (без when для выбора init)
 
+# ---- Load distro-specific variables ----
+
+- name: Include distro-specific package variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['vconsole']
+
 # ---- Валидация ----
 
 - name: Validate vconsole configuration
@@ -20,6 +26,17 @@
 - name: Install console font
   ansible.builtin.include_tasks: font.yml
   tags: ['vconsole']
+
+- name: "Report: Console font"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_phase: "Console font"
+    common_rpt_status: "{{ 'done' if vconsole_console_font | default('') | length > 0 else 'skip' }}"
+    common_rpt_detail: "{{ vconsole_console_font | default('(not set)') }}"
+  tags: ['vconsole', 'report']
 
 # ---- Настройка keymap ----
 
@@ -47,6 +64,17 @@
   when: vconsole_gpm_enabled
   tags: ['vconsole']
 
+- name: "Report: GPM daemon"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_phase: "GPM daemon"
+    common_rpt_status: "{{ 'done' if vconsole_gpm_enabled else 'skip' }}"
+    common_rpt_detail: "{{ 'enabled' if vconsole_gpm_enabled else 'disabled' }}"
+  tags: ['vconsole', 'report']
+
 # ---- Проверка ----
 
 - name: Verify console keymap
@@ -56,6 +84,17 @@
         - "verify/{{ ansible_facts['service_mgr'] }}.yml"
       skip: true
   tags: ['vconsole']
+
+- name: "Report: Vconsole verification"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_phase: "Vconsole verification"
+    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in vconsole_supported_inits else 'skip' }}"
+    common_rpt_detail: "Keymap: {{ vconsole_console | default('(not set)') }}, Font: {{ vconsole_console_font | default('(not set)') }}"
+  tags: ['vconsole', 'report']
 
 # ---- Логирование ----
 

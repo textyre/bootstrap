@@ -6,10 +6,21 @@
 # ---- Global ----
 power_management_enabled: true
 
+# ---- Per-subsystem toggles ----
+# Each subsystem can be disabled independently without affecting others.
+power_management_manage_tlp: true
+power_management_manage_governor: true
+power_management_manage_sleep: true
+power_management_manage_logind: true
+power_management_manage_audit: true
+
 # ---- Internal ----
 power_management_supported_os:
   - Archlinux
   - Debian
+  - RedHat
+  - Void
+  - Gentoo
 
 power_management_laptop_chassis_types:
   - "8"   # Portable

@@ -7,8 +7,8 @@
 - name: Enable locales in /etc/locale.gen
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
-    regexp: "^#?\\s*{{ item | regex_escape }}\\s"
-    line: "{{ item }} UTF-8"
+    regexp: "^#?{{ item }}"
+    line: "{{ item }} {{ item.split('.')[-1] }}"
     create: false
   loop: "{{ locale_list }}"
   register: _locale_gen_enabled

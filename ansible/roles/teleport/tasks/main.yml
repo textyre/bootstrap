@@ -33,14 +33,16 @@
       ansible.builtin.include_tasks: join.yml
       tags: [teleport, security]
 
-    # Install
+    # Install (ROLE-010: guarded by teleport_manage_install)
     - name: "Install Teleport"
       ansible.builtin.include_tasks: install.yml
+      when: teleport_manage_install | bool
       tags: [teleport, install]
 
-    # Configure
+    # Configure (ROLE-010: guarded by teleport_manage_config)
     - name: "Configure Teleport"
       ansible.builtin.include_tasks: configure.yml
+      when: teleport_manage_config | bool
       tags: [teleport]
 
     # Export CA key for ssh role integration
@@ -49,12 +51,13 @@
       when: teleport_export_ca_key | bool
       tags: [teleport, security]
 
-    # Service management (ROLE-002)
+    # Service management (ROLE-002, ROLE-010: guarded by teleport_manage_service)
     - name: "Enable and start teleport"
       ansible.builtin.service:
         name: "{{ teleport_service_name[ansible_facts['service_mgr']] | default('teleport') }}"
         enabled: true
         state: started
+      when: teleport_manage_service | bool
       tags: [teleport, service]
 
     # ROLE-005: Verification

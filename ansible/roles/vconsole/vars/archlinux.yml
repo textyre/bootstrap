@@ -1,0 +1,5 @@
+---
+# === Vconsole packages — Arch Linux ===
+
+_vconsole_font_package: "terminus-font"
+_vconsole_gpm_package: "gpm"

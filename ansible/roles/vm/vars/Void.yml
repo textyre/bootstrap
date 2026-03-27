@@ -1,0 +1,14 @@
+---
+# === Void Linux specific variables ===
+
+# Service manager: runit (Void default)
+vm_service_manager: runit
+
+# Hyper-V: no native package on Void
+vm_hyperv_packages: "{{ vm_packages_hyperv_guest }}"
+
+# KVM package names
+vm_kvm_packages: "{{ vm_packages_kvm_guest }}"
+
+# VirtualBox LTS kernel support: not applicable (Void uses own kernel packages)
+vm_vbox_lts_kernel_support: false

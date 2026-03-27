@@ -93,12 +93,26 @@
           (root would be exempt from lockout)
       when: pam_hardening_faillock_even_deny_root
 
+    - name: Assert faillock.conf even_deny_root NOT present when disabled
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is not regex('(?m)^even_deny_root$')
+        fail_msg: "faillock.conf contains even_deny_root directive but it should be absent"
+      when: not pam_hardening_faillock_even_deny_root
+
     - name: Assert faillock.conf audit directive present
       ansible.builtin.assert:
         that:
           - _pam_hardening_verify_conf_text is regex('(?m)^audit$')
         fail_msg: "faillock.conf missing audit directive"
       when: pam_hardening_faillock_audit
+
+    - name: Assert faillock.conf audit NOT present when disabled
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is not regex('(?m)^audit$')
+        fail_msg: "faillock.conf contains audit directive but it should be absent"
+      when: not pam_hardening_faillock_audit
 
     - name: Assert faillock.conf dir setting
       ansible.builtin.assert:
@@ -112,10 +126,54 @@
           - "'Ansible managed' in _pam_hardening_verify_conf_text"
         fail_msg: "faillock.conf missing Ansible managed header"
 
-    # ---- PAM stack: Arch / Void ----
+    # ---- faillock.conf boolean directives ----
 
-    - name: Verify PAM stack on Arch/Void
-      when: ansible_facts['os_family'] in ['Archlinux', 'Void']
+    - name: Assert faillock.conf silent directive present
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is regex('(?m)^silent$')
+        fail_msg: "faillock.conf missing silent directive (expected when enabled)"
+      when: pam_hardening_faillock_silent
+
+    - name: Assert faillock.conf silent NOT present when disabled
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is not regex('(?m)^silent$')
+        fail_msg: "faillock.conf contains silent directive but it should be absent"
+      when: not pam_hardening_faillock_silent
+
+    - name: Assert faillock.conf nodelay directive present
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is regex('(?m)^nodelay$')
+        fail_msg: "faillock.conf missing nodelay directive (expected when enabled)"
+      when: pam_hardening_faillock_nodelay
+
+    - name: Assert faillock.conf nodelay NOT present when disabled
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is not regex('(?m)^nodelay$')
+        fail_msg: "faillock.conf contains nodelay directive but it should be absent"
+      when: not pam_hardening_faillock_nodelay
+
+    - name: Assert faillock.conf local_users_only directive present
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is regex('(?m)^local_users_only$')
+        fail_msg: "faillock.conf missing local_users_only directive (expected when enabled)"
+      when: pam_hardening_faillock_local_users_only
+
+    - name: Assert faillock.conf local_users_only NOT present when disabled
+      ansible.builtin.assert:
+        that:
+          - _pam_hardening_verify_conf_text is not regex('(?m)^local_users_only$')
+        fail_msg: "faillock.conf contains local_users_only directive but it should be absent"
+      when: not pam_hardening_faillock_local_users_only
+
+    # ---- PAM stack: Arch / Void / Gentoo ----
+
+    - name: Verify PAM stack on Arch/Void/Gentoo
+      when: ansible_facts['os_family'] in ['Archlinux', 'Void', 'Gentoo']
       block:
         - name: Slurp /etc/pam.d/system-auth
           ansible.builtin.slurp:

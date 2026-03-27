@@ -1,4 +1,8 @@
 ---
+# NOTE (TEST-013): This scenario runs on localhost only — it is an offline smoke
+# test designed for syntax checking, variable loading, and config rendering.
+# Cross-platform coverage (Arch + Ubuntu) is provided by the docker and vagrant
+# scenarios which run real containers/VMs with actual package installs.
 driver:
   name: default
   options:
@@ -10,7 +14,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,service
+    skip-tags: report
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
@@ -19,9 +23,6 @@ provisioner:
     host_vars:
       Localhost:
         ansible_connection: local
-  playbooks:
-    converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 

@@ -5,8 +5,17 @@
   gather_facts: true
   vars_files:
     - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+  vars:
+    # Override subsystem toggles that require Docker daemon
+    caddy_manage_certs: false
+    caddy_manage_browser_trust: false
+    caddy_manage_network: false
 
   tasks:
+
+    - name: Include internal variable mappings
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/vars/main.yml"
 
     # ---- Directory structure ----
 

@@ -3,6 +3,20 @@
 # Each import_tasks is one business requirement.
 # To run a single module: ansible-playbook ... --tags ntp_audit_script
 
+# ======================================================================
+# ---- Preflight: OS validation ----
+# ======================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ntp_audit_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _ntp_audit_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['ntp_audit']
+
 - name: Ntp_audit role
   when: ntp_audit_enabled | bool
   tags: ['ntp_audit']
@@ -34,3 +48,30 @@
 
     - name: Verify deployment
       ansible.builtin.import_tasks: verify.yml
+
+# ======================================================================
+# ---- Reporting ----
+# ======================================================================
+
+- name: "Report: NTP Audit"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ntp_audit_phases"
+    common_rpt_phase: "Deploy NTP Audit"
+    common_rpt_detail: >-
+      scheduler={{ ansible_facts['service_mgr'] | default('unknown') }}
+      interval={{ ntp_audit_interval_systemd if ansible_facts['service_mgr'] == 'systemd' else ntp_audit_interval_cron }}
+      alloy={{ 'enabled' if ntp_audit_alloy_enabled | bool else 'disabled' }}
+      loki={{ 'enabled' if ntp_audit_loki_enabled | bool else 'disabled' }}
+  tags: ['ntp_audit', 'report']
+
+- name: "NTP Audit — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_ntp_audit_phases"
+    common_rpt_title: "ntp_audit"
+  tags: ['ntp_audit', 'report']

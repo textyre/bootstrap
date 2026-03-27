@@ -9,6 +9,8 @@ platforms:
 
 provisioner:
   name: ansible
+  options:
+    extra-vars: "hostctl_version=1.1.4"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

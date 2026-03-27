@@ -17,11 +17,13 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 
 ## Supported init systems
 
-| Init system | Keymap file | Font file |
+| Init system | Keymap file | Status |
 |---|---|---|
-| systemd | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | same file |
-| openrc | `/etc/conf.d/keymaps` | `/etc/conf.d/consolefont` |
-| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | same file |
+| systemd | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
+| openrc | `/etc/conf.d/keymaps` | ✅ Full |
+| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Full |
+| s6 | (stub) | ⚠️ Debug message only |
+| dinit | (stub) | ⚠️ Debug message only |
 
 ## Role variables
 
@@ -29,11 +31,17 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 |---|---|---|
 | `vconsole_console` | `"us"` | Console keymap identifier (e.g. `us`, `ru`, `de`) |
 | `vconsole_console_map_src` | `""` | Optional: local path to a custom `.map` file in your repo |
-| `vconsole_console_font_package` | `"terminus-font"` | Package providing console fonts (installed when `vconsole_console_font` is set) |
 | `vconsole_console_font` | `""` | Console font name (e.g. `ter-v16n`, `lat2-16`). Empty = no font configured |
 | `vconsole_console_font_map` | `""` | Font map (e.g. `8859-2`) (systemd only) |
 | `vconsole_console_font_unimap` | `""` | Unicode map file (systemd only) |
 | `vconsole_gpm_enabled` | `true` | Install GPM package and enable/start service on non-container targets. In containerized Molecule environments, the role may skip service start while still installing the package (set `false` for headless/VM environments — GPM requires `/dev/input/mice`) |
+
+**Note:** Font package names are distro-specific (managed by `vars/DISTRO_FAMILY.yml`):
+- Arch: `terminus-font`, `gpm`
+- Debian/Ubuntu: `fonts-terminus`, `gpm`
+- RedHat/Fedora: `terminus-fonts`, `gpm`
+- Void: `terminus-font`, `gpm`
+- Gentoo: `sys-fonts/terminus-font`, `sys-libs/gpm`
 
 ## Example playbook
 
@@ -70,30 +78,54 @@ With a custom font (Arch Linux):
 - **Handler**: `apply vconsole` restarts `systemd-vconsole-setup.service` on systemd,
   or runs `loadkeys`/`setfont` directly on openrc/runit.
 
-## Testing
+## Test Cases
 
-### molecule scenarios
+### Scenario: `docker`
 
-| Scenario | Driver | Platforms | Notes |
-|---|---|---|---|
-| `default` | localhost | host system | Uses vault, shared/ playbooks |
-| `docker` | Docker | Arch systemd container | Full flow: keymap + font + GPM-disabled |
-| `vagrant` | Vagrant/KVM | Arch VM + Ubuntu Noble VM | Cross-platform: Arch (full), Ubuntu (keymap only + localectl) |
+**Driver:** Docker (via molecule)
+**Platforms:** Archlinux (systemd), Ubuntu (systemd)
 
-Run locally (requires molecule and the appropriate driver):
+| Test Case | Keymap | Font | GPM | OS | Init | Verifies |
+|---|---|---|---|---|---|---|
+| Arch font + keymap | us | ter-v16n | disabled | Arch | systemd | vconsole.conf (KEYMAP, FONT, FONT_MAP) |
+| Ubuntu keymap only | us | (none) | disabled | Ubuntu | systemd | vconsole.conf (KEYMAP only) |
+
+### Scenario: `vagrant`
+
+**Driver:** Vagrant/KVM (libvirt)
+**Platforms:** Archlinux (runit), Ubuntu (systemd)
+
+| Test Case | Keymap | Font | GPM | OS | Init | Verifies |
+|---|---|---|---|---|---|---|
+| Arch (runit) | us | ter-v16n | disabled | Arch | runit | /etc/rc.conf, localectl |
+| Ubuntu (systemd) | us | (none) | disabled | Ubuntu | systemd | vconsole.conf, localectl |
+
+### Running Tests
 
 ```bash
 cd ansible/roles/vconsole
 
-# Docker scenario (fast, Arch only)
+# Docker scenario (fast, ~2min, Arch + Ubuntu systemd)
 molecule test -s docker
 
-# Vagrant scenario (cross-platform, requires libvirt)
+# Vagrant scenario (slower, ~10min, Arch runit + Ubuntu systemd)
 molecule test -s vagrant
 
 # Syntax check only
 molecule syntax -s vagrant
+
+# Debug a failed test
+molecule test -s docker --destroy=never
+# then: molecule login -s docker --host Archlinux-systemd
 ```
+
+### Test Coverage
+
+- ✅ Keymap configuration across init systems (systemd, openrc, runit)
+- ✅ Font installation and configuration (Arch only due to distro-specific packages)
+- ✅ GPM service state verification (enabled/disabled, container detection)
+- ✅ Idempotency (converge runs twice without state changes)
+- ✅ Cross-platform consistency (Arch + Ubuntu)
 
 ## License
 

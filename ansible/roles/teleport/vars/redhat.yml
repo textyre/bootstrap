@@ -1,8 +1,2 @@
 ---
 teleport_packages: []
-teleport_service_name:
-  systemd: teleport
-  runit: teleport
-  openrc: teleport
-  s6: teleport
-  dinit: teleport

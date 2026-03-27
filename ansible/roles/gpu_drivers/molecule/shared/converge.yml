@@ -18,6 +18,6 @@
         manager: auto
 
   roles:
+    # vars come from molecule.yml provisioner.inventory.host_vars per host (TEST-011/ROLE-014).
+    # Each platform defines gpu_drivers_vendor, gpu_drivers_vaapi, gpu_drivers_vulkan_tools.
     - role: gpu_drivers
-      vars:
-        gpu_drivers_vendor: intel

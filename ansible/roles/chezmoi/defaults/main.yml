@@ -2,6 +2,17 @@
 # === Деплой дотфайлов через chezmoi ===
 # Установка chezmoi, инициализация и применение из локального источника
 
+# Поддерживаемые OS family (ROLE-003)
+_chezmoi_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Включить/выключить роль целиком
+chezmoi_enabled: true
+
 # Целевой пользователь
 chezmoi_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
 

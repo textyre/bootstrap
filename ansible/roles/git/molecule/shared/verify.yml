@@ -1,4 +1,9 @@
 ---
+# Verification categories covered: packages, config files, permissions
+# Verification categories skipped:
+#   services  — git is a client-side tool, no service is managed
+#   runtime   — no daemon or network interface is started by this role
+
 - name: Verify git role
   hosts: all
   become: true
@@ -20,6 +25,9 @@
       ansible.builtin.assert:
         that: "'git' in ansible_facts.packages"
         fail_msg: "git package not found in installed packages"
+        success_msg: >-
+          git package is installed
+          (version {{ ansible_facts.packages.git[0].version | default('unknown') }})
 
     # ================================================================
     # ---- git binary works ----
@@ -37,6 +45,7 @@
         that:
           - _git_verify_version.stdout is regex('^git version [0-9]+\.')
         fail_msg: "git --version did not return expected output: {{ _git_verify_version.stdout }}"
+        success_msg: "git binary works: {{ _git_verify_version.stdout }}"
 
     # ================================================================
     # ---- gitconfig file exists (slurp content guard) ----
@@ -55,6 +64,9 @@
           - "'content' in _git_verify_gitconfig_slurp"
           - (_git_verify_gitconfig_slurp.content | b64decode | length) > 0
         fail_msg: "~/.gitconfig is empty or missing for user {{ git_owner.name }}"
+        success_msg: >-
+          ~/.gitconfig exists for user {{ git_owner.name }}
+          ({{ _git_verify_gitconfig_slurp.content | b64decode | length }} bytes)
 
     # ================================================================
     # ---- Base config ----
@@ -66,6 +78,7 @@
       ansible.builtin.command: git config --global --get user.name
       register: _git_verify_username
       changed_when: false
+      failed_when: false
 
     - name: Assert git user.name matches expected
       ansible.builtin.assert:
@@ -73,6 +86,7 @@
         fail_msg: >-
           git user.name mismatch: expected '{{ git_owner.user_name }}',
           got '{{ _git_verify_username.stdout }}'
+        success_msg: "git user.name = '{{ _git_verify_username.stdout }}'"
       when: (git_owner.user_name | default('')) | length > 0
 
     - name: Check git user.email  # noqa: command-instead-of-module
@@ -81,6 +95,7 @@
       ansible.builtin.command: git config --global --get user.email
       register: _git_verify_email
       changed_when: false
+      failed_when: false
 
     - name: Assert git user.email matches expected
       ansible.builtin.assert:
@@ -88,6 +103,7 @@
         fail_msg: >-
           git user.email mismatch: expected '{{ git_owner.user_email }}',
           got '{{ _git_verify_email.stdout }}'
+        success_msg: "git user.email = '{{ _git_verify_email.stdout }}'"
       when: (git_owner.user_email | default('')) | length > 0
 
     - name: Check git init.defaultBranch  # noqa: command-instead-of-module
@@ -96,6 +112,7 @@
       ansible.builtin.command: git config --global --get init.defaultBranch
       register: _git_verify_branch
       changed_when: false
+      failed_when: false
 
     - name: Assert git init.defaultBranch matches expected
       ansible.builtin.assert:
@@ -103,6 +120,7 @@
         fail_msg: >-
           init.defaultBranch mismatch: expected '{{ git_default_branch }}',
           got '{{ _git_verify_branch.stdout }}'
+        success_msg: "git init.defaultBranch = '{{ _git_verify_branch.stdout }}'"
 
     - name: Check git core.editor  # noqa: command-instead-of-module
       become: true
@@ -110,6 +128,7 @@
       ansible.builtin.command: git config --global --get core.editor
       register: _git_verify_editor
       changed_when: false
+      failed_when: false
 
     - name: Assert git core.editor matches expected
       ansible.builtin.assert:
@@ -117,6 +136,7 @@
         fail_msg: >-
           core.editor mismatch: expected '{{ git_editor }}',
           got '{{ _git_verify_editor.stdout }}'
+        success_msg: "git core.editor = '{{ _git_verify_editor.stdout }}'"
 
     - name: Check git pull.rebase  # noqa: command-instead-of-module
       become: true
@@ -124,6 +144,7 @@
       ansible.builtin.command: git config --global --get pull.rebase
       register: _git_verify_rebase
       changed_when: false
+      failed_when: false
 
     - name: Assert git pull.rebase matches expected
       ansible.builtin.assert:
@@ -131,6 +152,7 @@
         fail_msg: >-
           pull.rebase mismatch: expected '{{ git_pull_rebase | string | lower }}',
           got '{{ _git_verify_rebase.stdout }}'
+        success_msg: "git pull.rebase = '{{ _git_verify_rebase.stdout }}'"
 
     - name: Check git push.autoSetupRemote  # noqa: command-instead-of-module
       become: true
@@ -138,6 +160,7 @@
       ansible.builtin.command: git config --global --get push.autoSetupRemote
       register: _git_verify_autosetup
       changed_when: false
+      failed_when: false
 
     - name: Assert git push.autoSetupRemote matches expected
       ansible.builtin.assert:
@@ -145,6 +168,7 @@
         fail_msg: >-
           push.autoSetupRemote mismatch: expected '{{ git_push_autosetup_remote | string | lower }}',
           got '{{ _git_verify_autosetup.stdout }}'
+        success_msg: "git push.autoSetupRemote = '{{ _git_verify_autosetup.stdout }}'"
 
     - name: Check git core.autocrlf  # noqa: command-instead-of-module
       become: true
@@ -152,6 +176,7 @@
       ansible.builtin.command: git config --global --get core.autocrlf
       register: _git_verify_autocrlf
       changed_when: false
+      failed_when: false
 
     - name: Assert git core.autocrlf matches expected
       ansible.builtin.assert:
@@ -159,6 +184,7 @@
         fail_msg: >-
           core.autocrlf mismatch: expected '{{ git_core_autocrlf }}',
           got '{{ _git_verify_autocrlf.stdout }}'
+        success_msg: "git core.autocrlf = '{{ _git_verify_autocrlf.stdout }}'"
 
     # ================================================================
     # ---- Extra config ----
@@ -193,6 +219,7 @@
       ansible.builtin.assert:
         that: item in (_git_verify_safe_dirs.stdout_lines | default([]))
         fail_msg: "safe.directory '{{ item }}' not found in git config"
+        success_msg: "safe.directory '{{ item }}' is configured"
       loop: "{{ git_safe_directories }}"
       when: git_safe_directories | length > 0
 
@@ -206,6 +233,7 @@
       ansible.builtin.command: "git config --global --get alias.{{ item.key }}"
       register: _git_verify_aliases
       changed_when: false
+      failed_when: false
       loop: "{{ git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite) | dict2items }}"
       loop_control:
         label: "{{ item.key }}"
@@ -218,6 +246,7 @@
           alias.{{ item.item.key }} mismatch: expected
           '{{ (git_aliases_preset | combine(git_aliases_extra) | combine(git_aliases_overwrite))[item.item.key] }}',
           got '{{ item.stdout }}'
+        success_msg: "alias.{{ item.item.key }} = '{{ item.stdout }}'"
       loop: "{{ _git_verify_aliases.results }}"
       loop_control:
         label: "{{ item.item.key }}"
@@ -235,6 +264,7 @@
       ansible.builtin.command: git config --global --get credential.helper
       register: _git_verify_credential
       changed_when: false
+      failed_when: false
       when: git_manage_credential | bool
 
     - name: Assert credential.helper matches expected
@@ -243,6 +273,7 @@
         fail_msg: >-
           credential.helper mismatch: expected value starting with 'cache',
           got '{{ _git_verify_credential.stdout }}'
+        success_msg: "credential.helper = '{{ _git_verify_credential.stdout }}'"
       when:
         - git_manage_credential | bool
         - _git_verify_credential is not skipped
@@ -263,12 +294,14 @@
       ansible.builtin.assert:
         that: _git_verify_lfs.rc == 0
         fail_msg: "git lfs version failed (rc={{ _git_verify_lfs.rc }})"
+        success_msg: "git-lfs is installed (rc=0)"
       when: git_lfs_enabled | bool
 
     - name: Assert git-lfs version output is sane
       ansible.builtin.assert:
         that: _git_verify_lfs.stdout is regex('^git-lfs/')
         fail_msg: "git lfs version output unexpected: {{ _git_verify_lfs.stdout }}"
+        success_msg: "git-lfs version: {{ _git_verify_lfs.stdout }}"
       when:
         - git_lfs_enabled | bool
         - _git_verify_lfs.rc == 0
@@ -288,6 +321,7 @@
       ansible.builtin.assert:
         that: _git_verify_lfs_filter_clean.rc == 0
         fail_msg: "filter.lfs.clean not found in user gitconfig -- git lfs install may not have run"
+        success_msg: "filter.lfs.clean = '{{ _git_verify_lfs_filter_clean.stdout }}'"
       when: git_lfs_enabled | bool
 
     - name: Check LFS filter.lfs.smudge config  # noqa: command-instead-of-module
@@ -303,6 +337,7 @@
       ansible.builtin.assert:
         that: _git_verify_lfs_filter_smudge.rc == 0
         fail_msg: "filter.lfs.smudge not found in user gitconfig -- git lfs install may not have run"
+        success_msg: "filter.lfs.smudge = '{{ _git_verify_lfs_filter_smudge.stdout }}'"
       when: git_lfs_enabled | bool
 
     - name: Check LFS filter.lfs.process config  # noqa: command-instead-of-module
@@ -318,6 +353,7 @@
       ansible.builtin.assert:
         that: _git_verify_lfs_filter_process.rc == 0
         fail_msg: "filter.lfs.process not found in user gitconfig -- git lfs install may not have run"
+        success_msg: "filter.lfs.process = '{{ _git_verify_lfs_filter_process.stdout }}'"
       when: git_lfs_enabled | bool
 
     # ================================================================
@@ -338,6 +374,7 @@
           - _git_verify_hooks_dir.stat.exists
           - _git_verify_hooks_dir.stat.isdir
         fail_msg: "Global hooks directory '{{ git_hooks_path }}' does not exist or is not a directory"
+        success_msg: "Hooks directory '{{ git_hooks_path }}' exists and is a directory"
       when:
         - git_manage_hooks | bool
         - _git_verify_hooks_dir is not skipped
@@ -348,6 +385,7 @@
       ansible.builtin.command: git config --global --get core.hooksPath
       register: _git_verify_hookspath
       changed_when: false
+      failed_when: false
       when: git_manage_hooks | bool
 
     - name: Assert core.hooksPath matches expected
@@ -356,6 +394,7 @@
         fail_msg: >-
           core.hooksPath mismatch: expected '{{ git_hooks_path }}',
           got '{{ _git_verify_hookspath.stdout }}'
+        success_msg: "core.hooksPath = '{{ _git_verify_hookspath.stdout }}'"
       when:
         - git_manage_hooks | bool
         - _git_verify_hookspath is not skipped
@@ -381,6 +420,7 @@
         fail_msg: >-
           commit.gpgSign mismatch: expected '{{ git_commit_sign | string | lower }}',
           got '{{ _git_verify_signing.stdout }}'
+        success_msg: "commit.gpgSign = '{{ _git_verify_signing.stdout }}'"
       when:
         - git_manage_signing | bool
         - (git_owner.signing_method | default('none')) != 'none'
@@ -399,6 +439,7 @@
           - _git_verify_gitconfig_content is regex('\\[core\\]')
           - _git_verify_gitconfig_content is regex('\\[pull\\]')
         fail_msg: "~/.gitconfig is missing expected sections ([init], [core], [pull])"
+        success_msg: "~/.gitconfig contains [init], [core], [pull] sections"
 
     # ================================================================
     # ---- Summary ----
@@ -410,8 +451,8 @@
           Git role verify passed on {{ ansible_facts['distribution'] }}
           {{ ansible_facts['distribution_version'] }}:
           git installed ({{ _git_verify_version.stdout }}),
-          user.name={{ _git_verify_username.stdout }},
-          user.email={{ _git_verify_email.stdout }},
+          user.name={{ _git_verify_username.stdout | default('(skipped)') }},
+          user.email={{ _git_verify_email.stdout | default('(skipped)') }},
           init.defaultBranch={{ _git_verify_branch.stdout }},
           core.editor={{ _git_verify_editor.stdout }},
           pull.rebase={{ _git_verify_rebase.stdout }},

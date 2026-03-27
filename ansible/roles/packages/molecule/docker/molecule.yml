@@ -33,6 +33,37 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
+  # Edge-case: empty package lists — role must succeed without installing anything
+  - name: Archlinux-empty
+    image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
+    pre_build_image: true
+    command: /usr/lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  - name: Ubuntu-empty
+    image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    privileged: true
+    dns_servers:
+      - 8.8.8.8
+      - 8.8.4.4
+
 provisioner:
   name: ansible
   options:
@@ -91,6 +122,46 @@ provisioner:
         packages_viewers: [bat, jq]
         packages_distro:
           Debian: [build-essential]
+
+      # Edge-case hosts: all package lists empty — verifies role succeeds with zero packages
+      Archlinux-empty:
+        packages_base: []
+        packages_editors: []
+        packages_docker: []
+        packages_xorg: []
+        packages_wm: []
+        packages_filemanager: []
+        packages_network: []
+        packages_media: []
+        packages_desktop: []
+        packages_graphics: []
+        packages_session: []
+        packages_terminal: []
+        packages_fonts: []
+        packages_theming: []
+        packages_search: []
+        packages_viewers: []
+        packages_distro: {}
+
+      Ubuntu-empty:
+        packages_base: []
+        packages_editors: []
+        packages_docker: []
+        packages_xorg: []
+        packages_wm: []
+        packages_filemanager: []
+        packages_network: []
+        packages_media: []
+        packages_desktop: []
+        packages_graphics: []
+        packages_session: []
+        packages_terminal: []
+        packages_fonts: []
+        packages_theming: []
+        packages_search: []
+        packages_viewers: []
+        packages_distro: {}
+
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

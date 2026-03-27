@@ -2,8 +2,8 @@
 ---
 # === ssh_keys role defaults ===
 
-# ROLE-003: Supported operating systems
-ssh_keys_supported_os:
+# ROLE-003: Supported operating systems (internal, not user-configurable)
+_ssh_keys_supported_os:
   - Archlinux
   - Debian
   - RedHat

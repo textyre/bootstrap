@@ -13,11 +13,35 @@
   ansible.builtin.systemd:
     name: systemd-logind
     state: reloaded
-  when: power_management_init | default('') == 'systemd'
+  register: _power_management_logind_reload
+  when: (power_management_init | default('')) == 'systemd'
   failed_when: false
+
+- name: Log systemd-logind reload failure
+  listen: "reload systemd-logind"
+  ansible.builtin.debug:
+    msg: >-
+      systemd-logind reload failed (rc={{ _power_management_logind_reload.rc | default('N/A') }}).
+      stderr: {{ _power_management_logind_reload.stderr | default('') }}.
+      Check 'journalctl -u systemd-logind' for details.
+  when:
+    - _power_management_logind_reload is defined
+    - _power_management_logind_reload.rc | default(0) != 0
 
 - name: Reload udev rules
   listen: "reload udev rules"
   ansible.builtin.command: udevadm control --reload-rules
+  register: _power_management_udev_reload
   changed_when: false
   failed_when: false
+
+- name: Log udev rules reload failure
+  listen: "reload udev rules"
+  ansible.builtin.debug:
+    msg: >-
+      udevadm control --reload-rules failed (rc={{ _power_management_udev_reload.rc | default('N/A') }}).
+      stderr: {{ _power_management_udev_reload.stderr | default('') }}.
+      Check 'journalctl -k' for udev errors.
+  when:
+    - _power_management_udev_reload is defined
+    - _power_management_udev_reload.rc | default(0) != 0

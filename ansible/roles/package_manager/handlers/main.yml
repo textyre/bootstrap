@@ -1,4 +1,5 @@
 ---
-- name: daemon-reload
+- name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
+  when: ansible_facts['service_mgr'] == 'systemd'

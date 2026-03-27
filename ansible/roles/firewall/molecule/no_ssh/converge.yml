@@ -5,7 +5,7 @@
   gather_facts: true
 
   roles:
-    - role: firewall
+    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
       vars:
         firewall_allow_ssh: false
         firewall_ssh_rate_limit_enabled: false

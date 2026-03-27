@@ -3,6 +3,24 @@
 # Имя машины, /etc/hosts
 # Каждый блок: Действие → Проверка → Логирование
 
+# ---- Preflight: OS family check (ROLE-003) ----
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _hostname_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _hostname_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['hostname']
+
+# ---- Load OS-specific vars (ROLE-001) ----
+
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['hostname']
+
 # ---- Input validation ----
 
 - name: Assert hostname_name is provided and valid
@@ -24,22 +42,7 @@
 - name: Set hostname
   ansible.builtin.hostname:
     name: "{{ hostname_name }}"
-    use: "{{ hostname_strategy[ansible_facts['os_family']] | default('systemd') }}"
-  tags: ['hostname']
-
-# Проверка
-- name: Verify hostname is set
-  ansible.builtin.command: hostnamectl status --static
-  register: hostname_check
-  changed_when: false
-  tags: ['hostname']
-
-- name: Assert hostname matches expected value
-  ansible.builtin.assert:
-    that:
-      - hostname_check.stdout | trim == hostname_name
-    fail_msg: "Hostname mismatch: got '{{ hostname_check.stdout | trim }}', expected '{{ hostname_name }}'"
-    quiet: true
+    use: "{{ _hostname_strategy }}"
   tags: ['hostname']
 
 # Логирование
@@ -59,6 +62,14 @@
 
 - name: Configure /etc/hosts
   ansible.builtin.include_tasks: hosts.yml
+  tags: ['hostname']
+
+# ======================================================================
+# ---- Verification (ROLE-005) ----
+# ======================================================================
+
+- name: Verify hostname
+  ansible.builtin.include_tasks: verify.yml
   tags: ['hostname']
 
 # ======================================================================

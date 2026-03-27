@@ -12,17 +12,10 @@
         name: video
         state: present
 
-    - name: Ensure logrotate is installed (Arch)
-      community.general.pacman:
+    - name: Ensure logrotate is installed
+      ansible.builtin.package:
         name: logrotate
         state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Ensure logrotate is installed (Ubuntu)
-      ansible.builtin.apt:
-        name: logrotate
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'
 
     - name: Create testuser_toberemoved (will be removed by role during converge)
       ansible.builtin.user:

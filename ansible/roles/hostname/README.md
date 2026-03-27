@@ -4,11 +4,13 @@ Sets the system hostname and manages the `127.0.1.1` entry in `/etc/hosts`.
 
 ## What this role does
 
+- [x] Asserts OS family is supported (ROLE-003 preflight)
 - [x] Validates `hostname_name` (required, RFC-compliant regex check)
 - [x] Sets hostname via `ansible.builtin.hostname` with OS-appropriate strategy
 - [x] Manages `127.0.1.1` line in `/etc/hosts` (FQDN optional)
-- [x] Verifies hostname matches expected value after change
-- [x] Verifies `/etc/hosts` contains the new hostname
+- [x] Verifies hostname via python3 socket (cross-platform, ROLE-002)
+- [x] Verifies `/etc/hostname` content matches expected value
+- [x] Verifies `/etc/hosts` entry via ansible-native lineinfile check (ROLE-011)
 - [x] Reports each phase via the `common` role
 
 ## Variables
@@ -25,8 +27,8 @@ Sets the system hostname and manages the `127.0.1.1` entry in `/etc/hosts`.
 | Arch Linux | `systemd` |
 | Debian / Ubuntu | `debian` |
 | RedHat / Fedora | `redhat` |
-| Alpine | `alpine` |
 | Void Linux | `generic` |
+| Gentoo | `generic` |
 
 ## Tags
 
@@ -73,28 +75,34 @@ hostname_name: "archbox"
 molecule test
 ```
 
-### Docker scenario (Arch + systemd, requires Docker)
+### Docker scenario (Arch + Ubuntu systemd, requires Docker)
 
 ```bash
 molecule test -s docker
 ```
 
-### Vagrant scenario (Arch + Ubuntu Noble, requires KVM/libvirt)
+### Vagrant scenario (Arch + Ubuntu, requires KVM/libvirt)
 
 ```bash
 molecule test -s vagrant
 ```
 
-The vagrant scenario tests both `generic/arch` and `ubuntu-base` VMs
+The vagrant scenario tests both `arch-base` and `ubuntu-base` VMs
 against the same `shared/converge.yml` and `shared/verify.yml`.
 
 ### Test sequence
 
 `syntax → create → prepare → converge → idempotence → verify → destroy`
 
-All four verify checks are OS-agnostic:
+### Test coverage
 
-1. `hostnamectl status --static` matches expected hostname
-2. `/etc/hosts` contains `127.0.1.1`, FQDN, and short name
-3. Exactly one `127.0.1.1` line (no duplicates)
-4. Summary debug output
+| Scenario | Platforms | What is tested |
+|----------|-----------|----------------|
+| default | localhost | Syntax check, converge + idempotence, verify — hostname + /etc/hosts with FQDN |
+| docker | Arch + Ubuntu (systemd) | Full cycle with Docker containers: hostname set, /etc/hosts managed, FQDN entry, no duplicates, localhost preserved |
+| vagrant | Arch + Ubuntu (KVM) | Full cycle on real VMs: same checks as docker but with kernel-level hostname operations |
+
+**Edge cases tested:**
+- Invalid `hostname_name` (negative test: role rejects `-invalid-` via assert)
+- Verify checks are data-driven via `extra-vars` (no hardcoded values in verify.yml)
+- Both with-domain and no-domain paths covered in verify.yml logic

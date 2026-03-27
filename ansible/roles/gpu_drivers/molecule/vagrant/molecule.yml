@@ -16,6 +16,14 @@ platforms:
     memory: 2048
     cpus: 2
 
+dependency:
+  name: galaxy
+  options:
+    ignore-errors: true
+  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
+  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
+  # ignore-errors: true prevents galaxy from aborting when common is not found.
+
 provisioner:
   name: ansible
   options:
@@ -25,6 +33,18 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
+  # Vagrant platforms use the Intel happy-path (defaults in verify.yml).
+  # Edge case platforms (vendor=none, vaapi=false) are covered by the Docker scenario.
+  inventory:
+    host_vars:
+      arch-vm:
+        gpu_drivers_vendor: intel
+        gpu_drivers_vaapi: true
+        gpu_drivers_vulkan_tools: true
+      ubuntu-base:
+        gpu_drivers_vendor: intel
+        gpu_drivers_vaapi: true
+        gpu_drivers_vulkan_tools: true
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

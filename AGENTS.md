@@ -7,25 +7,6 @@ All project interactions (linting, testing, ansible-playbook runs, molecule test
 - SSH commands to execute operations on the VM
 - The local machine is only for editing files and git operations.
 
-## Mandatory subagent delegation
-
-NEVER perform multi-file operations directly in the main conversation. ALWAYS delegate to the appropriate subagent using the Task tool.
-
-### Available Skills
-
-**Infrastructure & Operations:**
-- `/remote` — Execute commands on the remote Arch Linux VM
-- `/ansible` — Ansible automation craft: design, execute, debug, review (commands: `:create`, `:run`, `:role`, `:check`, `:lint`, `:verify`, `:tags`, `:debug`, `:review`)
-
-**Configuration & Development:**
-- `/dotfiles` — Deploy dotfile changes using chezmoi with service restarts
-- `/self-hosted` — Reference patterns for self-hosted services with Caddy/Docker
-- `/interface-design` — UI design system (dashboards, apps, tools)
-
-**Research & Analysis:**
-- `claudette-researcher` — Deep research with multi-source verification and synthesis. Use for technical investigations, literature reviews, comparative analysis, and fact-finding requiring authoritative sources with explicit citations.
-- `supergrep` (MCP) — Search GitHub and Sourcegraph for real-world code examples. Use when you need to verify implementation patterns by looking at how other projects do it.
-
 ### Routing rules
 
 **Prefer skills over generic agents when available.** Use `/skill-name` for specialized workflows.
@@ -43,11 +24,6 @@ NEVER perform multi-file operations directly in the main conversation. ALWAYS de
 | Complex multi-step task | `claudette-auto` | "Refactor authentication system" |
 | Simple question, single-line fix | Do it yourself | "What does this function do?" |
 
-## Git policy
-
-**Main agent:** Never run git write operations (commit, push, reset, rebase, merge). Show the user ready-to-run commands instead.
-
-**Role agents** (teammates spawned by the molecule-overhaul team): May run `git commit`, `git push`, `gh pr create`, `gh pr merge --squash` within their assigned worktree only. All operations must stay within the worktree branch — never touch master directly.
 
 ## Role Standards
 
@@ -61,35 +37,5 @@ Key constraints:
 - 5 supported distros: Arch, Ubuntu, Fedora, Void, Gentoo — never add others
 - 5 supported init systems: systemd, runit, openrc, s6, dinit
 - Security baseline: CIS Level 1 Workstation
-- Only `ansible.builtin.*` modules — no shell hacks
-- Every role: verify.yml, dual logging (report_phase + JSON), molecule tests
-- Reference implementation: `ansible/roles/ntp/`
 
-### Execution Environment
 
-All Ansible commands execute on the remote VM via SSH helpers:
-- Command prefix: `bash scripts/ssh-run.sh "cd /home/textyre/bootstrap && source ansible/.venv/bin/activate && ANSIBLE_CONFIG=/home/textyre/bootstrap/ansible/ansible.cfg <command>"`
-- Sudo commands: `bash scripts/ssh-sudo.sh "<command>"`
-- File sync: `bash scripts/ssh-scp-to.sh -r <local-path> <remote-path>`
-- Ansible dir: `/home/textyre/bootstrap/ansible/`
-- Roles: `/home/textyre/bootstrap/ansible/roles/`
-- Playbooks: `/home/textyre/bootstrap/ansible/playbooks/`
-
-## Memory Management
-
-After completing any non-trivial task, record findings in auto memory (`MEMORY.md` and topic files in the memory directory). This applies to the main agent — subagents invoked via Task cannot write to memory; summarize their findings yourself.
-
-### What to record
-- Patterns, architectural decisions, project conventions
-- Research results: what works, what doesn't
-- Dependencies, paths, configurations
-- Problem solutions and workarounds
-
-### Update rule
-If new information **contradicts** previous records — DO NOT delete the old entry. Mark it:
-> ⚠️ Old information, revisit later
-
-Then add new information below.
-
-### What NOT to record
-- Temporary data (command output, intermediate logs)

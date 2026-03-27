@@ -17,9 +17,29 @@
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
 
+    # openssh-keypair module requires ssh-keygen binary
+    - name: Install openssh for keygen tests (Arch)
+      community.general.pacman:
+        name: openssh
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Install openssh for keygen tests (Ubuntu)
+      ansible.builtin.apt:
+        name: openssh-client
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
     - name: Create test user for ssh_keys converge
       ansible.builtin.user:
         name: testuser
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create keygen test user (no ssh_keys, only keygen)
+      ansible.builtin.user:
+        name: keygenuser
         state: present
         create_home: true
         shell: /bin/bash
@@ -45,7 +65,8 @@
         owner: absent_user
         mode: "0600"
 
-    - name: Set molecule_test_user fact
+    - name: Set molecule test user facts
       ansible.builtin.set_fact:
-        molecule_test_user: testuser
+        ssh_keys_molecule_test_user: testuser
+        molecule_keygen_user: keygenuser
         cacheable: true

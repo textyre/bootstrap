@@ -1,4 +1,10 @@
 ---
+# Verification categories skipped:
+#   services — cronie/cron start is tagged molecule-notest and not verified here;
+#              cron job scheduling is verified via crontab -l instead.
+#   runtime  — Docker container running state is only verified in non-Docker envs
+#              (molecule runs inside Docker; container check requires VM or host).
+
 - name: Verify vaultwarden role
   hosts: all
   become: true
@@ -26,6 +32,7 @@
         fail_msg: >-
           {{ vaultwarden_base_dir }} missing or wrong permissions
           (expected root:root 0755)
+        success_msg: "{{ vaultwarden_base_dir }} exists root:root 0755"
 
     - name: Stat data directory
       ansible.builtin.stat:
@@ -43,6 +50,7 @@
         fail_msg: >-
           {{ vaultwarden_base_dir }}/data missing or wrong permissions
           (expected root:root 0700)
+        success_msg: "{{ vaultwarden_base_dir }}/data exists root:root 0700"
 
     - name: Stat backup directory
       ansible.builtin.stat:
@@ -60,24 +68,27 @@
         fail_msg: >-
           {{ vaultwarden_backup_dir }} missing or wrong permissions
           (expected root:root 0755)
+        success_msg: "{{ vaultwarden_backup_dir }} exists root:root 0755"
 
     # ---- DNS ----
 
-    - name: Check /etc/hosts for vaultwarden domain
-      ansible.builtin.command:
-        cmd: "grep -F '{{ vaultwarden_domain }}' /etc/hosts"
-      register: _vaultwarden_verify_hosts
-      changed_when: false
-      failed_when: false
+    - name: Slurp /etc/hosts
+      ansible.builtin.slurp:
+        src: /etc/hosts
+      register: _vaultwarden_verify_hosts_raw
+
+    - name: Set /etc/hosts content fact
+      ansible.builtin.set_fact:
+        _vaultwarden_verify_hosts_text: "{{ _vaultwarden_verify_hosts_raw.content | b64decode }}"
 
     - name: Assert domain is in /etc/hosts with correct IP
       ansible.builtin.assert:
         that:
-          - _vaultwarden_verify_hosts.rc == 0
-          - _vaultwarden_verify_hosts.stdout is regex('^127\.0\.0\.1\s+' ~ vaultwarden_domain)
+          - _vaultwarden_verify_hosts_text is regex('(?m)^127\.0\.0\.1\s+' ~ (vaultwarden_domain | regex_escape) ~ '\s*$')
         fail_msg: >-
           Expected '127.0.0.1 {{ vaultwarden_domain }}' in /etc/hosts.
-          Got: {{ _vaultwarden_verify_hosts.stdout | default('not found') }}
+          /etc/hosts content: {{ _vaultwarden_verify_hosts_text }}
+        success_msg: "127.0.0.1 {{ vaultwarden_domain }} found in /etc/hosts"
 
     # ---- Admin token ----
 
@@ -98,6 +109,7 @@
         fail_msg: >-
           {{ vaultwarden_base_dir }}/.admin_token missing or wrong
           permissions (expected root:root 0600)
+        success_msg: "{{ vaultwarden_base_dir }}/.admin_token exists root:root 0600"
       when: vaultwarden_admin_enabled
 
     - name: Read admin token file
@@ -113,6 +125,8 @@
         fail_msg: >-
           Admin token is empty or too short
           (expected >32 chars from openssl rand -base64 48)
+        success_msg: >-
+          Admin token present ({{ (_vaultwarden_verify_token_content.content | b64decode | trim) | length }} chars)
       when: vaultwarden_admin_enabled
 
     # ---- Docker Compose file ----
@@ -133,6 +147,7 @@
         fail_msg: >-
           {{ vaultwarden_base_dir }}/docker-compose.yml missing or
           wrong permissions (expected root:root 0644)
+        success_msg: "{{ vaultwarden_base_dir }}/docker-compose.yml exists root:root 0644"
 
     - name: Read docker-compose.yml
       ansible.builtin.slurp:
@@ -148,6 +163,7 @@
         that:
           - _vaultwarden_verify_compose_text is regex('^# Ansible managed')
         fail_msg: "docker-compose.yml missing '# Ansible managed' header"
+        success_msg: "docker-compose.yml has Ansible managed header"
 
     - name: Assert docker-compose.yml contains expected service config
       ansible.builtin.assert:
@@ -155,14 +171,15 @@
           - "'vaultwarden/server:latest' in _vaultwarden_verify_compose_text"
           - "'DOMAIN: \"https://' ~ vaultwarden_domain ~ '\"' in _vaultwarden_verify_compose_text"
           - "'SIGNUPS_ALLOWED: \"' ~ (vaultwarden_signups_allowed | string | lower) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'PASSWORD_ITERATIONS: \"' ~ (vaultwarden_password_iterations | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'LOGIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_login_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'LOGIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_login_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'ADMIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_admin_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
-          - "'ADMIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_admin_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'PASSWORD_ITERATIONS: \"' ~ (vaultwarden_security.password_iterations | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_security.login_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'LOGIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_security.login_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_MAX_BURST: \"' ~ (vaultwarden_security.admin_ratelimit_max_burst | string) ~ '\"' in _vaultwarden_verify_compose_text"
+          - "'ADMIN_RATELIMIT_SECONDS: \"' ~ (vaultwarden_security.admin_ratelimit_seconds | string) ~ '\"' in _vaultwarden_verify_compose_text"
         fail_msg: >-
           docker-compose.yml missing expected service configuration
           (image, DOMAIN, SIGNUPS_ALLOWED, PASSWORD_ITERATIONS, rate limits)
+        success_msg: "docker-compose.yml service config verified (image, DOMAIN, SIGNUPS_ALLOWED, rate limits)"
 
     - name: Assert docker-compose.yml has volume mount and network
       ansible.builtin.assert:
@@ -171,6 +188,7 @@
           - "'name: \"' ~ vaultwarden_docker_network ~ '\"' in _vaultwarden_verify_compose_text"
         fail_msg: >-
           docker-compose.yml missing data volume mount or proxy network
+        success_msg: "docker-compose.yml has data volume mount and {{ vaultwarden_docker_network }} network"
 
     # ---- Caddy site config ----
 
@@ -190,6 +208,7 @@
         fail_msg: >-
           Caddy site config missing or wrong permissions
           (expected root:root 0644)
+        success_msg: "Caddy site config exists root:root 0644"
 
     - name: Read Caddy site config
       ansible.builtin.slurp:
@@ -205,6 +224,7 @@
         that:
           - _vaultwarden_verify_caddy_text is regex('^# Ansible managed')
         fail_msg: "Caddy site config missing '# Ansible managed' header"
+        success_msg: "Caddy site config has Ansible managed header"
 
     - name: Assert Caddy config contains security headers and reverse proxy
       ansible.builtin.assert:
@@ -219,6 +239,7 @@
           Caddy site config missing expected content (domain, security
           headers: HSTS, X-Content-Type-Options, X-Frame-Options,
           Referrer-Policy, reverse_proxy directive)
+        success_msg: "Caddy site config verified (domain, HSTS, security headers, reverse_proxy)"
 
     # ---- Backup script ----
 
@@ -240,6 +261,7 @@
         fail_msg: >-
           {{ vaultwarden_base_dir }}/backup.sh missing or wrong
           permissions (expected root:root 0700)
+        success_msg: "{{ vaultwarden_base_dir }}/backup.sh exists root:root 0700 executable"
       when: vaultwarden_backup_enabled
 
     - name: Read backup script
@@ -265,6 +287,7 @@
         fail_msg: >-
           Backup script missing expected content (sqlite3, .backup,
           pipefail, or rendered variable values)
+        success_msg: "Backup script content verified (sqlite3, .backup, pipefail, rendered paths)"
       when: vaultwarden_backup_enabled
 
     # ---- Cron job ----
@@ -286,9 +309,13 @@
         fail_msg: >-
           Vaultwarden backup cron job not found in root crontab.
           Output: {{ _vaultwarden_verify_cron.stdout | default('empty') }}
+        success_msg: "Backup cron job found in root crontab"
       when: vaultwarden_backup_enabled
 
     # ---- Docker containers (VM only, skipped inside Docker) ----
+    # ROLE-013: failed_when: false with guaranteed downstream assert.
+    # The assert runs unconditionally (within the VM guard) — an empty stdout
+    # (container not running) produces a visible failure, not a silent skip.
 
     - name: Check vaultwarden container is running
       ansible.builtin.command:
@@ -296,29 +323,25 @@
       register: _vaultwarden_verify_container
       changed_when: false
       failed_when: false
-      when: ansible_facts['virtualization_type'] | default('') != 'docker'
+      when:
+        - ansible_facts['virtualization_type'] | default('') != 'docker'
+        - vaultwarden_compose_manage | default(true) | bool
 
     - name: Assert vaultwarden container is running
       ansible.builtin.assert:
         that:
+          - _vaultwarden_verify_container.stdout is defined
           - "'vaultwarden' in _vaultwarden_verify_container.stdout"
         fail_msg: >-
           Vaultwarden container is not running.
           Output: {{ _vaultwarden_verify_container.stdout | default('empty') }}
+        success_msg: >-
+          Vaultwarden container is running
+          ({{ _vaultwarden_verify_container.stdout | default('') | trim }})
       when:
         - ansible_facts['virtualization_type'] | default('') != 'docker'
         - _vaultwarden_verify_container is defined
-        - _vaultwarden_verify_container.stdout | default('') | length > 0
-
-    - name: Warn if container check skipped (molecule-notest)
-      ansible.builtin.debug:
-        msg: >-
-          Container check skipped — vaultwarden container was not started
-          (expected when using --skip-tags molecule-notest in molecule).
-      when:
-        - ansible_facts['virtualization_type'] | default('') != 'docker'
-        - _vaultwarden_verify_container is defined
-        - _vaultwarden_verify_container.stdout | default('') | length == 0
+        - vaultwarden_compose_manage | default(true) | bool
 
     # ---- Summary ----
 
