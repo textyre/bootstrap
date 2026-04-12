@@ -69,13 +69,6 @@
       when: ntp_disable_competitors | bool
       tags: ['ntp']
 
-    - name: Disable VMware periodic time sync
-      ansible.builtin.include_tasks: vmware_disable_timesync.yml
-      when:
-        - ntp_virt_type == 'vmware'
-        - ntp_vmware_disable_periodic_sync | bool
-      tags: ['ntp']
-
     # ======================================================================
     # ---- Установка ----
     # ======================================================================
@@ -101,6 +94,19 @@
         - { path: "{{ ntp_logdir }}", mode: "0750" }
         - { path: "{{ ntp_dumpdir }}", mode: "0750" }
         - { path: "{{ ntp_ntsdumpdir }}", mode: "0700" }
+      tags: ['ntp']
+
+    # ======================================================================
+    # ---- Logrotate ----
+    # ======================================================================
+
+    - name: Deploy chrony logrotate config
+      ansible.builtin.template:
+        src: logrotate-chrony.j2
+        dest: /etc/logrotate.d/chrony
+        owner: root
+        group: root
+        mode: "0644"
       tags: ['ntp']
 
     # ======================================================================

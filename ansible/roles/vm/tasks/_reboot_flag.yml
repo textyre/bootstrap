@@ -46,3 +46,15 @@
     - vm_reboot_required | default(false)
     - vm_reboot_condition | bool
   tags: ['vm', 'vm:report']
+
+- name: "Create reboot-required flag file ({{ vm_reboot_label }})"
+  ansible.builtin.copy:
+    dest: /var/run/reboot-required
+    content: |
+      *** System restart required ***
+      Reason: {{ vm_reboot_label }} kernel modules require system reboot to load properly.
+    owner: root
+    group: root
+    mode: "0644"
+  when: vm_reboot_condition | bool
+  tags: ['vm']

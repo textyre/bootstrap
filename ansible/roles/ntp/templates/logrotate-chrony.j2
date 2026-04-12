@@ -1,0 +1,16 @@
+# Managed by Ansible — do not edit manually
+# Role: ntp | Template: logrotate-chrony.j2
+{{ ntp_logdir }}/*.log {
+    {{ ntp_logrotate_frequency }}
+    rotate {{ ntp_logrotate_rotate }}
+    missingok
+    nocreate
+{% if ntp_logrotate_compress %}
+    compress
+    delaycompress
+{% endif %}
+    sharedscripts
+    postrotate
+        /usr/bin/chronyc cyclelogs > /dev/null 2>&1 || true
+    endscript
+}

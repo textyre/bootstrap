@@ -47,6 +47,11 @@ ntp_logchange: 0.5
 # Пишет measurements.log, statistics.log, tracking.log в ntp_logdir
 ntp_log_tracking: true
 
+# Logrotate для chrony логов
+ntp_logrotate_frequency: weekly   # daily / weekly / monthly
+ntp_logrotate_rotate: 4           # сколько архивов хранить
+ntp_logrotate_compress: true      # gzip старые файлы
+
 # Pool-type NTP sources (pool directive — DNS round-robin with auto-rotation)
 # Distinct from server: pool = multiple servers behind one hostname
 # Example: [{host: "pool.ntp.org", iburst: true, maxsources: 4}]
@@ -76,7 +81,3 @@ ntp_refclocks: []
 # Stop and disable ntpd and openntpd if found (in addition to systemd-timesyncd).
 ntp_disable_competitors: true
 
-# On VMware guests: run `vmware-toolbox-cmd timesync disable` to stop periodic sync.
-# One-off sync events (vMotion, snapshot restore) are left enabled — they are safe.
-# Has no effect on non-VMware systems.
-ntp_vmware_disable_periodic_sync: true

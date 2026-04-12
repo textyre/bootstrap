@@ -1,0 +1,47 @@
+---
+# =========================================================================
+# _ntp_guard.yml
+# =========================================================================
+# Check if an NTP daemon is active before disabling guest timesync.
+# Prevents disabling the only time source when no NTP daemon is running.
+#
+# Usage:
+#   - ansible.builtin.include_tasks: _ntp_guard.yml
+#     vars:
+#       vm_ntp_guard_label: "VirtualBox"
+#
+# Parameters:
+#   vm_ntp_guard_label (string) — hypervisor name for the warning message
+#
+# Reads:
+#   vm_ntp_daemon_services — list of service names to check (from defaults)
+#   ansible_facts.services — must be populated by service_facts before calling
+#
+# Sets:
+#   _vm_ntp_active (bool) — true if at least one NTP daemon is running
+# =========================================================================
+
+- name: "NTP guard: Get all services as list ({{ vm_ntp_guard_label }})"
+  ansible.builtin.set_fact:
+    _vm_svc_items: "{{ ansible_facts.services | default({}) | dict2items }}"
+
+- name: "NTP guard: Filter to known NTP services ({{ vm_ntp_guard_label }})"
+  ansible.builtin.set_fact:
+    _vm_ntp_candidates: "{{ _vm_svc_items | selectattr('key', 'in', vm_ntp_daemon_services) | list }}"
+
+- name: "NTP guard: Filter to running NTP services ({{ vm_ntp_guard_label }})"
+  ansible.builtin.set_fact:
+    _vm_ntp_running: "{{ _vm_ntp_candidates | selectattr('value.state', 'equalto', 'running') | list }}"
+
+- name: "NTP guard: Set NTP active flag ({{ vm_ntp_guard_label }})"
+  ansible.builtin.set_fact:
+    _vm_ntp_active: "{{ _vm_ntp_running | length > 0 }}"
+
+- name: "NTP guard: Warn — no NTP daemon active, skipping timesync disable ({{ vm_ntp_guard_label }})"
+  ansible.builtin.debug:
+    msg: >-
+      No active NTP daemon found ({{ vm_ntp_daemon_services | join(', ') }}).
+      {{ vm_ntp_guard_label }} timesync will NOT be disabled to avoid losing time
+      synchronization. Deploy the ntp role first, then re-run vm.
+    verbosity: 0
+  when: not (_vm_ntp_active | bool)

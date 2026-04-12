@@ -57,6 +57,7 @@
     - not item.stat.exists
     - item.item.content is defined
     - item.item.content | length > 0
+    - ansible_facts['env'].get('DISPLAY') | default('') | length > 0 or ansible_facts.stat['/usr/bin/Xorg'].exists | default(false)
   tags: ['vm', 'vm:verify']
 
 - name: "Report X11 integration status ({{ vm_x11_label }})"

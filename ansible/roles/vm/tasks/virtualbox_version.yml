@@ -40,33 +40,42 @@
   failed_when: false
   tags: ['vm', 'vbox', 'vm:verify']
 
-- name: "VirtualBox: Parse versions"
-  ansible.builtin.set_fact:
-    vm_vbox_host_ver: >-
-      {{ vm_vbox_host_version_raw.stdout | default('')
-         | regex_search('Value:\s*(.+)', '\1')
-         | default(['unknown'], true) | first | trim }}
-    vm_vbox_guest_ver: >-
-      {{ vm_vbox_guest_version_raw.stdout | default('')
-         | regex_replace('[^0-9.].*', '') }}
+- name: "VirtualBox: Parse and report versions"
   when:
     - (vm_vbox_host_version_raw.rc | default(1)) == 0
     - (vm_vbox_guest_version_raw.rc | default(1)) == 0
-  tags: ['vm', 'vbox', 'vm:verify']
+  tags: ['vm', 'vbox', 'vm:verify', 'vm:install']
+  block:
+    - name: "Get raw host version output"
+      ansible.builtin.set_fact:
+        _vm_vbox_host_raw: "{{ vm_vbox_host_version_raw.stdout | default('') }}"
 
-- name: "VirtualBox: Report detected versions"
-  ansible.builtin.debug:
-    msg: "Detected versions - Host: {{ vm_vbox_host_ver | default('unknown') }}, Guest: {{ vm_vbox_guest_ver | default('unknown') }}"
-  when:
-    - vm_vbox_host_ver is defined
-    - vm_vbox_guest_ver is defined
-  tags: ['vm', 'vbox', 'vm:verify']
+    - name: "Extract version from 'Value: X.Y.Z' format"
+      ansible.builtin.set_fact:
+        _vm_vbox_host_match: "{{ _vm_vbox_host_raw | regex_search('Value:\\s*(.+)', '\\1') }}"
 
-- name: "VirtualBox: Trigger ISO installation on version mismatch"
-  ansible.builtin.include_tasks: virtualbox_iso_install.yml
-  when:
-    - vm_vbox_host_ver is defined
-    - vm_vbox_guest_ver is defined
-    - vm_vbox_host_ver != 'unknown'
-    - vm_vbox_host_ver != vm_vbox_guest_ver
-  tags: ['vm', 'vbox', 'vm:install']
+    - name: "Handle missing host version"
+      ansible.builtin.set_fact:
+        _vm_vbox_host_extracted: "{{ _vm_vbox_host_match | default(['unknown'], true) | first }}"
+
+    - name: "Clean whitespace from host version"
+      ansible.builtin.set_fact:
+        vm_vbox_host_ver: "{{ _vm_vbox_host_extracted | trim }}"
+
+    - name: "Get raw guest version output"
+      ansible.builtin.set_fact:
+        _vm_vbox_guest_raw: "{{ vm_vbox_guest_version_raw.stdout | default('') }}"
+
+    - name: "Extract numeric guest version"
+      ansible.builtin.set_fact:
+        vm_vbox_guest_ver: "{{ _vm_vbox_guest_raw | regex_replace('[^0-9.].*', '') }}"
+
+    - name: "Report detected versions"
+      ansible.builtin.debug:
+        msg: "Detected versions - Host: {{ vm_vbox_host_ver }}, Guest: {{ vm_vbox_guest_ver }}"
+
+    - name: "Trigger ISO installation on version mismatch"
+      ansible.builtin.include_tasks: virtualbox_iso_install.yml
+      when:
+        - vm_vbox_host_ver != 'unknown'
+        - vm_vbox_host_ver != vm_vbox_guest_ver

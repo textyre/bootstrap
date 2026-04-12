@@ -35,7 +35,17 @@ Supports Arch Linux, Ubuntu/Debian, RedHat/EL, Gentoo, and Void Linux.
 | `ntp_auto_detect` | `true` | Auto-detect virtualization environment and adjust refclocks/makestep/rtcsync accordingly |
 | `ntp_refclocks` | `[]` | Manual refclock directives (list of raw chrony refclock strings). Overrides auto-detect if set. |
 | `ntp_disable_competitors` | `true` | Stop and disable ntpd, openntpd, and systemd-timesyncd if found |
-| `ntp_vmware_disable_periodic_sync` | `true` | On VMware guests: disable periodic time sync via `vmware-toolbox-cmd`. Has no effect on non-VMware systems. |
+
+## Guest timesync on virtual machines
+
+On virtual machines, hypervisors run their own time synchronization services that conflict with NTP. **The ntp role only manages chrony; it does not disable hypervisor timesync.** To prevent conflicting time sources:
+
+1. **Deploy the ntp role first** — this installs chronyd and becomes the authoritative time source
+2. **Then deploy the vm role** — this detects the hypervisor and disables its timesync service (if an NTP daemon is active)
+
+The vm role uses an NTP guard pattern: it checks if an NTP daemon is running before disabling hypervisor timesync. If no NTP daemon is active, the guard skips the disable to prevent losing the only time source. This ensures you won't accidentally leave a system without time synchronization.
+
+See the vm role's `tasks/_ntp_guard.yml` for implementation.
 
 ## Default servers
 

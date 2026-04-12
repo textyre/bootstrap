@@ -22,6 +22,21 @@ Detects the active hypervisor and installs matching guest tools (VirtualBox Gues
 
 Steps 1–4 run normally, then `_remove_guest_tools.yml` removes packages and stops services for the detected hypervisor.
 
+### NTP guard and timesync disable
+
+All hypervisors except Hyper-V run a time synchronization service that conflicts with NTP daemons. This role disables it to give exclusive authority to the ntp role.
+
+**NTP guard pattern** — before disabling timesync, the role checks if an NTP daemon (chronyd, ntpd, openntpd, or systemd-timesyncd) is active. If no NTP daemon is running, timesync disable is skipped to prevent losing the only time source. Deploy the ntp role first, then re-run vm.
+
+| Hypervisor | Timesync mechanism | Disable method | Guard enabled |
+|-----------|-------------------|----------------|--------------|
+| **VirtualBox** | `vboxservice` timesync module | systemd drop-in: `disable-timesync.conf` | Yes — NTP guard checks before writing drop-in |
+| **VMware** | `vmtoolsd` timesync channel | modprobe blacklist or `vmware-toolbox-cmd timesync disable` | Yes — NTP guard checks before disabling |
+| **KVM** | None (QEMU Guest Agent does not sync time) | N/A | N/A — no timesync to disable |
+| **Hyper-V** | `hv_utils` kernel module (hv_vmbus) | Not disableable from guest (requires host-side PowerShell) | N/A — role warns operator to disable on host |
+
+See `tasks/_ntp_guard.yml` for implementation.
+
 ### Handlers
 
 | Handler | Triggered by | What it does |
@@ -46,6 +61,7 @@ Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/mai
 | `vm_vbox_lts_kernel_support` | OS-specific | careful | Set in `vars/<OsFamily>.yml`. When `true`, installs `virtualbox-guest-dkms` + `linux-lts-headers` for LTS kernels |
 | `vm_vmware_version_report` | `true` | safe | Display VMware Tools version in execution report |
 | `vm_kvm_version_report` | `true` | safe | Display QEMU Guest Agent version in execution report |
+| `vm_ntp_daemon_services` | `['chronyd.service', 'ntpd.service', 'openntpd.service', 'systemd-timesyncd.service']` | careful | List of NTP daemon service names to check before disabling hypervisor timesync. Guard prevents losing time sync if no NTP daemon is running |
 
 ### Internal mappings (`vars/`)
 
@@ -225,7 +241,14 @@ ansible-playbook playbook.yml --tags vm:verify
 | `tasks/vmware.yml` | VMware guest tools pipeline | VMware-specific changes |
 | `tasks/hyperv.yml` | Hyper-V pipeline | Hyper-V-specific changes |
 | `tasks/kvm.yml` | KVM pipeline | KVM-specific changes |
-| `tasks/_*.yml` | Shared sub-task files (install, remove, services, etc.) | Common logic changes |
+| `tasks/_install_packages.yml` | Common package installation with error handling | Package install logic |
+| `tasks/_manage_services.yml` | Enable/start services with idempotent handlers | Service management |
+| `tasks/_verify_modules.yml` | Verify kernel modules are loaded | Module verification |
+| `tasks/_check_x11.yml` | Check/create X11 integration files (desktop autostart) | X11 integration logic |
+| `tasks/_version_report.yml` | Run version check commands and report | Version reporting |
+| `tasks/_ntp_guard.yml` | Check if NTP daemon is active before disabling timesync | NTP guard logic |
+| `tasks/_reboot_flag.yml` | Set reboot-required flag and create sentinel file | Reboot signaling |
+| `tasks/_remove_guest_tools.yml` | Remove packages and disable services | Guest tools removal |
 | `handlers/main.yml` | Service restart handlers | When adding new handlers |
 | `molecule/docker/` | Docker test scenario | When changing container test logic |
 | `molecule/vagrant/` | Vagrant/KVM test scenario | When changing guest VM test logic |

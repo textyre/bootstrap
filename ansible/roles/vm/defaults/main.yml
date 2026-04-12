@@ -43,3 +43,10 @@ vm_supported_hypervisors:
   - VMware
   - hyperv
   - kvm
+
+# NTP daemons checked before disabling guest timesync (see tasks/_ntp_guard.yml)
+vm_ntp_daemon_services:
+  - chronyd.service
+  - ntpd.service
+  - openntpd.service
+  - systemd-timesyncd.service
