@@ -9,7 +9,7 @@
 set -euo pipefail
 
 SSH_HOST="${SSH_HOST:-arch-127.0.0.1-2222}"
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=60"
 
 if [[ $# -lt 2 ]]; then
     echo "Usage: $0 [-r] <remote-path> <local-path>" >&2

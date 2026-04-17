@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SSH_HOST="${SSH_HOST:-arch-127.0.0.1-2222}"
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=60"
 REMOTE_BASE="/home/textyre/bootstrap"
 
 # Project sync mode
@@ -25,7 +25,17 @@ if [[ "${1:-}" == "--project" ]]; then
     for dir in "${PROJECT_DIRS[@]}"; do
         echo "  copying ${dir}/"
         ssh $SSH_OPTS "$SSH_HOST" "mkdir -p ${REMOTE_BASE}/${dir}"
-        scp -v -r $SSH_OPTS "${REPO_ROOT}/${dir}" "$SSH_HOST:${REMOTE_BASE}/"
+        if [[ "$dir" == "ansible" ]]; then
+            # Use tar to exclude platform-specific artifacts that must not reach the VM
+            (cd "${REPO_ROOT}" && tar cf - \
+                --exclude='ansible/.venv' \
+                --exclude='ansible/__pycache__' \
+                --exclude='ansible/.molecule' \
+                "${dir}/") | \
+                ssh $SSH_OPTS "$SSH_HOST" "tar xf - -C ${REMOTE_BASE}/"
+        else
+            scp -v -r $SSH_OPTS "${REPO_ROOT}/${dir}" "$SSH_HOST:${REMOTE_BASE}/"
+        fi
     done
 
     for file in "${PROJECT_FILES[@]}"; do

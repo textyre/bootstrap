@@ -108,6 +108,9 @@
   register: _vaultwarden_verify_container
   changed_when: false
   failed_when: false
+  retries: 6
+  delay: 5
+  until: "'vaultwarden' in (_vaultwarden_verify_container.stdout | default(''))"
   when: ansible_facts['virtualization_type'] | default('') != 'docker'
   tags: ['vaultwarden', 'molecule-notest']
 

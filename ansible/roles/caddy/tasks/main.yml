@@ -39,7 +39,7 @@
     # ---- Создание директорий ----
     # ======================================================================
 
-    - name: Create Caddy directories
+    - name: Create Caddy base and read-only directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -49,6 +49,15 @@
       loop:
         - "{{ caddy_base_dir }}"
         - "{{ caddy_base_dir }}/sites"
+
+    - name: Create Caddy writable directories (owned by userns-remapped root)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ caddy_container_uid }}"
+        group: "{{ caddy_container_uid }}"
+        mode: '0750'
+      loop:
         - "{{ caddy_base_dir }}/data"
         - "{{ caddy_base_dir }}/config"
       tags: ['caddy', 'proxy', 'configure']
@@ -98,15 +107,24 @@
       tags: ['caddy', 'proxy', 'configure']
       block:
 
+        - name: Check if Caddy CA file exists in container
+          ansible.builtin.command:
+            cmd: docker exec caddy test -f /data/caddy/pki/authorities/local/root.crt
+          register: _caddy_ca_exists
+          changed_when: false
+          failed_when: false
+
         - name: Extract Caddy root CA to temporary file
           ansible.builtin.command:
             cmd: docker cp caddy:/data/caddy/pki/authorities/local/root.crt /tmp/caddy_root_ca.crt
           changed_when: false
+          when: _caddy_ca_exists.rc | default(1) == 0
 
         - name: Read extracted CA certificate content
           ansible.builtin.slurp:
             src: /tmp/caddy_root_ca.crt
           register: _caddy_ca_new
+          when: _caddy_ca_exists.rc | default(1) == 0
 
         - name: Deploy Caddy root CA to trust store
           ansible.builtin.copy:
@@ -116,12 +134,14 @@
             group: root
             mode: '0644'
           notify: Update CA trust
+          when: _caddy_ca_exists.rc | default(1) == 0
 
         - name: Clean up temporary CA file
           ansible.builtin.file:
             path: /tmp/caddy_root_ca.crt
             state: absent
           changed_when: false
+          when: _caddy_ca_exists.rc | default(1) == 0
 
     # ======================================================================
     # ---- Доверие к CA в браузерах ----

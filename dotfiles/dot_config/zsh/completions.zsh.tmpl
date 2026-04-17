@@ -15,8 +15,8 @@ zstyle ':completion:*:approximate:*' max-errors 1 numeric
 
 # Grouping and descriptions
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*:descriptions' format '%F{{{ $t.accent }}}-- %d --%f'
-zstyle ':completion:*:warnings' format '%F{{{ $t.error }}}-- no matches --%f'
+zstyle ':completion:*:descriptions' format '%F{{ "{" }}{{ $t.accent }}}-- %d --%f'
+zstyle ':completion:*:warnings' format '%F{{ "{" }}{{ $t.urgent }}}-- no matches --%f'
 
 # Cache completions
 zstyle ':completion:*' use-cache on

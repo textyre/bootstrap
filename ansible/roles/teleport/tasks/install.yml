@@ -91,6 +91,11 @@
         extra_opts: [--strip-components=1]
       when: _teleport_needs_install | bool
 
+    - name: "Remove Teleport installer script that shadows coreutils install"
+      ansible.builtin.file:
+        path: /usr/local/bin/install
+        state: absent
+
     - name: "Deploy teleport systemd unit for binary install"
       ansible.builtin.copy:
         content: |
