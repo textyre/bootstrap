@@ -33,5 +33,14 @@ packages_theming: []    # GTK/Qt themes and icon packs
 packages_search: []     # Search utilities (fzf, ripgrep)
 packages_viewers: []    # File viewers (bat, jq)
 
+# Reuse the same package databases for rapid repeat/idempotency runs.
+# A fresh sync is still forced whenever the local pacman DBs are older than
+# this threshold or missing entirely.
+packages_pacman_cache_valid_time: 3600
+
+# Third-party release mirrors are an explicit operator decision, not a default.
+# Leave false unless you intentionally want the AUR transport proxy workaround.
+packages_aur_transport_proxy_enabled: false
+
 # Distro-specific extras keyed by os_family (e.g. Archlinux: [base-devel], Debian: [build-essential])
 packages_distro: {}

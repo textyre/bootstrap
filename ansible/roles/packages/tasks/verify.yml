@@ -3,9 +3,11 @@
 # Called from tasks/main.yml after installation. Skipped when package lists are empty.
 
 # Technique 2: runtime check via native package manager
-- name: Verify package installed (pacman -Q)
-  ansible.builtin.command:
-    cmd: "pacman -Q {{ item }}"
+- name: Verify package installed (pacman -Q, falls back to -Qg for groups)
+  ansible.builtin.shell:
+    cmd: "pacman -Q {{ item }} 2>/dev/null || pacman -Qg {{ item }} 2>/dev/null"
+  args:
+    executable: /bin/bash
   register: _packages_verify_pacman
   changed_when: false
   failed_when: _packages_verify_pacman.rc != 0
@@ -52,7 +54,11 @@
   loop: "{{ packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
-  when: packages_verify_all | length > 0
+  when:
+    - packages_verify_all | length > 0
+    # Skip on Arch — pacman -Q/-Qg check above handles packages AND groups.
+    # package_facts doesn't include group names, causing false failures.
+    - ansible_facts['os_family'] != 'Archlinux'
   tags: ['packages']
 
 - name: Report verification result

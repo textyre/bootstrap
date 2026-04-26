@@ -1,9 +1,35 @@
 ---
-# Arch Linux: full system upgrade then install official packages
+- name: Find pacman sync databases
+  ansible.builtin.find:
+    paths: /var/lib/pacman/sync
+    patterns: "*.db"
+    file_type: file
+  register: _packages_pacman_sync_db
+  tags: ['packages', 'install', 'upgrade']
 
-# Full system upgrade — requires community.general.pacman (upgrade: true has no
-# equivalent in ansible.builtin.package; update_cache here subsumes a separate cache step)
-- name: Full system upgrade (pacman -Syu)
+- name: Decide whether pacman cache refresh is required
+  ansible.builtin.set_fact:
+    _packages_pacman_cache_refresh_required: >-
+      {{
+        (_packages_pacman_sync_db.matched | default(0) | int) == 0 or
+        (
+          ansible_facts['date_time']['epoch'] | int -
+          ((_packages_pacman_sync_db.files | map(attribute='mtime') | max | default(0)) | int)
+        ) >= (packages_pacman_cache_valid_time | int)
+      }}
+  changed_when: false
+  tags: ['packages', 'install', 'upgrade']
+
+# Arch Linux: full system upgrade then install official packages.
+#
+# upgrade: true is REQUIRED on Arch Linux rolling release.
+# Without it, installing new packages onto an old snapshot causes "conflicting
+# files" errors when upstream does package splits (e.g. gcc-libs → libgcc +
+# libstdc++ + libgomp). There is no safe partial-upgrade path on Arch.
+#
+# First-run duration is proportional to how old the initial snapshot is.
+# Keep the snapshot up-to-date (monthly) to minimize upgrade time.
+- name: "Full system upgrade (pacman -Syu)"
   community.general.pacman:
     update_cache: true
     upgrade: true
@@ -11,6 +37,17 @@
   delay: 5
   register: _packages_upgrade_result
   until: _packages_upgrade_result is succeeded
+  when: _packages_pacman_cache_refresh_required | bool
+  tags: ['packages', 'install', 'upgrade']
+
+- name: "Full system upgrade (pacman -Su)"
+  community.general.pacman:
+    upgrade: true
+  retries: 3
+  delay: 5
+  register: _packages_upgrade_result
+  until: _packages_upgrade_result is succeeded
+  when: not (_packages_pacman_cache_refresh_required | bool)
   tags: ['packages', 'install', 'upgrade']
 
 - name: Install packages (pacman)
@@ -23,6 +60,33 @@
   until: _packages_install_result is succeeded
   when: packages_all | length > 0
   tags: ['packages', 'install']
+
+- name: Set up AUR helper (yay)
+  ansible.builtin.include_role:
+    name: yay
+    apply:
+      tags:
+        - packages
+        - install
+        - aur
+  vars:
+    yay_manage_setup: true
+    yay_manage_aur_packages: false
+  when: packages_aur_all | length > 0
+  tags: ['packages', 'install', 'aur']
+
+- name: Apply AUR transport proxy workaround layer
+  ansible.builtin.include_role:
+    name: aur_transport_proxy
+    apply:
+      tags:
+        - packages
+        - install
+        - aur
+  when:
+    - packages_aur_all | length > 0
+    - packages_aur_transport_proxy_enabled | bool
+  tags: ['packages', 'install', 'aur']
 
 - name: Install AUR packages (yay)
   ansible.builtin.include_role:
