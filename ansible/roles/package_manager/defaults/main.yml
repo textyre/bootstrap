@@ -23,6 +23,7 @@ package_manager_pacman_multilib: false
 # Внешний кэш pacman (опционально)
 package_manager_pacman_external_cache: false
 package_manager_pacman_cache_root: ""
+package_manager_pacman_cache_valid_time: 3600
 
 # paccache (очистка устаревших версий из кэша)
 package_manager_paccache_enabled: true
