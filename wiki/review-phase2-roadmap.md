@@ -373,7 +373,7 @@ Additionally:
 - No backup role exists until Phase 11
 - No documented "rebuild from scratch" procedure
 - No state export (list of installed packages, running services, etc.)
-- The vault password (stored in `~/.vault-pass`) is a single point of failure -- if lost, all encrypted variables are unrecoverable
+- The vault password stored in a home-directory secret file is a single point of failure -- if lost, all encrypted variables are unrecoverable
 
 **Recommendation**: Phase 0 should include: (1) document rebuild procedure, (2) backup vault password to secure external location, (3) export minimal state (package list, service list) to external storage.
 
@@ -417,7 +417,7 @@ The inventory (`ansible/inventory/hosts.yml`) defines only `localhost` as active
 
 **What exists**:
 - `ansible.cfg` references `vault_password_file = vault-pass.sh`
-- `vault-pass.sh` reads from `~/.vault-pass` file
+- `vault-pass.sh` reads from a home-directory vault password file
 - `vaultwarden` role uses `vault_vaultwarden_admin_token`
 - `grafana` wiki page uses `vault_grafana_admin_password`
 
@@ -427,7 +427,7 @@ The inventory (`ansible/inventory/hosts.yml`) defines only `localhost` as active
 - No strategy for non-Ansible secrets (GPG keys, SSH private keys, browser profiles)
 - No backup plan for the vault password itself
 
-**Risk**: If `~/.vault-pass` is lost and there is no backup, all vault-encrypted variables become unrecoverable. This is a single point of failure with no documented mitigation.
+**Risk**: If the home-directory vault password file is lost and there is no backup, all vault-encrypted variables become unrecoverable. This is a single point of failure with no documented mitigation.
 
 ---
 

@@ -1,0 +1,47 @@
+{
+  "additional-repositories": [],
+  "archinstall-language": "English",
+  "bootloader": "Grub",
+  "debug": false,
+  "disk_config": {
+    "config_type": "default_layout",
+    "device_modifications": [
+      {
+        "device": "__BOOTSTRAP_INSTALL_DISK__"
+      }
+    ]
+  },
+  "hostname": "__BOOTSTRAP_INSTALL_HOSTNAME__",
+  "kernels": ["linux"],
+  "locale_config": {
+    "kb_layout": "__BOOTSTRAP_INSTALL_KEYBOARD_LAYOUT__",
+    "sys_enc": "UTF-8",
+    "sys_lang": "__BOOTSTRAP_INSTALL_LOCALE__"
+  },
+  "network_config": {
+    "type": "manual",
+    "nics": [
+      {
+        "iface": null,
+        "dhcp": true,
+        "ip": null,
+        "gateway": null,
+        "dns": null
+      }
+    ]
+  },
+  "ntp": true,
+  "offline": false,
+  "packages": ["base-devel", "openssh", "sudo", "wget", "curl"],
+  "profile_config": null,
+  "services": ["sshd"],
+  "swap": false,
+  "timezone": "__BOOTSTRAP_INSTALL_TIMEZONE__",
+  "custom-commands": [
+    "mkdir -p /home/__BOOTSTRAP_INSTALL_USERNAME__/.ssh",
+    "echo '__BOOTSTRAP_SSH_PUBLIC_KEY__' > /home/__BOOTSTRAP_INSTALL_USERNAME__/.ssh/authorized_keys",
+    "chmod 700 /home/__BOOTSTRAP_INSTALL_USERNAME__/.ssh",
+    "chmod 600 /home/__BOOTSTRAP_INSTALL_USERNAME__/.ssh/authorized_keys",
+    "chown -R __BOOTSTRAP_INSTALL_USERNAME__:__BOOTSTRAP_INSTALL_USERNAME__ /home/__BOOTSTRAP_INSTALL_USERNAME__/.ssh"
+  ]
+}

@@ -4,7 +4,8 @@
 
 - `bootstrap.sh` полностью настраивает систему с нуля (Arch Linux)
 - Все секреты (sudo пароль) хранятся в Ansible Vault
-- Vault пароль запрашивается один раз при bootstrap, сохраняется в `~/.vault-pass`
+- Vault/install secrets живут в project-local `.local/bootstrap/` и
+  `BOOTSTRAP_*` env boundary
 - Без ручных шагов после `./bootstrap.sh`
 
 ## Роли — порядок и зависимости

@@ -10,13 +10,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SSH_HOST="${SSH_HOST:-arch-127.0.0.1-2222}"
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=60"
+SSH_PORT="${SSH_PORT:-}"
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=60)
 REMOTE_BASE="/home/textyre/bootstrap"
+
+if [[ -n "${SSH_PORT}" ]]; then
+    SSH_OPTS+=(-P "${SSH_PORT}")
+fi
 
 # Project sync mode
 if [[ "${1:-}" == "--project" ]]; then
     echo "==> Syncing project to ${SSH_HOST}:${REMOTE_BASE}"
-    ssh $SSH_OPTS "$SSH_HOST" \
+    ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" \
         "find ${REMOTE_BASE} -delete 2>/dev/null; rm -rf ${REMOTE_BASE} 2>/dev/null; true"
 
     PROJECT_DIRS=(ansible dotfiles scripts)
@@ -24,32 +29,34 @@ if [[ "${1:-}" == "--project" ]]; then
 
     for dir in "${PROJECT_DIRS[@]}"; do
         echo "  copying ${dir}/"
-        ssh $SSH_OPTS "$SSH_HOST" "mkdir -p ${REMOTE_BASE}/${dir}"
+        ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "mkdir -p ${REMOTE_BASE}/${dir}"
         if [[ "$dir" == "ansible" ]]; then
             # Use tar to exclude platform-specific artifacts that must not reach the VM
             (cd "${REPO_ROOT}" && tar cf - \
                 --exclude='ansible/.venv' \
                 --exclude='ansible/__pycache__' \
                 --exclude='ansible/.molecule' \
+                --exclude='ansible/.vault-pass' \
+                --exclude='ansible/*.vault-pass' \
                 "${dir}/") | \
-                ssh $SSH_OPTS "$SSH_HOST" "tar xf - -C ${REMOTE_BASE}/"
+                ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "tar xf - -C ${REMOTE_BASE}/"
         else
-            scp -v -r $SSH_OPTS "${REPO_ROOT}/${dir}" "$SSH_HOST:${REMOTE_BASE}/"
+            scp -v -r "${SSH_OPTS[@]}" "${REPO_ROOT}/${dir}" "$SSH_HOST:${REMOTE_BASE}/"
         fi
     done
 
     for file in "${PROJECT_FILES[@]}"; do
         if [[ -f "${REPO_ROOT}/${file}" ]]; then
             echo "  copying ${file}"
-            scp -v $SSH_OPTS "${REPO_ROOT}/${file}" "$SSH_HOST:${REMOTE_BASE}/"
+            scp -v "${SSH_OPTS[@]}" "${REPO_ROOT}/${file}" "$SSH_HOST:${REMOTE_BASE}/"
         fi
     done
 
     # Fix permissions (Windows scp sets world-writable which breaks ansible.cfg)
     echo "  fixing directory permissions"
-    ssh $SSH_OPTS "$SSH_HOST" "chmod -R u+rwX,go+rX,go-w ${REMOTE_BASE}"
+    ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "chmod -R u+rwX,go+rX,go-w ${REMOTE_BASE}"
     echo "  fixing script permissions"
-    ssh $SSH_OPTS "$SSH_HOST" \
+    ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" \
         "chmod +x ${REMOTE_BASE}/bootstrap.sh \
                   ${REMOTE_BASE}/scripts/*.sh \
                   ${REMOTE_BASE}/ansible/vault-pass.sh"
@@ -75,5 +82,5 @@ ARGS=("$@")
 REMOTE_PATH="${ARGS[-1]}"
 LOCAL_PATHS=("${ARGS[@]:0:$#-1}")
 
-ssh $SSH_OPTS "$SSH_HOST" "mkdir -p '$REMOTE_PATH'"
-scp -v $RECURSIVE $SSH_OPTS "${LOCAL_PATHS[@]}" "$SSH_HOST:$REMOTE_PATH"
+ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "mkdir -p '$REMOTE_PATH'"
+scp -v $RECURSIVE "${SSH_OPTS[@]}" "${LOCAL_PATHS[@]}" "$SSH_HOST:$REMOTE_PATH"

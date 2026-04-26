@@ -55,8 +55,10 @@ task workstation # Применить все 14 ролей
 ## Тестирование
 
 ```bash
-# Настройка vault (один раз)
-echo 'your_vault_password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+# Настройка project-local bootstrap secrets (один раз)
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+scripts/setup-vault-pass.sh
 
 # Запуск тестов
 task test                 # Все роли

@@ -1,0 +1,12 @@
+{
+  "!users": [
+    {
+      "!password": "__BOOTSTRAP_INSTALL_USER_PASSWORD__",
+      "groups": ["wheel"],
+      "shell": "/bin/bash",
+      "sudo": true,
+      "username": "__BOOTSTRAP_INSTALL_USERNAME__"
+    }
+  ],
+  "!root-password": "__BOOTSTRAP_INSTALL_ROOT_PASSWORD__"
+}

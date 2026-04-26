@@ -1,37 +1,38 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Cascading vault password resolver
+# Project bootstrap vault password resolver
 # Used by ansible.cfg: vault_password_file = ./vault-pass.sh
 #
-# Priority:
-#   1. Project-local .vault-pass (next to this script)
-#   2. GNU Password Store (pass) — GPG-encrypted
-#   3. Home directory ~/.vault-pass
-#   4. Error with setup instructions
+# Sources:
+#   1. BOOTSTRAP_VAULT_PASSWORD env var
+#   2. BOOTSTRAP_VAULT_PASSWORD_GPG_FILE
+#   3. BOOTSTRAP_VAULT_PASSWORD_FILE (compatibility fallback)
+#   3. Error with setup instructions
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "${SCRIPT_DIR}")"
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/scripts/bootstrap-env.sh"
 
-# 1. Try project-local file
-if [ -f "${SCRIPT_DIR}/.vault-pass" ]; then
-    cat "${SCRIPT_DIR}/.vault-pass"
+if [[ -n "${BOOTSTRAP_VAULT_PASSWORD:-}" ]]; then
+    printf '%s\n' "${BOOTSTRAP_VAULT_PASSWORD}"
     exit 0
 fi
 
-# 2. Try GNU Password Store (GPG-encrypted)
-if command -v pass &>/dev/null; then
-    pass show ansible/vault-password 2>/dev/null && exit 0
-fi
-
-# 3. Try home directory
-if [ -f "${HOME}/.vault-pass" ]; then
-    cat "${HOME}/.vault-pass"
+if [[ -n "${BOOTSTRAP_VAULT_PASSWORD_GPG_FILE:-}" && -f "${BOOTSTRAP_VAULT_PASSWORD_GPG_FILE}" ]]; then
+    gpg --quiet --batch --decrypt -- "${BOOTSTRAP_VAULT_PASSWORD_GPG_FILE}"
     exit 0
 fi
 
-# 4. Fail with clear instructions
+if [[ -n "${BOOTSTRAP_VAULT_PASSWORD_FILE:-}" && -f "${BOOTSTRAP_VAULT_PASSWORD_FILE}" ]]; then
+    cat "${BOOTSTRAP_VAULT_PASSWORD_FILE}"
+    exit 0
+fi
+
 echo "ERROR: Vault password not found." >&2
 echo "Setup options:" >&2
-echo "  1. Place .vault-pass in the ansible/ directory" >&2
-echo "  2. pass insert ansible/vault-password" >&2
+echo "  1. Copy scripts/bootstrap.env.example to .local/bootstrap/bootstrap.env" >&2
+echo "  2. Export BOOTSTRAP_VAULT_PASSWORD or set BOOTSTRAP_VAULT_PASSWORD_GPG_FILE" >&2
+echo "  3. Run scripts/setup-vault-pass.sh to create the local encrypted secret" >&2
 exit 1
