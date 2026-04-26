@@ -84,7 +84,7 @@
 
 - name: "Collect service states"
   ansible.builtin.set_fact:
-    _vm_svc_states: "{{ _vm_svc_result.results | map(attribute='state') | list }}"
+    _vm_svc_states: "{{ _vm_svc_result.results | map(attribute='state', default='unknown') | list }}"
   tags: ['vm', 'vm:service', 'vm:report']
 
 - name: "Report service status ({{ _vm_effective_label | default('') }})"

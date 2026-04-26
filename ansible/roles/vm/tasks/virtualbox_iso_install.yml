@@ -1,26 +1,25 @@
 ---
 # ===================================================================
-# VirtualBox Guest Additions - ISO Installation with Recovery
+# VirtualBox Guest Additions - ISO Installation
 # ===================================================================
 #
 # Purpose:
 #   Install VirtualBox Guest Additions from ISO when host/guest
-#   versions mismatch. Includes full block/rescue/always recovery.
+#   versions mismatch. Includes block/always cleanup.
 #
 # Called from:
-#   virtualbox_version.yml (only when versions mismatch)
+#   virtualbox_version.yml (only when versions mismatch and kernel ready)
 #
 # Expected variables:
-#   - vm_vbox_host_ver: target version to install (from version check)
+#   - vm_vbox_host_ver: target version to install (from version detection)
 #   - vm_vbox_iso_dirs_pre: find result for existing ISO dirs
-#   - vm_packages_virtualbox_guest: package list from group_vars
 #
 # Sets facts:
 #   - vm_vbox_iso_installed: true (on success)
 #
-# Recovery guarantee:
-#   On failure, automatically reverts to pacman GA packages.
-#   If recovery also fails, playbook fails with diagnostics.
+# On failure:
+#   Collects diagnostics and fails with actionable message.
+#   No pacman fallback — pacman GA version will never match the host.
 #
 # ===================================================================
 
@@ -39,9 +38,28 @@
         dest: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso"
         mode: '0644'
 
+    # Kernel headers package name differs per distro:
+    #   Arch:   linux-headers  /  linux-lts-headers
+    #   Debian: linux-headers-<uname -r>  (dynamic per running kernel)
+    #   RedHat: kernel-devel
+    #   Void:   linux-headers
+    #   Gentoo: headers are part of kernel source — no separate package
+    - name: "VirtualBox: Resolve kernel headers package for this OS"
+      ansible.builtin.set_fact:
+        _vm_vbox_kernel_headers: >-
+          {{
+            {
+              'Archlinux': 'linux-lts-headers' if '-lts' in vm_vbox_kernel_for_iso.stdout else 'linux-headers',
+              'Debian':    'linux-headers-' + vm_vbox_kernel_for_iso.stdout | trim,
+              'RedHat':    'kernel-devel',
+              'Void':      'linux-headers',
+              'Gentoo':    ''
+            }[ansible_facts['os_family']] | default('linux-headers')
+          }}
+
     - name: "VirtualBox: Install build dependencies"
       ansible.builtin.package:
-        name: "{{ ['gcc', 'make', 'perl'] + (['linux-lts-headers'] if '-lts' in vm_vbox_kernel_for_iso.stdout else ['linux-headers']) }}"
+        name: "{{ ['gcc', 'make', 'perl'] + ([_vm_vbox_kernel_headers] if _vm_vbox_kernel_headers | length > 0 else []) }}"
         state: present
       retries: 3
       delay: 5
@@ -60,12 +78,6 @@
         state: stopped
       failed_when: false
 
-    - name: "VirtualBox: Remove pacman GA packages"
-      ansible.builtin.package:
-        name: "{{ vm_packages_virtualbox_guest }}"
-        state: absent
-      when: vm_packages_virtualbox_guest | length > 0
-
     - name: "VirtualBox: Remove existing ISO Guest Additions"
       ansible.builtin.command:
         cmd: "{{ item.path }}/uninstall.sh"
@@ -81,14 +93,25 @@
         state: directory
         mode: '0755'
 
+    # iso9660 module may be absent when the kernel was upgraded during this
+    # same playbook run (running kernel ≠ installed kernel). Explicit modprobe
+    # gives a readable error instead of a cryptic mount failure.
+    - name: "VirtualBox: Ensure iso9660 filesystem module is loaded"
+      community.general.modprobe:
+        name: iso9660
+        state: present
+
     - name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ vm_vbox_host_ver }}.iso /mnt/vbox_iso"
       changed_when: true
 
     - name: "VirtualBox: Run VBoxLinuxAdditions.run"
-      ansible.builtin.command:
-        cmd: /mnt/vbox_iso/VBoxLinuxAdditions.run --nox11
+      ansible.builtin.shell:
+        # Use </dev/null to prevent the installer blocking on stdin under Ansible
+        # (no TTY → pipe never closes → run hangs indefinitely without this).
+        # timeout 300 kills the process if compilation takes > 5 minutes.
+        cmd: timeout 300 /mnt/vbox_iso/VBoxLinuxAdditions.run --nox11 </dev/null
       register: vm_vbox_iso_install_result
       changed_when: true
       failed_when: false
@@ -141,47 +164,25 @@
         vm_vbox_iso_installed: true
 
   rescue:
-    - name: "VirtualBox: RECOVERY - Re-install pacman GA packages"
-      ansible.builtin.package:
-        name: "{{ vm_packages_virtualbox_guest }}"
-        state: present
-      register: vm_vbox_recovery
-      failed_when: false
-
-    - name: "VirtualBox: RECOVERY - Re-enable vboxservice"
-      ansible.builtin.service:
-        name: vboxservice
-        enabled: true
-        state: started
-      when: vm_vbox_recovery is succeeded
-      failed_when: false
-
     - name: "VirtualBox: Collect failure diagnostics"
       ansible.builtin.shell: |
         set -o pipefail
         echo "=== Kernel ===" && uname -r
         echo "=== VBoxGuestAdditions ISOs ===" && ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'
         echo "=== Loaded vbox modules ===" && lsmod | grep vbox || echo 'No vbox modules'
+        echo "=== dmesg vboxguest ===" && dmesg 2>/dev/null | grep vboxguest | tail -5 || echo 'dmesg unavailable'
       args:
         executable: /bin/bash
       register: vm_vbox_iso_diag
       changed_when: false
       failed_when: false
 
-    - name: "VirtualBox: CRITICAL - ISO install and recovery both failed"
+    - name: "VirtualBox: CRITICAL — ISO installation failed"
       ansible.builtin.fail:
         msg: >-
-          Failed to install VBoxGuestAdditions {{ vm_vbox_host_ver }} from ISO, and pacman recovery also failed.
+          Failed to install VBoxGuestAdditions {{ vm_vbox_host_ver }} from ISO.
+          If the kernel was just upgraded, reboot the VM first, then re-run the playbook.
           Diagnostics: {{ vm_vbox_iso_diag.stdout }}
-      when: vm_vbox_recovery is failed
-
-    - name: "VirtualBox: ISO install failed, reverted to pacman"
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: ISO GA install failed. Reverted to pacman packages ({{ vm_vbox_guest_ver }}).
-          Version mismatch persists (host={{ vm_vbox_host_ver }}).
-      when: vm_vbox_recovery is succeeded
-      tags: ['vm', 'vbox', 'vm:install', 'vm:report']
 
   always:
     - name: "VirtualBox: Unmount ISO"  # noqa: command-instead-of-module

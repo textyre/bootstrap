@@ -1,9 +1,8 @@
 ---
 # === VirtualBox Guest Additions ===
 #
-# Services:
-#   vboxservice / vboxadd-service -- guest service (time sync, clipboard, seamless mode)
-#     (vboxservice = pacman install, vboxadd-service = ISO install)
+# Service:
+#   vboxadd-service -- guest service installed by ISO (time sync, clipboard, seamless mode)
 #
 # Kernel modules:
 #   vboxguest  -- core guest integration module (REQUIRED)
@@ -13,91 +12,33 @@
 # Version enforcement:
 #   Guest Additions version MUST match host VirtualBox version.
 #   Mismatch causes shared folders, clipboard, and display resize to break.
-#   If mismatch detected, role downloads and installs from ISO automatically.
+#   Host version is detected from the kernel ring buffer (vboxguest module log)
+#   without requiring any packages. GA is always installed from ISO — never from
+#   the distro package manager, which tracks upstream VirtualBox release cadence
+#   independently of what version is installed on this host.
 
-# ---- Phase 1: Detect existing installation ----
+# ---- Phase 1: Detect existing ISO installation ----
 
-- name: "VirtualBox: Detect existing installation"
-  tags: ['vm', 'vbox', 'vm:install']
-  block:
-    - name: "Check if VBoxControl is available"
-      ansible.builtin.command:
-        cmd: which VBoxControl
-      register: vm_vbox_control_check
-      changed_when: false
-      failed_when: false
-
-    - name: "Check for existing ISO Guest Additions"
-      ansible.builtin.find:
-        paths: /opt
-        patterns: 'VBoxGuestAdditions-*'
-        file_type: directory
-      register: vm_vbox_iso_dirs_pre
-      changed_when: false
-      failed_when: false
-
-# ---- Phase 2: Initial install for detection (only if VBoxControl missing) ----
-
-- name: "VirtualBox: Install pacman GA for version detection"
-  ansible.builtin.package:
-    name: "{{ vm_packages_virtualbox_guest }}"
-    state: present
-  when:
-    - vm_vbox_control_check.rc != 0
-    - vm_packages_virtualbox_guest | length > 0
-  register: vm_vbox_initial_install
-  retries: 3
-  delay: 5
-  until: vm_vbox_initial_install is succeeded
-  notify: "Restart virtualbox services"
+- name: "VirtualBox: Check for existing ISO Guest Additions"
+  ansible.builtin.find:
+    paths: /opt
+    patterns: 'VBoxGuestAdditions-*'
+    file_type: directory
+  register: vm_vbox_iso_dirs_pre
+  changed_when: false
+  failed_when: false
   tags: ['vm', 'vbox', 'vm:install']
 
-# ---- Phase 3: Version detection and ISO enforcement ----
+# ---- Phase 2: Version detection and ISO enforcement ----
 
 - name: "VirtualBox: Version detection and ISO enforcement"
   ansible.builtin.include_tasks: virtualbox_version.yml
-  when: vm_vbox_version_check
   tags: ['vm', 'vbox', 'vm:verify', 'vm:install']
 
-# ---- Phase 4: Pacman path (versions match OR version check disabled) ----
-
-- name: "VirtualBox: Install packages (pacman path)"
-  tags: ['vm', 'vbox', 'vm:install']
-  block:
-    - name: "Check if packages are defined"
-      ansible.builtin.set_fact:
-        _vm_vbox_has_packages: "{{ vm_packages_virtualbox_guest | length > 0 }}"
-
-    - name: "Check if NOT on ISO install path"
-      ansible.builtin.set_fact:
-        _vm_vbox_not_iso_path: "{{ not (vm_vbox_iso_installed | default(false)) and (vm_vbox_iso_dirs_pre.matched | default(0) == 0) }}"
-
-    - name: "Check version compatibility"
-      ansible.builtin.set_fact:
-        _vm_vbox_versions_ok: "{{ not vm_vbox_version_check or (vm_vbox_host_ver | default('') == vm_vbox_guest_ver | default('')) or vm_vbox_host_ver | default('') == 'unknown' }}"
-
-    - name: "Determine if pacman path applies"
-      ansible.builtin.set_fact:
-        _vm_vbox_use_pacman_path: "{{ _vm_vbox_has_packages and _vm_vbox_not_iso_path and _vm_vbox_versions_ok }}"
-
-    - name: "Ensure pacman GA packages installed"
-      ansible.builtin.package:
-        name: "{{ vm_packages_virtualbox_guest }}"
-        state: present
-      when: _vm_vbox_use_pacman_path | bool
-      register: vm_vbox_pkg_install
-      retries: 3
-      delay: 5
-      until: vm_vbox_pkg_install is succeeded
-      notify: "Restart virtualbox services"
-
-# ---- Phase 5: LTS kernel DKMS support (only for pacman path) ----
-
-- name: "VirtualBox: LTS kernel DKMS support"
-  ansible.builtin.include_tasks: virtualbox_lts_kernel.yml
-  tags: ['vm', 'vbox', 'vm:install']
-
-# ---- Phase 6: Determine active service name ----
+# ---- Phase 3: Determine active service name ----
+# GA is always installed from ISO → service is always vboxadd-service.
+# Fall back to vboxservice only if no ISO installation was found (e.g., first run
+# on a VM with pre-existing pacman GA from a previous configuration).
 
 - name: "VirtualBox: Determine active service name"
   tags: ['vm', 'vbox', 'vm:service']
@@ -118,7 +59,7 @@
       ansible.builtin.set_fact:
         vm_vbox_service_name: "{{ 'vboxadd-service' if _vm_vbox_iso_present | bool else 'vboxservice' }}"
 
-# ---- Phase 6b: /dev/vboxguest permissions ----
+# ---- Phase 4: /dev/vboxguest permissions ----
 # ISO installer creates /etc/udev/rules.d/60-vboxadd.rules with:
 #   KERNEL=="vboxguest", OWNER="vboxadd", MODE="0660"
 # This gives access only to user vboxadd and group root.
@@ -136,10 +77,16 @@
   notify: "Reload vboxguest udev"
   tags: ['vm', 'vbox']
 
-# ---- Phase 6c: User group membership ----
-# vboxsf group is created by the ISO installer (shared_folder_setup) or
-# by the virtualbox-guest-utils pacman package. Users must be in this group
-# to access auto-mounted shared folders and /dev/vboxguest (after udev rule above).
+# ---- Phase 5: User group membership ----
+# vboxsf group is created by the ISO installer (VBoxLinuxAdditions.run).
+# Ensure the group exists so the user can be added even when ISO install
+# is deferred until reboot (kernel mismatch on first run).
+
+- name: "VirtualBox: Ensure vboxsf group exists"
+  ansible.builtin.group:
+    name: vboxsf
+    state: present
+  tags: ['vm', 'vbox']
 
 - name: "VirtualBox: Warn — cannot add root to vboxsf, use sudo from regular user"
   ansible.builtin.debug:
@@ -292,11 +239,6 @@
 
 # ---- Phase 12: Reboot flag ----
 
-- name: "VirtualBox: Check if packages were installed"
-  ansible.builtin.set_fact:
-    _vm_vbox_pkg_changed: "{{ vm_vbox_pkg_install is defined and vm_vbox_pkg_install is changed }}"
-  tags: ['vm', 'vbox']
-
 - name: "VirtualBox: Check if ISO path was used"
   ansible.builtin.set_fact:
     _vm_vbox_iso_used: "{{ vm_vbox_iso_installed | default(false) }}"
@@ -309,7 +251,7 @@
 
 - name: "VirtualBox: Determine reboot requirement"
   ansible.builtin.set_fact:
-    _vm_needs_reboot: "{{ (_vm_vbox_pkg_changed or _vm_vbox_iso_used) and not _vm_vbox_module_loaded }}"
+    _vm_needs_reboot: "{{ _vm_vbox_iso_used and not _vm_vbox_module_loaded }}"
   tags: ['vm', 'vbox']
 
 - name: "VirtualBox: Check reboot requirement"

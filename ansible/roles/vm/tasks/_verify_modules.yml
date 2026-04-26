@@ -38,6 +38,36 @@
 #   - Failure: Any required module is missing from the system
 # =========================================================================
 
+- name: "Detect installed kernel version ({{ vm_mod_label }})"
+  ansible.builtin.shell:
+    cmd: "ls -1 /lib/modules/ | sort -V | tail -1"
+  args:
+    executable: /bin/bash
+  register: _vm_installed_kernel
+  changed_when: false
+  failed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "Get running kernel version ({{ vm_mod_label }})"
+  ansible.builtin.command: uname -r
+  register: _vm_running_kernel
+  changed_when: false
+  tags: ['vm', 'vm:verify']
+
+- name: "Set kernel mismatch fact ({{ vm_mod_label }})"
+  ansible.builtin.set_fact:
+    _vm_kernel_mismatch: "{{ _vm_running_kernel.stdout != (_vm_installed_kernel.stdout | trim) }}"
+  tags: ['vm', 'vm:verify']
+
+- name: "Warn: kernel upgraded, module verification skipped ({{ vm_mod_label }})"
+  ansible.builtin.debug:
+    msg: >-
+      Kernel mismatch: running {{ _vm_running_kernel.stdout }},
+      installed {{ _vm_installed_kernel.stdout | trim }}.
+      Module verification skipped — reboot needed for {{ vm_mod_label }} modules.
+  when: _vm_kernel_mismatch | bool
+  tags: ['vm', 'vm:verify']
+
 - name: "Check module availability ({{ vm_mod_label }})"
   ansible.builtin.command: "modinfo {{ item.name }}"
   register: vm_modinfo_results
@@ -46,6 +76,7 @@
     label: "{{ item.name }}"
   changed_when: false
   failed_when: false
+  when: not (_vm_kernel_mismatch | bool)
   tags: ['vm', 'vm:verify']
 
 - name: "Verify required modules available ({{ vm_mod_label }})"
@@ -56,6 +87,7 @@
   loop: "{{ vm_modinfo_results.results | selectattr('item.required', 'equalto', true) | list }}"
   loop_control:
     label: "{{ item.item.name }}"
+  when: not (_vm_kernel_mismatch | bool)
   tags: ['vm', 'vm:verify']
 
 - name: "Check loaded status ({{ vm_mod_label }})"
