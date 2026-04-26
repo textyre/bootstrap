@@ -76,9 +76,10 @@ When user mentions "VM", "сервер", "server", "remote", or doesn't specify 
    grep -A5 "arch-127.0.0.1-2222" ~/.ssh/config
    ```
 
-### Getting Sudo Password from Ansible Vault
+### Getting Sudo Password for Remote Commands
 
-Sudo password is stored in `~/.vault-pass` on the VM.
+Sudo password is resolved by the local project bootstrap boundary, not by a
+persistent password file on the VM.
 
 **Use the script (handles password automatically):**
 ```bash
@@ -87,12 +88,8 @@ Sudo password is stored in `~/.vault-pass` on the VM.
 ./scripts/ssh-sudo.sh "pacman -Syu --noconfirm"       # Update packages
 ```
 
-**Extract password manually (if needed):**
-```bash
-./scripts/ssh-run.sh "cat ~/.vault-pass"
-```
-
-**Note:** The default VM has passwordless sudo configured, so `ssh-sudo.sh` is rarely needed.
+**Note:** `ssh-sudo.sh` sends the password directly to remote `sudo -S` and is
+expected to work without leaving a persistent password artifact on the VM.
 
 ### NEVER Do This
 

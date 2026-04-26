@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "supergrep": {
-      "command": "supergrep",
+      "command": "D:\\AppData\\Local\\nvm\\v24.13.1\\node.exe",
       "args": [
+        "D:\\projects\\supergrep\\dist\\cli\\index.js",
         "mcp-serve"
       ]
     }
