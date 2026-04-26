@@ -43,6 +43,7 @@ full_dependencies.txt
 windows/config/config.ps1
 windows/.env
 .local/bootstrap/
+.codex/
 
 # ---- Sensitive keys ----
 *.pem
