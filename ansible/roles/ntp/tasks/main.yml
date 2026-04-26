@@ -83,6 +83,20 @@
     # ---- Директории ----
     # ======================================================================
 
+    # /usr/lib/tmpfiles.d/chrony.conf ships "d /var/lib/chrony 0755 ..." which
+    # systemd-tmpfiles resets on every boot. Override it so Ansible's 0750 survives.
+    - name: Override tmpfiles.d to enforce secure mode for /var/lib/chrony
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/chrony.conf
+        content: |
+          # Managed by Ansible — overrides /usr/lib/tmpfiles.d/chrony.conf
+          d /var/lib/chrony 0750 chrony chrony - -
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_facts['service_mgr'] == 'systemd'
+      tags: ['ntp']
+
     - name: Ensure chrony directories exist
       ansible.builtin.file:
         path: "{{ item.path }}"
