@@ -30,6 +30,7 @@ reflector_retry_delay: 5
 reflector_connection_timeout: 10
 reflector_download_timeout: 30
 reflector_proxy: ""
+reflector_pacman_cache_valid_time: 3600
 
 # Backup rotation: how many timestamped backups to keep (0 = keep all)
 reflector_backup_keep: 3
