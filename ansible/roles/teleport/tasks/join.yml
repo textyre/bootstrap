@@ -8,4 +8,5 @@
     fail_msg: >-
       teleport_join_token must be set for node to join the cluster.
       Use a static token or configure IAM-based joining.
+  when: teleport_mode == 'agent'
   tags: [teleport, security]

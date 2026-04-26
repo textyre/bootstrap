@@ -12,32 +12,41 @@ teleport_supported_os:
 # Installation method: package (Arch AUR), repo (Debian/RedHat APT/YUM), binary (CDN tarball)
 # In defaults/ so molecule host_vars can override (include_vars has higher priority)
 teleport_install_method: >-
-  {{ {'Archlinux': 'package', 'Debian': 'repo', 'RedHat': 'repo'}[ansible_facts['os_family']]
+  {{ {'Debian': 'repo', 'RedHat': 'repo'}[ansible_facts['os_family']]
      | default('binary') }}
 
 # --- ROLE-010: Per-subsystem toggles ---
-# Master toggle — set false to skip the entire role
-teleport_enabled: true
+# Operating mode:
+#   standalone — auth + proxy + node on one machine; no external auth_server required
+#   agent      — node-only; joins external cluster; teleport_auth_server + teleport_join_token required
+teleport_mode: standalone
 # Per-phase toggles — control which phases execute independently
 teleport_manage_install: true
 teleport_manage_config: true
 teleport_manage_service: true
 
 # Core configuration
-teleport_version: "17.4.10"
-teleport_auth_server: ""
-teleport_join_token: ""
+teleport_version: "17.5.1"
+teleport_auth_server: ""   # required when teleport_mode == 'agent'
+teleport_join_token: ""    # required when teleport_mode == 'agent'
 teleport_node_name: "{{ ansible_hostname }}"
 teleport_labels: {}
 
-# SSH features
+# Standalone mode: listen / advertise addresses
+teleport_auth_listen_addr: "0.0.0.0:3025"
+teleport_proxy_listen_addr: "0.0.0.0:3080"
+teleport_proxy_public_addr: "{{ ansible_hostname }}:3080"
+
+# SSH / recording features
 teleport_ssh_enabled: true
 teleport_proxy_mode: false
 teleport_session_recording: "node"
 teleport_enhanced_recording: false
 
 # CA integration with ssh role
-teleport_export_ca_key: true
+# Default false: standalone mode requires running auth service before CA export
+# Enable after first successful service start: teleport_export_ca_key: true
+teleport_export_ca_key: false
 teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub
 
 # --- ROLE-010: Override dict for teleport.yaml template ---
