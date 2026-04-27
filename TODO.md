@@ -14,7 +14,7 @@
 
 - [x] `YAML Lint & Syntax`
 - [x] `Ansible Lint`
-- [ ] `packages (test-docker)`
+- [x] `packages (test-docker)`
 - [ ] `package_manager (test-docker)`
 - [ ] `docker (test-docker)`
 - [ ] `vaultwarden (test-docker)`
