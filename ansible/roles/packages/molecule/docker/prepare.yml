@@ -1,4 +1,14 @@
 ---
+- name: Prepare controller for packages docker scenario
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Install kewlfft.aur collection for AUR-backed package scenarios
+      ansible.builtin.command: ansible-galaxy collection install kewlfft.aur
+      changed_when: true
+      when:
+        - hostvars['Archlinux-systemd'].yay_packages_aur | default([]) | length > 0
+
 - name: Prepare
   hosts: all
   become: true
