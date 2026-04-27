@@ -16,10 +16,18 @@ ntp_enabled: true
 # NTP-серверы — список объектов {host, nts, iburst}
 # Три независимых провайдера с поддержкой NTS (RFC 8915)
 ntp_servers:
-  - { host: "time.cloudflare.com", nts: true, iburst: true }
-  - { host: "time.nist.gov", nts: true, iburst: true }
-  - { host: "ptbtime1.ptb.de", nts: true, iburst: true }
-  - { host: "ptbtime2.ptb.de", nts: true, iburst: true }
+  - host: "time.cloudflare.com"
+    nts: true
+    iburst: true
+  - host: "time.nist.gov"
+    nts: true
+    iburst: true
+  - host: "ptbtime1.ptb.de"
+    nts: true
+    iburst: true
+  - host: "ptbtime2.ptb.de"
+    nts: true
+    iburst: true
 
 # Коррекция часов при запуске chrony
 # Прыжок если расхождение > threshold сек, только в первые limit обновлений
@@ -32,7 +40,8 @@ ntp_minsources: 2
 
 # Пути к файлам chrony
 ntp_driftfile: "/var/lib/chrony/drift"
-ntp_dumpdir: "/var/lib/chrony"     # история измерений — ускоряет старт после перезагрузки
+# История измерений — ускоряет старт после перезагрузки
+ntp_dumpdir: "/var/lib/chrony"
 
 # Каталог для лог-файлов chrony (читается Promtail/Loki)
 ntp_logdir: "/var/log/chrony"
@@ -62,22 +71,27 @@ ntp_pools: []
 # Example: ["192.168.1.0/24", "10.0.0.0/8"]
 ntp_allow: []
 
-# NTS cookie cache directory (ускоряет повторное NTS-рукопожатие после перезапуска)
-# chrony сохраняет NTS session cookies, при рестарте пропускает полный TLS handshake
+# NTS cookie cache directory.
+# Ускоряет повторное NTS-рукопожатие после перезапуска.
+# chrony сохраняет NTS session cookies и при рестарте
+# пропускает полный TLS handshake.
 ntp_ntsdumpdir: "/var/lib/chrony/nts-data"
 
 # === Environment detection ===
-# When true, reads ansible_facts['virtualization_type'] and adapts chrony config:
+# When true, reads ansible_facts['virtualization_type']
+# and adapts chrony config:
 #   refclock PHC, makestep, rtcsync per hypervisor
 # Set false to use ntp_refclocks manually.
 ntp_auto_detect: true
 
 # Manual refclock directives (list of raw chrony refclock strings).
-# Populated automatically from detected environment when ntp_auto_detect: true.
+# Populated automatically from detected environment
+# when ntp_auto_detect: true.
 # Override to force specific refclocks regardless of detected environment.
-# Example: ["refclock PHC /dev/ptp0 poll 3 dpoll -2 offset 0 stratum 2"]
+# Example:
+#   ["refclock PHC /dev/ptp0 poll 3 dpoll -2 offset 0 stratum 2"]
 ntp_refclocks: []
 
-# Stop and disable ntpd and openntpd if found (in addition to systemd-timesyncd).
+# Stop and disable ntpd and openntpd if found
+# (in addition to systemd-timesyncd).
 ntp_disable_competitors: true
-
