@@ -187,6 +187,9 @@ TCPKeepAlive {{ ssh_tcp_keepalive }}
 # Показывать MOTD (Message of the Day) при входе
 PrintMotd {{ ssh_print_motd }}
 
+# Показывать время предыдущего успешного входа
+PrintLastLog {{ ssh_print_last_log }}
+
 
 {% if ssh_banner_enabled %}
 # Баннер — текст, показываемый ДО аутентификации
