@@ -9,19 +9,7 @@
 
 ## В РАБОТЕ
 
-### `BOOT-013`
-Починка CI идет строго последовательно по GitHub Actions jobs. Отмечаются только те пункты, которые уже реально стали зелеными в CI после commit/push.
-
-- [x] `YAML Lint & Syntax`
-- [x] `Ansible Lint`
-- [x] `packages (test-docker)`
-- [x] `package_manager (test-docker)`
-- [x] `docker (test-docker)`
-- [x] `vaultwarden (test-docker)`
-- [x] `ssh (test-docker)`
-- [ ] `teleport (test-docker)`
-- [ ] `ssh (test-vagrant/arch)`
-- [ ] `ssh (test-vagrant/ubuntu)`
+Пока пусто.
 
 ## РЕВЬЮ
 
@@ -59,3 +47,6 @@
 
 ### `BOOT-012`
 Secure bootstrap model доведена до рабочей и безопасной реализации: runtime vault/sudo secret переведен на GPG-encrypted project-local secret в `.local/bootstrap/vault-pass.gpg`, plaintext `.local/bootstrap/vault-pass` / `.local/bootstrap/sudo-password` больше не являются обязательной основой, remote bootstrap/task runs форвардят секрет эпизодически через `ssh-run.sh --bootstrap-secrets`, `bootstrap_run_sudo` больше не ломает stdin/heredoc write-path, а fresh disposable VM от snapshot `Before installation` проходит standard bootstrap prepare path и доходит до реального старта Ansible без ручных правок внутри guest.
+
+### `BOOT-013`
+CI починен строго последовательно по GitHub Actions jobs без ослабления security: подтвержденно стали зелеными `YAML Lint & Syntax`, `Ansible Lint`, `packages (test-docker)`, `package_manager (test-docker)`, `docker (test-docker)`, `vaultwarden (test-docker)`, `ssh (test-docker)`, `teleport (test-docker)`, `ssh (test-vagrant/arch)` и `ssh (test-vagrant/ubuntu)`.
