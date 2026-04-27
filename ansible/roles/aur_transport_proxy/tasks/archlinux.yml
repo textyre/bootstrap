@@ -1,0 +1,36 @@
+---
+- name: Deploy makepkg download wrapper
+  ansible.builtin.template:
+    src: yay-fetch-url.sh.j2
+    dest: "{{ aur_transport_proxy_fetch_wrapper_path }}"
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['aur', 'transport_proxy']
+
+- name: Deploy makepkg DLAGENTS override
+  ansible.builtin.copy:
+    dest: "{{ aur_transport_proxy_makepkg_dropin }}"
+    content: |
+      DLAGENTS=('file::/usr/bin/curl -qgC - -o %o %u'
+                'ftp::/usr/bin/curl -qgfC - --ftp-pasv --retry 3 --retry-delay 3 -o %o %u'
+                'http::/usr/bin/curl -qgb "" -fLC - --retry 3 --retry-delay 3 -o %o %u'
+                'https::{{ aur_transport_proxy_fetch_wrapper_path }} %u %o'
+                'rsync::/usr/bin/rsync --no-motd -z %u %o'
+                'scp::/usr/bin/scp -C %u %o')
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['aur', 'transport_proxy']
+
+- name: Configure Electron mirror for npm lifecycle scripts
+  ansible.builtin.blockinfile:
+    path: "{{ aur_transport_proxy_npmrc_path }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+    marker: "; {mark} ANSIBLE MANAGED BLOCK aur_transport_proxy"
+    block: |
+      electron_mirror={{ aur_transport_proxy_electron_mirror }}
+  tags: ['aur', 'transport_proxy']

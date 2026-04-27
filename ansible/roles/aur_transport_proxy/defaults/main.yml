@@ -1,0 +1,14 @@
+---
+aur_transport_proxy_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+aur_transport_proxy_fetch_wrapper_path: "/usr/local/bin/yay-fetch-url.sh"
+aur_transport_proxy_makepkg_dropin: "/etc/makepkg.conf.d/99-yay-dlagents.conf"
+aur_transport_proxy_github_release_mirror: "https://gh-proxy.com/"
+
+aur_transport_proxy_npmrc_path: "/etc/npmrc"
+aur_transport_proxy_electron_mirror: "https://gh-proxy.com/https://github.com/electron/electron/releases/download/"

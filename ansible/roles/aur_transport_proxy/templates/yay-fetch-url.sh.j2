@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+url="$1"
+dest="$2"
+
+case "$url" in
+  https://github.com/*/releases/download/*)
+    exec /usr/bin/curl -qgb "" -fLC - --retry 3 --retry-delay 3 -o "$dest" "{{ aur_transport_proxy_github_release_mirror }}$url"
+    ;;
+  *)
+    exec /usr/bin/curl -qgb "" -fLC - --retry 3 --retry-delay 3 -o "$dest" "$url"
+    ;;
+esac

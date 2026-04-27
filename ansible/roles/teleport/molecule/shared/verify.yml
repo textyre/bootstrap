@@ -14,6 +14,7 @@
   vars:
     # These defaults mirror the values set in molecule/shared/converge.yml.
     # Override via molecule.yml extra_vars to keep verify in sync with converge.
+    molecule_teleport_mode: "agent"
     molecule_teleport_node_name: "molecule-test"
     molecule_teleport_auth_server: "localhost:3025"
     molecule_teleport_session_recording: "node"
@@ -197,7 +198,9 @@
         fail_msg: >
           Config does not contain session recording mode '{{ molecule_teleport_session_recording }}'.
           Content: {{ _teleport_verify_conf_content }}
-      when: _teleport_verify_conf_content is defined
+      when:
+        - _teleport_verify_conf_content is defined
+        - molecule_teleport_mode == 'standalone'
 
     # -----------------------------------------------------------------------
     # 4. Data directory

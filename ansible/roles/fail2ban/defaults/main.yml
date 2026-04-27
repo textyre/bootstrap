@@ -48,8 +48,9 @@ fail2ban_sshd_bantime_maxtime: 86400
 
 # Log backend: auto (systemd journal if available, else polling), systemd, polling, pyinotify.
 # Use 'polling' in containers or when journal is unavailable.
-# Use 'systemd' on hosts with python-systemd for lower latency detection.
-fail2ban_sshd_backend: auto
+# Use 'systemd' on systemd hosts for lower latency detection; otherwise keep
+# Fail2Ban's auto-detection so non-systemd platforms stay supported.
+fail2ban_sshd_backend: "{{ 'systemd' if ansible_facts['service_mgr'] == 'systemd' else 'auto' }}"
 
 # Ban action override. Empty = fail2ban default (iptables-multiport on most systems).
 # Set to 'nftables-multiport' for nftables-only hosts, or 'firewallcmd-rich-rules' for firewalld.

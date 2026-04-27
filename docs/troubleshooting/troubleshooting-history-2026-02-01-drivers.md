@@ -42,7 +42,7 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 
 ### Категория: Инфра / Vault
 
-- [x] **Vault password найден на VM** — искался на Windows хосте (нет `~/.vault-pass`, нет `pass`). Пароль находится на VM: `~/.vault-pass`.
+- [x] **Vault password найден на VM** — в тот момент искался home-directory vault password file на Windows хосте, а рабочий пароль находился в VM-side home-directory secret file.
 
 ## Не решено
 

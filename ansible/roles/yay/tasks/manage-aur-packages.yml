@@ -29,4 +29,8 @@
     state: present
   become: true
   become_user: "{{ yay_builder_user }}"
+  environment:
+    PATH: >-
+      {{ ansible_env.PATH }}{{ ':/usr/bin/core_perl:/usr/bin/vendor_perl:/usr/bin/site_perl'
+         if ansible_facts['os_family'] == 'Archlinux' else '' }}
   tags: ['install', 'aur']

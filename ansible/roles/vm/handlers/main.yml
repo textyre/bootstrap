@@ -2,10 +2,20 @@
 # === VM role handlers ===
 # These handlers are triggered by notify directives in task files.
 
-- name: Restart VirtualBox services
+- name: Restart VirtualBox services (systemd)
+  ansible.builtin.systemd:
+    name: "{{ vm_vbox_service_name | default('vboxservice') }}"
+    daemon_reload: true
+    state: restarted
+  when: vm_service_manager | default('systemd') == 'systemd'
+  failed_when: false
+  listen: "Restart virtualbox services"
+
+- name: Restart VirtualBox services (non-systemd)
   ansible.builtin.service:
     name: "{{ vm_vbox_service_name | default('vboxservice') }}"
     state: restarted
+  when: vm_service_manager | default('systemd') != 'systemd'
   failed_when: false
   listen: "Restart virtualbox services"
 
@@ -16,13 +26,7 @@
   loop:
     - vmtoolsd
     - vgauthd
-  failed_when: false
-  listen: "Restart vmware services"
-
-- name: Restart VMware vmblock-fuse
-  ansible.builtin.service:
-    name: vmware-vmblock-fuse
-    state: restarted
+    - vmware-vmblock-fuse
   failed_when: false
   listen: "Restart vmware services"
 
@@ -49,3 +53,23 @@
     daemon_reload: true
   when: vm_service_manager | default('systemd') == 'systemd'
   listen: "Reload systemd daemon"
+
+- name: Reload udev rules for vboxguest
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: false
+  listen: "Reload vboxguest udev"
+
+- name: Apply udev rules to vboxguest device
+  ansible.builtin.command: udevadm trigger /dev/vboxguest
+  changed_when: false
+  failed_when: false
+  listen: "Reload vboxguest udev"
+
+- name: Report VirtualBox vboxsf membership change
+  ansible.builtin.debug:
+    msg: >-
+      User {{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}
+      has been added to the vboxsf group. Logout and login again for this change to
+      take effect. Shared folders and VBoxControl will not work until then.
+    verbosity: 0
+  listen: "Report VirtualBox vboxsf membership change"

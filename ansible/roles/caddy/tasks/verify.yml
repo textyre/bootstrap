@@ -46,6 +46,9 @@
       register: _caddy_verify_container
       changed_when: false
       failed_when: false
+      retries: 6
+      delay: 5
+      until: _caddy_verify_container.stdout == 'running'
 
     - name: Assert caddy container is running
       ansible.builtin.assert:

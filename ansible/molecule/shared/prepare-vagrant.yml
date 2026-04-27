@@ -21,6 +21,18 @@
   gather_facts: true
   tasks:
     # ---- Arch Linux ----
+    - name: Pin pacman mirrorlist to Fastly CDN during Vagrant prepare (Arch)
+      ansible.builtin.copy:
+        dest: /etc/pacman.d/mirrorlist
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by molecule/shared/prepare-vagrant.yml.
+          # Use Arch's CDN-backed Fastly mirror to avoid geo mirror 404s in CI.
+          Server = https://fastly.mirror.pkgbuild.com/$repo/os/$arch
+      when: ansible_facts['os_family'] == 'Archlinux'
+
     - name: Force-refresh pacman package database (Arch)
       community.general.pacman:
         update_cache: true

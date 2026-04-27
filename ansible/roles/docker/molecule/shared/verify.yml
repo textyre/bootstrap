@@ -80,6 +80,12 @@
       ansible.builtin.set_fact:
         _docker_verify_daemon_dict: "{{ _docker_verify_daemon_raw.content | b64decode | from_json }}"
 
+    - name: Normalize daemon log options for assertions
+      ansible.builtin.set_fact:
+        _docker_verify_log_opts: "{{ _docker_verify_daemon_dict['log-opts'] | default({}) }}"
+        _docker_verify_log_opt_max_size: "{{ (_docker_verify_daemon_dict['log-opts'] | default({})).get('max-size', '') }}"
+        _docker_verify_log_opt_max_file: "{{ (_docker_verify_daemon_dict['log-opts'] | default({})).get('max-file', '') }}"
+
     - name: Assert log-driver matches variable
       ansible.builtin.assert:
         that:
@@ -94,22 +100,37 @@
       ansible.builtin.assert:
         that:
           - "'log-opts' in _docker_verify_daemon_dict"
-          - "_docker_verify_daemon_dict['log-opts']['max-size'] == docker_log_max_size"
+          - "'max-size' in _docker_verify_log_opts"
+          - "_docker_verify_log_opt_max_size == docker_log_max_size"
         fail_msg: >-
           log-opts.max-size not set to '{{ docker_log_max_size | default('') }}' in daemon.json
         success_msg: >-
-          log-opts.max-size={{ _docker_verify_daemon_dict['log-opts']['max-size'] }}
+          log-opts.max-size={{ _docker_verify_log_opt_max_size }}
           (expected {{ docker_log_max_size }})
+      when: docker_log_driver != 'journald'
 
     - name: Assert log-opts max-file matches variable
       ansible.builtin.assert:
         that:
-          - "_docker_verify_daemon_dict['log-opts']['max-file'] == docker_log_max_file"
+          - "'max-file' in _docker_verify_log_opts"
+          - "_docker_verify_log_opt_max_file == docker_log_max_file"
         fail_msg: >-
           log-opts.max-file not set to '{{ docker_log_max_file | default('') }}' in daemon.json
         success_msg: >-
-          log-opts.max-file={{ _docker_verify_daemon_dict['log-opts']['max-file'] }}
+          log-opts.max-file={{ _docker_verify_log_opt_max_file }}
           (expected {{ docker_log_max_file }})
+      when: docker_log_driver != 'journald'
+
+    - name: Assert journald driver does not set file rotation log-opts
+      ansible.builtin.assert:
+        that:
+          - "'max-size' not in _docker_verify_log_opts"
+          - "'max-file' not in _docker_verify_log_opts"
+        fail_msg: >-
+          journald logging should not set file rotation log-opts in daemon.json
+        success_msg: >-
+          journald logging correctly omits file rotation log-opts
+      when: docker_log_driver == 'journald'
 
     # ---- Security settings ----
 

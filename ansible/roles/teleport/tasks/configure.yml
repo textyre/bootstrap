@@ -1,6 +1,30 @@
 ---
 # === Configure Teleport agent ===
 
+- name: "Check teleport service state"
+  ansible.builtin.command:
+    cmd: systemctl is-active teleport
+  register: _teleport_active
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: [teleport]
+
+- name: "Check SQLite backend exists"
+  ansible.builtin.stat:
+    path: /var/lib/teleport/backend/sqlite.db
+  register: _teleport_sqlite
+  tags: [teleport]
+
+- name: "Wipe stale SQLite backend (exists but service not active)"
+  ansible.builtin.file:
+    path: /var/lib/teleport/backend
+    state: absent
+  when:
+    - _teleport_sqlite.stat.exists | default(false)
+    - _teleport_active.stdout | default('') != 'active'
+  tags: [teleport]
+
 - name: "Ensure teleport data directory exists"
   ansible.builtin.file:
     path: /var/lib/teleport

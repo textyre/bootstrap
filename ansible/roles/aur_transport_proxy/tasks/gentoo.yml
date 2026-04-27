@@ -1,0 +1,6 @@
+---
+- name: Skip AUR transport proxy on Gentoo family
+  ansible.builtin.debug:
+    msg: "aur_transport_proxy is a no-op on {{ ansible_facts['os_family'] }}"
+  changed_when: false
+  tags: ['aur', 'transport_proxy']

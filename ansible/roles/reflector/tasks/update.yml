@@ -1,13 +1,44 @@
 ---
+- name: Find pacman sync databases
+  ansible.builtin.find:
+    paths: /var/lib/pacman/sync
+    patterns: "*.db"
+    file_type: file
+  register: reflector_pacman_sync_db
+  tags: ['update']
+
+- name: Decide whether pacman cache refresh is required
+  ansible.builtin.set_fact:
+    reflector_pacman_cache_refresh_required: >-
+      {{
+        (reflector_pacman_sync_db.matched | default(0) | int) == 0 or
+        (
+          ansible_facts['date_time']['epoch'] | int -
+          ((reflector_pacman_sync_db.files | map(attribute='mtime') | max | default(0)) | int)
+        ) >= (reflector_pacman_cache_valid_time | int)
+      }}
+  changed_when: false
+  tags: ['update']
+
 - name: Update pacman cache
   community.general.pacman:
     update_cache: true
+  when: reflector_pacman_cache_refresh_required | bool
   tags: ['update']
 
 - name: Stat current mirrorlist
   ansible.builtin.stat:
     path: "{{ reflector_mirrorlist_path }}"
   register: reflector_stat
+  tags: ['update']
+
+- name: Check if mirrorlist is recent (skip if updated within 1h)
+  ansible.builtin.set_fact:
+    _reflector_skip: >-
+      {{
+        reflector_stat.stat.exists and
+        (ansible_facts['date_time']['epoch'] | int - reflector_stat.stat.mtime | int) < 3600
+      }}
   tags: ['update']
 
 - name: Read current mirrorlist (for change comparison)
@@ -27,16 +58,20 @@
   when:
     - reflector_backup_mirrorlist | bool
     - reflector_stat.stat.exists
+    - not (_reflector_skip | bool)
   tags: ['update']
 
 - name: Record backup path as fact
   ansible.builtin.set_fact:
     reflector_latest_backup: "{{ reflector_backup_result.dest }}"
-  when: reflector_backup_result is not skipped
+  when:
+    - reflector_backup_result is not skipped
+    - not (_reflector_skip | bool)
   tags: ['update']
 
 - name: Run reflector and validate mirrorlist
   tags: ['update']
+  when: not (_reflector_skip | bool)
   block:
     - name: Run reflector to update mirrorlist (with retries)
       ansible.builtin.command: >-

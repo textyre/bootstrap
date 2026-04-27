@@ -42,6 +42,8 @@ full_dependencies.txt
 # ---- Personal / local overrides ----
 windows/config/config.ps1
 windows/.env
+.local/bootstrap/
+.codex/
 
 # ---- Sensitive keys ----
 *.pem
@@ -62,3 +64,6 @@ id_rsa*
 # ---- Git worktrees ----
 .worktrees/
 
+# ---- Local test inventory (contains usernames, SSH key paths) ----
+ansible/inventory/test.ini
+ansible/inventory/test.yml

@@ -830,7 +830,7 @@ Phase 8 deploys 10 containers consuming 1.3-4.6 GB RAM. Combined with desktop wo
 
 ### AQ-08: Where are vault-encrypted secrets stored? [P2, P4]
 
-Variables prefixed `vault_` are referenced (e.g., `vault_vaultwarden_admin_token`, `vault_grafana_admin_password`) but no actual vault-encrypted file was found in the repository. If `~/.vault-pass` is lost with no backup, all encrypted variables are unrecoverable.
+Variables prefixed `vault_` are referenced (e.g., `vault_vaultwarden_admin_token`, `vault_grafana_admin_password`) but no actual vault-encrypted file was found in the repository. If the home-directory vault password file is lost with no backup, all encrypted variables are unrecoverable.
 
 **Decision needed:** Where do vault files live? How is the vault password backed up? What is the rotation schedule? Document in `wiki/Secrets-Management.md`.
 

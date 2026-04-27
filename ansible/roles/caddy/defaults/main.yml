@@ -17,6 +17,11 @@ caddy_enabled: true
 # Базовая директория
 caddy_base_dir: "/opt/caddy"
 
+# UID/GID for writable directories (data, config).
+# With docker userns-remap: "default", container root (UID 0) maps to host UID 100000.
+# Set to 0 if userns-remap is disabled.
+caddy_container_uid: 100000
+
 # HTTPS порт
 caddy_https_port: 443
 

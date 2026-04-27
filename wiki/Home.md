@@ -86,7 +86,8 @@ bootstrap/
 ## Безопасность
 
 - Sudo пароль в Ansible Vault (AES-256)
-- Vault password: `~/.vault-pass` или `pass show ansible/vault-password`
+- Vault/install/sudo secrets: `.local/bootstrap/` or exported `BOOTSTRAP_*`
+  env vars
 - SSH ключи Ed25519
 - sshd hardening (no root, no password auth)
 - nftables firewall (drop by default)

@@ -1,38 +1,110 @@
 ---
 # ===================================================================
-# VirtualBox Guest Additions - Version Detection & ISO Trigger
+# VirtualBox Guest Additions - Version Detection
 # ===================================================================
 #
 # Purpose:
-#   Detect host and guest VirtualBox versions, compare them, and
+#   Detect host and installed GA versions, compare them, and
 #   trigger ISO installation when versions mismatch.
 #
+# Host version source:
+#   journalctl -k (primary) or dmesg (fallback) — no packages needed.
+#   The vboxguest kernel module is in-tree since Linux 5.x and loads
+#   at boot, logging: "vboxguest: host-version: 7.1.16r172425 ..."
+#   Manual override: vm_vbox_host_version_override (for dmesg-less systems).
+#
+# Guest version source:
+#   VBoxControl --version (if available after prior ISO install), or
+#   /opt/VBoxGuestAdditions-* directory name, or "none" if not installed.
+#
 # Called from:
-#   virtualbox.yml (when vm_vbox_version_check is true)
+#   virtualbox.yml
 #
 # Expected variables:
-#   - vm_vbox_version_check: boolean (should already be checked by caller)
-#   - vm_vbox_iso_dirs_pre: result of find task for existing ISO dirs
-#   - vm_packages_virtualbox_guest: package list from group_vars
+#   - vm_vbox_iso_dirs_pre: find result set in virtualbox.yml Phase 1
+#   - vm_vbox_host_version_override: manual override (empty = auto-detect)
 #
 # Sets facts:
-#   - vm_vbox_host_ver: parsed host VirtualBox version
-#   - vm_vbox_guest_ver: parsed installed GA version
+#   - vm_vbox_host_ver: "7.1.16" or "unknown"
+#   - vm_vbox_guest_ver: "7.1.16" or "none"
 #
 # Calls:
-#   - virtualbox_iso_install.yml (when versions mismatch)
+#   - virtualbox_iso_install.yml (when versions mismatch and kernel ready)
 #
 # ===================================================================
 
-- name: "VirtualBox: Get host VirtualBox version"
-  ansible.builtin.command:
-    cmd: VBoxControl guestproperty get /VirtualBox/HostInfo/VBoxVer
-  register: vm_vbox_host_version_raw
-  changed_when: false
-  failed_when: false
+# ---- Step 0: Manual override ----
+
+- name: "VirtualBox: Use host version override if provided"
+  ansible.builtin.set_fact:
+    vm_vbox_host_ver: "{{ vm_vbox_host_version_override | trim }}"
+  when: (vm_vbox_host_version_override | default('')) | trim | length > 0
   tags: ['vm', 'vbox', 'vm:verify']
 
-- name: "VirtualBox: Get installed GA version"
+# ---- Step 1: Detect host version from kernel log (when no override) ----
+# vboxguest kernel module (in-tree, no packages needed) logs at boot:
+#   vboxguest: host-version: 7.1.16r172425 0x8000000f
+# journalctl -k reads the kernel ring buffer — works without persistent
+# journald and without dmesg_restrict privileges.
+
+- name: "VirtualBox: Get host version from journalctl (kernel ring buffer)"
+  ansible.builtin.command:
+    cmd: journalctl -k --no-pager -q
+  register: vm_vbox_journalctl_raw
+  changed_when: false
+  failed_when: false
+  when: (vm_vbox_host_ver | default('')) | length == 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Fallback — get host version from dmesg"
+  ansible.builtin.command:
+    cmd: dmesg
+  register: vm_vbox_dmesg_raw
+  changed_when: false
+  failed_when: false
+  when:
+    - (vm_vbox_host_ver | default('')) | length == 0
+    - >-
+      (vm_vbox_journalctl_raw.rc | default(1)) != 0 or
+      'host-version' not in (vm_vbox_journalctl_raw.stdout | default(''))
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Combine kernel log output for version parsing"
+  ansible.builtin.set_fact:
+    _vm_vbox_klog: >-
+      {{ (vm_vbox_journalctl_raw.stdout | default(''))
+         + '\n'
+         + (vm_vbox_dmesg_raw.stdout | default('')) }}
+  when: (vm_vbox_host_ver | default('')) | length == 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Extract host version from kernel log"
+  ansible.builtin.set_fact:
+    vm_vbox_host_ver: >-
+      {{ _vm_vbox_klog
+         | regex_search('host-version:\s*([0-9]+\.[0-9]+\.[0-9]+)', '\1')
+         | default(['unknown'], true)
+         | first }}
+  when: (vm_vbox_host_ver | default('')) | length == 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Warn — host version not detected in kernel log"
+  ansible.builtin.debug:
+    msg: >-
+      Could not detect VirtualBox host version from kernel log (journalctl -k / dmesg).
+      The vboxguest module may not have logged at boot, or the ring buffer was cleared.
+      GA installation will be skipped.
+      Manual fix: set vm_vbox_host_version_override in host_vars,
+      or check: sudo dmesg | grep 'host-version'
+  when: vm_vbox_host_ver == 'unknown'
+  tags: ['vm', 'vbox', 'vm:report']
+
+# ---- Step 2: Detect installed GA version ----
+# Primary: VBoxControl --version (available after a prior ISO install).
+# Fallback: /opt/VBoxGuestAdditions-<ver>/ directory name (created by ISO installer).
+# Default: "none" if not installed.
+
+- name: "VirtualBox: Get installed GA version from VBoxControl"
   ansible.builtin.command:
     cmd: VBoxControl --version
   register: vm_vbox_guest_version_raw
@@ -40,33 +112,69 @@
   failed_when: false
   tags: ['vm', 'vbox', 'vm:verify']
 
-- name: "VirtualBox: Parse versions"
+- name: "VirtualBox: Set guest version from VBoxControl output"
   ansible.builtin.set_fact:
-    vm_vbox_host_ver: >-
-      {{ vm_vbox_host_version_raw.stdout | default('')
-         | regex_search('Value:\s*(.+)', '\1')
-         | default(['unknown'], true) | first | trim }}
     vm_vbox_guest_ver: >-
-      {{ vm_vbox_guest_version_raw.stdout | default('')
-         | regex_replace('[^0-9.].*', '') }}
+      {{ vm_vbox_guest_version_raw.stdout
+         | default('')
+         | regex_replace('[^0-9.].*', '')
+         | trim }}
+  when: (vm_vbox_guest_version_raw.rc | default(1)) == 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Fallback — detect guest version from ISO directory name"
+  ansible.builtin.set_fact:
+    vm_vbox_guest_ver: >-
+      {{ vm_vbox_iso_dirs_pre.files
+         | map(attribute='path')
+         | map('regex_replace', '.*/VBoxGuestAdditions-', '')
+         | sort | last }}
   when:
-    - (vm_vbox_host_version_raw.rc | default(1)) == 0
-    - (vm_vbox_guest_version_raw.rc | default(1)) == 0
+    - (vm_vbox_guest_ver | default('')) == ''
+    - vm_vbox_iso_dirs_pre.matched | default(0) > 0
+  tags: ['vm', 'vbox', 'vm:verify']
+
+- name: "VirtualBox: Default guest version to 'none' if not installed"
+  ansible.builtin.set_fact:
+    vm_vbox_guest_ver: "none"
+  when: (vm_vbox_guest_ver | default('')) == ''
   tags: ['vm', 'vbox', 'vm:verify']
 
 - name: "VirtualBox: Report detected versions"
   ansible.builtin.debug:
-    msg: "Detected versions - Host: {{ vm_vbox_host_ver | default('unknown') }}, Guest: {{ vm_vbox_guest_ver | default('unknown') }}"
-  when:
-    - vm_vbox_host_ver is defined
-    - vm_vbox_guest_ver is defined
+    msg: "VBox versions — Host: {{ vm_vbox_host_ver }}, Guest GA: {{ vm_vbox_guest_ver }}"
+  tags: ['vm', 'vbox', 'vm:verify', 'vm:report']
+
+# ---- Step 3: Kernel mismatch guard ----
+# After a kernel upgrade during this playbook run (packages role runs pacman -Syu),
+# the running kernel modules directory is replaced. Building vboxguest.ko requires
+# the matching kernel headers, which are absent for the OLD running kernel.
+
+- name: "VirtualBox: Check running kernel modules directory exists"
+  ansible.builtin.stat:
+    path: "/lib/modules/{{ ansible_kernel }}"
+  register: _vm_kernel_modules_dir
   tags: ['vm', 'vbox', 'vm:verify']
 
-- name: "VirtualBox: Trigger ISO installation on version mismatch"
-  ansible.builtin.include_tasks: virtualbox_iso_install.yml
+- name: "VirtualBox: Warn — kernel upgrade pending, GA install deferred until reboot"
+  ansible.builtin.debug:
+    msg: >-
+      Running kernel {{ ansible_kernel }} modules directory not found
+      (kernel was upgraded during this run). VBox GA installation
+      {{ vm_vbox_guest_ver }} → {{ vm_vbox_host_ver }} deferred.
+      Reboot and re-run the playbook to complete the installation.
   when:
-    - vm_vbox_host_ver is defined
-    - vm_vbox_guest_ver is defined
+    - not _vm_kernel_modules_dir.stat.exists
     - vm_vbox_host_ver != 'unknown'
     - vm_vbox_host_ver != vm_vbox_guest_ver
+  tags: ['vm', 'vbox', 'vm:report']
+
+# ---- Step 4: Trigger ISO installation ----
+
+- name: "VirtualBox: Install GA from ISO"
+  ansible.builtin.include_tasks: virtualbox_iso_install.yml
+  when:
+    - vm_vbox_host_ver != 'unknown'
+    - vm_vbox_host_ver != vm_vbox_guest_ver
+    - _vm_kernel_modules_dir.stat.exists
   tags: ['vm', 'vbox', 'vm:install']

@@ -126,7 +126,8 @@
 ### Vault (sudo пароль)
 
 - [ ] Зашифрованный файл: `inventory/group_vars/all/vault.yml`
-- [ ] Каскадный скрипт `vault-pass.sh`: `pass` → `~/.vault-pass` → ошибка
+- [ ] Resolver `vault-pass.sh`: `BOOTSTRAP_VAULT_PASSWORD` →
+  `BOOTSTRAP_VAULT_PASSWORD_FILE` → ошибка
 - [ ] Molecule: `config_options.defaults.vault_password_file`
 - [ ] AES-256 шифрование, безопасен для git
 

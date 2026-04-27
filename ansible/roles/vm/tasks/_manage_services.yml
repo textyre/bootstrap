@@ -25,7 +25,10 @@
 #     - description (string) - Human-readable description for reporting
 #     - required (bool)      - If true, failure will abort playbook.
 #                              If false, failure is logged but ignored.
-#   vm_svc_label (string)   - Hypervisor name for task names
+#
+# Optional parameters:
+#   vm_svc_label (string)   - Label for task names. Defaults to service names
+#                             joined by comma if not provided.
 #
 # Behavior:
 #   - Loops over all services and enables + starts each
@@ -39,7 +42,12 @@
 #   - Failure: Any required service failed to start
 # =========================================================================
 
-- name: "Enable and start services ({{ vm_svc_label }})"
+- name: "Compute effective service label"
+  ansible.builtin.set_fact:
+    _vm_effective_label: "{{ vm_svc_label | default(vm_svc_list | map(attribute='name') | join(', ')) }}"
+  tags: ['vm', 'vm:service']
+
+- name: "Enable and start services ({{ _vm_effective_label | default('') }})"
   ansible.builtin.service:
     name: "{{ item.name }}"
     enabled: true
@@ -51,7 +59,7 @@
   failed_when: false
   tags: ['vm', 'vm:service']
 
-- name: "Fail if required service failed to start ({{ vm_svc_label }})"
+- name: "Fail if required service failed to start ({{ _vm_effective_label | default('') }})"
   ansible.builtin.fail:
     msg: "Required service '{{ item.item.name }}' failed to start"
   loop: "{{ _vm_svc_result.results }}"
@@ -62,7 +70,7 @@
     - item.item.required
   tags: ['vm', 'vm:service']
 
-- name: "Check journald for service errors ({{ vm_svc_label }})"
+- name: "Check journald for service errors ({{ _vm_effective_label | default('') }})"
   ansible.builtin.command:
     cmd: journalctl -u {{ item.name }} -n 20 --no-pager
   loop: "{{ vm_svc_list | selectattr('required', 'equalto', true) | list }}"
@@ -74,9 +82,14 @@
   when: vm_service_manager | default('systemd') == 'systemd'
   tags: ['vm', 'vm:service']
 
-- name: "Report service status ({{ vm_svc_label }})"
+- name: "Collect service states"
+  ansible.builtin.set_fact:
+    _vm_svc_states: "{{ _vm_svc_result.results | map(attribute='state', default='unknown') | list }}"
+  tags: ['vm', 'vm:service', 'vm:report']
+
+- name: "Report service status ({{ _vm_effective_label | default('') }})"
   ansible.builtin.debug:
-    msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if (_vm_svc_result.results[idx].state | default('unknown')) == 'started' else 'unavailable' }}"
+    msg: "{{ item.name }} ({{ item.description }}): {{ 'started' if _vm_svc_states[idx] | default('unknown') == 'started' else 'unavailable' }}"
   loop: "{{ vm_svc_list }}"
   loop_control:
     label: "{{ item.name }}"

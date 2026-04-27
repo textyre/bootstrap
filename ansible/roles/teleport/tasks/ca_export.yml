@@ -3,7 +3,7 @@
 
 - name: "Check tctl is available"
   ansible.builtin.command:
-    cmd: "command -v tctl"
+    cmd: "which tctl"
   register: _teleport_tctl_check
   changed_when: false
   failed_when: false
@@ -20,7 +20,7 @@
 
 - name: "Export Teleport user CA public key"
   ansible.builtin.command:
-    cmd: "tctl auth export --type=user"
+    cmd: "{{ _teleport_tctl_check.stdout | trim }} auth export --type=user"
   register: _teleport_user_ca
   changed_when: false
   failed_when: _teleport_user_ca.rc != 0

@@ -1,5 +1,12 @@
 ---
-# === Security checks — CIS 5.4.3: root account ===
+# === Security enforcement + checks — CIS 5.4.3: root account ===
+
+- name: "CIS 5.4.3 | Lock root password (enforce no direct root login)"
+  ansible.builtin.user:
+    name: root
+    password_lock: true
+  when: user_verify_root_lock | bool
+  tags: [user, security, cis_5.4.3]
 
 - name: "CIS 5.4.3 | Get root shadow entry"
   ansible.builtin.getent:

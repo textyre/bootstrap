@@ -4,7 +4,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/bootstrap-env.sh"
+REPO_ROOT="${BOOTSTRAP_REPO_ROOT}"
 ANSIBLE_DIR="${REPO_ROOT}/ansible"
 VAULT_FILE="${ANSIBLE_DIR}/inventory/group_vars/all/vault.yml"
 VAULT_PASS_SCRIPT="${ANSIBLE_DIR}/vault-pass.sh"
@@ -32,13 +34,18 @@ if [[ ! -x "${ANSIBLE_VAULT}" ]]; then
 fi
 
 mkdir -p "$(dirname "${VAULT_FILE}")"
-read -s -r -p "Enter sudo password for ansible_become_password: " sudo_pass
-echo
-echo "ansible_become_password: \"${sudo_pass}\"" | \
-    "${ANSIBLE_VAULT}" encrypt \
-        --vault-password-file "${VAULT_PASS_SCRIPT}" \
-        --output "${VAULT_FILE}" -
+sudo_pass="$(bootstrap_sudo_password)"
+export BOOTSTRAP_RENDER_SUDO_PASS="${sudo_pass}"
+python3 - <<'PY' | "${ANSIBLE_VAULT}" encrypt \
+    --vault-password-file "${VAULT_PASS_SCRIPT}" \
+    --output "${VAULT_FILE}" -
+import json
+import os
+
+value = os.environ["BOOTSTRAP_RENDER_SUDO_PASS"]
+print(f"ansible_become_password: {json.dumps(value)}")
+PY
 chmod 600 "${VAULT_FILE}"
-unset sudo_pass
+unset sudo_pass BOOTSTRAP_RENDER_SUDO_PASS
 echo "==> vault.yml created and encrypted"
 exit 0

@@ -22,30 +22,29 @@
 #
 # ===================================================================
 
-- name: "VirtualBox: Check if running linux-lts kernel"
-  ansible.builtin.command:
-    cmd: uname -r
-  register: vm_vbox_kernel
-  changed_when: false
+- name: "VirtualBox: LTS kernel DKMS support"
   when:
     - not (vm_vbox_iso_installed | default(false))
     - vm_vbox_iso_dirs_pre.matched | default(0) == 0
   tags: ['vm', 'vbox', 'vm:install']
+  block:
+    - name: "Check if running linux-lts kernel"
+      ansible.builtin.command:
+        cmd: uname -r
+      register: vm_vbox_kernel
+      changed_when: false
 
-- name: "VirtualBox: Install LTS kernel headers and DKMS"
-  ansible.builtin.package:
-    name:
-      - virtualbox-guest-dkms
-      - linux-lts-headers
-    state: present
-  when:
-    - not (vm_vbox_iso_installed | default(false))
-    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
-    - vm_vbox_lts_kernel_support | default(false)
-    - vm_vbox_kernel.stdout is defined
-    - "'lts' in vm_vbox_kernel.stdout"
-  register: vm_vbox_lts_install
-  retries: 3
-  delay: 5
-  until: vm_vbox_lts_install is succeeded
-  tags: ['vm', 'vbox', 'vm:install']
+    - name: "Install LTS kernel headers and DKMS"
+      ansible.builtin.package:
+        name:
+          - virtualbox-guest-dkms
+          - linux-lts-headers
+        state: present
+      when:
+        - vm_vbox_lts_kernel_support | default(false)
+        - vm_vbox_kernel.stdout is defined
+        - "'lts' in vm_vbox_kernel.stdout"
+      register: vm_vbox_lts_install
+      retries: 3
+      delay: 5
+      until: vm_vbox_lts_install is succeeded

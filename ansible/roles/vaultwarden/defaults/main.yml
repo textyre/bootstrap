@@ -89,3 +89,8 @@ vaultwarden_profile_admin_enabled: >-
 
 vaultwarden_profile_signups_allowed: >-
   {{ false if 'security' in (workstation_profiles | default([])) else true }}
+
+# UID/GID for the writable data directory.
+# With docker userns-remap: "default", container root (UID 0) maps to host UID 100000.
+# Set to 0 if userns-remap is disabled.
+vaultwarden_container_uid: 100000

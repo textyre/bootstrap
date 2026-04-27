@@ -39,18 +39,21 @@
         path: "{{ vaultwarden_base_dir }}/data"
       register: _vaultwarden_verify_data_dir
 
-    - name: Assert data directory exists with mode 0700
+    - name: Assert data directory exists with expected userns-remap ownership
       ansible.builtin.assert:
         that:
           - _vaultwarden_verify_data_dir.stat.exists
           - _vaultwarden_verify_data_dir.stat.isdir
-          - _vaultwarden_verify_data_dir.stat.pw_name == 'root'
-          - _vaultwarden_verify_data_dir.stat.gr_name == 'root'
+          - (_vaultwarden_verify_data_dir.stat.uid | default(-1) | int) == (vaultwarden_container_uid | int)
+          - (_vaultwarden_verify_data_dir.stat.gid | default(-1) | int) == (vaultwarden_container_uid | int)
           - _vaultwarden_verify_data_dir.stat.mode == '0700'
         fail_msg: >-
           {{ vaultwarden_base_dir }}/data missing or wrong permissions
-          (expected root:root 0700)
-        success_msg: "{{ vaultwarden_base_dir }}/data exists root:root 0700"
+          (expected {{ vaultwarden_container_uid }}:{{ vaultwarden_container_uid }} 0700)
+        success_msg: >-
+          {{ vaultwarden_base_dir }}/data exists
+          {{ _vaultwarden_verify_data_dir.stat.uid | default('unknown') }}:
+          {{ _vaultwarden_verify_data_dir.stat.gid | default('unknown') }} 0700
 
     - name: Stat backup directory
       ansible.builtin.stat:

@@ -39,3 +39,18 @@ Key constraints:
 - Security baseline: CIS Level 1 Workstation
 
 
+## Test VM Workflow
+
+All VM testing MUST follow the Test VM Workflow specification.
+
+- **Full spec:** `wiki/standards/test-vm-workflow.md` (execution model, VM management, playbook testing pipeline, hard rules)
+
+Key constraints:
+- Ansible runs ON the VM (`ansible_connection=local`), not from Windows
+- All execution through Taskfile (`task workstation`, `task check`) — never `ansible-playbook` directly
+- VM reset via VirtualBox snapshot clone before every fresh test run (not before idempotency runs)
+- Base VM `arch-base` holds the sacred snapshot `initial`, which is NEVER modified — only cloned from
+- Vault/sudo runtime secret resolved locally from the bootstrap secret helper and forwarded ephemerally for remote bootstrap/task runs — never synced as plaintext to the VM and never created manually on VM
+- NO manual actions on VM (no pacman, no systemctl start/stop, no file editing) — fix roles locally, rsync, reset, re-run
+- Every claim requires evidence: command + verbatim output
+

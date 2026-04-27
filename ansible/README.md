@@ -6,6 +6,9 @@
 
 ```bash
 # Из корня репозитория:
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+scripts/setup-vault-pass.sh
 task bootstrap   # Установить Python зависимости (один раз)
 task workstation # Применить все роли
 ```
@@ -78,8 +81,10 @@ task workstation # Применить все роли
 ## Тестирование
 
 ```bash
-# Настройка vault (один раз)
-echo 'your_vault_password' > ~/.vault-pass && chmod 600 ~/.vault-pass
+# Настройка project-local bootstrap secrets (один раз)
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+scripts/setup-vault-pass.sh  # создает .local/bootstrap/vault-pass.gpg
 
 # Запуск тестов
 task test                 # Все роли
@@ -93,6 +98,8 @@ task test-<role>          # Конкретная роль
 - `inventory/group_vars/all/packages.yml` — реестр пакетов
 - `inventory/group_vars/all/system.yml` — системные переменные
 - `inventory/group_vars/all/vault.yml` — зашифрованный sudo пароль
+- `.local/bootstrap/bootstrap.env` — project-local `BOOTSTRAP_*` boundary
+- `.local/bootstrap/vault-pass.gpg` — локальный GPG-encrypted vault/sudo runtime secret
 
 ## Теги
 

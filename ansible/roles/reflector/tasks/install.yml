@@ -1,6 +1,6 @@
 ---
-- name: Install reflector package (latest version)
+- name: Install reflector package
   community.general.pacman:
     name: reflector
-    state: latest
+    state: present
   tags: ['install']

@@ -56,12 +56,12 @@
         mode: '0755'
       tags: ['vaultwarden', 'secrets']
 
-    - name: Create Vaultwarden data directory
+    - name: Create Vaultwarden data directory (owned by userns-remapped root)
       ansible.builtin.file:
         path: "{{ vaultwarden_base_dir }}/data"
         state: directory
-        owner: root
-        group: root
+        owner: "{{ vaultwarden_container_uid }}"
+        group: "{{ vaultwarden_container_uid }}"
         mode: '0700'
       tags: ['vaultwarden', 'secrets']
 

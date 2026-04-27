@@ -333,6 +333,20 @@ tasks:
     cmds:
       - '{{.PREFIX}} ara-manage runserver 0.0.0.0:8000'
 
+  # --- Snapshot management ---
+
+  snapshot:build-after-packages:
+    desc: "Build 'after-packages' snapshot on arch-base (idempotent, skips if hash matches)"
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - 'bash scripts/build-snapshot-after-packages.sh'
+
+  snapshot:rebuild-after-packages:
+    desc: "Force rebuild 'after-packages' snapshot on arch-base (ignores hash)"
+    dir: '{{.TASKFILE_DIR}}'
+    cmds:
+      - 'bash scripts/build-snapshot-after-packages.sh --force'
+
   # --- ctOS Greeter ---
 
   greeter:build:
@@ -415,5 +429,7 @@ tasks:
       - sh: '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml >/dev/null 2>&1'
         msg: |
           Cannot decrypt vault. Setup vault password:
-            1. echo 'password' > ~/.vault-pass && chmod 600 ~/.vault-pass
-            2. pass insert ansible/vault-password
+            1. mkdir -p {{.TASKFILE_DIR}}/.local/bootstrap/archinstall
+            2. cp {{.TASKFILE_DIR}}/scripts/bootstrap.env.example {{.TASKFILE_DIR}}/.local/bootstrap/bootstrap.env
+            3. set BOOTSTRAP_VAULT_PASSWORD_GPG_FILE in {{.TASKFILE_DIR}}/.local/bootstrap/bootstrap.env
+            4. run {{.TASKFILE_DIR}}/scripts/setup-vault-pass.sh

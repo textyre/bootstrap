@@ -7,7 +7,7 @@ description: Build UI with craft and consistency. For interface design (dashboar
 
 Before writing any code, read this file completely:
 
-1. `../skills/interface-design/SKILL.md` — the foundation, principles, craft knowledge, and checks
+1. `~/.claude/skills/interface-design/SKILL.md` — the foundation, principles, craft knowledge, and checks
 
 Do not skip this. The craft knowledge is in this file.
 

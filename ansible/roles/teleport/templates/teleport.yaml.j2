@@ -1,29 +1,40 @@
 # {{ ansible_managed }}
-# Teleport node configuration
+# Teleport configuration — mode: {{ teleport_mode }}
 {% set _base_config = {} %}
 {% set _teleport_section = {
   'nodename': teleport_node_name,
   'data_dir': '/var/lib/teleport',
-  'auth_token': teleport_join_token,
-  'auth_server': teleport_auth_server,
   'log': {'output': 'stderr', 'severity': 'INFO'}
 } %}
+{% if teleport_mode == 'agent' %}
+{% set _teleport_section = _teleport_section | combine({
+  'auth_token': teleport_join_token,
+  'auth_server': teleport_auth_server
+}) %}
+{% endif %}
 {% set _base_config = _base_config | combine({'version': 'v3', 'teleport': _teleport_section}) %}
 {% set _ssh = {'enabled': teleport_ssh_enabled | bool} %}
 {% if teleport_labels %}
 {% set _ssh = _ssh | combine({'labels': teleport_labels}) %}
 {% endif %}
+{% if teleport_mode == 'standalone' %}
+{% set _auth_service = {'enabled': true, 'listen_addr': teleport_auth_listen_addr} %}
+{% if teleport_session_recording != 'off' %}
+{% set _auth_service = _auth_service | combine({'session_recording': teleport_session_recording}) %}
+{% endif %}
+{% set _proxy_service = {
+  'enabled': true,
+  'web_listen_addr': teleport_proxy_listen_addr,
+  'public_addr': teleport_proxy_public_addr
+} %}
+{% else %}
+{% set _auth_service = {'enabled': false} %}
+{% set _proxy_service = {'enabled': teleport_proxy_mode | bool} %}
+{% endif %}
 {% set _base_config = _base_config | combine({
   'ssh_service': _ssh,
-  'proxy_service': {'enabled': teleport_proxy_mode | bool},
-  'auth_service': {'enabled': false}
+  'proxy_service': _proxy_service,
+  'auth_service': _auth_service
 }) %}
-{% if teleport_session_recording != 'off' %}
-{% set _sr = {'mode': teleport_session_recording} %}
-{% if teleport_enhanced_recording %}
-{% set _sr = _sr | combine({'enhanced_recording': {'enabled': true}}) %}
-{% endif %}
-{% set _base_config = _base_config | combine({'session_recording': _sr}) %}
-{% endif %}
 {% set _final = _base_config | combine(teleport_config_overwrite, recursive=True) %}
 {{ _final | to_nice_yaml(indent=2) }}

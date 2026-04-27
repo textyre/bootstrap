@@ -1,8 +1,43 @@
 ---
 # === Arch Linux: dispatcher ===
 
+- name: Find pacman sync databases
+  ansible.builtin.find:
+    paths: /var/lib/pacman/sync
+    patterns: "*.db"
+    file_type: file
+  register: package_manager_pacman_sync_db
+
+- name: Decide whether pacman cache refresh is required
+  ansible.builtin.set_fact:
+    package_manager_pacman_cache_refresh_required: >-
+      {{
+        (package_manager_pacman_sync_db.matched | default(0) | int) == 0 or
+        (
+          ansible_facts['date_time']['epoch'] | int -
+          ((package_manager_pacman_sync_db.files | map(attribute='mtime') | max | default(0)) | int)
+        ) >= (package_manager_pacman_cache_valid_time | int)
+      }}
+  changed_when: false
+
+- name: "Update archlinux-keyring (prevents signature verification failures)"
+  community.general.pacman:
+    name: archlinux-keyring
+    state: latest
+    update_cache: true
+  when: package_manager_pacman_cache_refresh_required | bool
+
+- name: "Verify archlinux-keyring is current without refreshing cache"
+  community.general.pacman:
+    name: archlinux-keyring
+    state: latest
+  when: not (package_manager_pacman_cache_refresh_required | bool)
+
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
+
+- name: Apply pacman configuration handlers before package installs
+  ansible.builtin.meta: flush_handlers
 
 - name: Configure paccache
   ansible.builtin.include_tasks: archlinux/paccache.yml

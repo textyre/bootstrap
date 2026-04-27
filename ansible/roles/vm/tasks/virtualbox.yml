@@ -1,9 +1,8 @@
 ---
 # === VirtualBox Guest Additions ===
 #
-# Services:
-#   vboxservice / vboxadd-service -- guest service (time sync, clipboard, seamless mode)
-#     (vboxservice = pacman install, vboxadd-service = ISO install)
+# Service:
+#   vboxadd-service -- guest service installed by ISO (time sync, clipboard, seamless mode)
 #
 # Kernel modules:
 #   vboxguest  -- core guest integration module (REQUIRED)
@@ -13,17 +12,12 @@
 # Version enforcement:
 #   Guest Additions version MUST match host VirtualBox version.
 #   Mismatch causes shared folders, clipboard, and display resize to break.
-#   If mismatch detected, role downloads and installs from ISO automatically.
+#   Host version is detected from the kernel ring buffer (vboxguest module log)
+#   without requiring any packages. GA is always installed from ISO — never from
+#   the distro package manager, which tracks upstream VirtualBox release cadence
+#   independently of what version is installed on this host.
 
-# ---- Phase 1: Pre-flight detection ----
-
-- name: "VirtualBox: Check if VBoxControl is available"
-  ansible.builtin.command:
-    cmd: which VBoxControl
-  register: vm_vbox_control_check
-  changed_when: false
-  failed_when: false
-  tags: ['vm', 'vbox', 'vm:install']
+# ---- Phase 1: Detect existing ISO installation ----
 
 - name: "VirtualBox: Check for existing ISO Guest Additions"
   ansible.builtin.find:
@@ -35,75 +29,141 @@
   failed_when: false
   tags: ['vm', 'vbox', 'vm:install']
 
-# ---- Phase 2: Initial install for detection (only if VBoxControl missing) ----
-
-- name: "VirtualBox: Install pacman GA for version detection"
-  ansible.builtin.package:
-    name: "{{ vm_packages_virtualbox_guest }}"
-    state: present
-  when:
-    - vm_vbox_control_check.rc != 0
-    - vm_packages_virtualbox_guest | length > 0
-  register: vm_vbox_initial_install
-  retries: 3
-  delay: 5
-  until: vm_vbox_initial_install is succeeded
-  notify: "Restart virtualbox services"
-  tags: ['vm', 'vbox', 'vm:install']
-
-# ---- Phase 3: Version detection and ISO enforcement ----
+# ---- Phase 2: Version detection and ISO enforcement ----
 
 - name: "VirtualBox: Version detection and ISO enforcement"
   ansible.builtin.include_tasks: virtualbox_version.yml
-  when: vm_vbox_version_check
   tags: ['vm', 'vbox', 'vm:verify', 'vm:install']
 
-# ---- Phase 4: Pacman path (versions match OR version check disabled) ----
-
-- name: "VirtualBox: Ensure pacman GA packages (versions match)"
-  ansible.builtin.package:
-    name: "{{ vm_packages_virtualbox_guest }}"
-    state: present
-  when:
-    - vm_packages_virtualbox_guest | length > 0
-    - not (vm_vbox_iso_installed | default(false))
-    - vm_vbox_iso_dirs_pre.matched | default(0) == 0
-    - >-
-      not vm_vbox_version_check
-      or (vm_vbox_host_ver | default('') == vm_vbox_guest_ver | default(''))
-      or vm_vbox_host_ver | default('') == 'unknown'
-  register: vm_vbox_pkg_install
-  retries: 3
-  delay: 5
-  until: vm_vbox_pkg_install is succeeded
-  notify: "Restart virtualbox services"
-  tags: ['vm', 'vbox', 'vm:install']
-
-# ---- Phase 5: LTS kernel DKMS support (only for pacman path) ----
-
-- name: "VirtualBox: LTS kernel DKMS support"
-  ansible.builtin.include_tasks: virtualbox_lts_kernel.yml
-  tags: ['vm', 'vbox', 'vm:install']
-
-# ---- Phase 6: Determine active service name ----
+# ---- Phase 3: Determine active service name ----
+# GA is always installed from ISO → service is always vboxadd-service.
+# Fall back to vboxservice only if no ISO installation was found (e.g., first run
+# on a VM with pre-existing pacman GA from a previous configuration).
 
 - name: "VirtualBox: Determine active service name"
-  ansible.builtin.set_fact:
-    vm_vbox_service_name: >-
-      {{ 'vboxadd-service' if (vm_vbox_iso_installed | default(false))
-         or (vm_vbox_iso_dirs_pre.matched | default(0) > 0)
-         else 'vboxservice' }}
   tags: ['vm', 'vbox', 'vm:service']
+  block:
+    - name: "Check ISO installed flag"
+      ansible.builtin.set_fact:
+        _vm_vbox_iso_flag: "{{ vm_vbox_iso_installed | default(false) }}"
 
-# ---- Phase 7: Time sync conflict check ----
+    - name: "Check ISO directories found"
+      ansible.builtin.set_fact:
+        _vm_vbox_iso_dirs_found: "{{ vm_vbox_iso_dirs_pre.matched | default(0) > 0 }}"
 
-- name: "VirtualBox: Check time sync conflicts"
-  ansible.builtin.include_tasks:
-    file: _check_timesync.yml
-  vars:
-    vm_timesync_label: "VirtualBox"
-    vm_timesync_service: "{{ vm_vbox_service_name }}"
+    - name: "Determine if ISO Guest Additions are present"
+      ansible.builtin.set_fact:
+        _vm_vbox_iso_present: "{{ _vm_vbox_iso_flag or _vm_vbox_iso_dirs_found }}"
+
+    - name: "Set service name based on install path"
+      ansible.builtin.set_fact:
+        vm_vbox_service_name: "{{ 'vboxadd-service' if _vm_vbox_iso_present | bool else 'vboxservice' }}"
+
+# ---- Phase 4: /dev/vboxguest permissions ----
+# ISO installer creates /etc/udev/rules.d/60-vboxadd.rules with:
+#   KERNEL=="vboxguest", OWNER="vboxadd", MODE="0660"
+# This gives access only to user vboxadd and group root.
+# We add GROUP="vboxsf" so users in that group can run VBoxControl without sudo.
+
+- name: "VirtualBox: Ensure /dev/vboxguest is accessible to vboxsf group"
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/60-vboxadd.rules
+    content: |
+      KERNEL=="vboxguest", OWNER="vboxadd", GROUP="vboxsf", MODE="0660"
+      KERNEL=="vboxuser", OWNER="vboxadd", MODE="0666"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: "Reload vboxguest udev"
   tags: ['vm', 'vbox']
+
+# ---- Phase 5: User group membership ----
+# vboxsf group is created by the ISO installer (VBoxLinuxAdditions.run).
+# Ensure the group exists so the user can be added even when ISO install
+# is deferred until reboot (kernel mismatch on first run).
+
+- name: "VirtualBox: Ensure vboxsf group exists"
+  ansible.builtin.group:
+    name: vboxsf
+    state: present
+  tags: ['vm', 'vbox']
+
+- name: "VirtualBox: Warn — cannot add root to vboxsf, use sudo from regular user"
+  ansible.builtin.debug:
+    msg: >-
+      Running as root (not via sudo from a regular user). The root user cannot be
+      added to vboxsf. Re-run this role via sudo from the desktop user account:
+      sudo ansible-playbook playbook.yml
+    verbosity: 0
+  when:
+    - ansible_facts['env']['SUDO_USER'] | default('') | length == 0
+    - ansible_facts['user_id'] == 'root'
+  tags: ['vm', 'vbox', 'vm:report']
+
+- name: "VirtualBox: Add user to vboxsf group"
+  ansible.builtin.user:
+    name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+    groups: vboxsf
+    append: true
+  notify: "Report VirtualBox vboxsf membership change"
+  when:
+    - ansible_facts['user_id'] != 'root' or ansible_facts['env']['SUDO_USER'] | default('') | length > 0
+  tags: ['vm', 'vbox']
+
+# ---- Phase 7: Disable VBoxService timesync ----
+# VBoxService runs a timesync module by default that syncs guest clock to the
+# VirtualBox host clock. This conflicts with chronyd/ntpd which are the
+# authoritative time source. We disable VBoxService timesync via a systemd
+# drop-in so VBoxService continues running (shared folders, clipboard, etc.)
+# but stops managing the clock.
+#
+# Guard: only disable if an NTP daemon is active. If no NTP daemon is running,
+# skipping the disable preserves the only time source available.
+
+- name: "VirtualBox: Disable VBoxService timesync"
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['vm', 'vbox']
+  block:
+    - name: "Gather service facts for NTP guard"
+      ansible.builtin.service_facts:
+
+    - name: "Check if NTP daemon is active"
+      ansible.builtin.include_tasks:
+        file: _ntp_guard.yml
+      vars:
+        vm_ntp_guard_label: "VirtualBox"
+
+    - name: "Ensure VBoxService drop-in directory exists"
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ vm_vbox_service_name }}.service.d"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: _vm_ntp_active | default(false) | bool
+
+    - name: "Write drop-in to disable timesync"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ vm_vbox_service_name }}.service.d/disable-timesync.conf"
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/VBoxService -f --disable-timesync
+        owner: root
+        group: root
+        mode: "0644"
+      when: _vm_ntp_active | default(false) | bool
+      notify: "Restart virtualbox services"
+
+- name: "VirtualBox: Note — timesync disable requires systemd (not available on openrc/runit)"
+  ansible.builtin.debug:
+    msg: >-
+      VirtualBox timesync can only be disabled on systemd systems. On openrc/runit,
+      use VBoxManage on the host to disable: VBoxManage guestproperty set <VM>
+      /VirtualBox/GuestAdd/VBoxService/--disable-timesync 1
+    verbosity: 0
+  when: ansible_facts['service_mgr'] != 'systemd'
+  tags: ['vm', 'vbox', 'vm:report']
 
 # ---- Phase 8: Service management ----
 
@@ -111,7 +171,7 @@
   ansible.builtin.include_tasks:
     file: _manage_services.yml
   vars:
-    vm_svc_label: "VirtualBox"
+    vm_svc_label: "VirtualBox - {{ vm_vbox_service_name }}"
     vm_svc_list:
       - name: "{{ vm_vbox_service_name }}"
         description: "guest service (time sync, clipboard, seamless mode)"
@@ -127,13 +187,13 @@
   vars:
     vm_mod_label: "VirtualBox"
     vm_mod_list:
-      - name: Vboxguest
+      - name: vboxguest
         description: "core guest integration module"
         required: true
-      - name: Vboxsf
+      - name: vboxsf
         description: "shared folders support"
         required: true
-      - name: Vboxvideo
+      - name: vboxvideo
         description: "graphics driver (may use VMSVGA instead)"
         required: false
   tags: ['vm', 'vbox']
@@ -169,13 +229,25 @@
 
 # ---- Phase 12: Reboot flag ----
 
+- name: "VirtualBox: Check if ISO path was used"
+  ansible.builtin.set_fact:
+    _vm_vbox_iso_used: "{{ vm_vbox_iso_installed | default(false) }}"
+  tags: ['vm', 'vbox']
+
+- name: "VirtualBox: Check if vboxguest module is loaded"
+  ansible.builtin.set_fact:
+    _vm_vbox_module_loaded: "{{ 'vboxguest' in (_vm_lsmod_output.stdout | default('')) }}"
+  tags: ['vm', 'vbox']
+
+- name: "VirtualBox: Determine reboot requirement"
+  ansible.builtin.set_fact:
+    _vm_needs_reboot: "{{ _vm_vbox_iso_used and not _vm_vbox_module_loaded }}"
+  tags: ['vm', 'vbox']
+
 - name: "VirtualBox: Check reboot requirement"
   ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
     vm_reboot_label: "VirtualBox"
-    vm_reboot_condition: >-
-      {{ ((vm_vbox_pkg_install is defined and vm_vbox_pkg_install is changed)
-          or (vm_vbox_iso_installed | default(false)))
-         and ('vboxguest' not in (_vm_lsmod_output.stdout | default(''))) }}
+    vm_reboot_condition: "{{ _vm_needs_reboot }}"
   tags: ['vm', 'vbox']

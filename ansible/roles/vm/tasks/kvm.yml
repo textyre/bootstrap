@@ -21,44 +21,41 @@
     vm_notify_handler: "Restart kvm services"
   tags: ['vm', 'kvm']
 
-# ---- Check time sync ----
-
-- name: "KVM: Check time sync"
-  ansible.builtin.include_tasks:
-    file: _check_timesync.yml
-  vars:
-    vm_timesync_label: "KVM"
-    vm_timesync_service: "qemu-guest-agent"
-  tags: ['vm', 'kvm']
+# ---- KVM timesync: passive by default ----
+# qemu-guest-agent exposes guest-set-time RPC but does NOT call it
+# autonomously. Time is only set when the host management layer
+# (libvirt, OpenStack, etc.) explicitly issues the RPC.
+# Default in libvirt-guests: SYNC_TIME=0 (disabled).
+# No guest-side action required unless the host management layer enables it.
+# If SYNC_TIME=1 is set on the host, disable it there (not here).
 
 # ---- Manage services ----
 
-- name: "KVM: Check qemu-guest-agent virtio channel"
-  ansible.builtin.stat:
-    path: /dev/virtio-ports/org.qemu.guest_agent.0
-  register: _vm_qga_channel
+- name: "KVM: Manage guest agent service"
   tags: ['vm', 'kvm']
+  block:
+    - name: "Check qemu-guest-agent virtio channel"
+      ansible.builtin.stat:
+        path: /dev/virtio-ports/org.qemu.guest_agent.0
+      register: _vm_qga_channel
 
-- name: "KVM: Warn — virtio-serial channel not found, skipping service management"
-  ansible.builtin.debug:
-    msg: >-
-      /dev/virtio-ports/org.qemu.guest_agent.0 not found.
-      The VM may not have a virtio-serial device configured.
-      qemu-guest-agent service will not be started.
-  when: not _vm_qga_channel.stat.exists
-  tags: ['vm', 'kvm']
+    - name: "Warn — virtio-serial channel not found, skipping service management"
+      ansible.builtin.debug:
+        msg: >-
+          /dev/virtio-ports/org.qemu.guest_agent.0 not found.
+          The VM may not have a virtio-serial device configured.
+          qemu-guest-agent service will not be started.
+      when: not _vm_qga_channel.stat.exists
 
-- name: "KVM: Manage guest services"
-  ansible.builtin.include_tasks:
-    file: _manage_services.yml
-  vars:
-    vm_svc_list:
-      - name: qemu-guest-agent
-        description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
-        required: true
-    vm_svc_label: "KVM"
-  when: _vm_qga_channel.stat.exists
-  tags: ['vm', 'kvm']
+    - name: "Enable and manage guest agent service"
+      ansible.builtin.include_tasks:
+        file: _manage_services.yml
+      vars:
+        vm_svc_list:
+          - name: qemu-guest-agent
+            description: "QEMU Guest Agent (filesystem freeze, shutdown, exec)"
+            required: true
+      when: _vm_qga_channel.stat.exists
 
 # ---- Verify kernel modules ----
 
@@ -67,16 +64,16 @@
     file: _verify_modules.yml
   vars:
     vm_mod_list:
-      - name: Virtio_balloon
+      - name: virtio_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: false
-      - name: Virtio_net
+      - name: virtio_net
         description: "paravirtual network adapter (optional, depends on VM NIC config)"
         required: false
-      - name: Virtio_blk
+      - name: virtio_blk
         description: "paravirtual block device (optional, depends on VM disk config)"
         required: false
-      - name: Virtio_scsi
+      - name: virtio_scsi
         description: "paravirtual SCSI controller (optional, depends on VM disk config)"
         required: false
     vm_mod_label: "KVM"
@@ -95,10 +92,25 @@
 
 # ---- Check reboot requirement ----
 
+- name: "KVM: Check if packages were installed"
+  ansible.builtin.set_fact:
+    _vm_pkg_changed: "{{ _vm_pkg_install_result is defined and _vm_pkg_install_result is changed }}"
+  tags: ['vm', 'kvm']
+
+- name: "KVM: Check if virtio_balloon module is loaded"
+  ansible.builtin.set_fact:
+    _vm_module_loaded: "{{ 'virtio_balloon' in _vm_lsmod_output.stdout }}"
+  tags: ['vm', 'kvm']
+
+- name: "KVM: Determine reboot requirement"
+  ansible.builtin.set_fact:
+    _vm_needs_reboot: "{{ _vm_pkg_changed and not _vm_module_loaded }}"
+  tags: ['vm', 'kvm']
+
 - name: "KVM: Check reboot requirement"
   ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
     vm_reboot_label: "KVM"
-    vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('virtio_balloon' not in _vm_lsmod_output.stdout) }}"
+    vm_reboot_condition: "{{ _vm_needs_reboot }}"
   tags: ['vm', 'kvm']

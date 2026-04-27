@@ -21,15 +21,56 @@
     vm_notify_handler: "Restart vmware services"
   tags: ['vm', 'vmware']
 
-# ---- Check time sync ----
+# ---- Disable VMware timesync ----
+# vmtoolsd runs a timeSync plugin that syncs guest clock to the host.
+# We disable it via /etc/vmware-tools/tools.conf [timeSync] disable-all=true.
+# Source: https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/tools.conf
+# disable-all=true disables both periodic sync and one-off sync on resume/vMotion.
+#
+# Guard: only disable if an NTP daemon is active.
 
-- name: "VMware: Check time sync"
-  ansible.builtin.include_tasks:
-    file: _check_timesync.yml
-  vars:
-    vm_timesync_label: "VMware"
-    vm_timesync_service: "vmtoolsd"
+- name: "VMware: Disable guest timesync"
   tags: ['vm', 'vmware']
+  block:
+    - name: "Gather service facts for NTP guard"
+      ansible.builtin.service_facts:
+      when: vm_service_manager | default(ansible_facts['service_mgr'] | default('systemd')) != 'runit'
+
+    - name: "Check if NTP daemon is active"
+      ansible.builtin.include_tasks:
+        file: _ntp_guard.yml
+      vars:
+        vm_ntp_guard_label: "VMware"
+      when: vm_service_manager | default(ansible_facts['service_mgr'] | default('systemd')) != 'runit'
+
+    # service_facts does not support runit. On Void guests, keep the previous
+    # init-agnostic behavior and disable VMware timesync once the vm role runs.
+    - name: "Decide whether VMware timesync should be disabled"
+      ansible.builtin.set_fact:
+        _vm_disable_vmware_timesync: >-
+          {{ (vm_service_manager | default(ansible_facts['service_mgr'] | default('systemd')) == 'runit')
+             or (_vm_ntp_active | default(false) | bool) }}
+
+    - name: "Ensure /etc/vmware-tools directory exists"
+      ansible.builtin.file:
+        path: /etc/vmware-tools
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: _vm_disable_vmware_timesync | bool
+
+    - name: "Disable all VMware timesync in tools.conf"
+      community.general.ini_file:
+        path: /etc/vmware-tools/tools.conf
+        section: timeSync
+        option: disable-all
+        value: "true"
+        owner: root
+        group: root
+        mode: "0644"
+      when: _vm_disable_vmware_timesync | bool
+      notify: "Restart vmware services"
 
 # ---- Manage services ----
 
@@ -38,16 +79,15 @@
     file: _manage_services.yml
   vars:
     vm_svc_list:
-      - name: Vgauthd
+      - name: vgauthd
         description: "guest authentication for vSphere operations"
         required: true
-      - name: Vmtoolsd
+      - name: vmtoolsd
         description: "core VMware Tools daemon (status, time sync, display resize)"
         required: true
-      - name: Vmware-vmblock-fuse
+      - name: vmware-vmblock-fuse
         description: "drag-and-drop via FUSE (optional, desktop only)"
         required: false
-    vm_svc_label: "VMware"
   tags: ['vm', 'vmware']
 
 # ---- Verify kernel modules ----
@@ -57,10 +97,10 @@
     file: _verify_modules.yml
   vars:
     vm_mod_list:
-      - name: Vmw_balloon
+      - name: vmw_balloon
         description: "dynamic memory management (host reclaims unused guest memory)"
         required: true
-      - name: Vmxnet3
+      - name: vmxnet3
         description: "paravirtual high-performance network adapter (optional, depends on VM NIC config)"
         required: false
     vm_mod_label: "VMware"
@@ -100,10 +140,25 @@
 
 # ---- Check reboot requirement ----
 
+- name: "VMware: Check if packages were installed"
+  ansible.builtin.set_fact:
+    _vm_pkg_changed: "{{ _vm_pkg_install_result is defined and _vm_pkg_install_result is changed }}"
+  tags: ['vm', 'vmware']
+
+- name: "VMware: Check if vmw_balloon module is loaded"
+  ansible.builtin.set_fact:
+    _vm_module_loaded: "{{ 'vmw_balloon' in _vm_lsmod_output.stdout }}"
+  tags: ['vm', 'vmware']
+
+- name: "VMware: Determine reboot requirement"
+  ansible.builtin.set_fact:
+    _vm_needs_reboot: "{{ _vm_pkg_changed and not _vm_module_loaded }}"
+  tags: ['vm', 'vmware']
+
 - name: "VMware: Check reboot requirement"
   ansible.builtin.include_tasks:
     file: _reboot_flag.yml
   vars:
     vm_reboot_label: "VMware"
-    vm_reboot_condition: "{{ (_vm_pkg_install_result is changed) and ('vmw_balloon' not in _vm_lsmod_output.stdout) }}"
+    vm_reboot_condition: "{{ _vm_needs_reboot }}"
   tags: ['vm', 'vmware']

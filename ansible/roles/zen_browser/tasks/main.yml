@@ -80,12 +80,12 @@
       become: true
       become_user: "{{ zen_browser_user }}"
       ansible.builtin.command: >
-        yay -S --needed --noconfirm
+        yay -S --needed --noconfirm --answerclean A
         {{ '--sudoflags=-A' if ansible_become_password is defined else '' }}
         {{ zen_browser_aur_package }}
       environment: >-
         {{
-          {'PATH': '/usr/bin/core_perl:' + ansible_facts['env']['PATH']}
+          {'PATH': ('/usr/bin/core_perl:' if ansible_facts['os_family'] == 'Archlinux' else '') + ansible_facts['env']['PATH']}
           | combine({'SUDO_ASKPASS': '/tmp/.ansible_sudo_askpass_zen'} if ansible_become_password is defined else {})
         }}
       register: zen_browser_install

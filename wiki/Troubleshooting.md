@@ -169,10 +169,9 @@ EndSection
 **Vault setup:**
 ```bash
 # Первый запуск
-./bootstrap.sh  # запросит пароль, сохранит в ~/.vault-pass
-
-# Альтернатива через pass
-pass insert ansible/vault-password
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+scripts/setup-vault-pass.sh
 ```
 
 ---
@@ -245,12 +244,12 @@ grep polybar ~/.config/i3/config
 ls -la ansible/vault-pass.sh
 chmod +x ansible/vault-pass.sh
 
-# Проверить ~/.vault-pass
-cat ~/.vault-pass
-chmod 600 ~/.vault-pass
+# Проверить project-local bootstrap env
+cat .local/bootstrap/bootstrap.env
 
-# Или использовать pass
-pass show ansible/vault-password
+# Проверить local encrypted vault secret
+ls -la .local/bootstrap/vault-pass.gpg
+gpg --quiet --batch --decrypt .local/bootstrap/vault-pass.gpg >/dev/null
 ```
 
 ### Molecule тесты падают
@@ -263,7 +262,7 @@ pass show ansible/vault-password
 molecule destroy
 
 # Проверить vault password
-echo 'test_password' > ~/.vault-pass
+scripts/setup-vault-pass.sh
 
 # Запустить с verbose
 molecule --debug test

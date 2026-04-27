@@ -10,10 +10,15 @@ Multi-distro (Archlinux, Debian, RedHat, Void, Gentoo), init-system agnostic.
 # 1. Клонировать репозиторий
 git clone <repo-url> bootstrap && cd bootstrap
 
-# 2. Запустить bootstrap (установит Ansible, запросит vault пароль)
+# 2. Подготовить локальное bootstrap-окружение
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+scripts/setup-vault-pass.sh
+
+# 3. Запустить bootstrap
 ./bootstrap.sh
 
-# 3. Готово — перезагрузка в настроенную рабочую станцию
+# 4. Готово — перезагрузка в настроенную рабочую станцию
 ```
 
 ## Что делает
@@ -114,6 +119,21 @@ git clone <repo-url> bootstrap && cd bootstrap
 ./bootstrap.sh -e '{"ntp_enabled": false}'
 ```
 
+## Безопасный bootstrap boundary
+
+- tracked repo хранит только безопасные templates/examples
+- local bootstrap secrets live in `.local/bootstrap/`
+- bootstrap scripts resolve secrets only from:
+  - project-level `BOOTSTRAP_*` environment variables
+  - local GPG-encrypted runtime secret under `.local/bootstrap/`
+  - local install-only secret files under `.local/bootstrap/archinstall/`
+  - safe tracked templates/examples
+- remote VM bootstrap uses `scripts/ssh-run.sh --bootstrap-secrets ...` so the
+  vault/sudo secret is forwarded ephemerally and not synced to the VM as a
+  plaintext file
+
+Подробная инструкция: [bootstrap-secrets.md](D:/projects/bootstrap/docs/bootstrap-secrets.md)
+
 ## Разработка
 
 ```bash
@@ -174,7 +194,9 @@ bootstrap/
 ## Безопасность
 
 - Sudo пароль в Ansible Vault (AES-256)
-- Vault password: `~/.vault-pass` или `pass show ansible/vault-password`
+- Vault/sudo runtime secret: GPG-encrypted local secret in `.local/bootstrap/`
+  or exported `BOOTSTRAP_*` env vars
+- Install-time root/user passwords: local-only files in `.local/bootstrap/archinstall/`
 - SSH ключи Ed25519
 - sshd hardening (no root, no password auth)
 - nftables firewall (drop by default)

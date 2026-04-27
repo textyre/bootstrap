@@ -14,7 +14,7 @@
 #   ansible-playbook playbooks/workstation.yml --tags "docker,firewall"
 #
 # Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
-# Vault password: ~/.vault-pass или pass show ansible/vault-password
+# Vault bootstrap secrets resolve through .local/bootstrap/ and BOOTSTRAP_* vars
 #
 # Тип подключения определяется в inventory/hosts.ini (local или ssh)
 
@@ -24,6 +24,19 @@
   gather_facts: true
 
   roles:
+    # --- Phase -1: Mirror setup ---
+    - role: reflector
+      tags: [reflector, pacman, mirrors]
+
+    # --- Phase 0: Package infrastructure + full system upgrade ---
+    - role: package_manager
+      tags: [packages, pacman]
+
+    # Full system upgrade + install all packages BEFORE any role that installs
+    # its own packages. Prevents Arch Linux partial upgrade breakage.
+    - role: packages
+      tags: [packages, install]
+
     # --- Phase 1: System foundation ---
     - role: timezone
       tags: [system, timezone]
@@ -48,9 +61,6 @@
       tags: [system, ntp, ntp_audit]
       when: ntp_audit_enabled | default(true)
 
-    - role: package_manager
-      tags: [packages, pacman]
-
     - role: pam_hardening
       tags: [pam, security, hardening]
 
@@ -67,11 +77,7 @@
     - role: power_management
       tags: [power, tlp, battery]
 
-    # --- Phase 2: Package infrastructure ---
-    - role: packages
-      tags: [packages, install]
-
-    # --- Phase 3: User & access ---
+    # --- Phase 2: User & access ---
     - role: user
       tags: [user]
 
@@ -83,7 +89,6 @@
 
     - role: teleport
       tags: [teleport, security]
-      when: teleport_enabled | default(false)
 
     - role: fail2ban
       tags: [fail2ban, security]

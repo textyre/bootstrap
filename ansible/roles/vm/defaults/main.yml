@@ -10,6 +10,8 @@ _vm_supported_os:
   - Void
   - Gentoo
 
+# GA is always installed from ISO (never from the package manager).
+# This list is kept for the vm_state=absent removal path only.
 vm_packages_virtualbox_guest:
   - virtualbox-guest-utils
 vm_packages_vmware_guest:
@@ -19,7 +21,12 @@ vm_packages_hyperv_guest:
 vm_packages_kvm_guest:
   - qemu-guest-agent
 
-# VBox version mismatch: warn (not fail) when guest != host
+# VBox host version override — set to bypass dmesg/journalctl detection.
+# Use when the kernel ring buffer was cleared on a long-running system.
+# Example: vm_vbox_host_version_override: "7.1.16"
+vm_vbox_host_version_override: ""
+
+# VBox version check: detect host version and enforce GA alignment via ISO
 vm_vbox_version_check: true
 
 # VMware version reporting: show vmware-toolbox-cmd version
@@ -43,3 +50,10 @@ vm_supported_hypervisors:
   - VMware
   - hyperv
   - kvm
+
+# NTP daemons checked before disabling guest timesync (see tasks/_ntp_guard.yml)
+vm_ntp_daemon_services:
+  - chronyd.service
+  - ntpd.service
+  - openntpd.service
+  - systemd-timesyncd.service

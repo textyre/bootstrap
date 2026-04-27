@@ -14,10 +14,14 @@
 # 1. Клонировать репозиторий
 git clone <repo-url> bootstrap && cd bootstrap
 
-# 2. Запустить bootstrap
+# 2. Подготовить локальную secret-директорию
+mkdir -p .local/bootstrap/archinstall
+cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
+
+# 3. Запустить bootstrap
 ./bootstrap.sh
 
-# 3. Готово — перезагрузка в настроенную рабочую станцию
+# 4. Готово — перезагрузка в настроенную рабочую станцию
 ```
 
 `bootstrap.sh` автоматически:
@@ -46,16 +50,21 @@ git clone <repo-url> bootstrap && cd bootstrap
 
 Все аргументы передаются напрямую в `ansible-playbook`.
 
-## Vault пароль
+## Bootstrap secrets
 
-При первом запуске `bootstrap.sh` запросит vault пароль и сохранит в `~/.vault-pass` (chmod 600).
+Bootstrap больше не хранит рабочие install/vault credentials в tracked tree.
 
-Альтернативный способ — через `pass`:
+- tracked repo содержит только templates/examples
+- local secrets live in `.local/bootstrap/`
+- bootstrap scripts read `BOOTSTRAP_*` values from:
+  - shell environment
+  - `.local/bootstrap/bootstrap.env`
+
+Инициализация:
+
 ```bash
-pass insert ansible/vault-password
+scripts/setup-vault-pass.sh
 ```
-
-Скрипт `vault-pass.sh` проверяет оба источника: `pass` → `~/.vault-pass`.
 
 ## Что устанавливается
 
