@@ -9,7 +9,19 @@
 
 ## В РАБОТЕ
 
-Пока пусто.
+### `BOOT-013`
+Починка CI идет строго последовательно по GitHub Actions jobs. Отмечаются только те пункты, которые уже реально стали зелеными в CI после commit/push.
+
+- [x] `YAML Lint & Syntax`
+- [x] `Ansible Lint`
+- [ ] `packages (test-docker)`
+- [ ] `package_manager (test-docker)`
+- [ ] `docker (test-docker)`
+- [ ] `vaultwarden (test-docker)`
+- [ ] `ssh (test-docker)`
+- [ ] `teleport (test-docker)`
+- [ ] `ssh (test-vagrant/arch)`
+- [ ] `ssh (test-vagrant/ubuntu)`
 
 ## РЕВЬЮ
 
