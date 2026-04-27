@@ -18,13 +18,7 @@
     mode: '0644'
     backup: true
     validate: pacman-conf --config %s
-  register: package_manager_pacman_conf
-  tags: ['packages', 'pacman']
-
-- name: Refresh pacman sync databases after pacman.conf change
-  community.general.pacman:
-    update_cache: true
-  when: package_manager_pacman_conf is changed
+  notify: Refresh pacman sync databases
   tags: ['packages', 'pacman']
 
 - name: Setup external pacman cache

@@ -36,6 +36,9 @@
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
 
+- name: Apply pacman configuration handlers before package installs
+  ansible.builtin.meta: flush_handlers
+
 - name: Configure paccache
   ansible.builtin.include_tasks: archlinux/paccache.yml
 
