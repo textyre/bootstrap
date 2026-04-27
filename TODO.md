@@ -18,7 +18,7 @@
 - [x] `package_manager (test-docker)`
 - [x] `docker (test-docker)`
 - [x] `vaultwarden (test-docker)`
-- [ ] `ssh (test-docker)`
+- [x] `ssh (test-docker)`
 - [ ] `teleport (test-docker)`
 - [ ] `ssh (test-vagrant/arch)`
 - [ ] `ssh (test-vagrant/ubuntu)`

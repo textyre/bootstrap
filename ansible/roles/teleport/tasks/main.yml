@@ -2,6 +2,7 @@
 # === teleport: SSH access platform ===
 
 - name: Teleport role
+  when: teleport_enabled | bool
   tags: ['teleport']
   block:
     # ROLE-003: Validate supported OS

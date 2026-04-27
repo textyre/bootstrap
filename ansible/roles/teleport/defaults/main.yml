@@ -1,6 +1,9 @@
 ---
 # === teleport role defaults ===
 
+# Skip the entire role when false (used by molecule TEST-011 and profile gating)
+teleport_enabled: true
+
 # ROLE-003: Supported operating systems
 teleport_supported_os:
   - Archlinux
