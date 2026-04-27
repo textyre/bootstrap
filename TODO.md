@@ -16,7 +16,7 @@
 - [x] `Ansible Lint`
 - [x] `packages (test-docker)`
 - [x] `package_manager (test-docker)`
-- [ ] `docker (test-docker)`
+- [x] `docker (test-docker)`
 - [ ] `vaultwarden (test-docker)`
 - [ ] `ssh (test-docker)`
 - [ ] `teleport (test-docker)`
