@@ -64,3 +64,12 @@
   changed_when: false
   failed_when: false
   listen: "Reload vboxguest udev"
+
+- name: Report VirtualBox vboxsf membership change
+  ansible.builtin.debug:
+    msg: >-
+      User {{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}
+      has been added to the vboxsf group. Logout and login again for this change to
+      take effect. Shared folders and VBoxControl will not work until then.
+    verbosity: 0
+  listen: "Report VirtualBox vboxsf membership change"

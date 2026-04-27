@@ -40,7 +40,7 @@
 
 - name: "Detect installed kernel version ({{ vm_mod_label }})"
   ansible.builtin.shell:
-    cmd: "ls -1 /lib/modules/ | sort -V | tail -1"
+    cmd: "set -o pipefail && ls -1 /lib/modules/ | sort -V | tail -1"
   args:
     executable: /bin/bash
   register: _vm_installed_kernel

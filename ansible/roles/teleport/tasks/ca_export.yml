@@ -2,7 +2,7 @@
 # === Export Teleport CA public key for ssh role integration ===
 
 - name: "Check tctl is available"
-  ansible.builtin.shell:
+  ansible.builtin.command:
     cmd: "which tctl"
   register: _teleport_tctl_check
   changed_when: false
