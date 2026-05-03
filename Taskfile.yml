@@ -333,19 +333,25 @@ tasks:
     cmds:
       - '{{.PREFIX}} ara-manage runserver 0.0.0.0:8000'
 
-  # --- Snapshot management ---
+  # --- Deprecated snapshot mutation tasks ---
 
   snapshot:build-after-packages:
-    desc: "Build 'after-packages' snapshot on arch-base (idempotent, skips if hash matches)"
+    internal: true
     dir: '{{.TASKFILE_DIR}}'
     cmds:
-      - 'bash scripts/build-snapshot-after-packages.sh'
+      - |
+        echo "DEPRECATED: snapshot mutation on source VM 'arch-base' is disabled."
+        echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone."
+        exit 1
 
   snapshot:rebuild-after-packages:
-    desc: "Force rebuild 'after-packages' snapshot on arch-base (ignores hash)"
+    internal: true
     dir: '{{.TASKFILE_DIR}}'
     cmds:
-      - 'bash scripts/build-snapshot-after-packages.sh --force'
+      - |
+        echo "DEPRECATED: snapshot mutation on source VM 'arch-base' is disabled."
+        echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone."
+        exit 1
 
   # --- ctOS Greeter ---
 

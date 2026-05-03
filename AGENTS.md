@@ -49,8 +49,22 @@ Key constraints:
 - Ansible runs ON the VM (`ansible_connection=local`), not from Windows
 - All execution through Taskfile (`task workstation`, `task check`) — never `ansible-playbook` directly
 - VM reset via VirtualBox snapshot clone before every fresh test run (not before idempotency runs)
-- Base VM `arch-base` holds the sacred snapshot `initial`, which is NEVER modified — only cloned from
+- Source VM snapshots are immutable. Base VM `arch-base` holds sacred snapshots such as `initial` and `after-packages`; they are NEVER modified, rebuilt, deleted, restored-in-place, or promoted by an agent — only cloned from
+- Agents MUST use clone-only execution for every unattended playbook run.
 - Vault/sudo runtime secret resolved locally from the bootstrap secret helper and forwarded ephemerally for remote bootstrap/task runs — never synced as plaintext to the VM and never created manually on VM
 - NO manual actions on VM (no pacman, no systemctl start/stop, no file editing) — fix roles locally, rsync, reset, re-run
 - Every claim requires evidence: command + verbatim output
 
+Execution surface:
+- Use the project's existing host-side VM execution scripts and the Taskfile commands they invoke on the VM.
+- Do not invent substitute execution paths when the project already defines one.
+
+Orchestration prohibitions:
+- Do not create wrapper scripts, runner scripts, polling scripts, helper launchers, or test harness scripts in the workspace for bootstrap VM execution.
+- Do not use `Start-Process`, ad hoc PowerShell launchers, or ad hoc Bash launchers for bootstrap VM orchestration.
+- If the existing project execution path is insufficient, stop and mark the task blocked.
+
+Long-running run monitoring:
+- Use ARA/offline DB as the primary progress source when it is available.
+- Do not read Ansible log output during normal progress polling when ARA is available.
+- Read the Ansible log only for final failure evidence, unexpected process disappearance, or when ARA is unavailable.

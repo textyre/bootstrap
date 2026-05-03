@@ -1,20 +1,47 @@
 #!/usr/bin/env bash
-# Build the "after-packages" snapshot on arch-base.
-# Idempotent: skips rebuild when content hash matches the existing snapshot.
+# DEPRECATED: source VM snapshot mutation is intentionally disabled.
+# This script used to rebuild "after-packages" directly on arch-base, which
+# conflicts with the immutable clone-only VM architecture.
 #
-# Usage: bash scripts/build-snapshot-after-packages.sh [--force]
+# Do not delete this file yet: it remains as a historical reference until the
+# replacement Node.js workflow lands in the Bootstrap Scripts monorepo.
 
 set -euo pipefail
+
+echo "DEPRECATED: scripts/build-snapshot-after-packages.sh is disabled." >&2
+echo "Reason: source VM 'arch-base' and its snapshots are immutable." >&2
+echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone." >&2
+exit 1
+
+# Prefer the POSIX toolchain when invoked from PowerShell / Git Bash on Windows.
+export PATH="/usr/bin:/bin:${PATH}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 VM="arch-base"
 SNAPSHOT_NAME="after-packages"
+BASE_SNAPSHOT_NAME="initial"
+LEGACY_BASE_SNAPSHOT_NAME="base"
 SSH_KEY="${HOME}/.ssh/id_rsa_127.0.0.1_2222"
 SSH_CMD="ssh -p 2222 -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 textyre@127.0.0.1"
 
 FORCE="${1:-}"
+
+resolve_base_snapshot() {
+    if VBoxManage snapshot "$VM" showvminfo "$BASE_SNAPSHOT_NAME" >/dev/null 2>&1; then
+        printf '%s' "$BASE_SNAPSHOT_NAME"
+        return 0
+    fi
+
+    if VBoxManage snapshot "$VM" showvminfo "$LEGACY_BASE_SNAPSHOT_NAME" >/dev/null 2>&1; then
+        printf '%s' "$LEGACY_BASE_SNAPSHOT_NAME"
+        return 0
+    fi
+
+    echo "ERROR: Could not find base snapshot '$BASE_SNAPSHOT_NAME' or legacy '$LEGACY_BASE_SNAPSHOT_NAME' on VM '$VM'." >&2
+    return 1
+}
 
 # Step 1: Compute content hash (roles + venv inputs)
 echo "==> Step 1: Computing content hash..."
@@ -42,6 +69,11 @@ if [[ "$FORCE" != "--force" ]]; then
     echo "    Snapshot missing or hash mismatch — rebuilding."
 fi
 
+BASELINE_SNAPSHOT="$(resolve_base_snapshot)"
+if [[ "$BASELINE_SNAPSHOT" != "$BASE_SNAPSHOT_NAME" ]]; then
+    echo "==> Snapshot alias: using legacy base snapshot '$BASELINE_SNAPSHOT' because '$BASE_SNAPSHOT_NAME' is absent."
+fi
+
 # Step 3: Stop VM gracefully if running
 echo "==> Step 3: Stopping VM..."
 VBoxManage controlvm "$VM" acpipowerbutton 2>/dev/null || true
@@ -56,9 +88,9 @@ done
 echo "==> Step 4: Removing old '$SNAPSHOT_NAME' snapshot (if any)..."
 VBoxManage snapshot "$VM" delete "$SNAPSHOT_NAME" 2>/dev/null || true
 
-# Step 5: Restore to initial clean state
-echo "==> Step 5: Restoring 'initial' snapshot..."
-VBoxManage snapshot "$VM" restore "initial"
+# Step 5: Restore to clean base state
+echo "==> Step 5: Restoring '$BASELINE_SNAPSHOT' snapshot..."
+VBoxManage snapshot "$VM" restore "$BASELINE_SNAPSHOT"
 
 # Step 6: Start VM
 echo "==> Step 6: Starting VM..."
@@ -82,13 +114,16 @@ SSH_HOST=arch-127.0.0.1-2222 bash "$SCRIPT_DIR/ssh-scp-to.sh" --project
 
 # Step 9: Install system deps (ansible, go-task, uv) then bootstrap venv+galaxy
 echo "==> Step 9: Installing system deps..."
-$SSH_CMD "cd ~/bootstrap && bash scripts/install-deps.sh"
+SSH_HOST=arch-127.0.0.1-2222 bash "$SCRIPT_DIR/ssh-run.sh" --bootstrap-secrets \
+    "cd ~/bootstrap && bash scripts/install-deps.sh"
 echo "==> Step 9: Running bootstrap (venv + galaxy)..."
-$SSH_CMD "cd ~/bootstrap && PATH=\$HOME/.local/bin:\$PATH task bootstrap"
+SSH_HOST=arch-127.0.0.1-2222 bash "$SCRIPT_DIR/ssh-run.sh" --bootstrap-secrets \
+    "cd ~/bootstrap && PATH=\$HOME/.local/bin:\$PATH task bootstrap"
 
 # Step 10: Run roles that define the snapshot scope
 echo "==> Step 10: Running roles: reflector + package_manager + packages..."
-$SSH_CMD "cd ~/bootstrap && PATH=\$HOME/.local/bin:\$PATH task --yes workstation -- --tags reflector,package_manager,packages"
+SSH_HOST=arch-127.0.0.1-2222 bash "$SCRIPT_DIR/ssh-run.sh" --bootstrap-secrets \
+    "cd ~/bootstrap && PATH=\$HOME/.local/bin:\$PATH task --yes workstation -- --tags reflector,package_manager,packages"
 
 # Step 11: Graceful shutdown via ACPI
 echo "==> Step 11: Sending ACPI poweroff..."

@@ -16,6 +16,24 @@ Server = https://fastly.mirror.pkgbuild.com/$repo/os/$arch
 EOF
 }
 
+refresh_archlinux_keyring() {
+    echo "==> Refreshing Arch Linux keyring..."
+
+    local temp_config
+    local rc
+    temp_config="$(mktemp "${TMPDIR:-/tmp}/bootstrap-pacman-conf.XXXXXX")"
+
+    {
+        sed 's/^SigLevel.*/SigLevel = Never/' /etc/pacman.conf > "${temp_config}"
+        bootstrap_run_sudo pacman -Sy --needed --noconfirm --config "${temp_config}" archlinux-keyring
+        bootstrap_run_sudo pacman-key --populate archlinux
+    }
+    rc=$?
+
+    rm -f -- "${temp_config}"
+    return "${rc}"
+}
+
 # Verify Arch Linux
 if [[ ! -f /etc/arch-release ]]; then
     echo "ERROR: Arch Linux only." >&2
@@ -28,6 +46,7 @@ fi
 # See setup-venv.sh for benchmark data and mirror choice rationale.
 if ! command -v ansible-playbook &>/dev/null; then
     refresh_pacman_mirrorlist
+    refresh_archlinux_keyring
     echo "==> Installing Ansible..."
     bootstrap_run_sudo pacman -Syu --needed --noconfirm ansible python-rich uv
 else

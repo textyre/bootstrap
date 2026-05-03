@@ -78,6 +78,9 @@ All playbook execution goes through the Taskfile. **NEVER** run `ansible-playboo
 | `task lint` | ansible-lint on all roles |
 | `task bootstrap` | Install venv + galaxy deps (first-time setup) |
 
+The public execution surface is clone-only because agents must not mutate
+source VMs or source snapshots.
+
 The `task workstation` command has an interactive prompt. Bypass with:
 ```bash
 task --yes workstation -- --skip-tags "..."
@@ -91,7 +94,7 @@ task --yes workstation -- --skip-tags "..."
 
 The project uses VirtualBox snapshots for clean-state testing.
 
-**Base VM:** `arch-base`. **Sacred snapshot:** `initial` on `arch-base` — NEVER delete, modify, or restore directly. Only clone from it.
+**Source VM:** `arch-base`. **Sacred snapshots:** `initial`, `after-packages`, and any other source snapshots on `arch-base` are immutable. NEVER delete, modify, rebuild, restore in place, or take replacement snapshots on the source VM. Only clone from source snapshots.
 
 ### Two Snapshots
 
@@ -100,15 +103,11 @@ The project uses VirtualBox snapshots for clean-state testing.
 | Snapshot | Contents | Use for |
 |----------|----------|---------|
 | `initial` | Bare Arch install + SSH | Full fresh-install test (all roles) |
-| `after-packages` | `initial` + reflector + package_manager + packages | Role tests that assume packages are installed |
+| `after-packages` | Pre-baked package baseline used only as a clone source | Runs that assume package layer already exists |
 
-The `after-packages` snapshot is built automatically:
-```bash
-task snapshot:build-after-packages    # skips if content hash matches
-task snapshot:rebuild-after-packages  # force rebuild
-```
-
-The build script (`scripts/build-snapshot-after-packages.sh`) computes a SHA256 hash of `ansible/roles/`, `requirements.txt`, and venv scripts, stores it in the snapshot description, and skips the rebuild if the hash is unchanged.
+`after-packages` is a frozen clone source. Baseline automation, if needed, must
+live outside the agent execution path and must preserve source snapshot
+immutability.
 
 ### Clone Workflow
 
@@ -144,8 +143,8 @@ All `VBoxManage` commands run LOCALLY on Windows, not via SSH.
 
 Use the helper script (preferred):
 ```bash
-# Clone from initial (default) on port 2223
-bash scripts/clone-test-vm.sh
+# Clone from initial on port 2223
+bash scripts/clone-test-vm.sh --from=initial
 
 # Clone from after-packages, replace if exists
 bash scripts/clone-test-vm.sh --from=after-packages --replace
@@ -154,10 +153,17 @@ bash scripts/clone-test-vm.sh --from=after-packages --replace
 bash scripts/clone-test-vm.sh --from=initial --name=arch-test-2 --port=2224
 ```
 
+The helper performs one extra guard for disposable clones: after the first SSH
+boot, it checks whether the running kernel has a matching
+`/usr/lib/modules/<uname -r>` directory. If the clone came up on an old kernel
+while newer modules are already installed on disk (a common post-upgrade
+snapshot state), the helper triggers one local VirtualBox reboot of the clone
+before returning control. This reboot happens only on the disposable clone,
+never on `arch-base`.
+
 Or manually:
 ```bash
-# 1. Stop base VM (to free port 2222) and any previous clone
-VBoxManage controlvm "arch-base" poweroff 2>/dev/null || true
+# 1. Stop any previous clone
 VBoxManage controlvm "arch-test-clone" poweroff 2>/dev/null || true
 VBoxManage unregistervm "arch-test-clone" --delete 2>/dev/null || true
 
@@ -189,8 +195,7 @@ done
 VBoxManage controlvm "arch-test-clone" poweroff
 VBoxManage unregistervm "arch-test-clone" --delete
 
-# Restart original VM (if it was running before)
-VBoxManage startvm "<VM-NAME>" --type headless
+# Source VMs are not part of clone cleanup. Do not mutate source VM state here.
 ```
 
 ### SSH Connection
@@ -240,7 +245,8 @@ Remote bootstrap/task runs must receive the vault secret through
 ### Step 2: Syntax Check
 
 ```bash
-$SSH_CMD "cd ~/bootstrap && task check"
+SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
+  "cd ~/bootstrap && task check"
 ```
 
 ### Step 3: Run Playbook (Run 1)
@@ -248,9 +254,19 @@ $SSH_CMD "cd ~/bootstrap && task check"
 Full playbook from beginning through a specific role using `--skip-tags`:
 
 ```bash
-$SSH_CMD "cd ~/bootstrap && task --yes workstation -- \
+SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
+  --retry-on-kernel-mismatch \
+  "cd ~/bootstrap && task --yes workstation -- \
   --skip-tags 'git,shell,docker,firewall,caddy,vaultwarden,xorg,lightdm,greeter,zen_browser,chezmoi'"
 ```
+
+Use `--retry-on-kernel-mismatch` for unattended disposable-clone runs. If the
+`packages` phase upgrades the kernel on disk and the running clone loses its
+matching `/usr/lib/modules/<uname -r>` directory, the existing host-side
+execution script schedules one reboot of the disposable VM, waits for SSH to
+return, and retries the same `task` command once. This keeps the controller on
+the host side, which is required when Ansible itself is running on the VM with
+`ansible_connection=local`.
 
 **Scope reference** — roles in `playbooks/workstation.yml` order:
 
@@ -346,4 +362,5 @@ Roles support 5 distros: Arch, Ubuntu, Fedora, Void, Gentoo. Any fix that hardco
 - **NEVER** use `--skip-tags` to work around a broken role — fix the role
 - **NEVER** use `ignore_errors: true` to hide failures
 - **NEVER** continue from failure point — reset and re-run from scratch
-- **NEVER** amend the snapshot — it's the immutable baseline
+- **NEVER** amend, rebuild, delete, or replace a source snapshot — it's the immutable baseline
+- **NEVER** mutate a source snapshot from an agent workflow
