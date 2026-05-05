@@ -1,134 +1,45 @@
 # Molecule Testing
 
-## Что это?
+This role has two meaningful Molecule contracts:
 
-Molecule - фреймворк для автоматизированного тестирования Ansible ролей.
+- `docker`: offline contract. Installs/configures reflector, enables the timer, deploys the pacman hook, and checks idempotence with `--skip-tags update`.
+- `vagrant`: full Arch VM contract. Runs the online mirrorlist update, checks idempotence, verifies check mode does not mutate mirrorlist state, then validates mirrorlist and backup rotation.
 
-**Как работает:**
-1. **Converge** - применяет роль к системе
-2. **Verify** - автоматически проверяет результат
-3. **Idempotence** - проверяет идемпотентность
+## Docker
 
-## Для вашего случая (Arch Linux VM)
+Docker is the fast CI path. It intentionally skips `update` because mirror selection is network-dependent and writes `/etc/pacman.d/mirrorlist`.
 
-Вы уже работаете в Arch Linux VM, поэтому Molecule будет применять роль **прямо к вашей системе**.
+Checks:
 
-### ⚠️ ВАЖНО: Molecule ИЗМЕНЯЕТ систему!
+- `reflector` package is installed.
+- `reflector.conf` exists, is root-owned, mode `0644`, and contains expected directives.
+- `reflector.timer` drop-in exists and contains expected schedule values.
+- `reflector.timer` is enabled.
+- Optional pacman hook exists and references `pacman-mirrorlist` plus `--config`.
+- Idempotence passes for the offline contract.
 
-**Что будет изменено:**
-- Установлен пакет `reflector`
-- Создан `/etc/xdg/reflector/reflector.conf`
-- Настроен `reflector.timer` в systemd
-- Обновлен `/etc/pacman.d/mirrorlist`
+## Vagrant
 
-**Перед запуском:**
-1. Создайте снапшот VM в VirtualBox
-2. Запустите `task test`
-3. Если всё ок - оставьте изменения
-4. Если что-то не так - откатите снапшот
+Vagrant is the full contract test for the role on an Arch VM.
 
-## Запуск тестов
+Checks:
 
-### Синтаксис и линтинг (безопасно)
+- Everything from the Docker/offline contract.
+- Full role idempotence after the first converge.
+- Check mode does not mutate the mirrorlist content or backup count.
+- `reflector_mirrorlist_path` exists, is non-empty, and contains active `Server =` entries.
+- The mirrorlist is not older than `reflector_conf_path`.
+- Backup count does not exceed `reflector_backup_keep`.
+
+## Running
+
+Project policy requires role tests to run through the VM/Taskfile workflow. The scenario commands below document the underlying Molecule targets used by that workflow.
+
+Typical role commands:
+
 ```bash
-task check  # Проверка синтаксиса
-task lint   # Ansible-lint
-task all    # Синтаксис + линтинг
+molecule test -s docker
+molecule test -s vagrant --platform-name arch-vm
 ```
 
-### Molecule (изменяет систему!)
-```bash
-# 1. В VirtualBox: VM → Снапшоты → Создать
-# 2. Запустить тесты
-task test
-
-# 3a. Если всё ок - оставить изменения
-# 3b. Если нет - откатить снапшот в VirtualBox
-```
-
-## Что проверяет Molecule?
-
-После применения роли автоматически проверяет:
-
-1. ✅ Пакет `reflector` установлен
-2. ✅ Конфиг `/etc/xdg/reflector/reflector.conf` существует
-3. ✅ Конфиг содержит правильные параметры
-4. ✅ Systemd таймер настроен
-5. ✅ Таймер включен и запущен
-6. ✅ Mirrorlist обновлен и содержит серверы
-
-## Рабочий процесс
-
-### Разработка
-```bash
-# Быстрая проверка без изменений
-task check
-task lint
-
-# При необходимости - применить к системе
-ansible-playbook playbooks/mirrors-update.yml
-```
-
-### Перед коммитом
-```bash
-# Полная проверка с автоматической верификацией
-task test
-```
-
-## Альтернативы
-
-### 1. Ручная проверка (без Molecule)
-```bash
-ansible-playbook playbooks/mirrors-update.yml
-
-# Вручную проверяем:
-systemctl status reflector.timer
-cat /etc/pacman.d/mirrorlist
-cat /etc/xdg/reflector/reflector.conf
-```
-**Минус:** Легко забыть что-то проверить
-
-### 2. Check mode (dry-run)
-```bash
-ansible-playbook playbooks/mirrors-update.yml --check --diff
-```
-**Минус:** Не все модули поддерживают, не проверяет реальный результат
-
-### 3. Molecule (текущий подход)
-```bash
-task test
-```
-**Плюс:** Автоматически проверяет ВСЁ
-**Минус:** Изменяет систему (нужен снапшот)
-
-## Почему не Docker/Vagrant?
-
-**Docker:**
-- ❌ Нет полноценного systemd
-- ❌ Arch Linux образы нестабильны
-
-**Vagrant:**
-- ❌ Вы уже в VM (nested virtualization медленно)
-- ❌ Избыточно
-
-**Delegated driver (localhost):**
-- ✅ Вы УЖЕ на Arch Linux
-- ✅ Просто делаете снапшот VM
-- ✅ Быстро и просто
-
-## FAQ
-
-**Q: Безопасно ли запускать `task test`?**
-A: НЕТ! Роль будет применена к вашей системе. Создайте снапшот VM перед запуском.
-
-**Q: Как откатить изменения?**
-A: В VirtualBox: VM → Снапшоты → Восстановить нужный снапшот.
-
-**Q: Можно ли протестировать без изменения системы?**
-A: Частично - используйте `task check` и `task lint` для проверки синтаксиса. Для полной проверки нужно применять роль.
-
-**Q: Зачем Molecule если можно просто запустить playbook?**
-A: Molecule **автоматически проверяет** результат (systemd, файлы, содержимое). Без него вы проверяете вручную и можете что-то пропустить.
-
-**Q: Что если я не хочу создавать снапшоты?**
-A: Тогда просто применяйте роль напрямую: `ansible-playbook playbooks/mirrors-update.yml`. Molecule нужен только для автоматизированного тестирования.
+The delegated `default` scenario applies the full role to the current host and is not the CI path. Use it only on a disposable Arch VM snapshot.

@@ -1,0 +1,59 @@
+---
+- name: Verify reflector check mode does not mutate mirrorlist state
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../defaults/main.yml
+
+  tasks:
+    - name: Skip check-mode side effect on non-Arch systems
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
+
+    - name: Stat mirrorlist before check mode
+      ansible.builtin.stat:
+        path: "{{ reflector_mirrorlist_path }}"
+        checksum_algorithm: sha256
+      register: _reflector_check_mirrorlist_before
+
+    - name: Count backups before check mode
+      ansible.builtin.find:
+        paths: "{{ reflector_mirrorlist_path | dirname }}"
+        patterns: "{{ reflector_mirrorlist_path | basename }}.bak.*"
+      register: _reflector_check_backups_before
+      when: reflector_backup_mirrorlist | bool
+
+    - name: Run reflector role in check mode
+      ansible.builtin.include_role:
+        name: reflector
+        apply:
+          check_mode: true
+
+    - name: Stat mirrorlist after check mode
+      ansible.builtin.stat:
+        path: "{{ reflector_mirrorlist_path }}"
+        checksum_algorithm: sha256
+      register: _reflector_check_mirrorlist_after
+
+    - name: Count backups after check mode
+      ansible.builtin.find:
+        paths: "{{ reflector_mirrorlist_path | dirname }}"
+        patterns: "{{ reflector_mirrorlist_path | basename }}.bak.*"
+      register: _reflector_check_backups_after
+      when: reflector_backup_mirrorlist | bool
+
+    - name: Assert check mode did not mutate mirrorlist
+      ansible.builtin.assert:
+        that:
+          - _reflector_check_mirrorlist_before.stat.exists
+          - _reflector_check_mirrorlist_after.stat.exists
+          - _reflector_check_mirrorlist_before.stat.checksum == _reflector_check_mirrorlist_after.stat.checksum
+        fail_msg: "{{ reflector_mirrorlist_path }} changed during check mode"
+
+    - name: Assert check mode did not create or remove backups
+      ansible.builtin.assert:
+        that:
+          - _reflector_check_backups_before.matched == _reflector_check_backups_after.matched
+        fail_msg: "Mirrorlist backup count changed during check mode"
+      when: reflector_backup_mirrorlist | bool

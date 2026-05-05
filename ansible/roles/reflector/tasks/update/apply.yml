@@ -1,0 +1,54 @@
+---
+- name: Run reflector to update mirrorlist
+  ansible.builtin.command:
+    argv:
+      - reflector
+      - --country
+      - "{{ reflector_countries }}"
+      - --protocol
+      - "{{ reflector_protocol }}"
+      - --latest
+      - "{{ reflector_latest | string }}"
+      - --sort
+      - "{{ reflector_sort }}"
+      - --age
+      - "{{ reflector_age | string }}"
+      - --connection-timeout
+      - "{{ reflector_connection_timeout | string }}"
+      - --download-timeout
+      - "{{ reflector_download_timeout | string }}"
+      - --threads
+      - "{{ reflector_threads | string }}"
+      - --save
+      - "{{ reflector_mirrorlist_path }}"
+  register: reflector_run
+  retries: "{{ reflector_retries }}"
+  delay: "{{ reflector_retry_delay }}"
+  until: reflector_run.rc == 0
+  changed_when: false
+  failed_when: reflector_run.rc != 0
+  environment: >-
+    {{
+      {'http_proxy': reflector_proxy, 'https_proxy': reflector_proxy}
+      if reflector_proxy | length > 0
+      else {}
+    }}
+  tags: ['update']
+
+- name: Read new mirrorlist
+  ansible.builtin.slurp:
+    src: "{{ reflector_mirrorlist_path }}"
+  register: reflector_new_mirror
+  tags: ['update']
+
+- name: Decode new mirrorlist
+  ansible.builtin.set_fact:
+    _reflector_new_mirror_text: "{{ reflector_new_mirror.content | b64decode }}"
+  tags: ['update']
+
+- name: Assert generated mirrorlist has active pacman servers
+  ansible.builtin.assert:
+    that:
+      - _reflector_new_mirror_text is regex('(?m)^Server = ')
+    fail_msg: "{{ reflector_mirrorlist_path }} does not contain any Server entries"
+  tags: ['update']
