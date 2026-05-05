@@ -53,7 +53,8 @@
 
     - name: Build combined verification package list
       ansible.builtin.set_fact:
-        packages_verify_all: "{{ packages_all + packages_aur_all }}"
+        packages_verify_all: >-
+          {{ packages_all + packages_aur_all }}
       tags: ['packages']
 
     # ---- OS-specific package installation ----

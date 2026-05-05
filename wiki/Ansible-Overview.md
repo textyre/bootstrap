@@ -77,9 +77,9 @@ task test-base-system     # Конкретная роль
 
 ```bash
 # Выборочный запуск
-ansible-playbook playbooks/workstation.yml --tags packages
-ansible-playbook playbooks/workstation.yml --tags "docker,ssh,firewall"
-ansible-playbook playbooks/workstation.yml --skip-tags firewall
+task workstation -- --tags packages
+task workstation -- --tags "docker,ssh,firewall"
+task workstation -- --skip-tags firewall
 ```
 
 ## Структура проекта

@@ -1,0 +1,19 @@
+---
+# Полное системное обновление ОС перед запуском workstation.
+#
+# Штатный lifecycle:
+#   task system:update
+#   reboot
+#   task workstation
+#
+# Этот playbook не устанавливает workstation package set, AUR-пакеты,
+# сервисы, desktop или dotfiles.
+
+- name: Update operating system
+  hosts: workstations
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: system_update
+      tags: [system_update, packages, upgrade]

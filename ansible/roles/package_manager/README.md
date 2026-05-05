@@ -19,6 +19,10 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 - [x] Runs in-role verification after deployment (verify.yml)
 - [x] Supports external pacman cache on shared storage
 
+## What this role does not do
+
+- It does not perform full OS upgrades or force `archlinux-keyring` to `latest`; that belongs to the pre-workstation `system_update` lifecycle.
+
 ## Execution flow
 
 1. **Preflight assert** (`tasks/main.yml`) — fail fast if OS family is not in `_package_manager_supported_os`
@@ -39,7 +43,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
    2. Configure cache cron → `tasks/void/cache.yml` (weekly `xbps-remove -O`)
 7. **Gentoo path** (`tasks/gentoo.yml`) — stub, logs a message
 8. **In-role verification** (`tasks/verify.yml`) — slurp deployed configs, assert expected values
-9. **Handler**: `Reload systemd daemon` (guarded by `service_mgr == 'systemd'`)
+9. **Handlers**: refresh pacman sync databases after pacman config changes; reload systemd daemon where needed (guarded by `service_mgr == 'systemd'`)
 10. **Structured logging** — `report_phase` + `report_render` via common role
 
 ## Variables
@@ -235,7 +239,7 @@ molecule test -s default
 
 Example: apply only pacman config without paccache/makepkg:
 ```bash
-ansible-playbook playbooks/workstation.yml --tags pacman
+task workstation -- --tags pacman
 ```
 
 ## File map
@@ -259,7 +263,7 @@ ansible-playbook playbooks/workstation.yml --tags pacman
 | `tasks/void/cache.yml` | xbps cache cleanup cron | Changing cleanup schedule |
 | `tasks/gentoo.yml` | Gentoo stub | Implementing portage support |
 | `tasks/verify.yml` | In-role verification | Adding post-deploy checks |
-| `handlers/main.yml` | systemd daemon-reload | Adding new handlers |
+| `handlers/main.yml` | pacman sync database refresh and systemd daemon-reload | Adding new handlers |
 | `meta/main.yml` | Galaxy metadata | Changing role metadata |
 | `requirements.yml` | Role dependencies (reflector, yay) | Adding role dependencies |
 | `templates/archlinux/pacman.conf.j2` | pacman.conf template | Changing pacman config format |

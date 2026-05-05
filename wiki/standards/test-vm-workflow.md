@@ -72,8 +72,8 @@ All playbook execution goes through the Taskfile. **NEVER** run `ansible-playboo
 
 | Command | What it does |
 |---------|-------------|
-| `task workstation` | Full workstation playbook (`-v` auto) |
-| `task workstation -- --skip-tags "x,y"` | Playbook with tag filtering |
+| `task system:update` | Full OS package upgrade before reboot/workstation (`-v` auto) |
+| `task workstation` | Full workstation configuration playbook (`-v` auto) |
 | `task check` | Syntax check all playbooks |
 | `task lint` | ansible-lint on all roles |
 | `task bootstrap` | Install venv + galaxy deps (first-time setup) |
@@ -249,33 +249,28 @@ SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
   "cd ~/bootstrap && task check"
 ```
 
-### Step 3: Run Playbook (Run 1)
+### Step 3: Run System Update
 
-Full playbook from beginning through a specific role using `--skip-tags`:
+Run the pre-workstation system update entrypoint. This step performs only the
+operating-system package upgrade. It must not install the workstation package
+set, AUR packages, Docker, VM integration, desktop roles, or dotfiles.
 
 ```bash
 SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
-  --retry-on-kernel-mismatch \
-  "cd ~/bootstrap && task --yes workstation -- \
-  --skip-tags 'git,shell,docker,firewall,caddy,vaultwarden,xorg,lightdm,greeter,zen_browser,chezmoi'"
+  "cd ~/bootstrap && task --yes system:update"
 ```
 
-Use `--retry-on-kernel-mismatch` for unattended disposable-clone runs. If the
-`packages` phase upgrades the kernel on disk and the running clone loses its
-matching `/usr/lib/modules/<uname -r>` directory, the existing host-side
-execution script schedules one reboot of the disposable VM, waits for SSH to
-return, and retries the same `task` command once. This keeps the controller on
-the host side, which is required when Ansible itself is running on the VM with
-`ansible_connection=local`.
+After a successful `task system:update`, reboot the disposable clone through the
+project-approved VM workflow. The reboot boundary deliberately starts a new
+runtime; no Ansible checkpoint or resume state is carried across it.
 
-**Scope reference** — roles in `playbooks/workstation.yml` order:
+After the VM returns, run the workstation entrypoint through the same
+secret-forwarding path:
 
-| Stop after | Skip tags |
-|------------|-----------|
-| fail2ban | `git,shell,docker,firewall,caddy,vaultwarden,xorg,lightdm,greeter,zen_browser,chezmoi` |
-| ssh | `teleport,fail2ban,git,shell,docker,firewall,caddy,vaultwarden,xorg,lightdm,greeter,zen_browser,chezmoi` |
-| packages | `user,ssh_keys,ssh,teleport,fail2ban,git,shell,docker,firewall,caddy,vaultwarden,xorg,lightdm,greeter,zen_browser,chezmoi` |
-| full playbook | *(no skip)* |
+```bash
+SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
+  "cd ~/bootstrap && task --yes workstation"
+```
 
 **If a role fails:**
 1. Record the full error output

@@ -1,0 +1,14 @@
+---
+- name: Gather package facts after system update
+  ansible.builtin.package_facts:
+    manager: auto
+  changed_when: false
+  tags: ['system_update', 'verify']
+
+- name: Report system update boundary
+  ansible.builtin.debug:
+    msg: >-
+      system_update completed on {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] | default('') }}.
+      Reboot the system before running task workstation.
+  tags: ['system_update', 'verify']

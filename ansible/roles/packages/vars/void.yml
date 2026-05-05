@@ -1,6 +1,0 @@
----
-# Void Linux — package manager specifics
-# All package lists (packages_base, packages_editors, etc.) are user-supplied via inventory.
-#
-# No install task implemented yet (stub). Add tasks/install-void.yml when Void support
-# is required. Package manager: xbps-install.

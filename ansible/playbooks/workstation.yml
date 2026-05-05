@@ -1,22 +1,19 @@
 ---
-# Полная настройка рабочей станции после установки ОС
+# Полная настройка рабочей станции после установки ОС.
 #
-# Использование:
-#   Через bootstrap: ./bootstrap.sh
-#   Вручную: task workstation
-#   Dry-run: task dry-run
+# Публичный запуск:
+#   task workstation
 #
-# Переопределение переменных:
-#   ansible-playbook playbooks/workstation.yml -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'
+# Перед этим playbook система должна быть обновлена и перезагружена:
+#   task system:update
+#   reboot
+#   task workstation
 #
-# Выборочный запуск по тегам:
-#   ansible-playbook playbooks/workstation.yml --tags packages
-#   ansible-playbook playbooks/workstation.yml --tags "docker,firewall"
+# Dry-run:
+#   task dry-run
 #
-# Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault)
-# Vault bootstrap secrets resolve through .local/bootstrap/ and BOOTSTRAP_* vars
-#
-# Тип подключения определяется в inventory/hosts.ini (local или ssh)
+# Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault).
+# Vault bootstrap secrets resolve through .local/bootstrap/ and BOOTSTRAP_* vars.
 
 - name: Setup workstation
   hosts: workstations
@@ -28,12 +25,11 @@
     - role: reflector
       tags: [reflector, pacman, mirrors]
 
-    # --- Phase 0: Package infrastructure + full system upgrade ---
+    # --- Phase 0: Package infrastructure ---
     - role: package_manager
       tags: [packages, pacman]
 
-    # Full system upgrade + install all packages BEFORE any role that installs
-    # its own packages. Prevents Arch Linux partial upgrade breakage.
+    # Workstation package set only. Full OS upgrade belongs to system_update.
     - role: packages
       tags: [packages, install]
 

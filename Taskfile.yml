@@ -38,6 +38,7 @@ tasks:
     cmds:
       - 'echo "==> Checking playbook syntax..."'
       - "{{.ANSIBLE}} playbooks/mirrors-update.yml --syntax-check"
+      - "{{.ANSIBLE}} playbooks/system_update.yml --syntax-check"
       - "{{.ANSIBLE}} playbooks/workstation.yml --syntax-check"
       - 'echo "Syntax check passed"'
 
@@ -317,6 +318,15 @@ tasks:
     cmds:
       - 'echo "==> Running playbook..."'
       - '{{.ANSIBLE}} {{.PLAYBOOK}} -v {{.CLI_ARGS}}'
+
+  system:update:
+    desc: "Update operating system packages before reboot/workstation."
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}'
+    prompt: "This will upgrade OS packages. Reboot before running workstation. Continue?"
+    cmds:
+      - 'echo "==> Updating operating system packages..."'
+      - '{{.ANSIBLE}} playbooks/system_update.yml -v {{.CLI_ARGS}}'
 
   workstation:
     desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."
