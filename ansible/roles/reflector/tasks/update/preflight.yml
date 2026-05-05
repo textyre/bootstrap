@@ -1,0 +1,28 @@
+---
+- name: Stat current mirrorlist
+  ansible.builtin.stat:
+    path: "{{ reflector_mirrorlist_path }}"
+  register: reflector_stat
+  tags: ['update']
+
+- name: Stat reflector config
+  ansible.builtin.stat:
+    path: "{{ reflector_conf_path }}"
+  register: reflector_config_stat
+  tags: ['update']
+
+- name: Decide whether mirrorlist update can be skipped
+  ansible.builtin.set_fact:
+    _reflector_skip: >-
+      {{
+        reflector_stat.stat.exists
+        and (
+          (ansible_facts['date_time']['epoch'] | int)
+          - (reflector_stat.stat.mtime | int)
+        ) < (reflector_update_min_interval | int)
+        and (
+          not reflector_config_stat.stat.exists
+          or (reflector_stat.stat.mtime | int) >= (reflector_config_stat.stat.mtime | int)
+        )
+      }}
+  tags: ['update']

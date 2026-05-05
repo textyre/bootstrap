@@ -1,0 +1,36 @@
+---
+- name: Stat mirrorlist
+  ansible.builtin.stat:
+    path: "{{ reflector_mirrorlist_path }}"
+  register: _reflector_verify_mirrorlist
+
+- name: Assert mirrorlist exists with content
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_mirrorlist.stat.exists
+      - _reflector_verify_mirrorlist.stat.isreg
+      - _reflector_verify_mirrorlist.stat.size > 0
+    fail_msg: "{{ reflector_mirrorlist_path }} missing or empty"
+
+- name: Assert mirrorlist was generated after reflector config
+  ansible.builtin.assert:
+    that:
+      - (_reflector_verify_mirrorlist.stat.mtime | int) >= (_reflector_verify_conf_stat.stat.mtime | int)
+    fail_msg: >-
+      {{ reflector_mirrorlist_path }} is older than {{ reflector_conf_path }};
+      update may have been skipped after config changed.
+
+- name: Read mirrorlist content
+  ansible.builtin.slurp:
+    src: "{{ reflector_mirrorlist_path }}"
+  register: _reflector_verify_mirrorlist_raw
+
+- name: Decode mirrorlist content
+  ansible.builtin.set_fact:
+    _reflector_verify_mirrorlist_text: "{{ _reflector_verify_mirrorlist_raw.content | b64decode }}"
+
+- name: Assert mirrorlist contains active pacman servers
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_mirrorlist_text is regex('(?m)^Server = ')
+    fail_msg: "{{ reflector_mirrorlist_path }} does not contain any Server entries"

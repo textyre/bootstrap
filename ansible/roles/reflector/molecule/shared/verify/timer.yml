@@ -1,0 +1,45 @@
+---
+- name: Stat timer drop-in
+  ansible.builtin.stat:
+    path: /etc/systemd/system/reflector.timer.d/override.conf
+  register: _reflector_verify_dropin_stat
+
+- name: Assert timer drop-in exists
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_dropin_stat.stat.exists
+      - _reflector_verify_dropin_stat.stat.isreg
+    fail_msg: "Timer drop-in /etc/systemd/system/reflector.timer.d/override.conf missing"
+
+- name: Read timer drop-in content
+  ansible.builtin.slurp:
+    src: /etc/systemd/system/reflector.timer.d/override.conf
+  register: _reflector_verify_dropin_raw
+
+- name: Decode timer drop-in content
+  ansible.builtin.set_fact:
+    _reflector_verify_dropin_text: "{{ _reflector_verify_dropin_raw.content | b64decode }}"
+
+- name: Assert timer drop-in contains expected values
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_dropin_text is regex('OnCalendar=' ~ reflector_timer_schedule)
+      - _reflector_verify_dropin_text is regex('RandomizedDelaySec=' ~ reflector_timer_randomized_delay)
+    fail_msg: "Timer drop-in missing OnCalendar or RandomizedDelaySec"
+
+- name: Gather reflector.timer systemd state
+  ansible.builtin.systemd_service:
+    name: reflector.timer
+  check_mode: true
+  register: _reflector_verify_timer
+  changed_when: false
+
+- name: Assert reflector.timer is enabled
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_timer.status.UnitFileState is defined
+      - _reflector_verify_timer.status.UnitFileState == 'enabled'
+    fail_msg: >-
+      reflector.timer is not enabled
+      (UnitFileState:
+      {{ _reflector_verify_timer.status.UnitFileState | default('missing') }})
