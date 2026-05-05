@@ -1,0 +1,35 @@
+---
+- name: Prepare mirrorlist backup
+  ansible.builtin.import_tasks: update/backup.yml
+  tags: ['update']
+
+- name: Run reflector update with rollback
+  tags: ['update']
+  block:
+    - name: Apply reflector mirrorlist update
+      ansible.builtin.import_tasks: update/apply.yml
+
+    - name: Rotate old mirrorlist backups
+      ansible.builtin.import_tasks: update/rotate-backups.yml
+
+    - name: Report mirrorlist update result
+      ansible.builtin.import_tasks: update/report.yml
+
+  rescue:
+    - name: Restore mirrorlist from backup
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ reflector_latest_backup }}"
+        dest: "{{ reflector_mirrorlist_path }}"
+        mode: '0644'
+      when: reflector_latest_backup is defined
+
+    - name: Fail with descriptive message
+      ansible.builtin.fail:
+        msg: >-
+          reflector failed or produced an invalid mirrorlist.
+          {% if reflector_latest_backup is defined %}
+          Restored from {{ reflector_latest_backup }}.
+          {% else %}
+          No backup was available - mirrorlist may be empty or missing.
+          {% endif %}

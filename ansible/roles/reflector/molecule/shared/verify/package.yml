@@ -1,0 +1,10 @@
+---
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Assert reflector package is installed
+  ansible.builtin.assert:
+    that:
+      - "'reflector' in ansible_facts.packages"
+    fail_msg: "reflector package not found"

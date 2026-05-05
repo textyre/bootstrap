@@ -28,6 +28,7 @@ provisioner:
   playbooks:
     prepare: prepare.yml
     converge: converge.yml
+    side_effect: side_effect.yml
     verify: verify.yml
 
 verifier:
@@ -39,5 +40,7 @@ scenario:
     - create
     - prepare
     - converge
+    - idempotence
+    - side_effect
     - verify
     - destroy
