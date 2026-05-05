@@ -1,0 +1,164 @@
+---
+- name: Verify system_update source contract
+  hosts: localhost
+  gather_facts: false
+  vars:
+    _system_update_test_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    _system_update_test_role_dir: >-
+      {{
+        _system_update_test_project_dir
+        if (_system_update_test_project_dir | basename) == 'system_update'
+        else _system_update_test_project_dir ~ '/roles/system_update'
+      }}
+  tasks:
+    - name: Read system_update playbook source
+      ansible.builtin.set_fact:
+        _system_update_test_playbook_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/../../playbooks/system_update.yml') }}
+
+    - name: Read workstation playbook source
+      ansible.builtin.set_fact:
+        _system_update_test_workstation_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/../../playbooks/workstation.yml') }}
+
+    - name: Assert playbook boundary contract
+      ansible.builtin.assert:
+        that:
+          - "'role: system_update' in _system_update_test_playbook_source"
+          - "'role: packages' not in _system_update_test_playbook_source"
+          - "'role: docker' not in _system_update_test_playbook_source"
+          - "'role: vm' not in _system_update_test_playbook_source"
+          - "'role: system_update' not in _system_update_test_workstation_source"
+        fail_msg: "system_update playbook must be separate from workstation/downstream roles."
+        success_msg: "system_update playbook is isolated from workstation configuration roles."
+
+- name: Verify system_update live backend and reboot boundary
+  hosts: all
+  gather_facts: false
+  vars:
+    _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
+    _system_update_test_reboot_enabled: "{{ system_update_test_verify_reboot_boundary | default(false) | bool }}"
+  tasks:
+    - name: Skip live verify when scenario is contract-only
+      ansible.builtin.meta: end_host
+      when: not _system_update_test_live_enabled
+
+    - name: Gather live verify facts
+      ansible.builtin.setup:
+
+    - name: Verify Arch backend and reboot boundary
+      become: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+      block:
+        - name: Read persisted Arch pre-reboot facts
+          ansible.builtin.slurp:
+            src: /tmp/system_update_molecule_pre_reboot.json
+          register: _system_update_verify_pre_reboot_raw
+
+        - name: Decode Arch pre-reboot facts
+          ansible.builtin.set_fact:
+            _system_update_verify_pre_reboot: "{{ _system_update_verify_pre_reboot_raw.content | b64decode | from_json }}"
+
+        - name: Capture boot id before verify reboot
+          ansible.builtin.command:
+            cmd: cat /proc/sys/kernel/random/boot_id
+          register: _system_update_verify_boot_id_before_reboot
+          changed_when: false
+          failed_when: _system_update_verify_boot_id_before_reboot.rc != 0
+
+        - name: Assert role left reboot as external boundary
+          ansible.builtin.assert:
+            that:
+              - _system_update_verify_pre_reboot.boot_id_before == _system_update_verify_pre_reboot.boot_id_after_update
+              - _system_update_verify_boot_id_before_reboot.stdout | trim == _system_update_verify_pre_reboot.boot_id_after_update
+            fail_msg: >-
+              Boot id changed before the workflow reboot boundary.
+              facts={{ _system_update_verify_pre_reboot }},
+              current={{ _system_update_verify_boot_id_before_reboot.stdout | trim }}
+            success_msg: "Pre-reboot facts prove system_update did not reboot internally."
+
+        - name: Reboot Arch host for workflow boundary verification
+          ansible.builtin.reboot:
+            reboot_timeout: 900
+            connect_timeout: 20
+            test_command: whoami
+          when: _system_update_test_reboot_enabled
+
+        - name: Capture boot id after workflow reboot
+          ansible.builtin.command:
+            cmd: cat /proc/sys/kernel/random/boot_id
+          register: _system_update_verify_boot_id_after_reboot
+          changed_when: false
+          failed_when: _system_update_verify_boot_id_after_reboot.rc != 0
+          when: _system_update_test_reboot_enabled
+
+        - name: Capture running kernel after workflow reboot
+          ansible.builtin.command:
+            cmd: uname -r
+          register: _system_update_verify_uname_after_reboot
+          changed_when: false
+          failed_when: _system_update_verify_uname_after_reboot.rc != 0
+          when: _system_update_test_reboot_enabled
+
+        - name: Check /usr/lib module tree after workflow reboot
+          ansible.builtin.stat:
+            path: "/usr/lib/modules/{{ _system_update_verify_uname_after_reboot.stdout | trim }}"
+          register: _system_update_verify_usr_modules
+          when: _system_update_test_reboot_enabled
+
+        - name: Check /lib module tree after workflow reboot
+          ansible.builtin.stat:
+            path: "/lib/modules/{{ _system_update_verify_uname_after_reboot.stdout | trim }}"
+          register: _system_update_verify_lib_modules
+          when: _system_update_test_reboot_enabled
+
+        - name: Assert workflow reboot changed boot and restored matching module tree
+          ansible.builtin.assert:
+            that:
+              - _system_update_verify_boot_id_after_reboot.stdout | trim != _system_update_verify_pre_reboot.boot_id_after_update
+              - _system_update_verify_usr_modules.stat.exists or _system_update_verify_lib_modules.stat.exists
+            fail_msg: >-
+              Reboot boundary did not produce a fresh boot with matching modules.
+              before={{ _system_update_verify_pre_reboot }},
+              after_boot_id={{ _system_update_verify_boot_id_after_reboot.stdout | trim }},
+              uname={{ _system_update_verify_uname_after_reboot.stdout | trim }},
+              usr_modules={{ _system_update_verify_usr_modules.stat.exists | default(false) }},
+              lib_modules={{ _system_update_verify_lib_modules.stat.exists | default(false) }}
+            success_msg: >-
+              Reboot boundary verified:
+              boot_id {{ _system_update_verify_pre_reboot.boot_id_after_update }}
+              -> {{ _system_update_verify_boot_id_after_reboot.stdout | trim }},
+              uname={{ _system_update_verify_uname_after_reboot.stdout | trim }}.
+          when: _system_update_test_reboot_enabled
+
+        - name: Report Docker/no-reboot boundary verification
+          ansible.builtin.debug:
+            msg: >-
+              system_update live backend verified without performing reboot in this scenario.
+              Reboot boundary is exercised by the vagrant scenario.
+          when: not _system_update_test_reboot_enabled
+
+    - name: Verify non-Arch backend fail-fast contract
+      become: true
+      when: ansible_facts['os_family'] != 'Archlinux'
+      block:
+        - name: Read expected backend failure file
+          ansible.builtin.slurp:
+            src: /tmp/system_update_molecule_expected_backend_failure.json
+          register: _system_update_verify_backend_failure_raw
+
+        - name: Decode expected backend failure file
+          ansible.builtin.set_fact:
+            _system_update_verify_backend_failure: "{{ _system_update_verify_backend_failure_raw.content | b64decode | from_json }}"
+
+        - name: Assert backend failure contract
+          ansible.builtin.assert:
+            that:
+              - _system_update_verify_backend_failure.os_family == ansible_facts['os_family']
+              - "'system_update backend' in _system_update_verify_backend_failure.message"
+              - "'not implemented' in _system_update_verify_backend_failure.message"
+            fail_msg: >-
+              Expected explicit non-Arch backend failure was not captured:
+              {{ _system_update_verify_backend_failure }}
+            success_msg: >-
+              {{ ansible_facts['os_family'] }} backend fail-fast diagnostic verified.

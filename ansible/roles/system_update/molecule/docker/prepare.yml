@@ -1,0 +1,3 @@
+---
+- name: Bootstrap Docker container
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
