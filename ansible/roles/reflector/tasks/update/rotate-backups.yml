@@ -1,0 +1,30 @@
+---
+- name: Find old mirrorlist backups for rotation
+  ansible.builtin.find:
+    paths: "{{ reflector_mirrorlist_path | dirname }}"
+    patterns: "{{ reflector_mirrorlist_path | basename }}.bak.*"
+  register: _reflector_backups
+  when:
+    - reflector_backup_mirrorlist | bool
+    - reflector_backup_keep | int > 0
+  tags: ['update']
+
+- name: Calculate mirrorlist backups to remove
+  ansible.builtin.set_fact:
+    _reflector_backup_remove_count: "{{ (_reflector_backups.matched | int) - (reflector_backup_keep | int) }}"
+  when:
+    - reflector_backup_mirrorlist | bool
+    - reflector_backup_keep | int > 0
+    - _reflector_backups.matched > reflector_backup_keep | int
+  tags: ['update']
+
+- name: Remove oldest backups, keep configured count
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ (_reflector_backups.files | sort(attribute='mtime'))[0 : (_reflector_backup_remove_count | int)] }}"
+  when:
+    - reflector_backup_mirrorlist | bool
+    - reflector_backup_keep | int > 0
+    - _reflector_backups.matched > reflector_backup_keep | int
+  tags: ['update']

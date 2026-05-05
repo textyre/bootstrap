@@ -25,7 +25,7 @@ provisioner:
         ansible_connection: local
   playbooks:
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
+    verify: ../shared/verify-full.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
 

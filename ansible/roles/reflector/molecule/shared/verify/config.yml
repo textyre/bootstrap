@@ -1,0 +1,37 @@
+---
+- name: Stat reflector config
+  ansible.builtin.stat:
+    path: "{{ reflector_conf_path }}"
+  register: _reflector_verify_conf_stat
+
+- name: Assert reflector config exists with correct permissions
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_conf_stat.stat.exists
+      - _reflector_verify_conf_stat.stat.isreg
+      - _reflector_verify_conf_stat.stat.pw_name == 'root'
+      - _reflector_verify_conf_stat.stat.mode == '0644'
+    fail_msg: "{{ reflector_conf_path }} missing or wrong permissions"
+
+- name: Read reflector config content
+  ansible.builtin.slurp:
+    src: "{{ reflector_conf_path }}"
+  register: _reflector_verify_conf_raw
+
+- name: Decode reflector config content
+  ansible.builtin.set_fact:
+    _reflector_verify_conf_text: "{{ _reflector_verify_conf_raw.content | b64decode }}"
+
+- name: Assert config contains expected directives
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_conf_text is regex('--protocol\s+' ~ reflector_protocol)
+      - _reflector_verify_conf_text is regex('--sort\s+' ~ reflector_sort)
+      - _reflector_verify_conf_text is regex('--latest\s+' ~ (reflector_latest | string))
+      - _reflector_verify_conf_text is regex('--age\s+' ~ (reflector_age | string))
+      - _reflector_verify_conf_text is regex('--country\s+' ~ reflector_countries)
+      - _reflector_verify_conf_text is regex('--save\s+' ~ reflector_mirrorlist_path)
+      - _reflector_verify_conf_text is regex('--threads\s+' ~ (reflector_threads | string))
+      - _reflector_verify_conf_text is regex('--connection-timeout\s+' ~ (reflector_connection_timeout | string))
+      - _reflector_verify_conf_text is regex('--download-timeout\s+' ~ (reflector_download_timeout | string))
+    fail_msg: "reflector.conf missing expected directives"

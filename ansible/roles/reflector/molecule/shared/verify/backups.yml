@@ -1,0 +1,18 @@
+---
+- name: Count mirrorlist backup files
+  ansible.builtin.find:
+    paths: "{{ reflector_mirrorlist_path | dirname }}"
+    patterns: "{{ reflector_mirrorlist_path | basename }}.bak.*"
+  register: _reflector_verify_backups
+  when: reflector_backup_mirrorlist | bool
+
+- name: Assert backup count does not exceed reflector_backup_keep
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_backups.matched <= reflector_backup_keep | int
+    fail_msg: >-
+      Found {{ _reflector_verify_backups.matched }} backup files,
+      expected <= {{ reflector_backup_keep }}
+  when:
+    - reflector_backup_mirrorlist | bool
+    - reflector_backup_keep | int > 0

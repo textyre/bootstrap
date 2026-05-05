@@ -14,7 +14,7 @@ Pacman mirror list optimization via [reflector](https://wiki.archlinux.org/title
 - [x] Backs up current mirrorlist before update (timestamped, with rotation)
 - [x] Runs `reflector` with configurable retries and validates the output contains `Server =` entries
 - [x] Restores backup on failure (rescue block)
-- [x] Refreshes pacman cache after mirrorlist update
+- [x] Skips manual mirrorlist refresh when the existing mirrorlist was updated recently
 
 ## Variables
 
@@ -35,6 +35,7 @@ Pacman mirror list optimization via [reflector](https://wiki.archlinux.org/title
 | `reflector_connection_timeout` | `10` | Connection timeout in seconds |
 | `reflector_download_timeout` | `30` | Download timeout in seconds |
 | `reflector_proxy` | `""` | HTTP/HTTPS proxy (empty = no proxy) |
+| `reflector_update_min_interval` | `3600` | Minimum seconds between manual mirrorlist updates |
 | `reflector_backup_keep` | `3` | Max backup files to retain (`0` = unlimited) |
 | `reflector_timer_randomized_delay` | `"1h"` | `RandomizedDelaySec` for timer |
 | `reflector_pacman_hook` | `true` | Deploy pacman hook for auto-update on mirror package upgrade |

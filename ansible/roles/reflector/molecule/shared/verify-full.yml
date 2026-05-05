@@ -1,8 +1,5 @@
 ---
-# Full Vagrant verify for reflector role.
-# reflector is Arch-only. Ubuntu gets end_host.
-
-- name: Verify reflector role
+- name: Verify reflector full contract
   hosts: all
   become: true
   gather_facts: true
@@ -10,27 +7,23 @@
     - ../../defaults/main.yml
 
   tasks:
-    - name: Skip verify on non-Arch systems
-      ansible.builtin.meta: end_host
-      when: ansible_facts['os_family'] != 'Archlinux'
-
     - name: Verify reflector package
-      ansible.builtin.import_tasks: ../shared/verify/package.yml
+      ansible.builtin.import_tasks: verify/package.yml
 
     - name: Verify reflector config
-      ansible.builtin.import_tasks: ../shared/verify/config.yml
+      ansible.builtin.import_tasks: verify/config.yml
 
     - name: Verify reflector timer
-      ansible.builtin.import_tasks: ../shared/verify/timer.yml
+      ansible.builtin.import_tasks: verify/timer.yml
 
     - name: Verify reflector pacman hook
-      ansible.builtin.import_tasks: ../shared/verify/hook.yml
+      ansible.builtin.import_tasks: verify/hook.yml
 
     - name: Verify reflector mirrorlist
-      ansible.builtin.import_tasks: ../shared/verify/mirrorlist.yml
+      ansible.builtin.import_tasks: verify/mirrorlist.yml
 
     - name: Verify reflector backup rotation
-      ansible.builtin.import_tasks: ../shared/verify/backups.yml
+      ansible.builtin.import_tasks: verify/backups.yml
 
     - name: Show full verify result
       ansible.builtin.debug:

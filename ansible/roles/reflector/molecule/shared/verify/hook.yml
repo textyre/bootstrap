@@ -1,0 +1,47 @@
+---
+- name: Stat pacman hooks directory
+  ansible.builtin.stat:
+    path: /etc/pacman.d/hooks
+  register: _reflector_verify_hooks_dir
+  when: reflector_pacman_hook | bool
+
+- name: Assert pacman hooks directory exists
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_hooks_dir.stat.exists
+      - _reflector_verify_hooks_dir.stat.isdir
+    fail_msg: "/etc/pacman.d/hooks directory missing"
+  when: reflector_pacman_hook | bool
+
+- name: Stat pacman hook file
+  ansible.builtin.stat:
+    path: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+  register: _reflector_verify_hook_stat
+  when: reflector_pacman_hook | bool
+
+- name: Assert pacman hook file exists
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_hook_stat.stat.exists
+      - _reflector_verify_hook_stat.stat.isreg
+    fail_msg: "Pacman hook /etc/pacman.d/hooks/reflector-mirrorlist.hook missing"
+  when: reflector_pacman_hook | bool
+
+- name: Read pacman hook content
+  ansible.builtin.slurp:
+    src: /etc/pacman.d/hooks/reflector-mirrorlist.hook
+  register: _reflector_verify_hook_raw
+  when: reflector_pacman_hook | bool
+
+- name: Decode pacman hook content
+  ansible.builtin.set_fact:
+    _reflector_verify_hook_text: "{{ _reflector_verify_hook_raw.content | b64decode }}"
+  when: reflector_pacman_hook | bool
+
+- name: Assert hook content references pacman-mirrorlist and --config
+  ansible.builtin.assert:
+    that:
+      - _reflector_verify_hook_text is regex('pacman-mirrorlist')
+      - _reflector_verify_hook_text is regex('--config')
+    fail_msg: "Hook file missing expected content (pacman-mirrorlist or --config)"
+  when: reflector_pacman_hook | bool

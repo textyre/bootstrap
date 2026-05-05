@@ -1,0 +1,13 @@
+---
+- name: Determine if mirrorlist changed
+  ansible.builtin.set_fact:
+    reflector_mirrorlist_changed: >-
+      {{ (reflector_old_mirror.content | default('')) != (reflector_new_mirror.content | default('')) }}
+  tags: ['update']
+
+- name: Report reflector result
+  ansible.builtin.debug:
+    msg: >-
+      Reflector completed. Mirrorlist changed: {{ reflector_mirrorlist_changed }}.
+  changed_when: reflector_mirrorlist_changed | bool
+  tags: ['update']

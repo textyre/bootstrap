@@ -1,0 +1,25 @@
+---
+- name: Read current mirrorlist for change comparison
+  ansible.builtin.slurp:
+    src: "{{ reflector_mirrorlist_path }}"
+  register: reflector_old_mirror
+  when: reflector_stat.stat.exists
+  tags: ['update']
+
+- name: Backup current mirrorlist before update
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ reflector_mirrorlist_path }}"
+    dest: "{{ reflector_mirrorlist_path }}.bak.{{ ansible_facts['date_time']['iso8601_basic'] }}"
+    mode: '0644'
+  register: reflector_backup_result
+  when:
+    - reflector_backup_mirrorlist | bool
+    - reflector_stat.stat.exists
+  tags: ['update']
+
+- name: Record backup path as fact
+  ansible.builtin.set_fact:
+    reflector_latest_backup: "{{ reflector_backup_result.dest }}"
+  when: reflector_backup_result is not skipped
+  tags: ['update']
