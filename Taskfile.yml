@@ -38,6 +38,7 @@ tasks:
     cmds:
       - 'echo "==> Checking playbook syntax..."'
       - "{{.ANSIBLE}} playbooks/mirrors-update.yml --syntax-check"
+      - "{{.ANSIBLE}} playbooks/system_update.yml --syntax-check"
       - "{{.ANSIBLE}} playbooks/workstation.yml --syntax-check"
       - 'echo "Syntax check passed"'
 
@@ -64,6 +65,7 @@ tasks:
       - task: test-vm
       - task: test-reflector
       - task: test-yay
+      - task: test-system-update
       - task: test-packages
       - task: test-user
       - task: test-ssh
@@ -178,6 +180,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing yay role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-system-update:
+    desc: "Run molecule tests for system_update"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/system_update'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing system_update role..."'
       - '{{.PREFIX}} molecule test'
 
   test-packages:
@@ -317,6 +329,15 @@ tasks:
     cmds:
       - 'echo "==> Running playbook..."'
       - '{{.ANSIBLE}} {{.PLAYBOOK}} -v {{.CLI_ARGS}}'
+
+  system:update:
+    desc: "Update operating system packages before reboot/workstation."
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}'
+    prompt: "This will upgrade OS packages. Reboot before running workstation. Continue?"
+    cmds:
+      - 'echo "==> Updating operating system packages..."'
+      - '{{.ANSIBLE}} playbooks/system_update.yml -v {{.CLI_ARGS}}'
 
   workstation:
     desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."

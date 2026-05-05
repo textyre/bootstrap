@@ -18,7 +18,7 @@
     mode: '0644'
     backup: true
     validate: pacman-conf --config %s
-  notify: Refresh pacman sync databases
+  notify: Refresh pacman sync databases after pacman config change
   tags: ['packages', 'pacman']
 
 - name: Setup external pacman cache

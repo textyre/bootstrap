@@ -3,6 +3,7 @@
 #
 # Usage:
 #   ./scripts/ssh-scp-to.sh --project              # Sync entire project
+#   ./scripts/ssh-scp-to.sh --project --bootstrap  # Sync project and rebuild VM venv
 #   ./scripts/ssh-scp-to.sh [-r] <src>... <dest>   # Copy specific files
 
 set -euo pipefail
@@ -20,9 +21,25 @@ fi
 
 # Project sync mode
 if [[ "${1:-}" == "--project" ]]; then
+    shift
+
+    RUN_BOOTSTRAP=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --bootstrap)
+                RUN_BOOTSTRAP=1
+                ;;
+            *)
+                echo "Unknown --project option: $1" >&2
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
     echo "==> Syncing project to ${SSH_HOST}:${REMOTE_BASE}"
     ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" \
-        "find ${REMOTE_BASE} -delete 2>/dev/null; rm -rf ${REMOTE_BASE} 2>/dev/null; true"
+        "find '${REMOTE_BASE}' -delete 2>/dev/null; rm -rf '${REMOTE_BASE}' 2>/dev/null; true"
 
     PROJECT_DIRS=(ansible dotfiles scripts)
     PROJECT_FILES=(Taskfile.yml bootstrap.sh AGENTS.md CLAUDE.md)
@@ -60,6 +77,12 @@ if [[ "${1:-}" == "--project" ]]; then
         "chmod +x ${REMOTE_BASE}/bootstrap.sh \
                   ${REMOTE_BASE}/scripts/*.sh \
                   ${REMOTE_BASE}/ansible/vault-pass.sh"
+
+    if [[ "${RUN_BOOTSTRAP}" -eq 1 ]]; then
+        echo "  bootstrapping remote ansible environment"
+        SSH_HOST="${SSH_HOST}" SSH_PORT="${SSH_PORT}" "${SCRIPT_DIR}/ssh-run.sh" --bootstrap-secrets \
+            "cd ${REMOTE_BASE} && scripts/setup-venv.sh && scripts/setup-galaxy.sh"
+    fi
 
     echo "==> Sync complete"
     exit 0

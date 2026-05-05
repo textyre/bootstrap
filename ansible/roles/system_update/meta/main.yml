@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: system_update
+  author: textyre
+  description: Full operating-system package upgrade before workstation configuration
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [systemupdate, upgrade, packages]
+dependencies: []

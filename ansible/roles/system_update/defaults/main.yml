@@ -1,0 +1,18 @@
+---
+# Enable/disable the system_update role.
+system_update_enabled: true
+
+# Supported OS families for the project.
+_system_update_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Retry policy for transient package mirror/network failures.
+system_update_retries: 3
+system_update_retry_delay: 5
+
+# Non-Arch backends are intentionally blocked until implemented explicitly.
+system_update_fail_unimplemented_backends: true

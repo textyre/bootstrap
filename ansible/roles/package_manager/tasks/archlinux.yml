@@ -20,19 +20,6 @@
       }}
   changed_when: false
 
-- name: "Update archlinux-keyring (prevents signature verification failures)"
-  community.general.pacman:
-    name: archlinux-keyring
-    state: latest
-    update_cache: true
-  when: package_manager_pacman_cache_refresh_required | bool
-
-- name: "Verify archlinux-keyring is current without refreshing cache"
-  community.general.pacman:
-    name: archlinux-keyring
-    state: latest
-  when: not (package_manager_pacman_cache_refresh_required | bool)
-
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
 

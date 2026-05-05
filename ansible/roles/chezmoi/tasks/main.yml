@@ -66,6 +66,18 @@
     fail_msg: "Директория с дотфайлами не найдена: {{ chezmoi_source_dir }}"
   tags: ['chezmoi', 'dotfiles']
 
+- name: Ensure user XDG data directories are owned by target user
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_user }}"
+    mode: '0755'
+  loop:
+    - "{{ chezmoi_user_home }}/.local"
+    - "{{ chezmoi_user_home }}/.local/share"
+  tags: ['chezmoi', 'dotfiles']
+
 # ======================================================================
 # ---- Подготовка: обои ----
 # ======================================================================
@@ -115,6 +127,8 @@
     --source {{ chezmoi_source_dir }}
     --promptChoice "Choose color theme={{ chezmoi_theme_name }}"
     --apply
+    --force
+    --no-tty
   args:
     chdir: "{{ chezmoi_user_home }}"
   register: _chezmoi_init
@@ -126,7 +140,10 @@
   become: true
   become_user: "{{ chezmoi_user }}"
   ansible.builtin.command: >-
-    {{ _chezmoi_bin }} apply --source {{ chezmoi_source_dir }}
+    {{ _chezmoi_bin }} apply
+    --force
+    --no-tty
+    --source {{ chezmoi_source_dir }}
   args:
     chdir: "{{ chezmoi_user_home }}"
   register: _chezmoi_apply

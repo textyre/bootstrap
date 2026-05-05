@@ -1,0 +1,177 @@
+---
+- name: Validate system_update source contract
+  hosts: localhost
+  gather_facts: false
+  vars:
+    _system_update_test_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    _system_update_test_role_dir: >-
+      {{
+        _system_update_test_project_dir
+        if (_system_update_test_project_dir | basename) == 'system_update'
+        else _system_update_test_project_dir ~ '/roles/system_update'
+      }}
+  tasks:
+    - name: Read Arch backend source
+      ansible.builtin.set_fact:
+        _system_update_test_arch_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/archlinux.yml') }}
+
+    - name: Read role task sources
+      ansible.builtin.set_fact:
+        _system_update_test_task_sources: >-
+          {{
+            lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/main.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/archlinux.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/debian.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/redhat.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/void.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/gentoo.yml')
+          }}
+
+    - name: Assert Arch backend update order
+      ansible.builtin.assert:
+        that:
+          - "'Refresh package databases (pacman -Sy)' in _system_update_test_arch_source"
+          - "'Update archlinux-keyring before full upgrade' in _system_update_test_arch_source"
+          - "'Full system upgrade (pacman -Su)' in _system_update_test_arch_source"
+          - _system_update_test_arch_source.find('Refresh package databases (pacman -Sy)') < _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade')
+          - _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade') < _system_update_test_arch_source.find('Full system upgrade (pacman -Su)')
+          - "'upgrade: true' in _system_update_test_arch_source"
+        fail_msg: "Arch backend must run pacman cache refresh, keyring update, then full system upgrade."
+        success_msg: "Arch backend order is pacman -Sy -> archlinux-keyring -> pacman -Su."
+
+    - name: Assert role stays inside update-only boundary
+      ansible.builtin.assert:
+        that:
+          - "'ansible.builtin.reboot' not in _system_update_test_task_sources"
+          - "'role: workstation' not in _system_update_test_task_sources"
+          - "'role: docker' not in _system_update_test_task_sources"
+          - "'kewlfft.aur' not in _system_update_test_task_sources"
+          - "'yay' not in _system_update_test_task_sources"
+        fail_msg: "system_update must not reboot or run workstation/downstream package responsibilities."
+        success_msg: "system_update source is limited to OS update and explicit backend diagnostics."
+
+- name: Converge system_update live backend contract
+  hosts: all
+  gather_facts: false
+  vars:
+    _system_update_test_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    _system_update_test_role_name: >-
+      {{
+        lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename
+        if (_system_update_test_project_dir | basename) == 'system_update'
+        else 'system_update'
+      }}
+    _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
+  tasks:
+    - name: Skip live converge when scenario is contract-only
+      ansible.builtin.meta: end_host
+      when: not _system_update_test_live_enabled
+
+    - name: Gather live backend facts
+      ansible.builtin.setup:
+
+    - name: Exercise Arch system update backend
+      become: true
+      when: ansible_facts['os_family'] == 'Archlinux'
+      block:
+        - name: Capture boot id before system_update
+          ansible.builtin.command:
+            cmd: cat /proc/sys/kernel/random/boot_id
+          register: _system_update_test_boot_id_before
+          changed_when: false
+          failed_when: _system_update_test_boot_id_before.rc != 0
+
+        - name: Capture running kernel before system_update
+          ansible.builtin.command:
+            cmd: uname -r
+          register: _system_update_test_uname_before
+          changed_when: false
+          failed_when: _system_update_test_uname_before.rc != 0
+
+        - name: Apply system_update role on Arch
+          ansible.builtin.include_role:
+            name: "{{ _system_update_test_role_name }}"
+
+        - name: Capture boot id after system_update before reboot
+          ansible.builtin.command:
+            cmd: cat /proc/sys/kernel/random/boot_id
+          register: _system_update_test_boot_id_after_update
+          changed_when: false
+          failed_when: _system_update_test_boot_id_after_update.rc != 0
+
+        - name: Capture running kernel after system_update before reboot
+          ansible.builtin.command:
+            cmd: uname -r
+          register: _system_update_test_uname_after_update
+          changed_when: false
+          failed_when: _system_update_test_uname_after_update.rc != 0
+
+        - name: Assert system_update did not reboot by itself
+          ansible.builtin.assert:
+            that:
+              - _system_update_test_boot_id_after_update.stdout | trim == _system_update_test_boot_id_before.stdout | trim
+            fail_msg: >-
+              system_update changed boot_id during the role run. Reboot must remain
+              an external workflow boundary, not role-internal behavior.
+            success_msg: "system_update completed without rebooting the host."
+
+        - name: Persist Arch pre-reboot facts for verify phase
+          ansible.builtin.copy:
+            dest: /tmp/system_update_molecule_pre_reboot.json
+            owner: root
+            group: root
+            mode: "0600"
+            content: |
+              {{
+                {
+                  'boot_id_before': _system_update_test_boot_id_before.stdout | trim,
+                  'boot_id_after_update': _system_update_test_boot_id_after_update.stdout | trim,
+                  'uname_before': _system_update_test_uname_before.stdout | trim,
+                  'uname_after_update': _system_update_test_uname_after_update.stdout | trim
+                } | to_nice_json
+              }}
+
+    - name: Exercise non-Arch fail-fast backend contract
+      become: true
+      when: ansible_facts['os_family'] != 'Archlinux'
+      block:
+        - name: Apply system_update role and expect backend diagnostic failure
+          ansible.builtin.include_role:
+            name: "{{ _system_update_test_role_name }}"
+
+        - name: Fail if unimplemented backend did not stop execution
+          ansible.builtin.fail:
+            msg: >-
+              system_update unexpectedly succeeded on {{ ansible_facts['os_family'] }}.
+              Non-Arch backends must fail fast until implemented explicitly.
+
+      rescue:
+        - name: Persist expected backend failure for verify phase
+          ansible.builtin.copy:
+            dest: /tmp/system_update_molecule_expected_backend_failure.json
+            owner: root
+            group: root
+            mode: "0600"
+            content: |
+              {{
+                {
+                  'os_family': ansible_facts['os_family'],
+                  'message': ansible_failed_result.msg | default(ansible_failed_result.message | default(''))
+                } | to_nice_json
+              }}
+
+        - name: Assert backend failure message is explicit
+          ansible.builtin.assert:
+            that:
+              - "'system_update backend' in (ansible_failed_result.msg | default(ansible_failed_result.message | default('')))"
+              - "'not implemented' in (ansible_failed_result.msg | default(ansible_failed_result.message | default('')))"
+            fail_msg: >-
+              Non-Arch backend failed, but not with the expected explicit diagnostic:
+              {{ ansible_failed_result.msg | default(ansible_failed_result.message | default(ansible_failed_result)) }}
+            success_msg: "Non-Arch backend failed fast with explicit implementation diagnostic."

@@ -5,19 +5,8 @@
   community.general.pacman:
     name: pacman-contrib
     state: present
-    update_cache: true
-  when:
-    - package_manager_paccache_enabled
-    - package_manager_pacman_cache_refresh_required | bool
-  tags: ['packages', 'paccache']
-
-- name: Verify pacman-contrib is installed without refreshing cache
-  community.general.pacman:
-    name: pacman-contrib
-    state: present
-  when:
-    - package_manager_paccache_enabled
-    - not (package_manager_pacman_cache_refresh_required | bool)
+    update_cache: "{{ package_manager_pacman_cache_refresh_required | bool }}"
+  when: package_manager_paccache_enabled
   tags: ['packages', 'paccache']
 
 - name: Create paccache drop-in directory

@@ -16,5 +16,6 @@
   delay: 5
   register: _packages_install_result
   until: _packages_install_result is succeeded
-  when: packages_all | length > 0
+  when:
+    - packages_all | length > 0
   tags: ['packages', 'install']

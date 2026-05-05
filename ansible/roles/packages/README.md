@@ -8,7 +8,7 @@ Installs workstation packages via OS-native package managers and, on Arch Linux,
 2. **Preflight assert** — fails fast with a clear message if the OS family is not in `_packages_supported_os`; supported: Archlinux, Debian, RedHat, Void, Gentoo
 3. **Build package lists** — aggregates 16 category lists plus `packages_distro[os_family]` into `packages_all`, and builds `packages_aur_all` from `yay_packages_aur` on Arch
 4. **OS-specific install** (`tasks/install-archlinux.yml` or `tasks/install-debian.yml`)
-   - **Arch:** runs `pacman -Syu` (full upgrade, tagged `upgrade`), installs `packages_all` via `ansible.builtin.package`, then installs `packages_aur_all` via `yay` in install-only mode. Official packages always land before any AUR build.
+   - **Arch:** installs `packages_all` via `ansible.builtin.package`, then installs `packages_aur_all` via `yay` in install-only mode. Official packages always land before any AUR build.
    - **Debian/Ubuntu:** updates apt cache (`cache_valid_time: 3600`) then installs `packages_all` via `ansible.builtin.package`. Install retries up to 3 times. Skipped when `packages_all` is empty.
 5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all + packages_aur_all`; skipped when both lists are empty:
    - **Technique 1 (runtime):** `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian) — direct native package manager check
@@ -103,10 +103,10 @@ packages_base:
 
 | Aspect | Arch Linux | Debian / Ubuntu |
 |--------|-----------|-----------------|
-| Package manager | pacman (community.general.pacman for upgrade) | apt (ansible.builtin.apt for cache update) |
+| Package manager | pacman | apt (ansible.builtin.apt for cache update) |
 | Install module | `ansible.builtin.package` | `ansible.builtin.package` |
-| System upgrade | `pacman -Syu` (tagged `upgrade`) | not performed by this role |
-| Cache update | included in upgrade step | `apt update` with `cache_valid_time: 3600` |
+| System upgrade | not performed by this role | not performed by this role |
+| Cache update | handled by pre-workstation `system_update` lifecycle | `apt update` with `cache_valid_time: 3600` |
 | Package query | `pacman -Q <pkg>` | `dpkg-query -W -f='${Status}' <pkg>` |
 
 ## Logs
@@ -131,7 +131,7 @@ This role does not create log files. All output is written to Ansible stdout.
 | Package install fails with "unable to locate package" (Ubuntu) | `apt-cache search <pkg>` on host — package may need a PPA or different name | Check Ubuntu package name; some Arch packages have no direct apt equivalent |
 | AUR install fails with `yay_manage_aur_packages=true ... requires an existing yay binary` | `package_manager` or yay setup phase was skipped before running `packages` | Run `package_manager` first, or pre-provision `yay` in the scenario/play before `packages` |
 | Verify fails with "Package X not found in package facts" | `pacman -Q <pkg>` or `dpkg -l <pkg>` on host | Package manager installed it but `package_facts` module used different name format — check for epoch prefix (e.g. `1:vim`) |
-| Idempotence failure: second converge shows `changed=1` | Look for which task changed — usually `pacman -Syu` when system has pending updates | Add `--skip-tags upgrade` to molecule options; the upgrade step is intentionally non-idempotent when updates are available |
+| Idempotence failure: second converge shows `changed=1` | Look for which package task changed | Fix the non-idempotent install/AUR task; full OS upgrade belongs to `system_update`, not this role |
 | Role skips silently with no output | Check `packages_enabled` in host/group vars — may be `false` | Set `packages_enabled: true` or remove the override |
 
 ## Testing
@@ -146,7 +146,7 @@ Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platfor
 ### Success criteria
 
 - All steps complete: `syntax → create → prepare → converge → idempotence → verify → destroy`
-- Idempotence step: `changed=0` (second run changes nothing — upgrade is skipped via `--skip-tags upgrade`)
+- Idempotence step: `changed=0` (second run changes nothing)
 - Verify step: all assert tasks pass; final line shows `packages verify passed`
 - No `FAILED` tasks in output
 
@@ -165,7 +165,7 @@ Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platfor
 |-------|-------|-----|
 | `target not found: <pkg>` (Arch) | Package name doesn't exist in pacman repos | Check exact name: `pacman -Ss <pkg>` |
 | `Unable to locate package <pkg>` (Ubuntu) | Package not in apt repos | Check Ubuntu name: `apt-cache search <pkg>` |
-| `idempotence: changed=1` on upgrade | Arch has pending updates between converge runs | Molecule uses `--skip-tags upgrade`; if still failing, check which task changed |
+| `idempotence: changed=1` | Package install or AUR task is not idempotent | Check which task changed and fix state detection |
 | `Package X not found in package facts` | `package_facts` module uses different name format | Known for packages with epoch prefix; investigate with `pacman -Qi <pkg>` |
 | `Assertion failed: OS family not supported` | Molecule platform uses unexpected os_family | Check image: `ansible -m setup localhost \| grep os_family` |
 | Vagrant: `Python not found` | Bootstrap in prepare.yml skipped | Run full sequence: `molecule test -s vagrant`, not just `converge` |
@@ -177,15 +177,14 @@ Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platfor
 | `packages` | Entire role | Full apply |
 | `packages,install` | Build list + install step only | Re-install packages without re-running verify or report |
 | `aur` | Arch AUR install path inside `packages` | Skip or target only the yay-backed portion |
-| `packages,install,upgrade` | System upgrade + install (Arch only) | Force full upgrade |
 | `report` | Report tasks only | Re-generate execution report |
 
 ```bash
 # Run only the install phase (skip report and verify)
 ansible-playbook site.yml --tags packages,install --skip-tags report
 
-# Skip system upgrade (install only new packages, no pacman -Syu)
-ansible-playbook site.yml --tags packages --skip-tags upgrade,report
+# Run package installation without report output
+ansible-playbook site.yml --tags packages --skip-tags report
 ```
 
 ## File map
@@ -194,14 +193,9 @@ ansible-playbook site.yml --tags packages --skip-tags upgrade,report
 |------|---------|-------|
 | `defaults/main.yml` | All configurable settings and supported OS list | No — override via inventory |
 | `tasks/main.yml` | Execution orchestrator: preflight → build list → install → verify → report | When adding/removing steps |
-| `tasks/install-archlinux.yml` | Arch-specific: system upgrade + package install | When changing Arch install behavior |
+| `tasks/install-archlinux.yml` | Arch-specific package install | When changing Arch install behavior |
 | `tasks/install-debian.yml` | Debian/Ubuntu-specific: cache update + package install | When changing Debian install behavior |
 | `tasks/verify.yml` | In-role post-install verification: native PM command + package_facts assert | When changing verification logic |
-| `vars/archlinux.yml` | Arch Linux OS-family vars stub (package manager specifics) | When adding Arch-specific variables |
-| `vars/debian.yml` | Debian/Ubuntu OS-family vars stub (package manager specifics) | When adding Debian-specific variables |
-| `vars/redhat.yml` | RedHat/Fedora OS-family vars stub (no install task yet) | When implementing RedHat support |
-| `vars/void.yml` | Void Linux OS-family vars stub (no install task yet) | When implementing Void support |
-| `vars/gentoo.yml` | Gentoo OS-family vars stub (no install task yet) | When implementing Gentoo support |
 | `meta/main.yml` | Role metadata and galaxy info | When updating supported platforms |
 | `molecule/docker/` | Docker CI scenario (Arch + Ubuntu + empty-list edge cases) | When changing CI test coverage |
 | `molecule/vagrant/` | Vagrant cross-platform scenario (Arch VM + Ubuntu VM) | When changing full-system test coverage |

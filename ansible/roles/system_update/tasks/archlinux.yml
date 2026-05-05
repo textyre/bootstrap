@@ -1,0 +1,28 @@
+---
+- name: "Arch Linux | Refresh package databases (pacman -Sy)"
+  community.general.pacman:
+    update_cache: true
+  retries: "{{ system_update_retries }}"
+  delay: "{{ system_update_retry_delay }}"
+  register: _system_update_arch_cache
+  until: _system_update_arch_cache is succeeded
+  tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Update archlinux-keyring before full upgrade"
+  community.general.pacman:
+    name: archlinux-keyring
+    state: latest
+  retries: "{{ system_update_retries }}"
+  delay: "{{ system_update_retry_delay }}"
+  register: _system_update_arch_keyring
+  until: _system_update_arch_keyring is succeeded
+  tags: ['system_update', 'upgrade', 'pacman', 'keyring']
+
+- name: "Arch Linux | Full system upgrade (pacman -Su)"
+  community.general.pacman:
+    upgrade: true
+  retries: "{{ system_update_retries }}"
+  delay: "{{ system_update_retry_delay }}"
+  register: _system_update_arch_upgrade
+  until: _system_update_arch_upgrade is succeeded
+  tags: ['system_update', 'upgrade', 'pacman']

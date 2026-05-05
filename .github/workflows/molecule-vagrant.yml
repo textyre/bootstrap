@@ -86,12 +86,15 @@ jobs:
                 | sed 's|ansible/roles/||;s|/.*||' \
                 | sort -u \
                 | while IFS= read -r role; do
-                    [ -f "ansible/roles/$role/molecule/vagrant/molecule.yml" ] && echo "$role"
+                    if [ -f "ansible/roles/$role/molecule/vagrant/molecule.yml" ]; then
+                      echo "$role"
+                    fi
                   done)
             fi
           fi
 
-          MATRIX=$(printf '%s\n' $ROLES | grep -v '^$' \
+          MATRIX=$(printf '%s\n' $ROLES \
+            | { grep -v '^$' || true; } \
             | jq -Rsc '[split("\n")[] | select(length > 0)]')
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           if [ "$MATRIX" = "[]" ]; then
