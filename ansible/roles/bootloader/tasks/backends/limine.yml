@@ -1,0 +1,65 @@
+---
+# ---- Limine backend ----
+
+- name: Assert Limine backend is supported on this OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Archlinux'
+    fail_msg: >-
+      Limine pacman hook management is implemented for Archlinux only.
+      Current OS family: {{ ansible_facts['os_family'] }}.
+    success_msg: "Limine backend is supported on Archlinux"
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: Ensure Limine target directory exists
+  ansible.builtin.file:
+    path: "{{ bootloader_install_target_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: Persist Limine install target
+  ansible.builtin.copy:
+    dest: "{{ bootloader_install_target_file }}"
+    content: "{{ bootloader_limine_install_target_effective }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: Ensure pacman hooks directory exists
+  ansible.builtin.file:
+    path: "{{ bootloader_limine_pacman_hook_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: bootloader_manage_update_hook | bool
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: Render Limine pacman hook
+  ansible.builtin.template:
+    src: limine/99-limine.hook.j2
+    dest: "{{ bootloader_limine_pacman_hook_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: bootloader_manage_update_hook | bool
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: Set bootloader backend state fact
+  ansible.builtin.set_fact:
+    bootloader_changed_state_valid: true
+  tags: ['bootloader', 'bootloader:limine']
+
+- name: "Report: Apply Limine backend"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_bootloader_phases"
+    common_rpt_phase: "Apply Limine backend"
+    common_rpt_detail: "{{ bootloader_install_target_file }}"
+  tags: ['bootloader', 'report']

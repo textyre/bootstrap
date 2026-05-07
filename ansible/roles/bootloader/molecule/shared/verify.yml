@@ -1,0 +1,50 @@
+---
+- name: Verify bootloader role behavior
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    _bootloader_verify_target_file: /tmp/bootloader-test/etc/limine/install-target
+    _bootloader_verify_hook_file: /tmp/bootloader-test/etc/pacman.d/hooks/99-limine.hook
+    _bootloader_verify_expected_target: /tmp/bootloader-test/dev/disk/by-id/test-system-disk
+  tasks:
+    - name: Stat test Limine install target file
+      ansible.builtin.stat:
+        path: "{{ _bootloader_verify_target_file }}"
+      register: _bootloader_molecule_target_stat
+
+    - name: Read test Limine install target file
+      ansible.builtin.slurp:
+        src: "{{ _bootloader_verify_target_file }}"
+      register: _bootloader_molecule_target_raw
+
+    - name: Read test Limine hook
+      ansible.builtin.slurp:
+        src: "{{ _bootloader_verify_hook_file }}"
+      register: _bootloader_molecule_hook_raw
+
+    - name: Set decoded test facts
+      ansible.builtin.set_fact:
+        _bootloader_molecule_target_text: "{{ _bootloader_molecule_target_raw.content | b64decode | trim }}"
+        _bootloader_molecule_hook_text: "{{ _bootloader_molecule_hook_raw.content | b64decode }}"
+
+    - name: Assert target file state
+      ansible.builtin.assert:
+        that:
+          - _bootloader_molecule_target_stat.stat.exists
+          - _bootloader_molecule_target_stat.stat.isreg
+          - _bootloader_molecule_target_stat.stat.pw_name == 'root'
+          - _bootloader_molecule_target_stat.stat.gr_name == 'root'
+          - _bootloader_molecule_target_stat.stat.mode == '0644'
+          - _bootloader_molecule_target_text == _bootloader_verify_expected_target
+        fail_msg: "Limine install target file was not created with the expected content."
+
+    - name: Assert hook was normalized
+      ansible.builtin.assert:
+        that:
+          - _bootloader_verify_target_file in _bootloader_molecule_hook_text
+          - _bootloader_molecule_hook_text is regex('(?m)^Target = limine$')
+          - _bootloader_molecule_hook_text is regex('(?m)^When = PostTransaction$')
+          - not (_bootloader_molecule_hook_text is regex('ata-VBOX_HARDDISK_VBold'))
+          - not (_bootloader_molecule_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
+        fail_msg: "Limine hook was not normalized to read the machine-local target file."

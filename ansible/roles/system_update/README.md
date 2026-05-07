@@ -13,10 +13,13 @@ Performs a full operating-system package upgrade before workstation configuratio
 ## Workflow
 
 ```bash
-task system:update
+task prepare:system
 reboot
 task workstation
 ```
+
+`system_update` is now invoked by `ansible/playbooks/prepare_system.yml` after
+the `bootloader` role. It is not exposed as a standalone public Taskfile entry.
 
 ## Backends
 

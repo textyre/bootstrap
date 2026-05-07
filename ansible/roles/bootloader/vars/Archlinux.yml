@@ -1,0 +1,3 @@
+---
+bootloader_limine_package_manager: pacman
+bootloader_limine_hook_kind: pacman

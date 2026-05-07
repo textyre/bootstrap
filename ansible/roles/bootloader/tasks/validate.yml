@@ -1,0 +1,57 @@
+---
+# ---- Preflight ----
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in bootloader_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ bootloader_supported_os | join(', ') }}.
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['bootloader', 'bootloader:validate']
+
+- name: Assert bootloader_type is valid
+  ansible.builtin.assert:
+    that:
+      - bootloader_type in ['auto', 'limine', 'none']
+    fail_msg: "bootloader_type must be one of: auto, limine, none."
+    success_msg: "bootloader_type={{ bootloader_type }} is valid"
+  tags: ['bootloader', 'bootloader:validate']
+
+- name: Assert Limine auto target policy is valid
+  ansible.builtin.assert:
+    that:
+      - bootloader_limine_bios_install_target_auto_source in ['boot_parent']
+    fail_msg: >-
+      bootloader_limine_bios_install_target_auto_source must be boot_parent.
+    success_msg: "Limine auto target policy is valid"
+  when: bootloader_type == 'limine' or bootloader_type == 'auto'
+  tags: ['bootloader', 'bootloader:validate']
+
+- name: Assert Limine target policy is available when Limine is explicit
+  ansible.builtin.assert:
+    that:
+      - (bootloader_limine_bios_install_target | length > 0) or
+        (bootloader_limine_bios_install_target_auto | bool)
+    fail_msg: >-
+      Explicit Limine management requires bootloader_limine_bios_install_target
+      or bootloader_limine_bios_install_target_auto=true.
+    success_msg: "Limine target policy is available"
+  when: bootloader_type == 'limine'
+  tags: ['bootloader', 'bootloader:validate']
+
+- name: Load OS-specific bootloader variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags: ['bootloader', 'bootloader:validate']
+
+- name: "Report: Validate inputs"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_bootloader_phases"
+    common_rpt_phase: "Validate inputs"
+    common_rpt_detail: "{{ bootloader_type }}"
+  tags: ['bootloader', 'report']

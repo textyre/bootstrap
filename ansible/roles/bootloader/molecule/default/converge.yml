@@ -1,0 +1,85 @@
+---
+- name: Validate bootloader source contract
+  hosts: localhost
+  gather_facts: false
+  vars:
+    _bootloader_test_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    _bootloader_test_role_dir: >-
+      {{
+        _bootloader_test_project_dir
+        if (_bootloader_test_project_dir | basename) == 'bootloader'
+        else _bootloader_test_project_dir ~ '/roles/bootloader'
+      }}
+    _bootloader_test_repo_dir: "{{ _bootloader_test_role_dir ~ '/../..' }}"
+  tasks:
+    - name: Read prepare_system playbook source
+      ansible.builtin.set_fact:
+        _bootloader_prepare_source: >-
+          {{ lookup('ansible.builtin.file', _bootloader_test_repo_dir ~ '/playbooks/prepare_system.yml') }}
+
+    - name: Read workstation playbook source
+      ansible.builtin.set_fact:
+        _bootloader_workstation_source: >-
+          {{ lookup('ansible.builtin.file', _bootloader_test_repo_dir ~ '/playbooks/workstation.yml') }}
+
+    - name: Read Taskfile source
+      ansible.builtin.set_fact:
+        _bootloader_taskfile_source: >-
+          {{ lookup('ansible.builtin.file', _bootloader_test_repo_dir ~ '/../Taskfile.yml') }}
+
+    - name: Read bootloader role task sources
+      ansible.builtin.set_fact:
+        _bootloader_task_sources: >-
+          {{
+            lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/main.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/validate.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/detect.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/resolve_target.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/backends/limine.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/verify.yml')
+          }}
+
+    - name: Assert prepare_system playbook role order
+      ansible.builtin.assert:
+        that:
+          - "'role: bootloader' in _bootloader_prepare_source"
+          - "'role: system_update' in _bootloader_prepare_source"
+          - "_bootloader_prepare_source.find('role: bootloader') < _bootloader_prepare_source.find('role: system_update')"
+          - "'ansible.builtin.reboot' not in _bootloader_prepare_source"
+          - "'role: packages' not in _bootloader_prepare_source"
+        fail_msg: "prepare_system.yml must run bootloader before system_update and stay outside workstation/reboot duties."
+        success_msg: "prepare_system.yml boundary and order are valid."
+
+    - name: Assert Taskfile public surface
+      ansible.builtin.assert:
+        that:
+          - "'prepare:system:' in _bootloader_taskfile_source"
+          - "'system:update:' not in _bootloader_taskfile_source"
+          - "'playbooks/prepare_system.yml' in _bootloader_taskfile_source"
+          - "'playbooks/system_update.yml' not in _bootloader_taskfile_source"
+        fail_msg: "Taskfile must expose prepare:system and remove the old system:update public path."
+        success_msg: "Taskfile exposes only prepare:system for preparation."
+
+    - name: Assert bootloader role responsibility boundary
+      ansible.builtin.assert:
+        that:
+          - "'ansible.builtin.reboot' not in _bootloader_task_sources"
+          - "'pacman -Su' not in _bootloader_task_sources"
+          - "'upgrade: true' not in _bootloader_task_sources"
+          - "'role: packages' not in _bootloader_task_sources"
+          - "'role: system_update' not in _bootloader_task_sources"
+          - "'role: workstation' not in _bootloader_task_sources"
+        fail_msg: "bootloader role must not reboot, upgrade packages, or call workstation/update roles."
+        success_msg: "bootloader role stays inside bootloader maintenance ownership."
+
+    - name: Assert workstation does not run system_update
+      ansible.builtin.assert:
+        that:
+          - "'role: system_update' not in _bootloader_workstation_source"
+        fail_msg: "workstation.yml must not include system_update."
+        success_msg: "workstation.yml stays after the reboot boundary."

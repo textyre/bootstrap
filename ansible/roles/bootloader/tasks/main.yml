@@ -1,0 +1,44 @@
+---
+# === Bootloader maintenance ===
+
+- name: Bootloader role
+  when: bootloader_enabled | bool
+  tags: ['bootloader']
+  block:
+
+    - name: Validate bootloader inputs
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['bootloader', 'bootloader:validate']
+
+    - name: Detect installed bootloader
+      ansible.builtin.include_tasks: detect.yml
+      tags: ['bootloader', 'bootloader:detect']
+
+    - name: Resolve Limine install target
+      ansible.builtin.include_tasks: resolve_target.yml
+      when: bootloader_effective_type == 'limine'
+      tags: ['bootloader', 'bootloader:target']
+
+    - name: Apply Limine backend
+      ansible.builtin.include_tasks: backends/limine.yml
+      when: bootloader_effective_type == 'limine'
+      tags: ['bootloader', 'bootloader:limine']
+
+    - name: Verify bootloader state
+      ansible.builtin.include_tasks: verify.yml
+      when: bootloader_effective_type == 'limine'
+      tags: ['bootloader', 'bootloader:verify']
+
+    - name: "Bootloader - Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_bootloader_phases"
+        common_rpt_title: "bootloader"
+        common_rpt_footer_rows:
+          - >-
+            | {{ '%-26s' | format('Effective type') }}
+            | {{ '%-10s' | format(bootloader_effective_type | default('none')) }}
+            | {{ '%-24s' | format(ansible_facts['os_family']) }} |
+      tags: ['bootloader', 'report']

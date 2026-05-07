@@ -1,0 +1,72 @@
+---
+# ---- Detection ----
+
+- name: Stat Limine config file
+  ansible.builtin.stat:
+    path: "{{ bootloader_limine_config_file }}"
+  register: _bootloader_limine_config_stat
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Stat Limine binary
+  ansible.builtin.stat:
+    path: "{{ bootloader_limine_binary }}"
+  register: _bootloader_limine_binary_stat
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Stat Limine pacman hook
+  ansible.builtin.stat:
+    path: "{{ bootloader_limine_pacman_hook_file }}"
+  register: _bootloader_limine_hook_stat
+  when: ansible_facts['os_family'] == 'Archlinux'
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Set Limine detection facts
+  ansible.builtin.set_fact:
+    bootloader_limine_detected: >-
+      {{
+        _bootloader_limine_config_stat.stat.exists
+        or _bootloader_limine_binary_stat.stat.exists
+        or (_bootloader_limine_hook_stat.stat.exists | default(false))
+      }}
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Set effective bootloader type
+  ansible.builtin.set_fact:
+    bootloader_effective_type: >-
+      {% if bootloader_type == 'none' %}
+      none
+      {% elif bootloader_type == 'limine' %}
+      limine
+      {% elif bootloader_limine_detected | bool %}
+      limine
+      {% else %}
+      none
+      {% endif %}
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Normalize effective bootloader type
+  ansible.builtin.set_fact:
+    bootloader_effective_type: "{{ bootloader_effective_type | trim }}"
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Assert explicit Limine artifacts exist
+  ansible.builtin.assert:
+    that:
+      - _bootloader_limine_config_stat.stat.exists
+      - _bootloader_limine_binary_stat.stat.exists
+    fail_msg: >-
+      bootloader_type=limine was requested, but Limine artifacts were not found.
+      Expected {{ bootloader_limine_config_file }} and {{ bootloader_limine_binary }}.
+    success_msg: "Explicit Limine bootloader artifacts are present"
+  when: bootloader_type == 'limine'
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: "Report: Detect bootloader"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_bootloader_phases"
+    common_rpt_phase: "Detect bootloader"
+    common_rpt_detail: "{{ bootloader_effective_type }}"
+  tags: ['bootloader', 'report']

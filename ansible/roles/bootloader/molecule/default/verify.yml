@@ -1,0 +1,8 @@
+---
+- name: Verify bootloader source contract
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Report source contract verification
+      ansible.builtin.debug:
+        msg: "bootloader source contract verified during converge"

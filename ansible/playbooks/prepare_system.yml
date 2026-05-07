@@ -1,0 +1,22 @@
+---
+# Подготовка системы перед workstation.
+#
+# Штатный lifecycle:
+#   task prepare:system
+#   reboot
+#   task workstation
+#
+# Этот playbook сначала приводит состояние обслуживания загрузчика к
+# clone-safe виду, затем выполняет полное обновление ОС.
+
+- name: Prepare system
+  hosts: workstations
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: bootloader
+      tags: [bootloader, prepare]
+
+    - role: system_update
+      tags: [system_update, packages, upgrade, prepare]

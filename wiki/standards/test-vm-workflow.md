@@ -72,7 +72,7 @@ All playbook execution goes through the Taskfile. **NEVER** run `ansible-playboo
 
 | Command | What it does |
 |---------|-------------|
-| `task system:update` | Full OS package upgrade before reboot/workstation (`-v` auto) |
+| `task prepare:system` | Bootloader maintenance + full OS package upgrade before reboot/workstation (`-v` auto) |
 | `task workstation` | Full workstation configuration playbook (`-v` auto) |
 | `task check` | Syntax check all playbooks |
 | `task lint` | ansible-lint on all roles |
@@ -249,18 +249,19 @@ SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
   "cd ~/bootstrap && task check"
 ```
 
-### Step 3: Run System Update
+### Step 3: Prepare System
 
-Run the pre-workstation system update entrypoint. This step performs only the
-operating-system package upgrade. It must not install the workstation package
-set, AUR packages, Docker, VM integration, desktop roles, or dotfiles.
+Run the pre-workstation prepare entrypoint. This step prepares bootloader
+maintenance state, then performs the operating-system package upgrade. It must
+not install the workstation package set, AUR packages, Docker, VM integration,
+desktop roles, or dotfiles.
 
 ```bash
 SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
-  "cd ~/bootstrap && task --yes system:update"
+  "cd ~/bootstrap && task --yes prepare:system"
 ```
 
-After a successful `task system:update`, reboot the disposable clone through the
+After a successful `task prepare:system`, reboot the disposable clone through the
 project-approved VM workflow. The reboot boundary deliberately starts a new
 runtime; no Ansible checkpoint or resume state is carried across it.
 

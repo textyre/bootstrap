@@ -1,0 +1,44 @@
+---
+# Enable or disable bootloader maintenance.
+bootloader_enabled: true
+
+# Bootloader backend to manage: auto, limine, or none.
+bootloader_type: auto
+
+# Supported OS families for this role.
+bootloader_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Manage package-manager update hooks for the detected bootloader.
+bootloader_manage_update_hook: true
+
+# Mount point that contains bootloader files and kernels.
+bootloader_boot_mount: /boot
+
+# Machine-local install target consumed by the Limine update hook.
+bootloader_install_target_file: /etc/limine/install-target
+
+# Arch pacman hook generated for Limine package updates.
+bootloader_limine_pacman_hook_file: /etc/pacman.d/hooks/99-limine.hook
+
+# Explicit Limine BIOS install target for multi-disk or custom firmware layouts.
+bootloader_limine_bios_install_target: ""
+
+# Allow resolving Limine BIOS install target from bootloader_boot_mount.
+bootloader_limine_bios_install_target_auto: true
+
+# Auto target strategy. Supported: boot_parent.
+bootloader_limine_bios_install_target_auto_source: boot_parent
+
+# Validate that the resolved target is a block device.
+bootloader_limine_validate_target_block_device: true
+
+# Limine paths.
+bootloader_limine_boot_dir: /boot/limine
+bootloader_limine_config_file: /boot/limine/limine.conf
+bootloader_limine_binary: /usr/bin/limine
+bootloader_limine_bios_sys_source: /usr/share/limine/limine-bios.sys
