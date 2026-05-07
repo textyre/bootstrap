@@ -5,8 +5,8 @@ import { LOG_TEMPLATES } from './config/messages';
 import { delay } from './utils/delay';
 import { Formatter } from './utils/Formatter';
 import { TypewriterEngine } from './components/TypewriterEngine';
-import { FingerprintBarcode } from './components/Barcode/FingerprintBarcode';
-import { DOMAdapter } from './adapters/DOM.adapter';
+import { FingerprintBarcode } from './components/barcode/FingerprintBarcode';
+import { DOMAdapter } from './adapters/dom.adapter';
 
 interface TextLine {
   type: 'text';
