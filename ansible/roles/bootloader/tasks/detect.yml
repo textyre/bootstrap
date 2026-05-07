@@ -1,33 +1,17 @@
 ---
-# ---- Detection ----
+# ---- Generic bootloader detection ----
 
-- name: Stat Limine config file
-  ansible.builtin.stat:
-    path: "{{ bootloader_limine_config_file }}"
-  register: _bootloader_limine_config_stat
-  tags: ['bootloader', 'bootloader:detect']
-
-- name: Stat Limine binary
-  ansible.builtin.stat:
-    path: "{{ bootloader_limine_binary }}"
-  register: _bootloader_limine_binary_stat
-  tags: ['bootloader', 'bootloader:detect']
-
-- name: Stat Limine pacman hook
-  ansible.builtin.stat:
-    path: "{{ bootloader_limine_pacman_hook_file }}"
-  register: _bootloader_limine_hook_stat
-  when: ansible_facts['os_family'] == 'Archlinux'
-  tags: ['bootloader', 'bootloader:detect']
-
-- name: Set Limine detection facts
+- name: Reset detected bootloader backend list
   ansible.builtin.set_fact:
-    bootloader_limine_detected: >-
-      {{
-        _bootloader_limine_config_stat.stat.exists
-        or _bootloader_limine_binary_stat.stat.exists
-        or (_bootloader_limine_hook_stat.stat.exists | default(false))
-      }}
+    bootloader_detected_backends: []
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Check known bootloader backend artifacts
+  ansible.builtin.include_tasks: detect_backend.yml
+  loop: "{{ bootloader_backends }}"
+  loop_control:
+    loop_var: _bootloader_backend
+    label: "{{ _bootloader_backend.name }}"
   tags: ['bootloader', 'bootloader:detect']
 
 - name: Set effective bootloader type
@@ -35,10 +19,10 @@
     bootloader_effective_type: >-
       {% if bootloader_type == 'none' %}
       none
-      {% elif bootloader_type == 'limine' %}
-      limine
-      {% elif bootloader_limine_detected | bool %}
-      limine
+      {% elif bootloader_type != 'auto' %}
+      {{ bootloader_type }}
+      {% elif bootloader_detected_backends | length > 0 %}
+      {{ bootloader_detected_backends | first }}
       {% else %}
       none
       {% endif %}
@@ -49,16 +33,25 @@
     bootloader_effective_type: "{{ bootloader_effective_type | trim }}"
   tags: ['bootloader', 'bootloader:detect']
 
-- name: Assert explicit Limine artifacts exist
+- name: Set selected bootloader backend
+  ansible.builtin.set_fact:
+    bootloader_selected_backend: >-
+      {{
+        (bootloader_backends
+          | selectattr('name', 'equalto', bootloader_effective_type)
+          | list
+          | first)
+        if bootloader_effective_type != 'none'
+        else {}
+      }}
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Assert selected bootloader backend exists
   ansible.builtin.assert:
     that:
-      - _bootloader_limine_config_stat.stat.exists
-      - _bootloader_limine_binary_stat.stat.exists
-    fail_msg: >-
-      bootloader_type=limine was requested, but Limine artifacts were not found.
-      Expected {{ bootloader_limine_config_file }} and {{ bootloader_limine_binary }}.
-    success_msg: "Explicit Limine bootloader artifacts are present"
-  when: bootloader_type == 'limine'
+      - bootloader_effective_type == 'none' or bootloader_selected_backend.role is defined
+    fail_msg: "No backend role is configured for bootloader type '{{ bootloader_effective_type }}'."
+    success_msg: "Bootloader backend selection is valid"
   tags: ['bootloader', 'bootloader:detect']
 
 - name: "Report: Detect bootloader"

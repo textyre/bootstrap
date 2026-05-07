@@ -1,8 +1,8 @@
 ---
 galaxy_info:
-  role_name: bootloader
+  role_name: limine
   author: textyre
-  description: Manage bootloader maintenance state before system preparation
+  description: Manage Limine maintenance state and package-manager hooks
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -16,5 +16,5 @@ galaxy_info:
       versions: [all]
     - name: Gentoo
       versions: [all]
-  galaxy_tags: [bootloader, prepare]
+  galaxy_tags: [limine, bootloader, prepare]
 dependencies: []

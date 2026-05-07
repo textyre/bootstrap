@@ -14,20 +14,11 @@
       ansible.builtin.include_tasks: detect.yml
       tags: ['bootloader', 'bootloader:detect']
 
-    - name: Resolve Limine install target
-      ansible.builtin.include_tasks: resolve_target.yml
-      when: bootloader_effective_type == 'limine'
-      tags: ['bootloader', 'bootloader:target']
-
-    - name: Apply Limine backend
-      ansible.builtin.include_tasks: backends/limine.yml
-      when: bootloader_effective_type == 'limine'
-      tags: ['bootloader', 'bootloader:limine']
-
-    - name: Verify bootloader state
-      ansible.builtin.include_tasks: verify.yml
-      when: bootloader_effective_type == 'limine'
-      tags: ['bootloader', 'bootloader:verify']
+    - name: Apply selected bootloader backend
+      ansible.builtin.include_role:
+        name: "{{ bootloader_selected_backend.role }}"
+      when: bootloader_effective_type != 'none'
+      tags: ['bootloader', 'bootloader:backend']
 
     - name: "Bootloader - Execution Report"
       ansible.builtin.include_role:
@@ -40,5 +31,5 @@
           - >-
             | {{ '%-26s' | format('Effective type') }}
             | {{ '%-10s' | format(bootloader_effective_type | default('none')) }}
-            | {{ '%-24s' | format(ansible_facts['os_family']) }} |
+            | {{ '%-24s' | format((bootloader_selected_backend.role | default('none'))) }} |
       tags: ['bootloader', 'report']

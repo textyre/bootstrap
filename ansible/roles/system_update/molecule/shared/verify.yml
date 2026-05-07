@@ -32,8 +32,13 @@
           - "'role: docker' not in _system_update_test_prepare_source"
           - "'role: vm' not in _system_update_test_prepare_source"
           - "'role: system_update' not in _system_update_test_workstation_source"
-        fail_msg: "prepare_system playbook must run bootloader before system_update and stay separate from workstation/downstream roles."
-        success_msg: "prepare_system playbook keeps system_update before reboot/workstation boundary."
+        fail_msg: >-
+          prepare_system.yml must run bootloader before system_update, must not
+          reboot or call downstream workstation roles, and workstation.yml must
+          stay after the system_update boundary.
+        success_msg: >-
+          prepare_system.yml order, no-reboot boundary, downstream role
+          separation, and workstation boundary are valid.
 
 - name: Verify system_update live backend and reboot boundary
   hosts: all

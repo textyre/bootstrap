@@ -66,6 +66,7 @@ tasks:
       - task: test-reflector
       - task: test-yay
       - task: test-bootloader
+      - task: test-limine
       - task: test-system-update
       - task: test-packages
       - task: test-user
@@ -191,6 +192,16 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
     cmds:
       - 'echo "==> Testing bootloader role..."'
+      - '{{.PREFIX}} molecule test'
+
+  test-limine:
+    desc: "Run molecule tests for limine"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/limine'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing limine role..."'
       - '{{.PREFIX}} molecule test'
 
   test-system-update:

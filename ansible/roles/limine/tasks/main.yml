@@ -1,0 +1,37 @@
+---
+# === Limine maintenance ===
+
+- name: Limine role
+  when: limine_enabled | bool
+  tags: ['limine']
+  block:
+
+    - name: Validate Limine inputs
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['limine', 'limine:validate']
+
+    - name: Resolve Limine install target
+      ansible.builtin.include_tasks: resolve_target.yml
+      tags: ['limine', 'limine:target']
+
+    - name: Configure Limine maintenance
+      ansible.builtin.include_tasks: configure.yml
+      tags: ['limine', 'limine:configure']
+
+    - name: Verify Limine maintenance state
+      ansible.builtin.include_tasks: verify.yml
+      tags: ['limine', 'limine:verify']
+
+    - name: "Limine - Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_limine_phases"
+        common_rpt_title: "limine"
+        common_rpt_footer_rows:
+          - >-
+            | {{ '%-26s' | format('Hook kind') }}
+            | {{ '%-10s' | format(limine_update_hook_kind | default('none')) }}
+            | {{ '%-24s' | format(ansible_facts['os_family']) }} |
+      tags: ['limine', 'report']

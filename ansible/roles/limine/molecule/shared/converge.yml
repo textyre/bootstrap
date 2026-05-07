@@ -1,0 +1,69 @@
+---
+- name: Converge Limine role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    limine_bios_install_target: /tmp/limine-test/dev/disk/by-id/test-system-disk
+    limine_validate_target_block_device: false
+    limine_install_target_file: /tmp/limine-test/etc/limine/install-target
+    limine_pacman_hook_file: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
+    limine_boot_dir: /tmp/limine-test/boot/limine
+    limine_config_file: /tmp/limine-test/boot/limine/limine.conf
+    limine_binary: /tmp/limine-test/usr/bin/limine
+    limine_bios_sys_source: /tmp/limine-test/usr/share/limine/limine-bios.sys
+  pre_tasks:
+    - name: Create fake Limine test directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /tmp/limine-test/boot/limine
+        - /tmp/limine-test/usr/bin
+        - /tmp/limine-test/usr/share/limine
+        - /tmp/limine-test/etc/pacman.d/hooks
+        - /tmp/limine-test/dev/disk/by-id
+
+    - name: Create fake Limine artifacts
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        content: "{{ item.content }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - dest: /tmp/limine-test/boot/limine/limine.conf
+          content: "timeout: 5\n"
+          mode: "0644"
+        - dest: /tmp/limine-test/usr/bin/limine
+          content: "#!/usr/bin/env sh\nexit 0\n"
+          mode: "0755"
+        - dest: /tmp/limine-test/usr/share/limine/limine-bios.sys
+          content: "fake-limine-bios\n"
+          mode: "0644"
+
+    - name: Seed stale archinstall Limine hook
+      ansible.builtin.copy:
+        dest: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
+        force: false
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Trigger]
+          Operation = Install
+          Operation = Upgrade
+          Type = Package
+          Target = limine
+
+          [Action]
+          Description = Deploying Limine after upgrade...
+          When = PostTransaction
+          Exec = /bin/sh -c "/usr/bin/limine bios-install /dev/disk/by-id/ata-VBOX_HARDDISK_VBold && /usr/bin/cp /usr/share/limine/limine-bios.sys /boot/limine/"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+  roles:
+    - role: limine

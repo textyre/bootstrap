@@ -1,0 +1,65 @@
+---
+# ---- Preflight ----
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in limine_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ limine_supported_os | join(', ') }}.
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['limine', 'limine:validate']
+
+- name: Load OS-specific Limine variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+  tags: ['limine', 'limine:validate']
+
+- name: Assert Limine auto target policy is valid
+  ansible.builtin.assert:
+    that:
+      - limine_bios_install_target_auto_source in ['boot_parent']
+    fail_msg: "limine_bios_install_target_auto_source must be boot_parent."
+    success_msg: "Limine auto target policy is valid"
+  tags: ['limine', 'limine:validate']
+
+- name: Assert Limine target policy is available
+  ansible.builtin.assert:
+    that:
+      - (limine_bios_install_target | length > 0) or
+        (limine_bios_install_target_auto | bool)
+    fail_msg: >-
+      Limine management requires limine_bios_install_target or
+      limine_bios_install_target_auto=true.
+    success_msg: "Limine target policy is available"
+  tags: ['limine', 'limine:validate']
+
+- name: Set effective Limine hook management policy
+  ansible.builtin.set_fact:
+    limine_manage_update_hook_effective: >-
+      {{
+        (limine_update_hook_kind != 'none')
+        if limine_manage_update_hook == 'auto'
+        else (limine_manage_update_hook | bool)
+      }}
+  tags: ['limine', 'limine:validate']
+
+- name: Assert requested Limine update hook backend is implemented
+  ansible.builtin.assert:
+    that:
+      - not (limine_manage_update_hook_effective | bool) or limine_update_hook_kind != 'none'
+    fail_msg: >-
+      Limine update hook management is not implemented for
+      {{ ansible_facts['os_family'] }}.
+    success_msg: "Limine update hook backend is available or disabled"
+  tags: ['limine', 'limine:validate']
+
+- name: "Report: Validate inputs"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_limine_phases"
+    common_rpt_phase: "Validate inputs"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}: {{ limine_update_hook_kind }}"
+  tags: ['limine', 'report']

@@ -1,0 +1,37 @@
+---
+# ---- Pacman hook verification ----
+
+- name: Stat Limine pacman hook
+  ansible.builtin.stat:
+    path: "{{ limine_pacman_hook_file }}"
+  register: _limine_verify_hook_file
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Read Limine pacman hook
+  ansible.builtin.slurp:
+    src: "{{ limine_pacman_hook_file }}"
+  register: _limine_verify_hook_raw
+  when: _limine_verify_hook_file.stat.exists
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Set Limine hook text fact
+  ansible.builtin.set_fact:
+    _limine_verify_hook_text: "{{ _limine_verify_hook_raw.content | b64decode }}"
+  when: _limine_verify_hook_file.stat.exists
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Assert Limine pacman hook content is clone-safe
+  ansible.builtin.assert:
+    that:
+      - _limine_verify_hook_file.stat.exists
+      - _limine_verify_hook_file.stat.isreg
+      - _limine_verify_hook_file.stat.pw_name == 'root'
+      - _limine_verify_hook_file.stat.gr_name == 'root'
+      - _limine_verify_hook_file.stat.mode == '0644'
+      - limine_install_target_file in _limine_verify_hook_text
+      - _limine_verify_hook_text is regex('(?m)^Target = limine$')
+      - _limine_verify_hook_text is regex('(?m)^When = PostTransaction$')
+      - not (_limine_verify_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
+    fail_msg: "{{ limine_pacman_hook_file }} is missing, invalid, or still embeds a disk id."
+    success_msg: "Limine pacman hook reads the machine-local install target"
+  tags: ['limine', 'limine:verify', 'limine:hook']

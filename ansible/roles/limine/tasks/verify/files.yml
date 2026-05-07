@@ -1,0 +1,31 @@
+---
+# ---- Limine artifact verification ----
+
+- name: Stat Limine binary
+  ansible.builtin.stat:
+    path: "{{ limine_binary }}"
+  register: _limine_verify_binary
+  tags: ['limine', 'limine:verify']
+
+- name: Stat Limine BIOS system file
+  ansible.builtin.stat:
+    path: "{{ limine_bios_sys_source }}"
+  register: _limine_verify_bios_sys
+  tags: ['limine', 'limine:verify']
+
+- name: Stat Limine boot directory
+  ansible.builtin.stat:
+    path: "{{ limine_boot_dir }}"
+  register: _limine_verify_boot_dir
+  tags: ['limine', 'limine:verify']
+
+- name: Assert Limine files exist
+  ansible.builtin.assert:
+    that:
+      - _limine_verify_binary.stat.exists
+      - _limine_verify_bios_sys.stat.exists
+      - _limine_verify_boot_dir.stat.exists
+      - _limine_verify_boot_dir.stat.isdir
+    fail_msg: "Limine binary, limine-bios.sys, or boot directory is missing."
+    success_msg: "Limine files are present"
+  tags: ['limine', 'limine:verify']

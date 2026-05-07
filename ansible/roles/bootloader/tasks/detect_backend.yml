@@ -1,0 +1,15 @@
+---
+# ---- One backend artifact probe ----
+
+- name: Stat bootloader backend artifacts
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ _bootloader_backend.detection_paths }}"
+  register: _bootloader_backend_artifacts
+  tags: ['bootloader', 'bootloader:detect']
+
+- name: Record detected bootloader backend
+  ansible.builtin.set_fact:
+    bootloader_detected_backends: "{{ bootloader_detected_backends + [_bootloader_backend.name] }}"
+  when: _bootloader_backend_artifacts.results | selectattr('stat.exists') | list | length > 0
+  tags: ['bootloader', 'bootloader:detect']

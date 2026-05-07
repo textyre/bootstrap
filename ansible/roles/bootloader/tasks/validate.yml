@@ -14,36 +14,27 @@
 - name: Assert bootloader_type is valid
   ansible.builtin.assert:
     that:
-      - bootloader_type in ['auto', 'limine', 'none']
-    fail_msg: "bootloader_type must be one of: auto, limine, none."
+      - bootloader_type in (['auto', 'none'] + (bootloader_backends | map(attribute='name') | list))
+    fail_msg: >-
+      bootloader_type must be auto, none, or one of:
+      {{ bootloader_backends | map(attribute='name') | join(', ') }}.
     success_msg: "bootloader_type={{ bootloader_type }} is valid"
   tags: ['bootloader', 'bootloader:validate']
 
-- name: Assert Limine auto target policy is valid
+- name: Assert bootloader backend definitions are valid
   ansible.builtin.assert:
     that:
-      - bootloader_limine_bios_install_target_auto_source in ['boot_parent']
+      - item.name is defined
+      - item.name | length > 0
+      - item.role is defined
+      - item.role | length > 0
+      - item.detection_paths is defined
+      - item.detection_paths | length > 0
     fail_msg: >-
-      bootloader_limine_bios_install_target_auto_source must be boot_parent.
-    success_msg: "Limine auto target policy is valid"
-  when: bootloader_type == 'limine' or bootloader_type == 'auto'
-  tags: ['bootloader', 'bootloader:validate']
-
-- name: Assert Limine target policy is available when Limine is explicit
-  ansible.builtin.assert:
-    that:
-      - (bootloader_limine_bios_install_target | length > 0) or
-        (bootloader_limine_bios_install_target_auto | bool)
-    fail_msg: >-
-      Explicit Limine management requires bootloader_limine_bios_install_target
-      or bootloader_limine_bios_install_target_auto=true.
-    success_msg: "Limine target policy is available"
-  when: bootloader_type == 'limine'
-  tags: ['bootloader', 'bootloader:validate']
-
-- name: Load OS-specific bootloader variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
-  when: ansible_facts['os_family'] == 'Archlinux'
+      Each bootloader backend must declare name, role and detection_paths.
+      Invalid backend: {{ item }}.
+    success_msg: "Bootloader backend '{{ item.name }}' definition is valid"
+  loop: "{{ bootloader_backends }}"
   tags: ['bootloader', 'bootloader:validate']
 
 - name: "Report: Validate inputs"
