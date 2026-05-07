@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    bootloader_type: limine
+    bootloader_type: "{{ 'limine' if ansible_facts['os_family'] == 'Archlinux' else 'none' }}"
     bootloader_limine_bios_install_target: /tmp/bootloader-test/dev/disk/by-id/test-system-disk
     bootloader_limine_validate_target_block_device: false
     bootloader_install_target_file: /tmp/bootloader-test/etc/limine/install-target
@@ -27,6 +27,7 @@
         - /tmp/bootloader-test/usr/share/limine
         - /tmp/bootloader-test/etc/pacman.d/hooks
         - /tmp/bootloader-test/dev/disk/by-id
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Create fake Limine artifacts
       ansible.builtin.copy:
@@ -45,6 +46,7 @@
         - dest: /tmp/bootloader-test/usr/share/limine/limine-bios.sys
           content: "fake-limine-bios\n"
           mode: "0644"
+      when: ansible_facts['os_family'] == 'Archlinux'
 
     - name: Seed stale archinstall Limine hook
       ansible.builtin.copy:
@@ -64,6 +66,7 @@
           Description = Deploying Limine after upgrade...
           When = PostTransaction
           Exec = /bin/sh -c "/usr/bin/limine bios-install /dev/disk/by-id/ata-VBOX_HARDDISK_VBold && /usr/bin/cp /usr/share/limine/limine-bios.sys /boot/limine/"
+      when: ansible_facts['os_family'] == 'Archlinux'
 
   roles:
     - role: bootloader

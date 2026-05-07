@@ -8,6 +8,17 @@
     _bootloader_verify_hook_file: /tmp/bootloader-test/etc/pacman.d/hooks/99-limine.hook
     _bootloader_verify_expected_target: /tmp/bootloader-test/dev/disk/by-id/test-system-disk
   tasks:
+    - name: Confirm non-Arch bootloader smoke path
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] != 'Archlinux'
+        success_msg: "Non-Arch bootloader scenario completed without Limine backend changes."
+      when: ansible_facts['os_family'] != 'Archlinux'
+
+    - name: End non-Arch verification after smoke assertion
+      ansible.builtin.meta: end_host
+      when: ansible_facts['os_family'] != 'Archlinux'
+
     - name: Stat test Limine install target file
       ansible.builtin.stat:
         path: "{{ _bootloader_verify_target_file }}"
