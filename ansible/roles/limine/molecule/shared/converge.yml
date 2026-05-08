@@ -4,14 +4,15 @@
   become: true
   gather_facts: true
   vars:
-    limine_bios_install_target: /tmp/limine-test/dev/disk/by-id/test-system-disk
+    _limine_molecule_root: /var/lib/limine-test
+    limine_bios_install_target: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
     limine_validate_target_block_device: false
-    limine_install_target_file: /tmp/limine-test/etc/limine/install-target
-    limine_pacman_hook_file: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
-    limine_boot_dir: /tmp/limine-test/boot/limine
-    limine_config_file: /tmp/limine-test/boot/limine/limine.conf
-    limine_binary: /tmp/limine-test/usr/bin/limine
-    limine_bios_sys_source: /tmp/limine-test/usr/share/limine/limine-bios.sys
+    limine_install_target_file: "{{ _limine_molecule_root }}/etc/limine/install-target"
+    limine_pacman_hook_file: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
+    limine_boot_dir: "{{ _limine_molecule_root }}/boot/limine"
+    limine_config_file: "{{ _limine_molecule_root }}/boot/limine/limine.conf"
+    limine_binary: "{{ _limine_molecule_root }}/usr/bin/limine"
+    limine_bios_sys_source: "{{ _limine_molecule_root }}/usr/share/limine/limine-bios.sys"
   pre_tasks:
     - name: Create fake Limine test directories
       ansible.builtin.file:
@@ -21,11 +22,11 @@
         group: root
         mode: "0755"
       loop:
-        - /tmp/limine-test/boot/limine
-        - /tmp/limine-test/usr/bin
-        - /tmp/limine-test/usr/share/limine
-        - /tmp/limine-test/etc/pacman.d/hooks
-        - /tmp/limine-test/dev/disk/by-id
+        - "{{ _limine_molecule_root }}/boot/limine"
+        - "{{ _limine_molecule_root }}/usr/bin"
+        - "{{ _limine_molecule_root }}/usr/share/limine"
+        - "{{ _limine_molecule_root }}/etc/pacman.d/hooks"
+        - "{{ _limine_molecule_root }}/dev/disk/by-id"
 
     - name: Create fake Limine artifacts
       ansible.builtin.copy:
@@ -35,19 +36,19 @@
         group: root
         mode: "{{ item.mode }}"
       loop:
-        - dest: /tmp/limine-test/boot/limine/limine.conf
+        - dest: "{{ _limine_molecule_root }}/boot/limine/limine.conf"
           content: "timeout: 5\n"
           mode: "0644"
-        - dest: /tmp/limine-test/usr/bin/limine
+        - dest: "{{ _limine_molecule_root }}/usr/bin/limine"
           content: "#!/usr/bin/env sh\nexit 0\n"
           mode: "0755"
-        - dest: /tmp/limine-test/usr/share/limine/limine-bios.sys
+        - dest: "{{ _limine_molecule_root }}/usr/share/limine/limine-bios.sys"
           content: "fake-limine-bios\n"
           mode: "0644"
 
     - name: Seed stale archinstall Limine hook
       ansible.builtin.copy:
-        dest: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
+        dest: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
         force: false
         owner: root
         group: root

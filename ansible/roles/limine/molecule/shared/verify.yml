@@ -4,11 +4,19 @@
   become: true
   gather_facts: true
   vars:
-    _limine_verify_target_file: /tmp/limine-test/etc/limine/install-target
-    _limine_verify_hook_file: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
-    _limine_verify_expected_target: /tmp/limine-test/dev/disk/by-id/test-system-disk
-    _limine_verify_bin_dir: /var/lib/limine-test/bin
-    _limine_resolver_task_file: "{{ playbook_dir }}/../../tasks/resolve_boot_parent_target.yml"
+    _limine_molecule_root: /var/lib/limine-test
+    _limine_molecule_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    _limine_molecule_role_dir: >-
+      {{
+        _limine_molecule_project_dir
+        if (_limine_molecule_project_dir | basename) == 'limine'
+        else _limine_molecule_project_dir ~ '/roles/limine'
+      }}
+    _limine_verify_target_file: "{{ _limine_molecule_root }}/etc/limine/install-target"
+    _limine_verify_hook_file: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
+    _limine_verify_expected_target: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
+    _limine_verify_bin_dir: "{{ _limine_molecule_root }}/bin"
+    _limine_resolver_task_file: "{{ _limine_molecule_role_dir }}/tasks/resolve_boot_parent_target.yml"
   tasks:
     - name: Stat test Limine install target file
       ansible.builtin.stat:
@@ -83,7 +91,7 @@
         mode: "0755"
       loop:
         - "{{ _limine_verify_bin_dir }}"
-        - /tmp/limine-test/dev/disk/by-id
+        - "{{ _limine_molecule_root }}/dev/disk/by-id"
 
     - name: Create fake resolver device nodes
       ansible.builtin.file:
@@ -93,15 +101,15 @@
         group: root
         mode: "0644"
       loop:
-        - /tmp/limine-test/dev/sda
-        - /tmp/limine-test/dev/sda1
-        - /tmp/limine-test/dev/sdb
-        - /tmp/limine-test/dev/sdb1
+        - "{{ _limine_molecule_root }}/dev/sda"
+        - "{{ _limine_molecule_root }}/dev/sda1"
+        - "{{ _limine_molecule_root }}/dev/sdb"
+        - "{{ _limine_molecule_root }}/dev/sdb1"
 
     - name: Create fake stable by-id link
       ansible.builtin.file:
         src: ../../sda
-        dest: /tmp/limine-test/dev/disk/by-id/test-system-disk
+        dest: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
         state: link
         owner: root
         group: root
@@ -115,8 +123,8 @@
         content: |
           #!/usr/bin/env sh
           case "$*" in
-            *"/multi-boot"*) printf '%s\n' '/tmp/limine-test/dev/md0' ;;
-            *) printf '%s\n' '/tmp/limine-test/dev/sda1' ;;
+            *"/multi-boot"*) printf '%s\n' '{{ _limine_molecule_root }}/dev/md0' ;;
+            *) printf '%s\n' '{{ _limine_molecule_root }}/dev/sda1' ;;
           esac
 
     - name: Create fake lsblk for resolver tests
@@ -128,32 +136,36 @@
         content: |
           #!/usr/bin/env sh
           case "$*" in
-            *"/tmp/limine-test/dev/md0"*)
-              printf '%s\n' '/tmp/limine-test/dev/md0 raid1'
-              printf '%s\n' '/tmp/limine-test/dev/sda disk'
-              printf '%s\n' '/tmp/limine-test/dev/sdb disk'
+            *"{{ _limine_molecule_root }}/dev/md0"*)
+              printf '%s\n' '{{ _limine_molecule_root }}/dev/md0 raid1'
+              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda disk'
+              printf '%s\n' '{{ _limine_molecule_root }}/dev/sdb disk'
               ;;
             *)
-              printf '%s\n' '/tmp/limine-test/dev/sda1 part'
-              printf '%s\n' '/tmp/limine-test/dev/sda disk'
+              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda1 part'
+              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda disk'
               ;;
           esac
 
     - name: Verify auto resolver chooses stable by-id path for one backing disk
       vars:
         limine_boot_mount: /boot
-        limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_findmnt_command: "{{ _limine_verify_bin_dir }}/findmnt"
-        _limine_resolver_lsblk_command: "{{ _limine_verify_bin_dir }}/lsblk"
+        limine_bios_install_target_by_id_dir: "{{ _limine_molecule_root }}/dev/disk/by-id"
+        _limine_resolver_path_env: >-
+          {{ _limine_verify_bin_dir }}:{{ ansible_env.PATH
+          | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}
       block:
         - name: Run auto resolver with one backing disk
           ansible.builtin.include_tasks:
             file: "{{ _limine_resolver_task_file }}"
+            apply:
+              environment:
+                PATH: "{{ _limine_resolver_path_env }}"
 
         - name: Assert auto resolver result
           ansible.builtin.assert:
             that:
-              - limine_resolved_install_target == '/tmp/limine-test/dev/disk/by-id/test-system-disk'
+              - limine_resolved_install_target == _limine_verify_expected_target
               - limine_target_source == 'boot_parent'
             fail_msg: "Limine auto resolver did not choose the stable by-id target."
             success_msg: "Limine auto resolver chose the stable by-id target."
@@ -161,13 +173,17 @@
     - name: Verify auto resolver fails on ambiguous backing disks
       vars:
         limine_boot_mount: /multi-boot
-        limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_findmnt_command: "{{ _limine_verify_bin_dir }}/findmnt"
-        _limine_resolver_lsblk_command: "{{ _limine_verify_bin_dir }}/lsblk"
+        limine_bios_install_target_by_id_dir: "{{ _limine_molecule_root }}/dev/disk/by-id"
+        _limine_resolver_path_env: >-
+          {{ _limine_verify_bin_dir }}:{{ ansible_env.PATH
+          | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}
       block:
         - name: Run auto resolver with multiple backing disks
           ansible.builtin.include_tasks:
             file: "{{ _limine_resolver_task_file }}"
+            apply:
+              environment:
+                PATH: "{{ _limine_resolver_path_env }}"
 
         - name: Fail if ambiguous resolver did not stop
           ansible.builtin.fail:
