@@ -7,7 +7,7 @@
     _limine_verify_target_file: /tmp/limine-test/etc/limine/install-target
     _limine_verify_hook_file: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
     _limine_verify_expected_target: /tmp/limine-test/dev/disk/by-id/test-system-disk
-    _limine_resolver_task_file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/roles/limine/tasks/resolve_boot_parent_target.yml"
+    _limine_resolver_task_file: "{{ playbook_dir }}/../../tasks/resolve_boot_parent_target.yml"
   tasks:
     - name: Stat test Limine install target file
       ansible.builtin.stat:

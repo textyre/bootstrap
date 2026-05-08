@@ -190,21 +190,25 @@
           ansible.builtin.set_fact:
             _pam_hardening_verify_system_auth_text: "{{ _pam_hardening_verify_system_auth_raw.content | b64decode }}"
 
+        - name: Set system-auth policy fact
+          ansible.builtin.set_fact:
+            _pam_hardening_verify_system_auth_policy: "{{ _pam_hardening_faillock_pam[ansible_facts['os_family']] }}"
+
         - name: Assert pam_faillock.so preauth in system-auth
           ansible.builtin.assert:
             that:
-              - _pam_hardening_verify_system_auth_text is regex('(?m)^auth\s+required\s+pam_faillock\.so\s+preauth')
+              - _pam_hardening_verify_system_auth_text is regex('(?m)^auth\s+\S+\s+pam_faillock\.so\s+preauth')
             fail_msg: >-
               /etc/pam.d/system-auth missing
-              'auth required pam_faillock.so preauth' line
+              pam_faillock.so preauth line
 
         - name: Assert pam_faillock.so authfail in system-auth
           ansible.builtin.assert:
             that:
-              - _pam_hardening_verify_system_auth_text is regex('(?m)^auth\s+required\s+pam_faillock\.so\s+authfail')
+              - _pam_hardening_verify_system_auth_text is regex('(?m)^auth\s+\S+\s+pam_faillock\.so\s+authfail')
             fail_msg: >-
               /etc/pam.d/system-auth missing
-              'auth required pam_faillock.so authfail' line
+              pam_faillock.so authfail line
 
         - name: Assert pam_faillock.so account in system-auth
           ansible.builtin.assert:
@@ -213,6 +217,16 @@
             fail_msg: >-
               /etc/pam.d/system-auth missing
               'account required pam_faillock.so' line
+          when: _pam_hardening_verify_system_auth_policy.needs_account | bool
+
+        - name: Assert pam_faillock.so authsucc in system-auth
+          ansible.builtin.assert:
+            that:
+              - _pam_hardening_verify_system_auth_text is regex('(?m)^auth\s+\S+\s+pam_faillock\.so\s+authsucc')
+            fail_msg: >-
+              /etc/pam.d/system-auth missing pam_faillock.so authsucc line
+              for a platform that does not use account pam_faillock.so
+          when: not (_pam_hardening_verify_system_auth_policy.needs_account | bool)
 
         - name: Verify pam_faillock preauth appears before pam_unix in auth section
           ansible.builtin.command:
