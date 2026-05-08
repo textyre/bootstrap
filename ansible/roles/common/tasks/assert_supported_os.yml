@@ -1,0 +1,16 @@
+---
+# ---- Shared supported OS assertion ----
+
+- name: "Assert supported operating system for {{ common_assert_role | default('role') }}"
+  ansible.builtin.assert:
+    that:
+      - common_assert_role is defined
+      - common_assert_supported_os is defined
+      - common_assert_actual_os is defined
+      - common_assert_actual_os in (common_assert_supported_os | default([]))
+    fail_msg: >-
+      {{ common_assert_role | default('Role') }} does not support OS family
+      '{{ common_assert_actual_os | default('undefined') }}'. Supported:
+      {{ common_assert_supported_os | default([]) | join(', ') }}.
+    success_msg: >-
+      {{ common_assert_role }} supports OS family '{{ common_assert_actual_os }}'

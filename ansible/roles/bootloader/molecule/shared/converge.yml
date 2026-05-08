@@ -4,6 +4,30 @@
   become: true
   gather_facts: true
   vars:
-    bootloader_type: none
+    bootloader_type: auto
+    bootloader_test_backend_marker_file: /tmp/bootloader-test/backend-called
+    bootloader_backends:
+      - name: test_backend
+        role: bootloader_test_backend
+        detection:
+          paths:
+            - /tmp/bootloader-test/backend-present
+  pre_tasks:
+    - name: Create bootloader test directory
+      ansible.builtin.file:
+        path: /tmp/bootloader-test
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Seed bootloader backend detection artifact
+      ansible.builtin.copy:
+        dest: /tmp/bootloader-test/backend-present
+        content: "test backend is installed\n"
+        owner: root
+        group: root
+        mode: "0644"
+
   roles:
     - role: bootloader

@@ -23,7 +23,7 @@ provisioner:
   options:
     skip-tags: report
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../:molecule/shared/roles"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

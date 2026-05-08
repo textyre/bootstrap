@@ -2,13 +2,13 @@
 # ---- Preflight ----
 
 - name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in limine_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ limine_supported_os | join(', ') }}.
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: assert_supported_os.yml
+  vars:
+    common_assert_role: limine
+    common_assert_supported_os: "{{ limine_supported_os }}"
+    common_assert_actual_os: "{{ ansible_facts['os_family'] }}"
   tags: ['limine', 'limine:validate']
 
 - name: Load OS-specific Limine variables
@@ -34,9 +34,9 @@
     success_msg: "Limine target policy is available"
   tags: ['limine', 'limine:validate']
 
-- name: Set effective Limine hook management policy
+- name: Set selected Limine hook management policy
   ansible.builtin.set_fact:
-    limine_manage_update_hook_effective: >-
+    limine_update_hook_managed: >-
       {{
         (limine_update_hook_kind != 'none')
         if limine_manage_update_hook == 'auto'
@@ -47,7 +47,7 @@
 - name: Assert requested Limine update hook backend is implemented
   ansible.builtin.assert:
     that:
-      - not (limine_manage_update_hook_effective | bool) or limine_update_hook_kind != 'none'
+      - not (limine_update_hook_managed | bool) or limine_update_hook_kind != 'none'
     fail_msg: >-
       Limine update hook management is not implemented for
       {{ ansible_facts['os_family'] }}.

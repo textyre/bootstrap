@@ -34,4 +34,8 @@
             | {{ '%-26s' | format('Hook kind') }}
             | {{ '%-10s' | format(limine_update_hook_kind | default('none')) }}
             | {{ '%-24s' | format(ansible_facts['os_family']) }} |
+          - >-
+            | {{ '%-26s' | format('Target source') }}
+            | {{ '%-10s' | format(limine_target_source | default('none')) }}
+            | {{ '%-24s' | format(limine_resolved_install_target | default('none')) }} |
       tags: ['limine', 'report']

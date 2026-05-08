@@ -7,7 +7,7 @@
 
 - name: Verify Limine update hook
   ansible.builtin.include_tasks: "verify/hooks/{{ limine_update_hook_kind }}.yml"
-  when: limine_manage_update_hook_effective | bool
+  when: limine_update_hook_managed | bool
   tags: ['limine', 'limine:verify', 'limine:hook']
 
 - name: Verify Limine files
@@ -21,5 +21,5 @@
   vars:
     common_rpt_fact: "_limine_phases"
     common_rpt_phase: "Verify Limine"
-    common_rpt_detail: "{{ _limine_verify_target_text }}"
+    common_rpt_detail: "{{ _limine_verify_target_text | default(limine_resolved_install_target) }}"
   tags: ['limine', 'report']

@@ -1,38 +1,33 @@
 ---
-- name: Verify bootloader role source boundary
-  hosts: localhost
+- name: Verify bootloader dispatcher behavior
+  hosts: all
+  become: true
   gather_facts: false
   vars:
-    _bootloader_test_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
-    _bootloader_test_role_dir: >-
-      {{
-        _bootloader_test_project_dir
-        if (_bootloader_test_project_dir | basename) == 'bootloader'
-        else _bootloader_test_project_dir ~ '/roles/bootloader'
-      }}
+    bootloader_test_backend_marker_file: /tmp/bootloader-test/backend-called
   tasks:
-    - name: Read bootloader task sources
-      ansible.builtin.set_fact:
-        _bootloader_task_sources: >-
-          {{
-            lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/main.yml')
-            ~ '\n'
-            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/validate.yml')
-            ~ '\n'
-            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/detect.yml')
-            ~ '\n'
-            ~ lookup('ansible.builtin.file', _bootloader_test_role_dir ~ '/tasks/detect_backend.yml')
-          }}
+    - name: Stat bootloader test backend marker
+      ansible.builtin.stat:
+        path: "{{ bootloader_test_backend_marker_file }}"
+      register: _bootloader_test_marker
 
-    - name: Assert bootloader role stays generic
+    - name: Read bootloader test backend marker
+      ansible.builtin.slurp:
+        src: "{{ bootloader_test_backend_marker_file }}"
+      register: _bootloader_test_marker_raw
+      when: _bootloader_test_marker.stat.exists
+
+    - name: Set bootloader test backend marker text
+      ansible.builtin.set_fact:
+        _bootloader_test_marker_text: "{{ _bootloader_test_marker_raw.content | b64decode }}"
+      when: _bootloader_test_marker.stat.exists
+
+    - name: Assert bootloader selected and invoked the backend role
       ansible.builtin.assert:
         that:
-          - "'limine bios-install' not in _bootloader_task_sources"
-          - "'limine_bios_install_target' not in _bootloader_task_sources"
-          - "'pacman' not in _bootloader_task_sources"
-          - "'ansible.builtin.reboot' not in _bootloader_task_sources"
-          - "'upgrade: true' not in _bootloader_task_sources"
-          - "'role: system_update' not in _bootloader_task_sources"
-          - "'role: workstation' not in _bootloader_task_sources"
-        fail_msg: "bootloader role must stay generic and delegate backend-specific behavior."
-        success_msg: "bootloader role delegates backend-specific behavior."
+          - _bootloader_test_marker.stat.exists
+          - _bootloader_test_marker.stat.isreg
+          - _bootloader_test_marker_text is regex('(?m)^backend=test_backend$')
+          - _bootloader_test_marker_text is regex('(?m)^role=bootloader_test_backend$')
+        fail_msg: "bootloader did not invoke the selected test backend role."
+        success_msg: "bootloader selected and invoked the test backend role."

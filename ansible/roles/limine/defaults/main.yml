@@ -29,6 +29,9 @@ limine_bios_install_target_auto: true
 # Auto target strategy. Supported: boot_parent.
 limine_bios_install_target_auto_source: boot_parent
 
+# Directory with stable disk identity symlinks for auto-resolved targets.
+limine_bios_install_target_by_id_dir: /dev/disk/by-id
+
 # Validate that the resolved target is a block device.
 limine_validate_target_block_device: true
 
@@ -38,5 +41,5 @@ limine_config_file: /boot/limine/limine.conf
 limine_binary: /usr/bin/limine
 limine_bios_sys_source: /usr/share/limine/limine-bios.sys
 
-# Arch pacman hook path. Used only when the effective hook kind is pacman.
+# Arch pacman hook path. Used only when the selected hook kind is pacman.
 limine_pacman_hook_file: /etc/pacman.d/hooks/99-limine.hook

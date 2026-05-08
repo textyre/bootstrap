@@ -24,7 +24,7 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../:molecule/shared/roles"
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml

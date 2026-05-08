@@ -18,6 +18,7 @@ bootloader_supported_os:
 bootloader_backends:
   - name: limine
     role: limine
-    detection_paths:
-      - /boot/limine/limine.conf
-      - /usr/bin/limine
+    detection:
+      paths:
+        - /boot/limine/limine.conf
+        - /usr/bin/limine

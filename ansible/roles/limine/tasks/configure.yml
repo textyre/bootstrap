@@ -13,7 +13,7 @@
 - name: Persist Limine install target
   ansible.builtin.copy:
     dest: "{{ limine_install_target_file }}"
-    content: "{{ limine_install_target_effective }}\n"
+    content: "{{ limine_resolved_install_target }}\n"
     owner: root
     group: root
     mode: "0644"
@@ -21,7 +21,7 @@
 
 - name: Configure Limine update hook
   ansible.builtin.include_tasks: "hooks/{{ limine_update_hook_kind }}.yml"
-  when: limine_manage_update_hook_effective | bool
+  when: limine_update_hook_managed | bool
   tags: ['limine', 'limine:configure', 'limine:hook']
 
 - name: Set Limine backend state fact

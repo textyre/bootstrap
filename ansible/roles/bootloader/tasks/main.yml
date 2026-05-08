@@ -17,7 +17,7 @@
     - name: Apply selected bootloader backend
       ansible.builtin.include_role:
         name: "{{ bootloader_selected_backend.role }}"
-      when: bootloader_effective_type != 'none'
+      when: bootloader_selected_type != 'none'
       tags: ['bootloader', 'bootloader:backend']
 
     - name: "Bootloader - Execution Report"
@@ -29,7 +29,7 @@
         common_rpt_title: "bootloader"
         common_rpt_footer_rows:
           - >-
-            | {{ '%-26s' | format('Effective type') }}
-            | {{ '%-10s' | format(bootloader_effective_type | default('none')) }}
+            | {{ '%-26s' | format('Selected backend') }}
+            | {{ '%-10s' | format(bootloader_selected_type | default('none')) }}
             | {{ '%-24s' | format((bootloader_selected_backend.role | default('none'))) }} |
       tags: ['bootloader', 'report']

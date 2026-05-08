@@ -1,36 +1,42 @@
 ---
-# ---- Generic bootloader detection ----
+# ---- Generic bootloader backend selection ----
 
 - name: Reset detected bootloader backend list
   ansible.builtin.set_fact:
     bootloader_detected_backends: []
   tags: ['bootloader', 'bootloader:detect']
 
-- name: Check known bootloader backend artifacts
-  ansible.builtin.include_tasks: detect_backend.yml
-  loop: "{{ bootloader_backends }}"
+- name: Stat bootloader backend detection artifacts
+  ansible.builtin.stat:
+    path: "{{ item.1 }}"
+  loop: "{{ bootloader_backends | subelements('detection.paths') }}"
   loop_control:
-    loop_var: _bootloader_backend
-    label: "{{ _bootloader_backend.name }}"
+    label: "{{ item.0.name }}:{{ item.1 }}"
+  register: _bootloader_backend_artifacts
   tags: ['bootloader', 'bootloader:detect']
 
-- name: Set effective bootloader type
+- name: Record detected bootloader backends
   ansible.builtin.set_fact:
-    bootloader_effective_type: >-
-      {% if bootloader_type == 'none' %}
-      none
-      {% elif bootloader_type != 'auto' %}
-      {{ bootloader_type }}
-      {% elif bootloader_detected_backends | length > 0 %}
-      {{ bootloader_detected_backends | first }}
-      {% else %}
-      none
-      {% endif %}
+    bootloader_detected_backends: >-
+      {{ (bootloader_detected_backends + [item.item.0.name]) | unique | list }}
+  loop: "{{ _bootloader_backend_artifacts.results }}"
+  loop_control:
+    label: "{{ item.item.0.name }}"
+  when: item.stat.exists
   tags: ['bootloader', 'bootloader:detect']
 
-- name: Normalize effective bootloader type
+- name: Select bootloader backend type
   ansible.builtin.set_fact:
-    bootloader_effective_type: "{{ bootloader_effective_type | trim }}"
+    bootloader_selected_type: >-
+      {{
+        (
+          'none'
+          if bootloader_type == 'none'
+          else bootloader_type
+          if bootloader_type != 'auto'
+          else (bootloader_detected_backends | first | default('none'))
+        ) | trim
+      }}
   tags: ['bootloader', 'bootloader:detect']
 
 - name: Set selected bootloader backend
@@ -38,10 +44,10 @@
     bootloader_selected_backend: >-
       {{
         (bootloader_backends
-          | selectattr('name', 'equalto', bootloader_effective_type)
+          | selectattr('name', 'equalto', bootloader_selected_type)
           | list
           | first)
-        if bootloader_effective_type != 'none'
+        if bootloader_selected_type != 'none'
         else {}
       }}
   tags: ['bootloader', 'bootloader:detect']
@@ -49,8 +55,8 @@
 - name: Assert selected bootloader backend exists
   ansible.builtin.assert:
     that:
-      - bootloader_effective_type == 'none' or bootloader_selected_backend.role is defined
-    fail_msg: "No backend role is configured for bootloader type '{{ bootloader_effective_type }}'."
+      - bootloader_selected_type == 'none' or bootloader_selected_backend.role is defined
+    fail_msg: "No backend role is configured for bootloader type '{{ bootloader_selected_type }}'."
     success_msg: "Bootloader backend selection is valid"
   tags: ['bootloader', 'bootloader:detect']
 
@@ -61,5 +67,5 @@
   vars:
     common_rpt_fact: "_bootloader_phases"
     common_rpt_phase: "Detect bootloader"
-    common_rpt_detail: "{{ bootloader_effective_type }}"
+    common_rpt_detail: "{{ bootloader_selected_type }}"
   tags: ['bootloader', 'report']

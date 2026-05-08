@@ -2,13 +2,13 @@
 # ---- Preflight ----
 
 - name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in bootloader_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ bootloader_supported_os | join(', ') }}.
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: assert_supported_os.yml
+  vars:
+    common_assert_role: bootloader
+    common_assert_supported_os: "{{ bootloader_supported_os }}"
+    common_assert_actual_os: "{{ ansible_facts['os_family'] }}"
   tags: ['bootloader', 'bootloader:validate']
 
 - name: Assert bootloader_type is valid
@@ -28,10 +28,11 @@
       - item.name | length > 0
       - item.role is defined
       - item.role | length > 0
-      - item.detection_paths is defined
-      - item.detection_paths | length > 0
+      - item.detection is defined
+      - item.detection.paths is defined
+      - item.detection.paths | length > 0
     fail_msg: >-
-      Each bootloader backend must declare name, role and detection_paths.
+      Each bootloader backend must declare name, role and detection.paths.
       Invalid backend: {{ item }}.
     success_msg: "Bootloader backend '{{ item.name }}' definition is valid"
   loop: "{{ bootloader_backends }}"
