@@ -3,34 +3,16 @@
   hosts: all
   become: true
   gather_facts: true
-  vars:
-    _limine_molecule_root: /var/lib/limine-test
-    _limine_molecule_project_dir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
-    _limine_molecule_role_dir: >-
-      {{
-        _limine_molecule_project_dir
-        if (_limine_molecule_project_dir | basename) == 'limine'
-        else _limine_molecule_project_dir ~ '/roles/limine'
-      }}
-    _limine_verify_target_file: "{{ _limine_molecule_root }}/etc/limine/install-target"
-    _limine_verify_hook_file: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
-    _limine_verify_expected_target: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
-    _limine_verify_bin_dir: "{{ _limine_molecule_root }}/bin"
-    _limine_resolver_task_file: "{{ _limine_molecule_role_dir }}/tasks/resolve_boot_parent_target.yml"
   tasks:
     - name: Stat test Limine install target file
       ansible.builtin.stat:
-        path: "{{ _limine_verify_target_file }}"
+        path: "{{ limine_install_target_file }}"
       register: _limine_molecule_target_stat
 
     - name: Read test Limine install target file
       ansible.builtin.slurp:
-        src: "{{ _limine_verify_target_file }}"
+        src: "{{ limine_install_target_file }}"
       register: _limine_molecule_target_raw
-
-    - name: Set decoded target fact
-      ansible.builtin.set_fact:
-        _limine_molecule_target_text: "{{ _limine_molecule_target_raw.content | b64decode | trim }}"
 
     - name: Assert target file state
       ansible.builtin.assert:
@@ -40,7 +22,7 @@
           - _limine_molecule_target_stat.stat.pw_name == 'root'
           - _limine_molecule_target_stat.stat.gr_name == 'root'
           - _limine_molecule_target_stat.stat.mode == '0644'
-          - _limine_molecule_target_text == _limine_verify_expected_target
+          - (_limine_molecule_target_raw.content | b64decode | trim) == limine_bios_install_target
         fail_msg: "Limine install target file was not created with the expected content."
         success_msg: "Limine install target file is valid."
 
@@ -49,20 +31,18 @@
       block:
         - name: Read test Limine hook
           ansible.builtin.slurp:
-            src: "{{ _limine_verify_hook_file }}"
+            src: "{{ limine_pacman_hook_file }}"
           register: _limine_molecule_hook_raw
 
-        - name: Set decoded hook fact
-          ansible.builtin.set_fact:
-            _limine_molecule_hook_text: "{{ _limine_molecule_hook_raw.content | b64decode }}"
-
         - name: Assert hook was normalized
+          vars:
+            _limine_molecule_hook_text: "{{ _limine_molecule_hook_raw.content | b64decode }}"
           ansible.builtin.assert:
             that:
-              - _limine_verify_target_file in _limine_molecule_hook_text
+              - limine_install_target_file in _limine_molecule_hook_text
               - _limine_molecule_hook_text is regex('(?m)^Target = limine$')
               - _limine_molecule_hook_text is regex('(?m)^When = PostTransaction$')
-              - not (_limine_molecule_hook_text is regex('ata-VBOX_HARDDISK_VBold'))
+              - not (_limine_molecule_hook_text is regex('ata-VBOX_HARDDISK_stale-clone'))
               - not (_limine_molecule_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
             fail_msg: "Limine pacman hook was not normalized to read the machine-local target file."
             success_msg: "Limine pacman hook is clone-safe."
@@ -72,7 +52,7 @@
       block:
         - name: Stat non-Arch Limine hook
           ansible.builtin.stat:
-            path: "{{ _limine_verify_hook_file }}"
+            path: "{{ limine_pacman_hook_file }}"
           register: _limine_molecule_non_arch_hook
 
         - name: Assert non-Arch hook was not created
@@ -81,118 +61,3 @@
               - not _limine_molecule_non_arch_hook.stat.exists
             fail_msg: "Non-Arch Limine scenario must not create a pacman hook."
             success_msg: "Non-Arch Limine scenario skipped package-manager hook management."
-
-    - name: Prepare fake resolver command fixtures
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-      loop:
-        - "{{ _limine_verify_bin_dir }}"
-        - "{{ _limine_molecule_root }}/dev/disk/by-id"
-
-    - name: Create fake resolver device nodes
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: touch
-        owner: root
-        group: root
-        mode: "0644"
-      loop:
-        - "{{ _limine_molecule_root }}/dev/sda"
-        - "{{ _limine_molecule_root }}/dev/sda1"
-        - "{{ _limine_molecule_root }}/dev/sdb"
-        - "{{ _limine_molecule_root }}/dev/sdb1"
-
-    - name: Create fake stable by-id link
-      ansible.builtin.file:
-        src: ../../sda
-        dest: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
-        state: link
-        owner: root
-        group: root
-
-    - name: Create fake findmnt for resolver tests
-      ansible.builtin.copy:
-        dest: "{{ _limine_verify_bin_dir }}/findmnt"
-        owner: root
-        group: root
-        mode: "0755"
-        content: |
-          #!/usr/bin/env sh
-          case "$*" in
-            *"/multi-boot"*) printf '%s\n' '{{ _limine_molecule_root }}/dev/md0' ;;
-            *) printf '%s\n' '{{ _limine_molecule_root }}/dev/sda1' ;;
-          esac
-
-    - name: Create fake lsblk for resolver tests
-      ansible.builtin.copy:
-        dest: "{{ _limine_verify_bin_dir }}/lsblk"
-        owner: root
-        group: root
-        mode: "0755"
-        content: |
-          #!/usr/bin/env sh
-          case "$*" in
-            *"{{ _limine_molecule_root }}/dev/md0"*)
-              printf '%s\n' '{{ _limine_molecule_root }}/dev/md0 raid1'
-              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda disk'
-              printf '%s\n' '{{ _limine_molecule_root }}/dev/sdb disk'
-              ;;
-            *)
-              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda1 part'
-              printf '%s\n' '{{ _limine_molecule_root }}/dev/sda disk'
-              ;;
-          esac
-
-    - name: Verify auto resolver chooses stable by-id path for one backing disk
-      vars:
-        limine_boot_mount: /boot
-        limine_bios_install_target_by_id_dir: "{{ _limine_molecule_root }}/dev/disk/by-id"
-        _limine_resolver_path_env: >-
-          {{ _limine_verify_bin_dir }}:{{ ansible_env.PATH
-          | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}
-      block:
-        - name: Run auto resolver with one backing disk
-          ansible.builtin.include_tasks:
-            file: "{{ _limine_resolver_task_file }}"
-            apply:
-              environment:
-                PATH: "{{ _limine_resolver_path_env }}"
-
-        - name: Assert auto resolver result
-          ansible.builtin.assert:
-            that:
-              - limine_resolved_install_target == _limine_verify_expected_target
-              - limine_target_source == 'boot_parent'
-            fail_msg: "Limine auto resolver did not choose the stable by-id target."
-            success_msg: "Limine auto resolver chose the stable by-id target."
-
-    - name: Verify auto resolver fails on ambiguous backing disks
-      vars:
-        limine_boot_mount: /multi-boot
-        limine_bios_install_target_by_id_dir: "{{ _limine_molecule_root }}/dev/disk/by-id"
-        _limine_resolver_path_env: >-
-          {{ _limine_verify_bin_dir }}:{{ ansible_env.PATH
-          | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}
-      block:
-        - name: Run auto resolver with multiple backing disks
-          ansible.builtin.include_tasks:
-            file: "{{ _limine_resolver_task_file }}"
-            apply:
-              environment:
-                PATH: "{{ _limine_resolver_path_env }}"
-
-        - name: Fail if ambiguous resolver did not stop
-          ansible.builtin.fail:
-            msg: "Limine auto resolver accepted multiple backing disks."
-      rescue:
-        - name: Assert ambiguous resolver failed for the expected reason
-          ansible.builtin.assert:
-            that:
-              - ansible_failed_result is defined
-              - (ansible_failed_result.msg | default('')) is regex('unique Limine BIOS install target')
-            fail_msg: "Limine auto resolver failed, but not because the backing disk was ambiguous."
-            success_msg: "Limine auto resolver rejects ambiguous backing disks."

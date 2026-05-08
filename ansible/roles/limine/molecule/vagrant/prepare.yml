@@ -1,3 +1,6 @@
 ---
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare Limine fixture
+  ansible.builtin.import_playbook: ../shared/prepare.yml

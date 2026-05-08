@@ -22,6 +22,17 @@ provisioner:
   name: ansible
   options:
     skip-tags: report
+  inventory:
+    group_vars:
+      all:
+        limine_bios_install_target: /var/lib/molecule/limine/dev/disk/by-id/test-system-disk
+        limine_validate_target_block_device: false
+        limine_install_target_file: /var/lib/molecule/limine/etc/limine/install-target
+        limine_pacman_hook_file: /var/lib/molecule/limine/etc/pacman.d/hooks/99-limine.hook
+        limine_boot_dir: /var/lib/molecule/limine/boot/limine
+        limine_config_file: /var/lib/molecule/limine/boot/limine/limine.conf
+        limine_binary: /var/lib/molecule/limine/usr/bin/limine
+        limine_bios_sys_source: /var/lib/molecule/limine/usr/share/limine/limine-bios.sys
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

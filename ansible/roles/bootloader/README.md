@@ -108,4 +108,4 @@ Custom backend должен иметь собственные `<backend>_*` пе
 
 ## Verification
 
-Molecule использует fake backend role для проверки dispatcher contract. Fake backend пишет marker file, а verify проверяет, что `bootloader` выбрал и вызвал этот backend. Поведение конкретных загрузчиков тестируется в их backend roles.
+Molecule использует contract test backend role для проверки dispatcher contract. Test backend пишет marker file, а verify проверяет, что `bootloader` выбрал и вызвал backend через общий registry/invocation flow. Поведение конкретных загрузчиков тестируется в их backend roles.

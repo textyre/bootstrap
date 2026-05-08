@@ -3,18 +3,8 @@
   hosts: all
   become: true
   gather_facts: true
-  vars:
-    _limine_molecule_root: /var/lib/limine-test
-    limine_bios_install_target: "{{ _limine_molecule_root }}/dev/disk/by-id/test-system-disk"
-    limine_validate_target_block_device: false
-    limine_install_target_file: "{{ _limine_molecule_root }}/etc/limine/install-target"
-    limine_pacman_hook_file: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
-    limine_boot_dir: "{{ _limine_molecule_root }}/boot/limine"
-    limine_config_file: "{{ _limine_molecule_root }}/boot/limine/limine.conf"
-    limine_binary: "{{ _limine_molecule_root }}/usr/bin/limine"
-    limine_bios_sys_source: "{{ _limine_molecule_root }}/usr/share/limine/limine-bios.sys"
   pre_tasks:
-    - name: Create fake Limine test directories
+    - name: Create Limine test directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -22,13 +12,12 @@
         group: root
         mode: "0755"
       loop:
-        - "{{ _limine_molecule_root }}/boot/limine"
-        - "{{ _limine_molecule_root }}/usr/bin"
-        - "{{ _limine_molecule_root }}/usr/share/limine"
-        - "{{ _limine_molecule_root }}/etc/pacman.d/hooks"
-        - "{{ _limine_molecule_root }}/dev/disk/by-id"
+        - "{{ limine_boot_dir }}"
+        - "{{ limine_binary | dirname }}"
+        - "{{ limine_bios_sys_source | dirname }}"
+        - "{{ limine_pacman_hook_file | dirname }}"
 
-    - name: Create fake Limine artifacts
+    - name: Create Limine test artifacts
       ansible.builtin.copy:
         dest: "{{ item.dest }}"
         content: "{{ item.content }}"
@@ -36,19 +25,24 @@
         group: root
         mode: "{{ item.mode }}"
       loop:
-        - dest: "{{ _limine_molecule_root }}/boot/limine/limine.conf"
-          content: "timeout: 5\n"
+        - dest: "{{ limine_config_file }}"
           mode: "0644"
-        - dest: "{{ _limine_molecule_root }}/usr/bin/limine"
-          content: "#!/usr/bin/env sh\nexit 0\n"
+          content: |
+            :Linux
+              PROTOCOL=linux
+              KERNEL_PATH=boot:///vmlinuz-linux
+        - dest: "{{ limine_binary }}"
           mode: "0755"
-        - dest: "{{ _limine_molecule_root }}/usr/share/limine/limine-bios.sys"
-          content: "fake-limine-bios\n"
+          content: |
+            #!/usr/bin/env sh
+            exit 0
+        - dest: "{{ limine_bios_sys_source }}"
           mode: "0644"
+          content: "limine bios payload fixture\n"
 
     - name: Seed stale archinstall Limine hook
       ansible.builtin.copy:
-        dest: "{{ _limine_molecule_root }}/etc/pacman.d/hooks/99-limine.hook"
+        dest: "{{ limine_pacman_hook_file }}"
         force: false
         owner: root
         group: root
@@ -63,7 +57,7 @@
           [Action]
           Description = Deploying Limine after upgrade...
           When = PostTransaction
-          Exec = /bin/sh -c "/usr/bin/limine bios-install /dev/disk/by-id/ata-VBOX_HARDDISK_VBold && /usr/bin/cp /usr/share/limine/limine-bios.sys /boot/limine/"
+          Exec = /bin/sh -c "/usr/bin/limine bios-install /dev/disk/by-id/ata-VBOX_HARDDISK_stale-clone && /usr/bin/cp /usr/share/limine/limine-bios.sys /boot/limine/"
       when: ansible_facts['os_family'] == 'Archlinux'
 
   roles:

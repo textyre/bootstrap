@@ -49,7 +49,7 @@
 
     # ---- Verify each package is installed via native package manager ----
 
-    - name: "Verify package installed (pacman -Q): {{ item }}"
+    - name: Verify package installed with pacman
       ansible.builtin.command:
         cmd: "pacman -Q {{ item }}"
       register: _packages_verify_pacman
@@ -60,7 +60,7 @@
         label: "{{ item }}"
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: "Verify package installed (dpkg-query): {{ item }}"
+    - name: Verify package installed with dpkg-query
       ansible.builtin.command:
         cmd: "dpkg-query -W -f='${Status}' {{ item }}"
       register: _packages_verify_dpkg
