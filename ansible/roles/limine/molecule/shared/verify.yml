@@ -7,6 +7,7 @@
     _limine_verify_target_file: /tmp/limine-test/etc/limine/install-target
     _limine_verify_hook_file: /tmp/limine-test/etc/pacman.d/hooks/99-limine.hook
     _limine_verify_expected_target: /tmp/limine-test/dev/disk/by-id/test-system-disk
+    _limine_verify_bin_dir: /var/lib/limine-test/bin
     _limine_resolver_task_file: "{{ playbook_dir }}/../../tasks/resolve_boot_parent_target.yml"
   tasks:
     - name: Stat test Limine install target file
@@ -81,7 +82,7 @@
         group: root
         mode: "0755"
       loop:
-        - /tmp/limine-test/bin
+        - "{{ _limine_verify_bin_dir }}"
         - /tmp/limine-test/dev/disk/by-id
 
     - name: Create fake resolver device nodes
@@ -107,7 +108,7 @@
 
     - name: Create fake findmnt for resolver tests
       ansible.builtin.copy:
-        dest: /tmp/limine-test/bin/findmnt
+        dest: "{{ _limine_verify_bin_dir }}/findmnt"
         owner: root
         group: root
         mode: "0755"
@@ -120,7 +121,7 @@
 
     - name: Create fake lsblk for resolver tests
       ansible.builtin.copy:
-        dest: /tmp/limine-test/bin/lsblk
+        dest: "{{ _limine_verify_bin_dir }}/lsblk"
         owner: root
         group: root
         mode: "0755"
@@ -142,8 +143,8 @@
       vars:
         limine_boot_mount: /boot
         limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_findmnt_command: /tmp/limine-test/bin/findmnt
-        _limine_resolver_lsblk_command: /tmp/limine-test/bin/lsblk
+        _limine_resolver_findmnt_command: "{{ _limine_verify_bin_dir }}/findmnt"
+        _limine_resolver_lsblk_command: "{{ _limine_verify_bin_dir }}/lsblk"
       block:
         - name: Run auto resolver with one backing disk
           ansible.builtin.include_tasks:
@@ -161,8 +162,8 @@
       vars:
         limine_boot_mount: /multi-boot
         limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_findmnt_command: /tmp/limine-test/bin/findmnt
-        _limine_resolver_lsblk_command: /tmp/limine-test/bin/lsblk
+        _limine_resolver_findmnt_command: "{{ _limine_verify_bin_dir }}/findmnt"
+        _limine_resolver_lsblk_command: "{{ _limine_verify_bin_dir }}/lsblk"
       block:
         - name: Run auto resolver with multiple backing disks
           ansible.builtin.include_tasks:
