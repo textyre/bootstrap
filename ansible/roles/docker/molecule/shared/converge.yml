@@ -1,17 +1,15 @@
 ---
-# Converge — minimal configuration (TEST-011: default-only run)
-- name: Converge — defaults only
+- name: Apply Docker role implementation
   hosts: all
   become: true
   gather_facts: true
   roles:
     - role: docker
-      # No vars — test with pure defaults (TEST-011)
 
-# Converge — representative configuration (TEST-006)
-- name: Converge — full configuration
+- name: Validate Docker role input contract
   hosts: all
   become: true
   gather_facts: true
-  roles:
-    - role: docker
+  tasks:
+    - name: Validate storage driver input contract
+      ansible.builtin.include_tasks: validate/storage_driver.yml

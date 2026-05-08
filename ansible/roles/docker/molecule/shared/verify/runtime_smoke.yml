@@ -1,5 +1,5 @@
 ---
-- name: Remove stale Docker storage smoke volume  # noqa: command-instead-of-module
+- name: Remove stale Docker storage smoke volume
   ansible.builtin.command:
     argv:
       - docker
@@ -10,13 +10,13 @@
   changed_when: false
   failed_when: false
 
-- name: Run Docker process smoke container  # noqa: command-instead-of-module
+- name: Run Docker process smoke container
   ansible.builtin.command:
     argv:
       - docker
       - run
       - --rm
-      - "{{ _docker_expected_runtime_smoke_image }}"
+      - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
       - sh
       - -c
       - "echo docker-runtime-ok"
@@ -34,7 +34,7 @@
       {{ _docker_runtime_process_smoke.stderr | default('') }}
     success_msg: "Docker process smoke passed"
 
-- name: Create Docker storage smoke volume  # noqa: command-instead-of-module
+- name: Create Docker storage smoke volume
   ansible.builtin.command:
     argv:
       - docker
@@ -44,7 +44,7 @@
   changed_when: false
   failed_when: false
 
-- name: Write through Docker named volume  # noqa: command-instead-of-module
+- name: Write through Docker named volume
   ansible.builtin.command:
     argv:
       - docker
@@ -52,7 +52,7 @@
       - --rm
       - -v
       - bootstrap-docker-storage-smoke:/data
-      - "{{ _docker_expected_runtime_smoke_image }}"
+      - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
       - sh
       - -c
       - "printf storage-ok > /data/probe"
@@ -60,7 +60,7 @@
   changed_when: false
   failed_when: _docker_runtime_volume_write.rc != 0
 
-- name: Read through Docker named volume  # noqa: command-instead-of-module
+- name: Read through Docker named volume
   ansible.builtin.command:
     argv:
       - docker
@@ -68,7 +68,7 @@
       - --rm
       - -v
       - bootstrap-docker-storage-smoke:/data
-      - "{{ _docker_expected_runtime_smoke_image }}"
+      - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
       - cat
       - /data/probe
   register: _docker_runtime_volume_read
@@ -91,7 +91,7 @@
     state: directory
     mode: '0755'
 
-- name: Write through Docker bind mount  # noqa: command-instead-of-module
+- name: Write through Docker bind mount
   ansible.builtin.command:
     argv:
       - docker
@@ -99,7 +99,7 @@
       - --rm
       - -v
       - /tmp/bootstrap-docker-bind-smoke:/data
-      - "{{ _docker_expected_runtime_smoke_image }}"
+      - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
       - sh
       - -c
       - "printf bind-ok > /data/probe"
@@ -107,7 +107,7 @@
   changed_when: false
   failed_when: _docker_runtime_bind_write.rc != 0
 
-- name: Read Docker bind mount result  # noqa: command-instead-of-module
+- name: Read Docker bind mount result
   ansible.builtin.command:
     argv:
       - cat
@@ -126,7 +126,7 @@
       {{ _docker_runtime_bind_read.stderr | default('') }}
     success_msg: "Docker bind mount smoke passed"
 
-- name: Clean Docker storage smoke volume  # noqa: command-instead-of-module
+- name: Clean Docker storage smoke volume
   ansible.builtin.command:
     argv:
       - docker

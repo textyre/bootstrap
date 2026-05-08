@@ -1,7 +1,7 @@
 ---
 # overlay2 requires overlayfs support from the running kernel.
 
-- name: Check whether overlay filesystem is already registered  # noqa: command-instead-of-module
+- name: Check whether overlay filesystem is already registered
   ansible.builtin.command:
     argv:
       - grep
@@ -33,7 +33,7 @@
       Kernel module tree exists for {{ ansible_facts['kernel'] }}.
   when: _docker_overlay_filesystem_before.rc != 0
 
-- name: Check overlay kernel module metadata  # noqa: command-instead-of-module
+- name: Check overlay kernel module metadata
   ansible.builtin.command:
     argv:
       - modinfo
@@ -54,7 +54,7 @@
     success_msg: "overlay kernel module metadata is available"
   when: _docker_overlay_filesystem_before.rc != 0
 
-- name: Load overlay kernel module for overlay2  # noqa: command-instead-of-module
+- name: Load overlay kernel module for overlay2
   ansible.builtin.command:
     argv:
       - modprobe
@@ -64,7 +64,7 @@
   failed_when: _docker_overlay_modprobe.rc != 0
   when: _docker_overlay_filesystem_before.rc != 0
 
-- name: Check overlay filesystem is registered  # noqa: command-instead-of-module
+- name: Check overlay filesystem is registered
   ansible.builtin.command:
     argv:
       - grep

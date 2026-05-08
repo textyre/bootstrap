@@ -1,5 +1,6 @@
 ---
-# Validate the public contract before the role mutates host state.
+# Core contract: validate inputs and load platform constants before any host
+# mutation. This file must not create files, manage services, or run tests.
 
 - name: Assert supported operating system
   ansible.builtin.assert:
@@ -10,19 +11,20 @@
       Supported: {{ _docker_supported_os | join(', ') }}
     success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
 
-- name: Include OS-specific variables
+- name: Include OS-specific Docker constants
   ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
 
-- name: Validate Docker role inputs
+- name: Validate Docker public inputs
   ansible.builtin.include_tasks: validate.yml
 
-- name: "Report: Preflight"
+- name: "Report: Core contract"
   ansible.builtin.include_role:
     name: common
     tasks_from: report_phase.yml
   vars:
     common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Preflight"
+    common_rpt_phase: "Core contract"
     common_rpt_detail: >-
-      os={{ ansible_facts['os_family'] }} storage={{ _docker_storage_driver_selected }}
+      os={{ ansible_facts['os_family'] }}
+      storage={{ docker_storage_driver | string | trim }}
   tags: ['docker', 'report']

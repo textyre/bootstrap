@@ -4,16 +4,12 @@ Configures Docker daemon with CIS-hardened defaults (daemon.json, service manage
 
 ## Execution flow
 
-`tasks/main.yml` is the role entrypoint and orchestration map. Domain logic lives in focused phase files.
+`tasks/main.yml` is the role entrypoint and responsibility map. It has three layers:
 
-1. **Preflight** (`tasks/preflight.yml`) -- validates supported OS, loads `vars/<os_family>.yml`, and includes `tasks/validate.yml`
-2. **Storage preflight** (`tasks/storage_preflight.yml`) -- detects the Docker data-root filesystem and dispatches to the selected driver check before daemon or service mutation
-3. **Configure daemon** (`tasks/configure_daemon.yml`) -- ensures `/etc/docker/`, builds the daemon config, and renders `daemon.json`
-4. **User group** (`tasks/user_group.yml`) -- manages the `docker` group and optional `docker_user` membership
-5. **Service** (`tasks/service.yml`) -- enables and starts Docker when `docker_enable_service: true`
-6. **Apply handlers** -- flushes pending Docker restarts before verification
-7. **Verify** (`tasks/verify.yml`) -- dispatches daemon-file, runtime-driver, and opt-in smoke checks
-8. **Report** -- writes execution report via `common/report_phase` + `report_render`
+1. **Core** (`tasks/core.yml`) -- validates the public role contract, loads `vars/<os_family>.yml`, and includes `tasks/validate.yml`. It does not mutate the host.
+2. **Apply** (`tasks/apply.yml`) -- applies the validated contract: storage prerequisites, daemon config, group membership, service state, and pending handlers.
+3. **Verify** (`tasks/verify.yml`) -- observes the applied implementation: `daemon.json` exists/parses and the running daemon reports the configured storage driver.
+4. **Report** -- writes execution report via `common/report_phase` + `report_render`.
 
 ### Handlers
 
@@ -37,17 +33,15 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `docker_log_max_file` | `"3"` | safe | Max number of rotated log files per container (only applies to `json-file` and `local` drivers) |
 | `docker_storage_driver` | `"overlay2"` | careful | Explicit Docker storage driver. Empty values and Docker auto-selection are rejected. Supported: `overlay2`, `btrfs`, `zfs`, `fuse-overlayfs`. Changing on existing installs may require data migration |
 | `docker_storage_supported_drivers` | `["overlay2", "btrfs", "zfs", "fuse-overlayfs"]` | internal | Allow-list used by validation, preflight, and tests |
-| `docker_runtime_smoke_enabled` | `false` | careful | When enabled, role verify runs a tiny container and named-volume smoke test |
-| `docker_runtime_smoke_image` | `"busybox:latest"` | careful | Image used by the opt-in runtime smoke test |
 | `docker_userns_remap` | `"default"` | careful | User namespace remapping. Isolates container UIDs from host. Breaks bind-mount permissions -- use named volumes or `chown 100000:100000` |
 | `docker_icc` | `false` | careful | Inter-container communication via `docker0` bridge. `false` = containers must use user-defined networks (Docker Compose creates them automatically) |
 | `docker_live_restore` | `true` | safe | Keep containers running when dockerd restarts. Incompatible with Docker Swarm |
 | `docker_no_new_privileges` | `true` | safe | Block setuid privilege escalation in containers. Per-container override: `--security-opt no-new-privileges=false` |
-| `docker_daemon_overwrite` | `{}` | internal | Dict merged on top of computed daemon.json. Use for any settings not covered by dedicated variables |
+| `docker_daemon_overwrite` | `{}` | internal | Extra daemon.json settings not owned by dedicated `docker_*` variables. Managed keys such as `storage-driver`, `log-driver`, `userns-remap`, `icc`, `live-restore`, and `no-new-privileges` are rejected here |
 
 ### Storage driver contract
 
-The role always writes `storage-driver` to `/etc/docker/daemon.json`. Operators must choose the driver through `docker_storage_driver`; `docker_daemon_overwrite.storage-driver` is rejected so validation, preflight, daemon rendering, Molecule verification, and runtime checks all test the same decision.
+The role always writes `storage-driver` to `/etc/docker/daemon.json`. Operators must choose the driver through `docker_storage_driver`; `docker_daemon_overwrite.storage-driver` is rejected because storage driver ownership belongs to the role core, not to generic daemon extras.
 
 Supported modern drivers:
 
@@ -115,7 +109,7 @@ docker_daemon_overwrite:
       size: 24
 ```
 
-Values in `docker_daemon_overwrite` are merged recursively on top of all computed settings.
+Values in `docker_daemon_overwrite` are merged recursively for daemon settings not managed by dedicated role variables. Managed keys are rejected during core validation.
 
 ### Skipping user group membership
 
@@ -186,7 +180,7 @@ Run project checks from the VM through the Taskfile. `task --yes test-docker` ru
 | Docker scenario | `molecule test -s docker` | Container matrix feedback when a Taskfile target invokes it | Arch + Ubuntu containers, security enabled/disabled hosts, config and idempotence with service skipped |
 | Vagrant scenario | `molecule test -s vagrant` | Full VM validation when a Taskfile target invokes it | Real systemd, real packages, Arch + Ubuntu matrix, service start, runtime driver match, process and named-volume smoke checks |
 
-Scenario inventory should only describe scenario-specific choices. Role defaults remain the source of default expectations; `molecule/shared/verify.yml` normalizes expected values for assertions so defaults are not copied into each scenario.
+Scenario inventory should only describe scenario-specific choices. Role defaults remain the source of default expectations; `molecule/shared/verify.yml` loads the role defaults through `tasks/noop.yml` and asserts observable state instead of copying defaults into test variables.
 
 ### Success criteria
 
@@ -207,15 +201,15 @@ Scenario inventory should only describe scenario-specific choices. Role defaults
 | User group | docker group exists, user membership | TEST-008 |
 | Services | docker.service running + enabled (vagrant only) | TEST-008 |
 | Runtime | `docker info` matches configured settings (vagrant only) | TEST-008 |
-| Storage input contract | empty driver, legacy `vfs`, and `docker_daemon_overwrite.storage-driver` are rejected before mutation | TEST-008 |
+| Storage input contract | empty driver, legacy `vfs`, and managed daemon-key overrides are rejected before mutation in `molecule/shared/validate/` | TEST-011 |
 
 ### Common test failures
 
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `daemon.json missing or wrong permissions` | Converge didn't run or failed silently | Run full sequence: `molecule test -s docker`, not just converge |
-| `JSON validation failed` | Template produces invalid JSON | Check `docker_daemon_overwrite` for trailing commas or unquoted keys |
-| Idempotence failure on daemon.json | `set_fact` produces different dict ordering | Usually harmless -- Ansible dict ordering varies. Check for actual content changes |
+| `JSON validation failed` | Template produces invalid JSON | Check values passed through `docker_daemon_overwrite` |
+| Idempotence failure on daemon.json | Rendered daemon.json changed between runs | Compare the rendered file content; the template should be stable |
 | `docker.service is not enabled` (vagrant) | Docker not installed in prepare step | Check `molecule/vagrant/prepare.yml` installs Docker |
 | `User not in docker group` | User doesn't exist in container | Set `docker_add_user_to_group: false` in container host_vars |
 
@@ -251,26 +245,27 @@ ansible-playbook playbook.yml --tags docker:service
 | `vars/void.yml` | Service name for Void Linux | Only when adding Void-specific overrides |
 | `vars/gentoo.yml` | Service name for Gentoo | Only when adding Gentoo-specific overrides |
 | `templates/daemon.json.j2` | Docker daemon config template | When changing config output format |
-| `tasks/main.yml` | Execution flow orchestrator | When adding/removing steps |
-| `tasks/preflight.yml` | OS support, OS vars, and validation entrypoint | When changing pre-mutation checks |
-| `tasks/validate.yml` | Role input validation and storage driver ownership | When changing public variable contract |
-| `tasks/storage_preflight.yml` | Storage preflight dispatcher | When adding/removing storage drivers |
+| `tasks/main.yml` | Layer map: core, apply, verify, report | When changing role responsibility boundaries |
+| `tasks/core.yml` | OS support, OS vars, and validation entrypoint | When changing the role core contract |
+| `tasks/apply.yml` | Implementation dispatcher for daemon, group, service, handlers | When changing implementation flow |
+| `tasks/validate.yml` | Role input validation and daemon key ownership | When changing public variable contract |
+| `tasks/storage_preflight.yml` | Storage implementation prerequisite dispatcher | When adding/removing storage drivers |
 | `tasks/storage_preflight_overlay2.yml` | overlay2 prerequisite checks | When changing overlay2 support |
 | `tasks/storage_preflight_btrfs.yml` | btrfs prerequisite checks | When changing btrfs support |
 | `tasks/storage_preflight_zfs.yml` | zfs prerequisite checks | When changing zfs support |
 | `tasks/storage_preflight_fuse_overlayfs.yml` | fuse-overlayfs prerequisite checks | When changing rootless/fuse support |
-| `tasks/configure_daemon.yml` | daemon.json directory, merge, and template deployment | When changing daemon configuration |
+| `tasks/configure_daemon.yml` | daemon.json directory and template deployment | When changing daemon configuration |
 | `tasks/user_group.yml` | docker group and user membership | When changing group contract |
 | `tasks/service.yml` | Docker service state | When changing service behavior |
-| `tasks/verify.yml` | Verification dispatcher | When adding/removing verification categories |
+| `tasks/verify.yml` | In-role implementation verification dispatcher | When adding/removing role verification categories |
 | `tasks/verify_daemon.yml` | daemon.json and permissions verification | When changing daemon file contract |
 | `tasks/verify_runtime.yml` | `docker info` storage-driver verification | When changing runtime contract |
-| `tasks/verify_smoke.yml` | Opt-in process and named-volume smoke tests | When changing smoke behavior |
 | `tasks/noop.yml` | Empty task for molecule defaults loading | Never |
 | `handlers/main.yml` | Service restart handler | Rarely |
 | `meta/main.yml` | Galaxy metadata | When changing role metadata |
-| `molecule/shared/converge.yml` | Shared converge playbook | When changing role application shape |
-| `molecule/shared/verify.yml` | Verify dispatcher and expectation normalization | When changing test categories |
+| `molecule/shared/converge.yml` | Shared apply + input validation playbook | When changing role application shape |
+| `molecule/shared/validate/*.yml` | Negative input-contract tests | When changing validation behavior |
+| `molecule/shared/verify.yml` | Verify dispatcher that loads role defaults and checks observable state | When changing test categories |
 | `molecule/shared/verify/*.yml` | Focused Molecule contract checks | When changing test assertions |
 | `molecule/docker/` | Docker-based test scenario | When changing container test config |
 | `molecule/vagrant/` | Vagrant-based test scenario | When changing VM test config |

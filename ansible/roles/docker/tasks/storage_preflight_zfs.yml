@@ -1,7 +1,7 @@
 ---
 # zfs driver requires ZFS tools and a ZFS-backed Docker data root.
 
-- name: Check zfs command for zfs driver  # noqa: command-instead-of-module
+- name: Check zfs command for zfs driver
   ansible.builtin.command:
     argv:
       - zfs

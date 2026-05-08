@@ -1,12 +1,25 @@
 ---
-# Static daemon configuration checks.
+# Verify that daemon.json exists, parses, and reflects the core storage choice.
 
 - name: Stat /etc/docker directory
   ansible.builtin.stat:
     path: /etc/docker
   register: _docker_verify_dir
 
-- name: Assert /etc/docker directory is correct
+- name: Stat /etc/docker/daemon.json
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: _docker_verify_daemon_json
+
+- name: Read /etc/docker/daemon.json
+  ansible.builtin.slurp:
+    src: /etc/docker/daemon.json
+  register: _docker_verify_daemon_raw
+
+- name: Assert Docker daemon implementation matches core contract
+  vars:
+    _docker_daemon_json: "{{ _docker_verify_daemon_raw.content | b64decode | from_json }}"
+    _docker_storage_driver: "{{ docker_storage_driver | string | trim }}"
   ansible.builtin.assert:
     that:
       - _docker_verify_dir.stat.exists
@@ -14,48 +27,18 @@
       - _docker_verify_dir.stat.pw_name == 'root'
       - _docker_verify_dir.stat.gr_name == 'root'
       - _docker_verify_dir.stat.mode == '0755'
-    fail_msg: "/etc/docker missing or wrong permissions (expected root:root 0755)"
-    success_msg: "/etc/docker exists with correct permissions"
-
-- name: Stat /etc/docker/daemon.json
-  ansible.builtin.stat:
-    path: /etc/docker/daemon.json
-  register: _docker_verify_daemon_json
-
-- name: Assert daemon.json exists with correct permissions
-  ansible.builtin.assert:
-    that:
       - _docker_verify_daemon_json.stat.exists
       - _docker_verify_daemon_json.stat.isreg
       - _docker_verify_daemon_json.stat.pw_name == 'root'
       - _docker_verify_daemon_json.stat.gr_name == 'root'
       - _docker_verify_daemon_json.stat.mode == '0644'
-    fail_msg: "/etc/docker/daemon.json missing or wrong permissions"
-    success_msg: "daemon.json exists with correct permissions"
-
-- name: Validate daemon.json is valid JSON  # noqa: command-instead-of-module
-  ansible.builtin.command: python3 -c "import json; json.load(open('/etc/docker/daemon.json'))"
-  register: _docker_verify_json_valid
-  changed_when: false
-  failed_when: _docker_verify_json_valid.rc != 0
-
-- name: Read daemon.json
-  ansible.builtin.slurp:
-    src: /etc/docker/daemon.json
-  register: _docker_verify_daemon_raw
-
-- name: Parse daemon.json into dict
-  ansible.builtin.set_fact:
-    _docker_verify_daemon_dict: "{{ _docker_verify_daemon_raw.content | b64decode | from_json }}"
-
-- name: Assert daemon.json pins the selected storage driver
-  ansible.builtin.assert:
-    that:
-      - "'storage-driver' in _docker_verify_daemon_dict"
-      - "_docker_verify_daemon_dict['storage-driver'] == _docker_storage_driver_selected"
+      - _docker_daemon_json.get('storage-driver', '') == _docker_storage_driver
     fail_msg: >-
-      daemon.json must pin storage-driver to
-      '{{ _docker_storage_driver_selected }}'.
-      Actual value: {{ _docker_verify_daemon_dict.get('storage-driver', 'ABSENT') }}.
+      Docker daemon implementation does not match the core contract:
+      expected /etc/docker root:root 0755, daemon.json root:root 0644,
+      and storage-driver '{{ _docker_storage_driver }}'.
+      Actual storage-driver:
+      {{ _docker_daemon_json.get('storage-driver', 'ABSENT') }}.
     success_msg: >-
-      daemon.json pins storage-driver={{ _docker_verify_daemon_dict['storage-driver'] }}.
+      Docker daemon implementation matches core contract:
+      storage-driver={{ _docker_daemon_json['storage-driver'] }}.

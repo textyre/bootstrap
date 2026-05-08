@@ -1,0 +1,27 @@
+---
+# Implementation layer: apply the validated Docker core contract to the host.
+
+- name: Check Docker storage implementation prerequisites
+  ansible.builtin.include_tasks: storage_preflight.yml
+  when:
+    - docker_manage_daemon | bool
+    - docker_enable_service | bool
+  tags: ['docker', 'docker:service']
+
+- name: Configure Docker daemon implementation
+  ansible.builtin.include_tasks: configure_daemon.yml
+  when: docker_manage_daemon | bool
+  tags: ['docker', 'docker:configure', 'security']
+
+- name: Configure Docker group implementation
+  ansible.builtin.include_tasks: user_group.yml
+  tags: ['docker', 'docker:configure']
+
+- name: Manage Docker service implementation
+  ansible.builtin.include_tasks: service.yml
+  tags: ['docker', 'docker:service']
+
+- name: Apply pending Docker handlers before verification
+  ansible.builtin.meta: flush_handlers
+  when: docker_enable_service | bool
+  tags: ['docker']

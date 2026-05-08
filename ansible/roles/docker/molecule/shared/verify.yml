@@ -1,30 +1,18 @@
 ---
-# Verification categories skipped:
-#   packages  — role does not install Docker; packages are a prerequisite
+# Molecule verification checks observable postconditions of the applied role.
+# Negative input validation lives in molecule/shared/validate/.
 
-- name: Verify Docker role
+- name: Verify Docker role implementation
   hosts: all
   become: true
   gather_facts: true
   pre_tasks:
 
-    - name: Set Docker verify expectations
-      ansible.builtin.set_fact:
-        _docker_expected_log_driver: "{{ docker_log_driver | default('journald') }}"
-        _docker_expected_log_max_size: "{{ docker_log_max_size | default('10m') }}"
-        _docker_expected_log_max_file: "{{ docker_log_max_file | default('3') }}"
-        _docker_expected_storage_driver: "{{ docker_storage_driver | default('overlay2') }}"
-        _docker_expected_runtime_smoke: "{{ docker_runtime_smoke_enabled | default(false) | bool }}"
-        _docker_expected_runtime_smoke_image: "{{ docker_runtime_smoke_image | default('busybox:latest') }}"
-        _docker_expected_userns_remap: "{{ docker_userns_remap | default('default') }}"
-        _docker_expected_icc: "{{ docker_icc | default(false) | bool }}"
-        _docker_expected_live_restore: "{{ docker_live_restore | default(true) | bool }}"
-        _docker_expected_no_new_privileges: "{{ docker_no_new_privileges | default(true) | bool }}"
-        _docker_expected_add_user_to_group: "{{ docker_add_user_to_group | default(true) | bool }}"
-        _docker_expected_enable_service: "{{ docker_enable_service | default(true) | bool }}"
-        _docker_expected_user: >-
-          {{ docker_user | default(ansible_facts['env']['SUDO_USER']
-          | default(ansible_facts['user_id'])) }}
+    - name: Load Docker role defaults for verification expectations
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: noop
+        public: true
 
   tasks:
 
@@ -40,29 +28,26 @@
     - name: Verify Docker service contract
       ansible.builtin.include_tasks: verify/service.yml
       when:
-        - _docker_expected_enable_service | bool
+        - docker_enable_service | bool
         - ansible_facts['virtualization_type'] | default('') != 'docker'
 
     - name: Verify Docker runtime contract
       ansible.builtin.include_tasks: verify/runtime.yml
       when:
-        - _docker_expected_enable_service | bool
+        - docker_enable_service | bool
         - ansible_facts['virtualization_type'] | default('') != 'docker'
 
     - name: Verify Docker runtime smoke behavior
       ansible.builtin.include_tasks: verify/runtime_smoke.yml
       when:
-        - _docker_expected_runtime_smoke | bool
-        - _docker_expected_enable_service | bool
+        - docker_test_runtime_smoke_enabled | default(false) | bool
+        - docker_enable_service | bool
         - ansible_facts['virtualization_type'] | default('') != 'docker'
-
-    - name: Verify Docker storage input contract
-      ansible.builtin.include_tasks: verify/storage_contract.yml
 
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-
           Docker role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
-          Service checks: {{ 'enabled' if (_docker_expected_enable_service | bool and
+          Service checks: {{ 'enabled' if (docker_enable_service | bool and
           ansible_facts['virtualization_type'] | default('') != 'docker') else 'skipped (container)' }}.

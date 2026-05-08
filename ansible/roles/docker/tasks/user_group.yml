@@ -7,17 +7,18 @@
     state: present
   when: docker_add_user_to_group | bool
 
-- name: Check target user exists before group addition  # noqa: command-instead-of-module
-  ansible.builtin.command: "id {{ docker_user }}"
-  register: _docker_user_check
-  changed_when: false
+- name: Lookup target user before group addition
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ docker_user }}"
+  register: _docker_user_getent
   failed_when: false
   when: docker_add_user_to_group | bool
 
 - name: Assert target user exists
   ansible.builtin.assert:
     that:
-      - _docker_user_check.rc == 0
+      - (_docker_user_getent.ansible_facts.getent_passwd | default({})).get(docker_user) is not none
     fail_msg: >-
       User '{{ docker_user }}' does not exist.
       Cannot add non-existent user to docker group.

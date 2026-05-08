@@ -1,37 +1,17 @@
 ---
-# Docker role entrypoint.
-# Keep this file as the orchestration map; domain logic lives in phase files.
+# Docker role entrypoint. The flow is deliberately layered:
+# core validates the role contract, apply mutates the host, verify observes
+# the applied implementation. Tests live under molecule/.
 
-- name: Docker preflight
-  ansible.builtin.include_tasks: preflight.yml
+- name: Establish Docker core contract
+  ansible.builtin.include_tasks: core.yml
   tags: ['docker', 'docker:configure', 'docker:service', 'security']
 
-- name: Docker storage preflight
-  ansible.builtin.include_tasks: storage_preflight.yml
-  when:
-    - docker_manage_daemon | bool
-    - docker_enable_service | bool
-  tags: ['docker', 'docker:service']
+- name: Apply Docker core implementation
+  ansible.builtin.include_tasks: apply.yml
+  tags: ['docker', 'docker:configure', 'docker:service', 'security']
 
-- name: Configure Docker daemon
-  ansible.builtin.include_tasks: configure_daemon.yml
-  when: docker_manage_daemon | bool
-  tags: ['docker', 'docker:configure', 'security']
-
-- name: Configure Docker group membership
-  ansible.builtin.include_tasks: user_group.yml
-  tags: ['docker', 'docker:configure']
-
-- name: Manage Docker service
-  ansible.builtin.include_tasks: service.yml
-  tags: ['docker', 'docker:service']
-
-- name: Apply pending Docker handlers before verify
-  ansible.builtin.meta: flush_handlers
-  when: docker_enable_service | bool
-  tags: ['docker']
-
-- name: Verify Docker configuration
+- name: Verify Docker core implementation
   ansible.builtin.include_tasks: verify.yml
   when: docker_manage_daemon | bool
   tags: ['docker']
@@ -43,7 +23,7 @@
   vars:
     common_rpt_fact: "_docker_phases"
     common_rpt_phase: "Verify"
-    common_rpt_detail: "daemon.json + permissions"
+    common_rpt_detail: "daemon.json + runtime driver"
   tags: ['docker', 'report']
 
 - name: "Docker — Execution Report"

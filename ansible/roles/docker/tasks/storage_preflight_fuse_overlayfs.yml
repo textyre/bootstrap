@@ -1,7 +1,7 @@
 ---
 # fuse-overlayfs is allowed, but the docker role does not install it.
 
-- name: Check fuse-overlayfs binary for fuse-overlayfs driver  # noqa: command-instead-of-module
+- name: Check fuse-overlayfs binary for fuse-overlayfs driver
   ansible.builtin.command:
     argv:
       - fuse-overlayfs

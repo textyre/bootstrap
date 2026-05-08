@@ -1,20 +1,14 @@
 ---
-# Verification entrypoint. Keep concrete checks in focused files.
+# In-role verification proves the applied implementation is usable after the
+# role runs. Full behavioral smoke and negative input matrices live in Molecule.
 
-- name: Verify Docker daemon files
+- name: Verify Docker daemon implementation
   ansible.builtin.include_tasks: verify_daemon.yml
 
-- name: Verify Docker runtime storage driver
+- name: Verify Docker runtime implementation
   ansible.builtin.include_tasks: verify_runtime.yml
   when:
     - docker_enable_service | bool
-    - ansible_facts['virtualization_type'] | default('') != 'docker'
-
-- name: Verify Docker runtime smoke behavior
-  ansible.builtin.include_tasks: verify_smoke.yml
-  when:
-    - docker_enable_service | bool
-    - docker_runtime_smoke_enabled | bool
     - ansible_facts['virtualization_type'] | default('') != 'docker'
 
 - name: Docker verify complete
@@ -22,6 +16,5 @@
     msg: >-
       Docker configuration verified on
       {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
-      daemon.json: OK. Storage: {{ _docker_storage_driver_selected }}.
+      daemon.json: OK. Storage: {{ docker_storage_driver | string | trim }}.
       Service: {{ 'enabled' if docker_enable_service | bool else 'skipped' }}.
-      Runtime smoke: {{ 'enabled' if docker_runtime_smoke_enabled | bool else 'skipped' }}.

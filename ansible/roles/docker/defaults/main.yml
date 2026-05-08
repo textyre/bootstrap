@@ -52,11 +52,6 @@ docker_storage_supported_drivers:
   - zfs
   - fuse-overlayfs
 
-# Runtime smoke test during role verify.
-# Safety: careful — pulls/runs a tiny container when explicitly enabled
-docker_runtime_smoke_enabled: false
-docker_runtime_smoke_image: "busybox:latest"
-
 # ---- Security features (careful) ----
 # CIS Docker Benchmark defaults
 
@@ -86,7 +81,7 @@ docker_no_new_privileges: true
 
 # ---- Customization (internal) ----
 
-# User-provided daemon.json overrides — merged on top of computed config
-# Safety: internal — values here override all computed settings
+# User-provided daemon.json additions for settings not owned by this role.
+# Safety: internal — managed keys are validated and rejected in tasks/core.yml
 # Example: { "dns": ["8.8.8.8"], "default-address-pools": [{"base": "172.80.0.0/16", "size": 24}] }
 docker_daemon_overwrite: {}
