@@ -4,15 +4,17 @@ Configures Docker daemon with CIS-hardened defaults (daemon.json, service manage
 
 ## Execution flow
 
-1. **Preflight** (`tasks/main.yml`) -- asserts OS family is in the supported list (`Archlinux`, `Debian`, `RedHat`, `Void`, `Gentoo`); fails immediately if unsupported
+1. **Preflight** (`tasks/main.yml`) -- asserts OS family is in the supported list (`Archlinux`, `Debian`, `RedHat`, `Void`, `Gentoo`) and validates the explicit storage driver; fails immediately if unsupported
 2. **Load OS variables** (`vars/<os_family>.yml`) -- loads distro-specific service name (`_docker_service_name`)
-3. **Create config directory** -- ensures `/etc/docker/` exists with `root:root 0755`
-4. **Build daemon config** -- merges logging, storage, and security settings into a single dict; applies `docker_daemon_overwrite` on top
-5. **Deploy daemon.json** -- renders `/etc/docker/daemon.json` from Jinja2 template with JSON validation (`python3 -m json.tool`). **Triggers handler:** if config changed, Docker will be restarted.
-6. **User group** -- ensures `docker` group exists, validates target user exists, adds `docker_user` to it (skipped when `docker_add_user_to_group: false`)
-7. **Service** -- enables and starts Docker service (skipped when `docker_enable_service: false`)
-8. **Verify** (`tasks/verify.yml`) -- checks `/etc/docker/` permissions, `daemon.json` validity (JSON parse), correct ownership and mode
-9. **Report** -- writes execution report via `common/report_phase` + `report_render`
+3. **Storage preflight** -- checks the selected driver prerequisites before daemon config or `docker.service` changes (`overlay2`, `btrfs`, `zfs`, `fuse-overlayfs`)
+4. **Create config directory** -- ensures `/etc/docker/` exists with `root:root 0755`
+5. **Build daemon config** -- merges logging, explicit storage, and security settings into a single dict; applies `docker_daemon_overwrite` on top
+6. **Deploy daemon.json** -- renders `/etc/docker/daemon.json` from Jinja2 template with JSON validation (`python3 -m json.tool`). **Triggers handler:** if config changed, Docker will be restarted.
+7. **User group** -- ensures `docker` group exists, validates target user exists, adds `docker_user` to it (skipped when `docker_add_user_to_group: false`)
+8. **Service** -- enables and starts Docker service (skipped when `docker_enable_service: false`)
+9. **Apply handlers** -- flushes pending Docker restarts before verification
+10. **Verify** (`tasks/verify.yml`) -- checks `/etc/docker/` permissions, `daemon.json` validity, pinned storage driver, and runtime `docker info` driver when service is enabled
+11. **Report** -- writes execution report via `common/report_phase` + `report_render`
 
 ### Handlers
 
@@ -34,12 +36,28 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `docker_log_driver` | `"journald"` | safe | Container logging driver. Common values: `journald`, `json-file`, `syslog` |
 | `docker_log_max_size` | `"10m"` | safe | Max log file size per container (only applies to `json-file` and `local` drivers) |
 | `docker_log_max_file` | `"3"` | safe | Max number of rotated log files per container (only applies to `json-file` and `local` drivers) |
-| `docker_storage_driver` | `""` | careful | Storage driver override. Empty = Docker auto-selects (usually `overlay2`). Changing on existing installs may require data migration |
+| `docker_storage_driver` | `"overlay2"` | careful | Explicit Docker storage driver. Empty values and Docker auto-selection are rejected. Supported: `overlay2`, `btrfs`, `zfs`, `fuse-overlayfs`. Changing on existing installs may require data migration |
+| `docker_storage_supported_drivers` | `["overlay2", "btrfs", "zfs", "fuse-overlayfs"]` | internal | Allow-list used by validation, preflight, and tests |
+| `docker_runtime_smoke_enabled` | `false` | careful | When enabled, role verify runs a tiny container and named-volume smoke test |
+| `docker_runtime_smoke_image` | `"busybox:latest"` | careful | Image used by the opt-in runtime smoke test |
 | `docker_userns_remap` | `"default"` | careful | User namespace remapping. Isolates container UIDs from host. Breaks bind-mount permissions -- use named volumes or `chown 100000:100000` |
 | `docker_icc` | `false` | careful | Inter-container communication via `docker0` bridge. `false` = containers must use user-defined networks (Docker Compose creates them automatically) |
 | `docker_live_restore` | `true` | safe | Keep containers running when dockerd restarts. Incompatible with Docker Swarm |
 | `docker_no_new_privileges` | `true` | safe | Block setuid privilege escalation in containers. Per-container override: `--security-opt no-new-privileges=false` |
 | `docker_daemon_overwrite` | `{}` | internal | Dict merged on top of computed daemon.json. Use for any settings not covered by dedicated variables |
+
+### Storage driver contract
+
+The role always writes `storage-driver` to `/etc/docker/daemon.json`. Operators must choose the driver through `docker_storage_driver`; `docker_daemon_overwrite.storage-driver` is rejected so validation and runtime checks test the same decision.
+
+Supported modern drivers:
+
+| Driver | Preflight |
+|--------|-----------|
+| `overlay2` | Overlayfs is already registered, or the current kernel module tree exists and `modinfo overlay` / `modprobe overlay` can register it |
+| `btrfs` | Docker data root, or its parent before first start, is mounted on `btrfs` |
+| `zfs` | `zfs version` succeeds and Docker data root is mounted on `zfs` |
+| `fuse-overlayfs` | `fuse-overlayfs --version` succeeds; the package must be prepared outside this role |
 
 ### CIS Docker Benchmark defaults
 
@@ -152,7 +170,9 @@ Docker service name is consistent across all distros. Config path is always `/et
 | Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` matches one of: Archlinux, Debian, RedHat, Void, Gentoo |
 | Role fails at "Assert target user exists" | `docker_user` resolves to a non-existent user | Set `docker_user` to a valid username or ensure the user is created before this role |
 | daemon.json validation fails | Invalid JSON in template output | Check `docker_daemon_overwrite` for syntax errors. Run: `python3 -m json.tool /etc/docker/daemon.json` |
-| Docker won't start after config change | Invalid daemon.json options | `journalctl -u docker -n 50` for error. Common: storage-driver mismatch with existing data |
+| Role fails at "Assert Docker storage driver is explicit and supported" | Empty, legacy, or misspelled storage driver | Set `docker_storage_driver` to one of: `overlay2`, `btrfs`, `zfs`, `fuse-overlayfs` |
+| Role fails during storage preflight | Selected driver prerequisites are missing | Fix the package/filesystem/kernel prerequisite shown in the failure before starting Docker |
+| Docker won't start after config change | Invalid daemon.json options or existing Docker data created with another driver | `journalctl -u docker -n 50` for error. Storage-driver changes on an existing `/var/lib/docker` may require data migration |
 | userns-remap breaks volume permissions | Container UID remapped to 100000+ range | Use named volumes, or `chown 100000:100000 /path/to/bind/mount` on host |
 | Containers can't communicate | `docker_icc: false` blocks docker0 bridge traffic | Use user-defined networks (`docker network create`) or Docker Compose networks (created automatically) |
 | Handler doesn't restart Docker | `docker_enable_service: false` prevents restart | Set `docker_enable_service: true` or restart manually: `systemctl restart docker` |
@@ -163,14 +183,15 @@ Both scenarios are required for every role (TEST-002). Run Docker for fast feedb
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Config deployment, JSON validation, idempotence, security key presence/absence |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or service tasks | Real systemd, real packages, Arch + Ubuntu matrix, service start |
+| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Config deployment, explicit storage config, invalid driver rejection, JSON validation, idempotence, security key presence/absence |
+| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic, service tasks, or storage preflight | Real systemd, real packages, Arch + Ubuntu matrix, service start, runtime driver match, container/volume/bind smoke checks |
 
 ### Success criteria
 
 - All steps complete: `syntax -> converge -> idempotence -> verify -> destroy`
 - Idempotence step: `changed=0` (second run changes nothing)
 - Verify step: all assertions pass with `success_msg` output
+- Runtime verify: `docker info` reports the selected storage driver, and smoke containers can use a process, named volume, and bind mount
 - Final line: no `failed` tasks
 
 ### What the tests verify

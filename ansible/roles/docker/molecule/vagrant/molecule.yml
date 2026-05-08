@@ -36,7 +36,14 @@ provisioner:
         docker_log_max_size: "10m"
         docker_log_max_file: "3"
         docker_daemon_overwrite: {}
-        docker_storage_driver: ""
+        docker_storage_driver: "overlay2"
+        docker_storage_supported_drivers:
+          - overlay2
+          - btrfs
+          - zfs
+          - fuse-overlayfs
+        docker_runtime_smoke_enabled: true
+        docker_runtime_smoke_image: "busybox:latest"
         docker_userns_remap: "default"
         docker_icc: false
         docker_live_restore: true
@@ -54,7 +61,7 @@ provisioner:
         docker_log_max_file: "3"
         docker_live_restore: false
         docker_no_new_privileges: false
-        docker_storage_driver: "vfs"
+        docker_storage_driver: "btrfs"
       ubuntu-base:
         docker_userns_remap: ""
         docker_icc: true
@@ -63,7 +70,7 @@ provisioner:
         docker_log_max_file: "3"
         docker_live_restore: false
         docker_no_new_privileges: false
-        docker_enable_service: false
+        docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
     converge: converge.yml

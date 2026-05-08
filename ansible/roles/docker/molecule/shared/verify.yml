@@ -222,7 +222,7 @@
     - name: Verify Docker service
       when:
         - docker_enable_service | default(true) | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_facts['virtualization_type'] | default('') != 'docker'
       block:
 
         - name: Gather service facts
@@ -258,7 +258,7 @@
     - name: Verify Docker runtime settings
       when:
         - docker_enable_service | default(true) | bool
-        - ansible_virtualization_type | default('') != 'docker'
+        - ansible_facts['virtualization_type'] | default('') != 'docker'
       block:
 
         - name: Get docker info  # noqa: command-instead-of-module
@@ -309,7 +309,7 @@
               {{ _docker_verify_info['SecurityOptions'] | join(', ') }}
           when: docker_userns_remap | string | length > 0
 
-        - name: Assert storage driver at runtime matches variable (when non-empty)
+        - name: Assert storage driver at runtime matches variable
           ansible.builtin.assert:
             that: "_docker_verify_info['Driver'] == docker_storage_driver"
             fail_msg: >-
@@ -318,7 +318,155 @@
               got '{{ _docker_verify_info['Driver'] | default('') }}'
             success_msg: >-
               Storage driver matches: {{ _docker_verify_info['Driver'] }}
-          when: docker_storage_driver | default('') | length > 0
+
+        - name: Remove stale Docker storage smoke volume  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - volume
+              - rm
+              - -f
+              - bootstrap-docker-storage-smoke
+          changed_when: false
+          failed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Run Docker process smoke container  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - run
+              - --rm
+              - "{{ docker_runtime_smoke_image | default('busybox:latest') }}"
+              - sh
+              - -c
+              - "echo docker-runtime-ok"
+          register: _docker_runtime_process_smoke
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Assert Docker process smoke worked
+          ansible.builtin.assert:
+            that:
+              - _docker_runtime_process_smoke.stdout | trim == 'docker-runtime-ok'
+            fail_msg: >-
+              Docker process smoke failed:
+              {{ _docker_runtime_process_smoke.stdout | default('') }}
+              {{ _docker_runtime_process_smoke.stderr | default('') }}
+            success_msg: "Docker process smoke passed"
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Create Docker storage smoke volume  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - volume
+              - create
+              - bootstrap-docker-storage-smoke
+          register: _docker_runtime_volume_create
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Write through Docker named volume  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - run
+              - --rm
+              - -v
+              - bootstrap-docker-storage-smoke:/data
+              - "{{ docker_runtime_smoke_image | default('busybox:latest') }}"
+              - sh
+              - -c
+              - "printf storage-ok > /data/probe"
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Read through Docker named volume  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - run
+              - --rm
+              - -v
+              - bootstrap-docker-storage-smoke:/data
+              - "{{ docker_runtime_smoke_image | default('busybox:latest') }}"
+              - cat
+              - /data/probe
+          register: _docker_runtime_volume_read
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Assert Docker named volume smoke worked
+          ansible.builtin.assert:
+            that:
+              - _docker_runtime_volume_read.stdout | trim == 'storage-ok'
+            fail_msg: >-
+              Docker named volume smoke failed:
+              {{ _docker_runtime_volume_read.stdout | default('') }}
+              {{ _docker_runtime_volume_read.stderr | default('') }}
+            success_msg: "Docker named volume smoke passed"
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Ensure Docker bind smoke directory exists
+          ansible.builtin.file:
+            path: /tmp/bootstrap-docker-bind-smoke
+            state: directory
+            mode: '0755'
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Write through Docker bind mount  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - run
+              - --rm
+              - -v
+              - /tmp/bootstrap-docker-bind-smoke:/data
+              - "{{ docker_runtime_smoke_image | default('busybox:latest') }}"
+              - sh
+              - -c
+              - "printf bind-ok > /data/probe"
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Read Docker bind mount result  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - cat
+              - /tmp/bootstrap-docker-bind-smoke/probe
+          register: _docker_runtime_bind_read
+          changed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Assert Docker bind mount smoke worked
+          ansible.builtin.assert:
+            that:
+              - _docker_runtime_bind_read.stdout | trim == 'bind-ok'
+            fail_msg: >-
+              Docker bind mount smoke failed:
+              {{ _docker_runtime_bind_read.stdout | default('') }}
+              {{ _docker_runtime_bind_read.stderr | default('') }}
+            success_msg: "Docker bind mount smoke passed"
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Clean Docker storage smoke volume  # noqa: command-instead-of-module
+          ansible.builtin.command:
+            argv:
+              - docker
+              - volume
+              - rm
+              - -f
+              - bootstrap-docker-storage-smoke
+          changed_when: false
+          failed_when: false
+          when: docker_runtime_smoke_enabled | default(true) | bool
+
+        - name: Clean Docker bind smoke directory
+          ansible.builtin.file:
+            path: /tmp/bootstrap-docker-bind-smoke
+            state: absent
+          when: docker_runtime_smoke_enabled | default(true) | bool
 
     # ==========================================================
     # Negative-path assertions: security settings disabled
@@ -367,24 +515,109 @@
           User correctly not in docker group (add_user_to_group=false)
       when: not (docker_add_user_to_group | default(true) | bool)
 
-    - name: Assert storage-driver key is ABSENT from daemon.json (when default empty)
-      ansible.builtin.assert:
-        that:
-          - "'storage-driver' not in _docker_verify_daemon_dict"
-        fail_msg: "'storage-driver' should be absent in daemon.json when docker_storage_driver is empty"
-        success_msg: "storage-driver key correctly absent from daemon.json (empty)"
-      when: docker_storage_driver | default('') | length == 0
-
-    - name: Assert storage-driver in daemon.json (when non-empty)
+    - name: Assert storage-driver in daemon.json
       ansible.builtin.assert:
         that:
           - "'storage-driver' in _docker_verify_daemon_dict"
           - "_docker_verify_daemon_dict['storage-driver'] == docker_storage_driver"
+          - "docker_storage_driver in docker_storage_supported_drivers"
         fail_msg: "storage-driver not set to '{{ docker_storage_driver | default('') }}' in daemon.json"
         success_msg: >-
           storage-driver={{ _docker_verify_daemon_dict['storage-driver'] }}
           (expected {{ docker_storage_driver }})
-      when: docker_storage_driver | default('') | length > 0
+
+    # ==========================================================
+    # Negative-path assertions: storage driver validation
+    # ==========================================================
+
+    - name: Assert empty Docker storage driver is rejected before mutation
+      block:
+
+        - name: Try docker role with empty storage driver
+          ansible.builtin.include_role:
+            name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+          vars:
+            docker_manage_daemon: false
+            docker_enable_service: false
+            docker_add_user_to_group: false
+            docker_storage_driver: ""
+
+        - name: Mark empty storage driver validation as unexpectedly accepted
+          ansible.builtin.set_fact:
+            _docker_empty_storage_rejected: false
+
+      rescue:
+
+        - name: Mark empty storage driver validation as rejected
+          ansible.builtin.set_fact:
+            _docker_empty_storage_rejected: true
+
+    - name: Assert empty Docker storage driver was rejected
+      ansible.builtin.assert:
+        that:
+          - _docker_empty_storage_rejected | bool
+        fail_msg: "docker_storage_driver='' should be rejected before host mutation"
+        success_msg: "docker_storage_driver='' is rejected"
+
+    - name: Assert legacy vfs Docker storage driver is rejected before mutation
+      block:
+
+        - name: Try docker role with legacy vfs storage driver
+          ansible.builtin.include_role:
+            name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+          vars:
+            docker_manage_daemon: false
+            docker_enable_service: false
+            docker_add_user_to_group: false
+            docker_storage_driver: "vfs"
+
+        - name: Mark legacy vfs storage driver validation as unexpectedly accepted
+          ansible.builtin.set_fact:
+            _docker_vfs_storage_rejected: false
+
+      rescue:
+
+        - name: Mark legacy vfs storage driver validation as rejected
+          ansible.builtin.set_fact:
+            _docker_vfs_storage_rejected: true
+
+    - name: Assert legacy vfs Docker storage driver was rejected
+      ansible.builtin.assert:
+        that:
+          - _docker_vfs_storage_rejected | bool
+        fail_msg: "docker_storage_driver='vfs' should be rejected before host mutation"
+        success_msg: "docker_storage_driver='vfs' is rejected"
+
+    - name: Assert storage-driver daemon overwrite is rejected before mutation
+      block:
+
+        - name: Try docker role with storage-driver daemon overwrite
+          ansible.builtin.include_role:
+            name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+          vars:
+            docker_manage_daemon: false
+            docker_enable_service: false
+            docker_add_user_to_group: false
+            docker_storage_driver: "overlay2"
+            docker_daemon_overwrite:
+              storage-driver: "btrfs"
+
+        - name: Mark storage-driver daemon overwrite validation as unexpectedly accepted
+          ansible.builtin.set_fact:
+            _docker_storage_overwrite_rejected: false
+
+      rescue:
+
+        - name: Mark storage-driver daemon overwrite validation as rejected
+          ansible.builtin.set_fact:
+            _docker_storage_overwrite_rejected: true
+
+    - name: Assert storage-driver daemon overwrite was rejected
+      ansible.builtin.assert:
+        that:
+          - _docker_storage_overwrite_rejected | bool
+        fail_msg: "docker_daemon_overwrite.storage-driver should be rejected before host mutation"
+        success_msg: "docker_daemon_overwrite.storage-driver is rejected"
 
     # ==========================================================
     # Summary
@@ -396,4 +629,4 @@
           Docker role verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
           Service checks: {{ 'enabled' if (docker_enable_service | default(true) | bool and
-          ansible_virtualization_type | default('') != 'docker') else 'skipped (container)' }}.
+          ansible_facts['virtualization_type'] | default('') != 'docker') else 'skipped (container)' }}.

@@ -60,7 +60,13 @@ provisioner:
         docker_log_max_size: "10m"
         docker_log_max_file: "3"
         docker_daemon_overwrite: {}
-        docker_storage_driver: ""
+        docker_storage_driver: "overlay2"
+        docker_storage_supported_drivers:
+          - overlay2
+          - btrfs
+          - zfs
+          - fuse-overlayfs
+        docker_runtime_smoke_enabled: false
         docker_userns_remap: "default"
         docker_icc: false
         docker_live_restore: true
@@ -93,7 +99,6 @@ provisioner:
         docker_live_restore: false
         docker_no_new_privileges: false
         docker_add_user_to_group: false
-        docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
     converge: converge.yml

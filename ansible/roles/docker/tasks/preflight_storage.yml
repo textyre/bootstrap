@@ -1,0 +1,221 @@
+---
+# === Docker — storage preflight ===
+# Runs before docker.service starts so storage incompatibilities fail clearly.
+
+- name: Determine Docker data root
+  ansible.builtin.set_fact:
+    _docker_data_root_effective: "{{ docker_daemon_overwrite.get('data-root', '/var/lib/docker') }}"
+
+- name: Determine Docker data root parent
+  ansible.builtin.set_fact:
+    _docker_data_root_parent: "{{ _docker_data_root_effective | dirname }}"
+
+- name: Stat Docker data root
+  ansible.builtin.stat:
+    path: "{{ _docker_data_root_effective }}"
+  register: _docker_data_root_stat
+
+- name: Stat Docker data root parent
+  ansible.builtin.stat:
+    path: "{{ _docker_data_root_parent }}"
+  register: _docker_data_root_parent_stat
+
+- name: Assert Docker data root mount target exists
+  ansible.builtin.assert:
+    that:
+      - _docker_data_root_stat.stat.exists or _docker_data_root_parent_stat.stat.exists
+    fail_msg: >-
+      Neither Docker data root '{{ _docker_data_root_effective }}' nor its parent
+      '{{ _docker_data_root_parent }}' exists. Cannot preflight storage driver
+      '{{ _docker_storage_driver_effective }}'.
+    success_msg: >-
+      Docker storage preflight target exists for {{ _docker_data_root_effective }}.
+
+- name: Select Docker data root mount target
+  ansible.builtin.set_fact:
+    _docker_data_root_mount_target: >-
+      {{ _docker_data_root_effective
+         if _docker_data_root_stat.stat.exists
+         else _docker_data_root_parent }}
+
+- name: Detect Docker data root filesystem  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - -T
+      - "{{ _docker_data_root_mount_target }}"
+      - -no
+      - FSTYPE
+  register: _docker_data_root_findmnt
+  changed_when: false
+
+- name: Record Docker data root filesystem
+  ansible.builtin.set_fact:
+    _docker_data_root_fstype: "{{ _docker_data_root_findmnt.stdout | trim }}"
+
+- name: Check whether overlay filesystem is already registered  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -w
+      - overlay
+      - /proc/filesystems
+  register: _docker_overlay_filesystem_before
+  changed_when: false
+  failed_when: false
+  when: _docker_storage_driver_effective == 'overlay2'
+
+- name: Stat current kernel module tree for overlay2
+  ansible.builtin.stat:
+    path: "/lib/modules/{{ ansible_facts['kernel'] }}"
+  register: _docker_overlay_module_tree
+  when:
+    - _docker_storage_driver_effective == 'overlay2'
+    - _docker_overlay_filesystem_before.rc != 0
+
+- name: Assert current kernel module tree exists for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_module_tree.stat.exists
+      - _docker_overlay_module_tree.stat.isdir
+    fail_msg: >-
+      overlay2 requires the overlay kernel module, but overlayfs is not
+      registered and the module tree for the running kernel
+      '{{ ansible_facts['kernel'] }}' is missing under /lib/modules.
+      Reboot into the installed kernel or fix the package/kernel mismatch before
+      starting Docker.
+    success_msg: >-
+      Kernel module tree exists for {{ ansible_facts['kernel'] }}.
+  when:
+    - _docker_storage_driver_effective == 'overlay2'
+    - _docker_overlay_filesystem_before.rc != 0
+
+- name: Check overlay kernel module metadata  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - modinfo
+      - overlay
+  register: _docker_overlay_modinfo
+  changed_when: false
+  failed_when: false
+  when:
+    - _docker_storage_driver_effective == 'overlay2'
+    - _docker_overlay_filesystem_before.rc != 0
+
+- name: Assert overlay kernel module is available for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_modinfo.rc == 0
+    fail_msg: >-
+      overlay2 was selected, but overlayfs is not registered and
+      'modinfo overlay' failed:
+      {{ _docker_overlay_modinfo.stderr | default(_docker_overlay_modinfo.stdout) }}.
+    success_msg: "overlay kernel module metadata is available"
+  when:
+    - _docker_storage_driver_effective == 'overlay2'
+    - _docker_overlay_filesystem_before.rc != 0
+
+- name: Load overlay kernel module for overlay2  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - overlay
+  register: _docker_overlay_modprobe
+  changed_when: true
+  when:
+    - _docker_storage_driver_effective == 'overlay2'
+    - _docker_overlay_filesystem_before.rc != 0
+
+- name: Check overlay filesystem is registered  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -w
+      - overlay
+      - /proc/filesystems
+  register: _docker_overlay_filesystem
+  changed_when: false
+  failed_when: false
+  when: _docker_storage_driver_effective == 'overlay2'
+
+- name: Assert overlay filesystem is registered for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_filesystem.rc == 0
+    fail_msg: >-
+      overlay2 was selected, but overlayfs is not registered in
+      /proc/filesystems after preflight.
+    success_msg: "overlayfs is registered for overlay2"
+  when: _docker_storage_driver_effective == 'overlay2'
+
+- name: Assert Docker data root is on btrfs for btrfs driver
+  ansible.builtin.assert:
+    that:
+      - _docker_data_root_fstype == 'btrfs'
+    fail_msg: >-
+      btrfs storage driver requires Docker data root
+      '{{ _docker_data_root_effective }}' to be on btrfs.
+      Detected filesystem: '{{ _docker_data_root_fstype }}'.
+    success_msg: >-
+      Docker data root filesystem is btrfs.
+  when: _docker_storage_driver_effective == 'btrfs'
+
+- name: Check zfs command for zfs driver  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - zfs
+      - version
+  register: _docker_zfs_version
+  changed_when: false
+  failed_when: false
+  when: _docker_storage_driver_effective == 'zfs'
+
+- name: Assert zfs command is available for zfs driver
+  ansible.builtin.assert:
+    that:
+      - _docker_zfs_version.rc == 0
+    fail_msg: >-
+      zfs storage driver was selected, but 'zfs version' failed:
+      {{ _docker_zfs_version.stderr | default(_docker_zfs_version.stdout) }}.
+    success_msg: "zfs command is available"
+  when: _docker_storage_driver_effective == 'zfs'
+
+- name: Assert Docker data root is on zfs for zfs driver
+  ansible.builtin.assert:
+    that:
+      - _docker_data_root_fstype == 'zfs'
+    fail_msg: >-
+      zfs storage driver requires Docker data root
+      '{{ _docker_data_root_effective }}' to be on zfs.
+      Detected filesystem: '{{ _docker_data_root_fstype }}'.
+    success_msg: "Docker data root filesystem is zfs"
+  when: _docker_storage_driver_effective == 'zfs'
+
+- name: Check fuse-overlayfs binary for fuse-overlayfs driver  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - fuse-overlayfs
+      - --version
+  register: _docker_fuse_overlayfs_version
+  changed_when: false
+  failed_when: false
+  when: _docker_storage_driver_effective == 'fuse-overlayfs'
+
+- name: Assert fuse-overlayfs binary is available
+  ansible.builtin.assert:
+    that:
+      - _docker_fuse_overlayfs_version.rc == 0
+    fail_msg: >-
+      fuse-overlayfs storage driver was selected, but the fuse-overlayfs binary
+      is not available. Install it in the image/package layer before running
+      this role; the docker role does not install storage-driver dependencies.
+    success_msg: "fuse-overlayfs binary is available"
+  when: _docker_storage_driver_effective == 'fuse-overlayfs'
+
+- name: Report Docker storage preflight
+  ansible.builtin.debug:
+    msg: >-
+      Docker storage preflight passed:
+      driver={{ _docker_storage_driver_effective }},
+      data_root={{ _docker_data_root_effective }},
+      fstype={{ _docker_data_root_fstype }}.

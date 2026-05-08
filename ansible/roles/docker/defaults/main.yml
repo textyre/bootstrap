@@ -40,9 +40,22 @@ docker_log_max_file: "3"
 
 # ---- Storage (careful) ----
 
-# Storage driver — empty uses Docker default (overlay2 on modern kernels)
-# Safety: careful — changing on existing install requires data migration
-docker_storage_driver: ""
+# Storage driver. Must be explicit; Docker auto-selection is intentionally disabled.
+# Safety: careful — changing on existing installs requires data migration
+docker_storage_driver: "overlay2"
+
+# Supported modern Docker storage drivers for workstation hosts.
+# Safety: internal — extend only with a tested preflight and runtime scenario
+docker_storage_supported_drivers:
+  - overlay2
+  - btrfs
+  - zfs
+  - fuse-overlayfs
+
+# Runtime smoke test during role verify.
+# Safety: careful — pulls/runs a tiny container when explicitly enabled
+docker_runtime_smoke_enabled: false
+docker_runtime_smoke_image: "busybox:latest"
 
 # ---- Security features (careful) ----
 # CIS Docker Benchmark defaults

@@ -41,9 +41,159 @@
   changed_when: false
   failed_when: _docker_verify_json_valid.rc != 0
 
+- name: Read daemon.json
+  ansible.builtin.slurp:
+    src: /etc/docker/daemon.json
+  register: _docker_verify_daemon_raw
+
+- name: Parse daemon.json into dict
+  ansible.builtin.set_fact:
+    _docker_verify_daemon_dict: "{{ _docker_verify_daemon_raw.content | b64decode | from_json }}"
+
+- name: Assert daemon.json pins the selected storage driver
+  ansible.builtin.assert:
+    that:
+      - "'storage-driver' in _docker_verify_daemon_dict"
+      - "_docker_verify_daemon_dict['storage-driver'] == _docker_storage_driver_effective"
+    fail_msg: >-
+      daemon.json must pin storage-driver to
+      '{{ _docker_storage_driver_effective }}'.
+      Actual value: {{ _docker_verify_daemon_dict.get('storage-driver', 'ABSENT') }}.
+    success_msg: >-
+      daemon.json pins storage-driver={{ _docker_verify_daemon_dict['storage-driver'] }}.
+
+- name: Verify Docker runtime storage driver
+  when:
+    - docker_enable_service | bool
+    - ansible_facts['virtualization_type'] | default('') != 'docker'
+  block:
+
+    - name: Get docker info  # noqa: command-instead-of-module
+      ansible.builtin.command: "docker info --format '{{ '{{' }}json .{{ '}}' }}'"
+      register: _docker_verify_info_raw
+      changed_when: false
+
+    - name: Parse docker info JSON
+      ansible.builtin.set_fact:
+        _docker_verify_info: "{{ _docker_verify_info_raw.stdout | from_json }}"
+
+    - name: Assert Docker runtime uses selected storage driver
+      ansible.builtin.assert:
+        that:
+          - "_docker_verify_info['Driver'] == _docker_storage_driver_effective"
+        fail_msg: >-
+          Docker runtime storage driver mismatch:
+          expected '{{ _docker_storage_driver_effective }}',
+          got '{{ _docker_verify_info['Driver'] | default('UNKNOWN') }}'.
+        success_msg: >-
+          Docker runtime storage driver matches:
+          {{ _docker_verify_info['Driver'] }}.
+
+    - name: Remove stale Docker storage smoke volume  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - -f
+          - bootstrap-docker-storage-smoke
+      changed_when: false
+      failed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Run Docker process smoke container  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ docker_runtime_smoke_image }}"
+          - sh
+          - -c
+          - "echo docker-runtime-ok"
+      register: _docker_runtime_process_smoke
+      changed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Assert Docker process smoke worked
+      ansible.builtin.assert:
+        that:
+          - _docker_runtime_process_smoke.stdout | trim == 'docker-runtime-ok'
+        fail_msg: >-
+          Docker process smoke failed:
+          {{ _docker_runtime_process_smoke.stdout | default('') }}
+          {{ _docker_runtime_process_smoke.stderr | default('') }}
+        success_msg: "Docker process smoke passed"
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Create Docker storage smoke volume  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - create
+          - bootstrap-docker-storage-smoke
+      changed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Write through Docker named volume  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - bootstrap-docker-storage-smoke:/data
+          - "{{ docker_runtime_smoke_image }}"
+          - sh
+          - -c
+          - "printf storage-ok > /data/probe"
+      changed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Read through Docker named volume  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - -v
+          - bootstrap-docker-storage-smoke:/data
+          - "{{ docker_runtime_smoke_image }}"
+          - cat
+          - /data/probe
+      register: _docker_runtime_volume_read
+      changed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Assert Docker named volume smoke worked
+      ansible.builtin.assert:
+        that:
+          - _docker_runtime_volume_read.stdout | trim == 'storage-ok'
+        fail_msg: >-
+          Docker named volume smoke failed:
+          {{ _docker_runtime_volume_read.stdout | default('') }}
+          {{ _docker_runtime_volume_read.stderr | default('') }}
+        success_msg: "Docker named volume smoke passed"
+      when: docker_runtime_smoke_enabled | bool
+
+    - name: Clean Docker storage smoke volume  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv:
+          - docker
+          - volume
+          - rm
+          - -f
+          - bootstrap-docker-storage-smoke
+      changed_when: false
+      failed_when: false
+      when: docker_runtime_smoke_enabled | bool
+
 - name: Docker verify complete
   ansible.builtin.debug:
     msg: >-
       Docker configuration verified on
       {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
-      daemon.json: OK. Service: {{ 'enabled' if docker_enable_service | bool else 'skipped' }}.
+      daemon.json: OK. Storage: {{ _docker_storage_driver_effective }}.
+      Service: {{ 'enabled' if docker_enable_service | bool else 'skipped' }}.
+      Runtime smoke: {{ 'enabled' if docker_runtime_smoke_enabled | bool else 'skipped' }}.
