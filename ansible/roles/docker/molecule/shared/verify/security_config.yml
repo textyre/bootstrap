@@ -1,0 +1,70 @@
+---
+- name: Assert userns-remap present in daemon.json when configured
+  ansible.builtin.assert:
+    that:
+      - "'userns-remap' in _docker_verify_daemon_dict"
+      - "_docker_verify_daemon_dict['userns-remap'] == _docker_expected_userns_remap"
+    fail_msg: "userns-remap not set to '{{ _docker_expected_userns_remap }}' in daemon.json"
+    success_msg: >-
+      userns-remap={{ _docker_verify_daemon_dict['userns-remap'] }}
+      (expected {{ _docker_expected_userns_remap }})
+  when: _docker_expected_userns_remap | string | length > 0
+
+- name: Assert icc is false in daemon.json when disabled
+  ansible.builtin.assert:
+    that:
+      - "'icc' in _docker_verify_daemon_dict"
+      - "_docker_verify_daemon_dict['icc'] == false"
+    fail_msg: "icc not set to false in daemon.json"
+    success_msg: "icc={{ _docker_verify_daemon_dict['icc'] }} (expected false)"
+  when: not (_docker_expected_icc | bool)
+
+- name: Assert live-restore is true in daemon.json when enabled
+  ansible.builtin.assert:
+    that:
+      - "'live-restore' in _docker_verify_daemon_dict"
+      - "_docker_verify_daemon_dict['live-restore'] == true"
+    fail_msg: "live-restore not set to true in daemon.json"
+    success_msg: "live-restore={{ _docker_verify_daemon_dict['live-restore'] }} (expected true)"
+  when: _docker_expected_live_restore | bool
+
+- name: Assert no-new-privileges is true in daemon.json when enabled
+  ansible.builtin.assert:
+    that:
+      - "'no-new-privileges' in _docker_verify_daemon_dict"
+      - "_docker_verify_daemon_dict['no-new-privileges'] == true"
+    fail_msg: "no-new-privileges not set to true in daemon.json"
+    success_msg: "no-new-privileges={{ _docker_verify_daemon_dict['no-new-privileges'] }} (expected true)"
+  when: _docker_expected_no_new_privileges | bool
+
+- name: Assert icc key is absent from daemon.json when Docker default is requested
+  ansible.builtin.assert:
+    that:
+      - "'icc' not in _docker_verify_daemon_dict"
+    fail_msg: "'icc' key should be absent in daemon.json when docker_icc is true (Docker default: ICC enabled)"
+    success_msg: "icc key correctly absent from daemon.json (docker_icc=true)"
+  when: _docker_expected_icc | bool
+
+- name: Assert userns-remap key is absent from daemon.json when disabled
+  ansible.builtin.assert:
+    that:
+      - "'userns-remap' not in _docker_verify_daemon_dict"
+    fail_msg: "'userns-remap' key should be absent in daemon.json when docker_userns_remap is empty"
+    success_msg: "userns-remap key correctly absent from daemon.json (disabled)"
+  when: _docker_expected_userns_remap | string | length == 0
+
+- name: Assert live-restore key is absent from daemon.json when disabled
+  ansible.builtin.assert:
+    that:
+      - "'live-restore' not in _docker_verify_daemon_dict"
+    fail_msg: "'live-restore' key should be absent in daemon.json when docker_live_restore is false"
+    success_msg: "live-restore key correctly absent from daemon.json (disabled)"
+  when: not (_docker_expected_live_restore | bool)
+
+- name: Assert no-new-privileges key is absent from daemon.json when disabled
+  ansible.builtin.assert:
+    that:
+      - "'no-new-privileges' not in _docker_verify_daemon_dict"
+    fail_msg: "'no-new-privileges' key should be absent in daemon.json when docker_no_new_privileges is false"
+    success_msg: "no-new-privileges key correctly absent from daemon.json (disabled)"
+  when: not (_docker_expected_no_new_privileges | bool)

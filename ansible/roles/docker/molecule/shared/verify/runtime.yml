@@ -1,0 +1,59 @@
+---
+- name: Get docker info  # noqa: command-instead-of-module
+  ansible.builtin.command: "docker info --format '{{ '{{' }}json .{{ '}}' }}'"
+  register: _docker_verify_info_raw
+  changed_when: false
+  failed_when: _docker_verify_info_raw.rc != 0
+
+- name: Parse docker info JSON
+  ansible.builtin.set_fact:
+    _docker_verify_info: "{{ _docker_verify_info_raw.stdout | from_json }}"
+
+- name: Assert logging driver matches runtime expectation
+  ansible.builtin.assert:
+    that: "_docker_verify_info['LoggingDriver'] == _docker_expected_log_driver"
+    fail_msg: >-
+      Docker logging driver mismatch:
+      expected '{{ _docker_expected_log_driver }}',
+      got '{{ _docker_verify_info['LoggingDriver'] }}'
+    success_msg: >-
+      Logging driver matches: {{ _docker_verify_info['LoggingDriver'] }}
+
+- name: Assert live-restore is active when enabled
+  ansible.builtin.assert:
+    that: "_docker_verify_info['LiveRestoreEnabled'] == true"
+    fail_msg: "Docker live-restore not active in runtime"
+    success_msg: "live-restore active in runtime"
+  when: _docker_expected_live_restore | bool
+
+- name: Assert Docker security options include no-new-privileges when enabled
+  ansible.builtin.assert:
+    that: "'no-new-privileges' in (_docker_verify_info['SecurityOptions'] | join(','))"
+    fail_msg: >-
+      no-new-privileges not found in Docker SecurityOptions:
+      {{ _docker_verify_info['SecurityOptions'] }}
+    success_msg: >-
+      no-new-privileges found in SecurityOptions:
+      {{ _docker_verify_info['SecurityOptions'] | join(', ') }}
+  when: _docker_expected_no_new_privileges | bool
+
+- name: Assert Docker security options include userns when configured
+  ansible.builtin.assert:
+    that: "'userns' in (_docker_verify_info['SecurityOptions'] | join(','))"
+    fail_msg: >-
+      userns not found in Docker SecurityOptions:
+      {{ _docker_verify_info['SecurityOptions'] }}
+    success_msg: >-
+      userns found in SecurityOptions:
+      {{ _docker_verify_info['SecurityOptions'] | join(', ') }}
+  when: _docker_expected_userns_remap | string | length > 0
+
+- name: Assert storage driver at runtime matches expected value
+  ansible.builtin.assert:
+    that: "_docker_verify_info['Driver'] == _docker_expected_storage_driver"
+    fail_msg: >-
+      Storage driver mismatch:
+      expected '{{ _docker_expected_storage_driver }}',
+      got '{{ _docker_verify_info['Driver'] | default('') }}'
+    success_msg: >-
+      Storage driver matches: {{ _docker_verify_info['Driver'] }}

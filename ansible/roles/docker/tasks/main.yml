@@ -1,211 +1,35 @@
 ---
-# === Docker ===
-# Docker daemon configuration: daemon.json, сервис, группа пользователя
-# NOTE: docker group membership = эквивалент root доступа (документированное поведение Docker)
-# PREREQUISITE: Docker must be installed before running this role
+# Docker role entrypoint.
+# Keep this file as the orchestration map; domain logic lives in phase files.
 
-# ======================================================================
-# ---- Preflight: OS validation ----
-# ======================================================================
-
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in _docker_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _docker_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-  tags: ['docker']
-
-# ======================================================================
-# ---- OS-specific variables ----
-# ======================================================================
-
-- name: Include OS-specific variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['docker']
-
-- name: Validate Docker role inputs
-  ansible.builtin.include_tasks: validate.yml
+- name: Docker preflight
+  ansible.builtin.include_tasks: preflight.yml
   tags: ['docker', 'docker:configure', 'docker:service', 'security']
 
-- name: "Report: Preflight"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Preflight"
-    common_rpt_detail: >-
-      os={{ ansible_facts['os_family'] }} storage={{ _docker_storage_driver_effective }}
-  tags: ['docker', 'report']
-
-- name: Preflight Docker storage driver
-  ansible.builtin.include_tasks: preflight_storage.yml
+- name: Docker storage preflight
+  ansible.builtin.include_tasks: storage_preflight.yml
   when:
     - docker_manage_daemon | bool
     - docker_enable_service | bool
   tags: ['docker', 'docker:service']
 
-- name: "Report: Storage preflight"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Storage preflight"
-    common_rpt_status: "{{ 'done' if (docker_manage_daemon | bool and docker_enable_service | bool) else 'skip' }}"
-    common_rpt_detail: >-
-      {{ _docker_storage_driver_effective
-         if (docker_manage_daemon | bool and docker_enable_service | bool)
-         else 'service disabled' }}
-  tags: ['docker', 'report']
-
-# ======================================================================
-# ---- Конфигурация daemon ----
-# ======================================================================
-
 - name: Configure Docker daemon
+  ansible.builtin.include_tasks: configure_daemon.yml
   when: docker_manage_daemon | bool
-  tags: ['docker', 'docker:configure']
-  block:
+  tags: ['docker', 'docker:configure', 'security']
 
-    - name: Ensure /etc/docker directory exists
-      ansible.builtin.file:
-        path: /etc/docker
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
-    - name: "CIS 2.1, 2.8, 2.14, 5.25 | Build Docker daemon configuration"
-      ansible.builtin.set_fact:
-        _docker_merged_config: >-
-          {{
-            {
-              "log-driver": docker_log_driver,
-              "log-opts": ({
-                "max-size": docker_log_max_size,
-                "max-file": docker_log_max_file
-              } if docker_log_driver != 'journald' else {})
-            }
-            | combine({"storage-driver": _docker_storage_driver_effective})
-            | combine({"userns-remap": docker_userns_remap} if docker_userns_remap | string | length > 0 else {})
-            | combine({"icc": false} if not (docker_icc | bool) else {})
-            | combine({"live-restore": true} if docker_live_restore | bool else {})
-            | combine({"no-new-privileges": true} if docker_no_new_privileges | bool else {})
-            | combine(docker_daemon_overwrite, recursive=True)
-          }}
-      tags: ['security', 'cis_2.1', 'cis_2.8', 'cis_2.14', 'cis_5.25']
-
-    - name: "CIS 2.8 | CIS 2.1 | CIS 2.14 — Deploy Docker daemon.json"
-      ansible.builtin.template:
-        src: daemon.json.j2
-        dest: /etc/docker/daemon.json
-        owner: root
-        group: root
-        mode: '0644'
-        validate: 'python3 -m json.tool %s'
-      notify: Restart docker
-      tags: ['docker', 'docker:configure', 'security', 'cis_2.8', 'cis_2.1', 'cis_2.14']
-
-- name: "Report: Configure daemon"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Configure daemon"
-    common_rpt_status: "{{ 'done' if docker_manage_daemon | bool else 'skip' }}"
-    common_rpt_detail: >-
-      {{ 'log=' ~ docker_log_driver ~ ' icc=' ~ (docker_icc | string)
-         ~ ' storage=' ~ _docker_storage_driver_effective
-         if docker_manage_daemon | bool else 'disabled' }}
-  tags: ['docker', 'report']
-
-# ======================================================================
-# ---- Группа пользователя ----
-# ======================================================================
-
-- name: Ensure docker group exists
-  ansible.builtin.group:
-    name: docker
-    state: present
-  when: docker_add_user_to_group | bool
+- name: Configure Docker group membership
+  ansible.builtin.include_tasks: user_group.yml
   tags: ['docker', 'docker:configure']
 
-- name: Check target user exists before group addition  # noqa: command-instead-of-module
-  ansible.builtin.command: "id {{ docker_user }}"
-  register: _docker_user_check
-  changed_when: false
-  failed_when: false
-  when: docker_add_user_to_group | bool
-  tags: ['docker', 'docker:configure']
-
-- name: Assert target user exists
-  ansible.builtin.assert:
-    that:
-      - _docker_user_check.rc == 0
-    fail_msg: >-
-      User '{{ docker_user }}' does not exist.
-      Cannot add non-existent user to docker group.
-    success_msg: "User '{{ docker_user }}' exists"
-  when: docker_add_user_to_group | bool
-  tags: ['docker', 'docker:configure']
-
-- name: Add user to docker group
-  ansible.builtin.user:
-    name: "{{ docker_user }}"
-    groups: docker
-    append: true
-  when: docker_add_user_to_group | bool
-  tags: ['docker', 'docker:configure']
-
-- name: "Report: User group"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "User group"
-    common_rpt_status: "{{ 'done' if docker_add_user_to_group | bool else 'skip' }}"
-    common_rpt_detail: >-
-      {{ docker_user | default('n/a') if docker_add_user_to_group | bool else 'disabled' }}
-  tags: ['docker', 'report']
-
-# ======================================================================
-# ---- Сервис ----
-# ======================================================================
-
-- name: Enable and start docker service
-  ansible.builtin.service:
-    name: "{{ _docker_service_name }}"
-    enabled: true
-    state: started
-  when: docker_enable_service | bool
+- name: Manage Docker service
+  ansible.builtin.include_tasks: service.yml
   tags: ['docker', 'docker:service']
-
-- name: "Report: Service"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Service"
-    common_rpt_status: "{{ 'done' if docker_enable_service | bool else 'skip' }}"
-    common_rpt_detail: >-
-      {{ _docker_service_name if docker_enable_service | bool else 'disabled' }}
-  tags: ['docker', 'report']
 
 - name: Apply pending Docker handlers before verify
   ansible.builtin.meta: flush_handlers
   when: docker_enable_service | bool
   tags: ['docker']
-
-# ======================================================================
-# ---- Проверка ----
-# ======================================================================
 
 - name: Verify Docker configuration
   ansible.builtin.include_tasks: verify.yml
@@ -221,10 +45,6 @@
     common_rpt_phase: "Verify"
     common_rpt_detail: "daemon.json + permissions"
   tags: ['docker', 'report']
-
-# ======================================================================
-# ---- Execution Report ----
-# ======================================================================
 
 - name: "Docker — Execution Report"
   ansible.builtin.include_role:

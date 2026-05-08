@@ -1,0 +1,24 @@
+---
+# Runtime checks that require a running Docker daemon.
+
+- name: Get docker info  # noqa: command-instead-of-module
+  ansible.builtin.command: "docker info --format '{{ '{{' }}json .{{ '}}' }}'"
+  register: _docker_verify_info_raw
+  changed_when: false
+  failed_when: _docker_verify_info_raw.rc != 0
+
+- name: Parse docker info JSON
+  ansible.builtin.set_fact:
+    _docker_verify_info: "{{ _docker_verify_info_raw.stdout | from_json }}"
+
+- name: Assert Docker runtime uses selected storage driver
+  ansible.builtin.assert:
+    that:
+      - "_docker_verify_info['Driver'] == _docker_storage_driver_selected"
+    fail_msg: >-
+      Docker runtime storage driver mismatch:
+      expected '{{ _docker_storage_driver_selected }}',
+      got '{{ _docker_verify_info['Driver'] | default('UNKNOWN') }}'.
+    success_msg: >-
+      Docker runtime storage driver matches:
+      {{ _docker_verify_info['Driver'] }}.

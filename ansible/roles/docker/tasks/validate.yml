@@ -2,29 +2,30 @@
 # === Docker — input validation ===
 # Fail before mutating the host when the role contract is ambiguous.
 
-- name: Normalize Docker storage driver
+- name: Select Docker storage driver from role input
   ansible.builtin.set_fact:
-    _docker_storage_driver_effective: "{{ docker_storage_driver | string | trim }}"
+    _docker_storage_driver_selected: "{{ docker_storage_driver | string | trim }}"
 
 - name: Assert Docker storage driver is explicit and supported
   ansible.builtin.assert:
     that:
-      - _docker_storage_driver_effective | length > 0
-      - _docker_storage_driver_effective in docker_storage_supported_drivers
+      - _docker_storage_driver_selected | length > 0
+      - _docker_storage_driver_selected in docker_storage_supported_drivers
     fail_msg: >-
       docker_storage_driver must be one of
       {{ docker_storage_supported_drivers | join(', ') }}.
       Empty value and Docker auto-selection are not allowed.
       Got '{{ docker_storage_driver | default('UNDEFINED') }}'.
     success_msg: >-
-      Docker storage driver '{{ _docker_storage_driver_effective }}' is supported.
+      Docker storage driver '{{ _docker_storage_driver_selected }}' is supported.
 
-- name: Assert daemon overwrite does not bypass Docker storage driver API
+- name: Assert storage driver is configured only through docker_storage_driver
   ansible.builtin.assert:
     that:
       - "'storage-driver' not in docker_daemon_overwrite"
     fail_msg: >-
-      Do not set storage-driver through docker_daemon_overwrite.
-      Use docker_storage_driver so validation, preflight, and runtime checks
-      all test the same operator decision.
-    success_msg: "daemon overwrite does not override storage-driver"
+      docker_daemon_overwrite must not contain storage-driver. Use
+      docker_storage_driver instead, so validation, storage preflight,
+      daemon.json rendering, and runtime verification all test the same
+      operator decision.
+    success_msg: "storage driver is owned by docker_storage_driver"

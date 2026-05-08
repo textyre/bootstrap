@@ -5,7 +5,7 @@
   become: true
   gather_facts: true
   roles:
-    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+    - role: docker
       # No vars — test with pure defaults (TEST-011)
 
 # Converge — representative configuration (TEST-006)
@@ -14,4 +14,4 @@
   become: true
   gather_facts: true
   roles:
-    - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+    - role: docker

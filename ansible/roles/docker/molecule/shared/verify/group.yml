@@ -1,0 +1,45 @@
+---
+- name: Check docker group exists  # noqa: command-instead-of-module
+  ansible.builtin.command: getent group docker
+  register: _docker_verify_group
+  changed_when: false
+  failed_when: false
+
+- name: Assert docker group exists when group management is enabled
+  ansible.builtin.assert:
+    that:
+      - _docker_verify_group.rc == 0
+    fail_msg: >-
+      docker group does not exist
+      (getent rc: {{ _docker_verify_group.rc }},
+      output: {{ _docker_verify_group.stdout | default('') }})
+    success_msg: "docker group exists: {{ _docker_verify_group.stdout | default('') }}"
+  when: _docker_expected_add_user_to_group | bool
+
+- name: Check user group membership  # noqa: command-instead-of-module
+  ansible.builtin.command: "id -nG {{ _docker_expected_user }}"
+  register: _docker_verify_user_groups
+  changed_when: false
+  failed_when: false
+
+- name: Assert user is in docker group when group management is enabled
+  ansible.builtin.assert:
+    that:
+      - "'docker' in _docker_verify_user_groups.stdout.split()"
+    fail_msg: >-
+      User not in docker group
+      (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
+    success_msg: >-
+      User in docker group: {{ _docker_verify_user_groups.stdout | default('') }}
+  when: _docker_expected_add_user_to_group | bool
+
+- name: Assert user is not in docker group when group management is disabled
+  ansible.builtin.assert:
+    that:
+      - "'docker' not in _docker_verify_user_groups.stdout.split()"
+    fail_msg: >-
+      User should not be in docker group when docker_add_user_to_group is false
+      (groups output: {{ _docker_verify_user_groups.stdout | default('') }})
+    success_msg: >-
+      User correctly not in docker group (add_user_to_group=false)
+  when: not (_docker_expected_add_user_to_group | bool)

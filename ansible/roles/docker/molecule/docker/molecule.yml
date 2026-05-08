@@ -48,7 +48,7 @@ provisioner:
   options:
     skip-tags: service
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
@@ -56,17 +56,7 @@ provisioner:
     group_vars:
       all:
         # Role defaults for verify.yml assertions (group_vars precedence < host_vars)
-        docker_log_driver: "journald"
-        docker_log_max_size: "10m"
-        docker_log_max_file: "3"
         docker_daemon_overwrite: {}
-        docker_storage_driver: "overlay2"
-        docker_storage_supported_drivers:
-          - overlay2
-          - btrfs
-          - zfs
-          - fuse-overlayfs
-        docker_runtime_smoke_enabled: false
         docker_userns_remap: "default"
         docker_icc: false
         docker_live_restore: true

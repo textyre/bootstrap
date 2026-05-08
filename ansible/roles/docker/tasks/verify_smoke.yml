@@ -1,0 +1,99 @@
+---
+# Behavioral smoke checks: containers start and Docker-managed storage persists.
+
+- name: Remove stale Docker storage smoke volume  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - volume
+      - rm
+      - -f
+      - bootstrap-docker-storage-smoke
+  changed_when: false
+  failed_when: false
+
+- name: Run Docker process smoke container  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - "{{ docker_runtime_smoke_image }}"
+      - sh
+      - -c
+      - "echo docker-runtime-ok"
+  register: _docker_runtime_process_smoke
+  changed_when: false
+  failed_when: _docker_runtime_process_smoke.rc != 0
+
+- name: Assert Docker process smoke worked
+  ansible.builtin.assert:
+    that:
+      - _docker_runtime_process_smoke.stdout | trim == 'docker-runtime-ok'
+    fail_msg: >-
+      Docker process smoke failed:
+      {{ _docker_runtime_process_smoke.stdout | default('') }}
+      {{ _docker_runtime_process_smoke.stderr | default('') }}
+    success_msg: "Docker process smoke passed"
+
+- name: Create Docker storage smoke volume  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - volume
+      - create
+      - bootstrap-docker-storage-smoke
+  changed_when: false
+  failed_when: false
+
+- name: Write through Docker named volume  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - bootstrap-docker-storage-smoke:/data
+      - "{{ docker_runtime_smoke_image }}"
+      - sh
+      - -c
+      - "printf storage-ok > /data/probe"
+  changed_when: false
+  failed_when: _docker_runtime_volume_write.rc != 0
+  register: _docker_runtime_volume_write
+
+- name: Read through Docker named volume  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - bootstrap-docker-storage-smoke:/data
+      - "{{ docker_runtime_smoke_image }}"
+      - cat
+      - /data/probe
+  register: _docker_runtime_volume_read
+  changed_when: false
+  failed_when: _docker_runtime_volume_read.rc != 0
+
+- name: Assert Docker named volume smoke worked
+  ansible.builtin.assert:
+    that:
+      - _docker_runtime_volume_read.stdout | trim == 'storage-ok'
+    fail_msg: >-
+      Docker named volume smoke failed:
+      {{ _docker_runtime_volume_read.stdout | default('') }}
+      {{ _docker_runtime_volume_read.stderr | default('') }}
+    success_msg: "Docker named volume smoke passed"
+
+- name: Clean Docker storage smoke volume  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - docker
+      - volume
+      - rm
+      - -f
+      - bootstrap-docker-storage-smoke
+  changed_when: false
+  failed_when: false

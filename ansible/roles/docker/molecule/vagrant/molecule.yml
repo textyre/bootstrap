@@ -28,22 +28,12 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../"
   inventory:
     group_vars:
       all:
-        docker_log_driver: "journald"
-        docker_log_max_size: "10m"
-        docker_log_max_file: "3"
         docker_daemon_overwrite: {}
-        docker_storage_driver: "overlay2"
-        docker_storage_supported_drivers:
-          - overlay2
-          - btrfs
-          - zfs
-          - fuse-overlayfs
         docker_runtime_smoke_enabled: true
-        docker_runtime_smoke_image: "busybox:latest"
         docker_userns_remap: "default"
         docker_icc: false
         docker_live_restore: true
@@ -70,7 +60,6 @@ provisioner:
         docker_log_max_file: "3"
         docker_live_restore: false
         docker_no_new_privileges: false
-        docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
     converge: converge.yml

@@ -1,0 +1,28 @@
+---
+# Validate the public contract before the role mutates host state.
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _docker_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _docker_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+
+- name: Validate Docker role inputs
+  ansible.builtin.include_tasks: validate.yml
+
+- name: "Report: Preflight"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Preflight"
+    common_rpt_detail: >-
+      os={{ ansible_facts['os_family'] }} storage={{ _docker_storage_driver_selected }}
+  tags: ['docker', 'report']

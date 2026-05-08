@@ -1,0 +1,21 @@
+---
+# Service lifecycle management after daemon configuration is in place.
+
+- name: Enable and start docker service
+  ansible.builtin.service:
+    name: "{{ _docker_service_name }}"
+    enabled: true
+    state: started
+  when: docker_enable_service | bool
+
+- name: "Report: Service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Service"
+    common_rpt_status: "{{ 'done' if docker_enable_service | bool else 'skip' }}"
+    common_rpt_detail: >-
+      {{ _docker_service_name if docker_enable_service | bool else 'disabled' }}
+  tags: ['docker', 'report']

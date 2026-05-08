@@ -1,0 +1,30 @@
+---
+# zfs driver requires ZFS tools and a ZFS-backed Docker data root.
+
+- name: Check zfs command for zfs driver  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - zfs
+      - version
+  register: _docker_zfs_version
+  changed_when: false
+  failed_when: false
+
+- name: Assert zfs command is available for zfs driver
+  ansible.builtin.assert:
+    that:
+      - _docker_zfs_version.rc == 0
+    fail_msg: >-
+      zfs storage driver was selected, but 'zfs version' failed:
+      {{ _docker_zfs_version.stderr | default(_docker_zfs_version.stdout) }}.
+    success_msg: "zfs command is available"
+
+- name: Assert Docker data root is on zfs for zfs driver
+  ansible.builtin.assert:
+    that:
+      - _docker_data_root_fstype == 'zfs'
+    fail_msg: >-
+      zfs storage driver requires Docker data root
+      '{{ _docker_data_root_selected }}' to be on zfs.
+      Detected filesystem: '{{ _docker_data_root_fstype }}'.
+    success_msg: "Docker data root filesystem is zfs"
