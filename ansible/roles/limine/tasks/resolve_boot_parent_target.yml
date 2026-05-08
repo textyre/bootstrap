@@ -4,7 +4,7 @@
 - name: Detect Limine boot mount source
   ansible.builtin.command:
     argv:
-      - findmnt
+      - "{{ _limine_resolver_findmnt_command | default('findmnt') }}"
       - -n
       - -e
       - -o
@@ -27,7 +27,7 @@
   ansible.builtin.shell: |
     set -euo pipefail
     node={{ _limine_boot_source_device | quote }}
-    lsblk -nrspo PATH,TYPE -s -- "$node" |
+    {{ _limine_resolver_lsblk_command | default('lsblk') | quote }} -nrspo PATH,TYPE -s -- "$node" |
       awk '$2 == "disk" { print $1 }' |
       sort -u
   args:

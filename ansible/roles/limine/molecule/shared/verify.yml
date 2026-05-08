@@ -142,14 +142,12 @@
       vars:
         limine_boot_mount: /boot
         limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_path_env: "/tmp/limine-test/bin:{{ ansible_facts.env.PATH }}"
+        _limine_resolver_findmnt_command: /tmp/limine-test/bin/findmnt
+        _limine_resolver_lsblk_command: /tmp/limine-test/bin/lsblk
       block:
         - name: Run auto resolver with one backing disk
           ansible.builtin.include_tasks:
             file: "{{ _limine_resolver_task_file }}"
-            apply:
-              environment:
-                PATH: "{{ _limine_resolver_path_env }}"
 
         - name: Assert auto resolver result
           ansible.builtin.assert:
@@ -163,14 +161,12 @@
       vars:
         limine_boot_mount: /multi-boot
         limine_bios_install_target_by_id_dir: /tmp/limine-test/dev/disk/by-id
-        _limine_resolver_path_env: "/tmp/limine-test/bin:{{ ansible_facts.env.PATH }}"
+        _limine_resolver_findmnt_command: /tmp/limine-test/bin/findmnt
+        _limine_resolver_lsblk_command: /tmp/limine-test/bin/lsblk
       block:
         - name: Run auto resolver with multiple backing disks
           ansible.builtin.include_tasks:
             file: "{{ _limine_resolver_task_file }}"
-            apply:
-              environment:
-                PATH: "{{ _limine_resolver_path_env }}"
 
         - name: Fail if ambiguous resolver did not stop
           ansible.builtin.fail:
