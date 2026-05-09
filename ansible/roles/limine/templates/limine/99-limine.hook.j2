@@ -7,4 +7,6 @@ Target = limine
 [Action]
 Description = Deploying Limine after upgrade...
 When = PostTransaction
-Exec = /bin/sh -ec 'src="{{ limine_bios_sys_source }}"; target_file="{{ limine_install_target_file }}"; boot_stage="{{ limine_boot_dir }}/limine-bios.sys"; target="$(cat "$target_file")"; {{ limine_binary }} bios-install "$target"; /usr/bin/install -Dm0644 "$src" "$boot_stage"; /usr/bin/sync'
+# The detailed boot-update flow lives in a managed helper script so the hook
+# stays small and the maintenance contract is readable.
+Exec = {{ limine_pacman_hook_script_file }}

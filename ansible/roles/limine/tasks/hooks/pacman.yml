@@ -10,6 +10,24 @@
     mode: "0755"
   tags: ['limine', 'limine:configure', 'limine:hook']
 
+- name: Ensure Limine hook helper directory exists
+  ansible.builtin.file:
+    path: "{{ limine_pacman_hook_script_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['limine', 'limine:configure', 'limine:hook']
+
+- name: Render Limine pacman hook helper
+  ansible.builtin.template:
+    src: limine/limine-refresh-after-upgrade.sh.j2
+    dest: "{{ limine_pacman_hook_script_file }}"
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['limine', 'limine:configure', 'limine:hook']
+
 - name: Render Limine pacman hook
   ansible.builtin.template:
     src: limine/99-limine.hook.j2

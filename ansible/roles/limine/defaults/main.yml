@@ -43,3 +43,6 @@ limine_bios_sys_source: /usr/share/limine/limine-bios.sys
 
 # Arch pacman hook path. Used only when the selected hook kind is pacman.
 limine_pacman_hook_file: /etc/pacman.d/hooks/99-limine.hook
+
+# Managed helper script executed by the Arch pacman hook.
+limine_pacman_hook_script_file: /usr/local/lib/bootstrap/limine-refresh-after-upgrade.sh

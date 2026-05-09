@@ -16,6 +16,7 @@
         - "{{ limine_binary | dirname }}"
         - "{{ limine_bios_sys_source | dirname }}"
         - "{{ limine_pacman_hook_file | dirname }}"
+        - "{{ limine_pacman_hook_script_file | dirname }}"
 
     - name: Create Limine test artifacts
       ansible.builtin.copy:
@@ -35,6 +36,7 @@
           mode: "0755"
           content: |
             #!/usr/bin/env sh
+            printf '%s\n' "$*" > "{{ limine_boot_dir }}/limine-bios-install.log"
             exit 0
         - dest: "{{ limine_bios_sys_source }}"
           mode: "0644"

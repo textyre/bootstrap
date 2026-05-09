@@ -4,28 +4,6 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Stat test Limine install target file
-      ansible.builtin.stat:
-        path: "{{ limine_install_target_file }}"
-      register: _limine_molecule_target_stat
-
-    - name: Read test Limine install target file
-      ansible.builtin.slurp:
-        src: "{{ limine_install_target_file }}"
-      register: _limine_molecule_target_raw
-
-    - name: Assert target file state
-      ansible.builtin.assert:
-        that:
-          - _limine_molecule_target_stat.stat.exists
-          - _limine_molecule_target_stat.stat.isreg
-          - _limine_molecule_target_stat.stat.pw_name == 'root'
-          - _limine_molecule_target_stat.stat.gr_name == 'root'
-          - _limine_molecule_target_stat.stat.mode == '0644'
-          - (_limine_molecule_target_raw.content | b64decode | trim) == limine_bios_install_target
-        fail_msg: "Limine install target file was not created with the expected content."
-        success_msg: "Limine install target file is valid."
-
     - name: Verify Arch pacman hook
       when: ansible_facts['os_family'] == 'Archlinux'
       block:
@@ -34,28 +12,43 @@
             src: "{{ limine_pacman_hook_file }}"
           register: _limine_molecule_hook_raw
 
-        - name: Assert hook was normalized
+        - name: Assert hook metadata and helper script path
           vars:
             _limine_molecule_hook_text: "{{ _limine_molecule_hook_raw.content | b64decode }}"
-            _limine_molecule_hook_target_index: "{{ _limine_molecule_hook_text.find('target=\"$(cat \"$target_file\")\"') }}"
-            _limine_molecule_hook_install_index: "{{ _limine_molecule_hook_text.find('bios-install') }}"
-            _limine_molecule_hook_copy_index: "{{ _limine_molecule_hook_text.find('/usr/bin/install -Dm0644 \"$src\" \"$boot_stage\"') }}"
-            _limine_molecule_hook_sync_index: "{{ _limine_molecule_hook_text.find('/usr/bin/sync') }}"
           ansible.builtin.assert:
             that:
-              - limine_install_target_file in _limine_molecule_hook_text
               - _limine_molecule_hook_text is regex('(?m)^Target = limine$')
               - _limine_molecule_hook_text is regex('(?m)^When = PostTransaction$')
-              - _limine_molecule_hook_target_index | int >= 0
-              - _limine_molecule_hook_install_index | int >= 0
-              - _limine_molecule_hook_copy_index | int >= 0
-              - (_limine_molecule_hook_target_index | int) < (_limine_molecule_hook_install_index | int)
-              - (_limine_molecule_hook_install_index | int) < (_limine_molecule_hook_copy_index | int)
-              - (_limine_molecule_hook_copy_index | int) < (_limine_molecule_hook_sync_index | int)
+              - _limine_molecule_hook_text is regex('(?m)^Exec = ' ~ (limine_pacman_hook_script_file | regex_escape()) ~ '$')
               - not (_limine_molecule_hook_text is regex('ata-VBOX_HARDDISK_stale-clone'))
-              - not (_limine_molecule_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
-            fail_msg: "Limine pacman hook was not normalized to read the machine-local target file, install Limine, copy limine-bios.sys, and sync writes."
-            success_msg: "Limine pacman hook is clone-safe, installs Limine, copies limine-bios.sys, and syncs writes."
+            fail_msg: "Limine pacman hook metadata is invalid or it does not call the managed helper script."
+            success_msg: "Limine pacman hook metadata and helper path are valid."
+
+        - name: Simulate pacman hook helper execution
+          ansible.builtin.command:
+            cmd: "{{ limine_pacman_hook_script_file }}"
+          changed_when: false
+
+        - name: Read simulated Limine bios-install invocation
+          ansible.builtin.slurp:
+            src: "{{ limine_boot_dir }}/limine-bios-install.log"
+          register: _limine_molecule_bios_install_log_raw
+
+        - name: Read refreshed Limine stage file
+          ansible.builtin.slurp:
+            src: "{{ limine_boot_dir }}/limine-bios.sys"
+          register: _limine_molecule_stage_file_raw
+
+        - name: Assert simulated helper result
+          vars:
+            _limine_molecule_bios_install_log: "{{ _limine_molecule_bios_install_log_raw.content | b64decode | trim }}"
+            _limine_molecule_stage_file_text: "{{ _limine_molecule_stage_file_raw.content | b64decode }}"
+          ansible.builtin.assert:
+            that:
+              - _limine_molecule_bios_install_log == ('bios-install ' ~ limine_bios_install_target)
+              - _limine_molecule_stage_file_text == "limine bios payload fixture\n"
+            fail_msg: "Limine helper script did not produce the expected boot-update result."
+            success_msg: "Limine helper script updates the boot stage using the machine-local target."
 
     - name: Verify non-Arch hook no-op
       when: ansible_facts['os_family'] != 'Archlinux'
@@ -71,3 +64,15 @@
               - not _limine_molecule_non_arch_hook.stat.exists
             fail_msg: "Non-Arch Limine scenario must not create a pacman hook."
             success_msg: "Non-Arch Limine scenario skipped package-manager hook management."
+
+        - name: Stat non-Arch Limine hook helper
+          ansible.builtin.stat:
+            path: "{{ limine_pacman_hook_script_file }}"
+          register: _limine_molecule_non_arch_helper
+
+        - name: Assert non-Arch helper was not created
+          ansible.builtin.assert:
+            that:
+              - not _limine_molecule_non_arch_helper.stat.exists
+            fail_msg: "Non-Arch Limine scenario must not create the pacman hook helper."
+            success_msg: "Non-Arch Limine scenario skipped the pacman hook helper."
