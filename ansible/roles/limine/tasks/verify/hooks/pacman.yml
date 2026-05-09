@@ -26,12 +26,23 @@
   tags: ['limine', 'limine:verify', 'limine:hook']
 
 - name: Assert Limine pacman hook content is clone-safe
+  vars:
+    _limine_hook_target_index: "{{ _limine_verify_hook_text.find('target=\"$(cat \"$target_file\")\"') }}"
+    _limine_hook_install_index: "{{ _limine_verify_hook_text.find('bios-install') }}"
+    _limine_hook_copy_index: "{{ _limine_verify_hook_text.find('/usr/bin/install -Dm0644 \"$src\" \"$boot_stage\"') }}"
+    _limine_hook_sync_index: "{{ _limine_verify_hook_text.find('/usr/bin/sync') }}"
   ansible.builtin.assert:
     that:
       - limine_install_target_file in _limine_verify_hook_text
       - _limine_verify_hook_text is regex('(?m)^Target = limine$')
       - _limine_verify_hook_text is regex('(?m)^When = PostTransaction$')
+      - _limine_hook_target_index | int >= 0
+      - _limine_hook_install_index | int >= 0
+      - _limine_hook_copy_index | int >= 0
+      - (_limine_hook_target_index | int) < (_limine_hook_install_index | int)
+      - (_limine_hook_install_index | int) < (_limine_hook_copy_index | int)
+      - (_limine_hook_copy_index | int) < (_limine_hook_sync_index | int)
       - not (_limine_verify_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
-    fail_msg: "{{ limine_pacman_hook_file }} is missing, invalid, or still embeds a disk id."
-    success_msg: "Limine pacman hook reads the machine-local install target"
+    fail_msg: "{{ limine_pacman_hook_file }} is missing, invalid, embeds a disk id, skips sync, or does not install Limine before copying limine-bios.sys."
+    success_msg: "Limine pacman hook reads the machine-local install target, installs Limine, copies limine-bios.sys, and syncs writes"
   tags: ['limine', 'limine:verify', 'limine:hook']

@@ -363,7 +363,7 @@ tasks:
 
   workstation:
     desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."
-    deps: [_ensure-venv, _check-vault]
+    deps: [_ensure-venv, _check-vault, greeter:build]
     dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:

@@ -9,13 +9,15 @@
 3. **Resolve boot parent** (`tasks/resolve_boot_parent_target.yml`) — сопоставляет `limine_boot_mount` с mounted source, ancestor disk chain и стабильным `/dev/disk/by-id` path, если он доступен. Auto mode проходит только если `/boot` однозначно ведет к одному backing disk.
 4. **Validate target** (`tasks/resolve_target.yml`) — fail-fast, если target не определен, и опционально проверяет, что target является block device.
 5. **Configure target state** (`tasks/configure.yml`) — записывает `limine_install_target_file`, machine-local target file для package-manager hook.
-6. **Configure hook** (`tasks/hooks/pacman.yml`) — на Archlinux рендерит pacman hook, который читает `limine_install_target_file` во время Limine package transaction.
+6. **Configure hook** (`tasks/hooks/pacman.yml`) — на Archlinux рендерит pacman hook, который читает `limine_install_target_file` во время Limine package transaction, вызывает `limine bios-install` для текущего machine-local target, копирует `limine-bios.sys` в configured boot directory и делает `sync`.
 7. **Verify runtime state** (`tasks/verify.yml`) — проверяет target file, hook content, Limine binary, `limine-bios.sys` и boot directory.
 8. **Report** (`tasks/main.yml`) — выводит hook kind, target source и resolved target.
 
 ### Boundaries
 
 `limine` — backend role. Она не запускает system upgrades, не перезагружает хост, не управляет workstation roles, не добавляет другие загрузчики и не вызывает `limine bios-install` во время Ansible run. Отрендеренный package-manager hook вызывает Limine только при установке или обновлении пакета Limine.
+
+Для BIOS boot Limine должен видеть `limine-bios.sys` и `limine.conf` в одном из стандартных каталогов на partition boot device: `/boot/limine`, `/boot`, `/limine` или root. Роль не создает дополнительные candidate paths: она поддерживает тот configured boot directory, который уже используется системой, и убирает только clone-unsafe hardcoded disk id из pacman hook.
 
 ## Variables
 
@@ -106,4 +108,4 @@ limine_manage_update_hook: false
 
 ## Verification
 
-Runtime verification остается частью роли, потому что реальный prepare run должен падать до package upgrades, если Limine state небезопасен. Molecule проверяет поведение независимо: создает stale Arch hook с hardcoded disk id, запускает роль и проверяет, что target file создан, а hook читает machine-local target file вместо встраивания старого disk id.
+Runtime verification остается частью роли, потому что реальный prepare run должен падать до package upgrades, если Limine state небезопасен. Molecule проверяет поведение независимо: создает stale Arch hook с hardcoded disk id, запускает роль и проверяет, что target file создан, hook читает machine-local target file вместо встраивания старого disk id, вызывает `bios-install`, копирует `limine-bios.sys` и делает `sync`.

@@ -37,15 +37,25 @@
         - name: Assert hook was normalized
           vars:
             _limine_molecule_hook_text: "{{ _limine_molecule_hook_raw.content | b64decode }}"
+            _limine_molecule_hook_target_index: "{{ _limine_molecule_hook_text.find('target=\"$(cat \"$target_file\")\"') }}"
+            _limine_molecule_hook_install_index: "{{ _limine_molecule_hook_text.find('bios-install') }}"
+            _limine_molecule_hook_copy_index: "{{ _limine_molecule_hook_text.find('/usr/bin/install -Dm0644 \"$src\" \"$boot_stage\"') }}"
+            _limine_molecule_hook_sync_index: "{{ _limine_molecule_hook_text.find('/usr/bin/sync') }}"
           ansible.builtin.assert:
             that:
               - limine_install_target_file in _limine_molecule_hook_text
               - _limine_molecule_hook_text is regex('(?m)^Target = limine$')
               - _limine_molecule_hook_text is regex('(?m)^When = PostTransaction$')
+              - _limine_molecule_hook_target_index | int >= 0
+              - _limine_molecule_hook_install_index | int >= 0
+              - _limine_molecule_hook_copy_index | int >= 0
+              - (_limine_molecule_hook_target_index | int) < (_limine_molecule_hook_install_index | int)
+              - (_limine_molecule_hook_install_index | int) < (_limine_molecule_hook_copy_index | int)
+              - (_limine_molecule_hook_copy_index | int) < (_limine_molecule_hook_sync_index | int)
               - not (_limine_molecule_hook_text is regex('ata-VBOX_HARDDISK_stale-clone'))
               - not (_limine_molecule_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
-            fail_msg: "Limine pacman hook was not normalized to read the machine-local target file."
-            success_msg: "Limine pacman hook is clone-safe."
+            fail_msg: "Limine pacman hook was not normalized to read the machine-local target file, install Limine, copy limine-bios.sys, and sync writes."
+            success_msg: "Limine pacman hook is clone-safe, installs Limine, copies limine-bios.sys, and syncs writes."
 
     - name: Verify non-Arch hook no-op
       when: ansible_facts['os_family'] != 'Archlinux'

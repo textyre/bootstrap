@@ -7,4 +7,4 @@ Target = limine
 [Action]
 Description = Deploying Limine after upgrade...
 When = PostTransaction
-Exec = /bin/sh -c 'target="$(cat {{ limine_install_target_file }})" && {{ limine_binary }} bios-install "$target" && /usr/bin/cp {{ limine_bios_sys_source }} {{ limine_boot_dir }}/'
+Exec = /bin/sh -ec 'src="{{ limine_bios_sys_source }}"; target_file="{{ limine_install_target_file }}"; boot_stage="{{ limine_boot_dir }}/limine-bios.sys"; target="$(cat "$target_file")"; {{ limine_binary }} bios-install "$target"; /usr/bin/install -Dm0644 "$src" "$boot_stage"; /usr/bin/sync'
