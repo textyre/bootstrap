@@ -1,0 +1,41 @@
+---
+# Core validation. These assertions protect the public API from ambiguous
+# input before the implementation layer mutates the host.
+
+- name: Assert Docker storage driver is explicit and supported
+  vars:
+    _docker_storage_driver: "{{ docker_storage_driver | string | trim }}"
+  ansible.builtin.assert:
+    that:
+      - _docker_storage_driver | length > 0
+      - _docker_storage_driver in docker_storage_supported_drivers
+    fail_msg: >-
+      docker_storage_driver must be one of
+      {{ docker_storage_supported_drivers | join(', ') }}.
+      Empty value and Docker auto-selection are not allowed.
+      Got '{{ docker_storage_driver | default('UNDEFINED') }}'.
+    success_msg: "Docker storage driver '{{ _docker_storage_driver }}' is supported."
+
+- name: Assert daemon overwrite does not replace Docker managed keys
+  vars:
+    _docker_daemon_managed_keys:
+      - storage-driver
+      - log-driver
+      - log-opts
+      - userns-remap
+      - icc
+      - live-restore
+      - no-new-privileges
+    _docker_daemon_conflicting_keys: >-
+      {{ docker_daemon_overwrite.keys()
+         | intersect(_docker_daemon_managed_keys)
+         | list }}
+  ansible.builtin.assert:
+    that:
+      - _docker_daemon_conflicting_keys | length == 0
+    fail_msg: >-
+      docker_daemon_overwrite is only for daemon settings that this role does
+      not manage directly. Move these keys to the dedicated docker_* variables:
+      {{ _docker_daemon_conflicting_keys | join(', ') }}.
+    success_msg: >-
+      docker_daemon_overwrite does not replace Docker managed keys.

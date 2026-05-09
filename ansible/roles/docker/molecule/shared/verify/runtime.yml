@@ -1,0 +1,29 @@
+---
+- name: Get docker info
+  ansible.builtin.command: "docker info --format '{{ '{{' }}json .{{ '}}' }}'"
+  register: _docker_verify_info_raw
+  changed_when: false
+  failed_when: _docker_verify_info_raw.rc != 0
+
+- name: Assert Docker runtime matches role contract
+  vars:
+    _docker_runtime_info: "{{ _docker_verify_info_raw.stdout | from_json }}"
+    _docker_storage_driver: "{{ docker_storage_driver | string | trim }}"
+  ansible.builtin.assert:
+    that:
+      - "_docker_runtime_info['LoggingDriver'] == docker_log_driver"
+      - "_docker_runtime_info['Driver'] == _docker_storage_driver"
+      - "not (docker_live_restore | bool) or _docker_runtime_info['LiveRestoreEnabled'] == true"
+      - >-
+        not (docker_no_new_privileges | bool)
+        or 'no-new-privileges' in (_docker_runtime_info['SecurityOptions'] | join(','))
+      - >-
+        docker_userns_remap | string | length == 0
+        or 'userns' in (_docker_runtime_info['SecurityOptions'] | join(','))
+    fail_msg: >-
+      Docker runtime does not match role contract:
+      {{ _docker_runtime_info }}
+    success_msg: >-
+      Docker runtime matches role contract:
+      driver={{ _docker_runtime_info['Driver'] }},
+      logging={{ _docker_runtime_info['LoggingDriver'] }}.

@@ -1,0 +1,26 @@
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert docker.service is enabled
+  ansible.builtin.assert:
+    that:
+      - "'docker.service' in ansible_facts.services"
+      - "ansible_facts.services['docker.service'].status == 'enabled'"
+    fail_msg: >-
+      docker.service is not enabled
+      (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
+    success_msg: >-
+      docker.service is enabled:
+      {{ ansible_facts.services['docker.service'].status | default('unknown') }}
+
+- name: Assert docker.service is running
+  ansible.builtin.assert:
+    that:
+      - "ansible_facts.services['docker.service'].state == 'running'"
+    fail_msg: >-
+      docker.service is not running
+      (services: {{ ansible_facts.services['docker.service'] | default('NOT FOUND') }})
+    success_msg: >-
+      docker.service is running:
+      {{ ansible_facts.services['docker.service'].state | default('unknown') }}

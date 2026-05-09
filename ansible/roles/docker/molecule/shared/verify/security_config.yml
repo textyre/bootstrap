@@ -1,0 +1,18 @@
+---
+- name: Assert daemon.json security contract
+  vars:
+    _docker_daemon_config: "{{ _docker_verify_daemon_raw.content | b64decode | from_json }}"
+  ansible.builtin.assert:
+    that:
+      - >-
+        docker_userns_remap | string | length == 0
+        or _docker_daemon_config.get('userns-remap', '') == docker_userns_remap
+      - docker_userns_remap | string | length > 0 or 'userns-remap' not in _docker_daemon_config
+      - docker_icc | bool or _docker_daemon_config.get('icc') == false
+      - not (docker_icc | bool) or 'icc' not in _docker_daemon_config
+      - not (docker_live_restore | bool) or _docker_daemon_config.get('live-restore') == true
+      - docker_live_restore | bool or 'live-restore' not in _docker_daemon_config
+      - not (docker_no_new_privileges | bool) or _docker_daemon_config.get('no-new-privileges') == true
+      - docker_no_new_privileges | bool or 'no-new-privileges' not in _docker_daemon_config
+    fail_msg: "daemon.json security settings do not match Docker role inputs"
+    success_msg: "daemon.json security settings match Docker role inputs"

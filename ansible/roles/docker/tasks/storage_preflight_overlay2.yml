@@ -1,0 +1,85 @@
+---
+# overlay2 requires overlayfs support from the running kernel.
+
+- name: Check whether overlay filesystem is already registered
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -w
+      - overlay
+      - /proc/filesystems
+  register: _docker_overlay_filesystem_before
+  changed_when: false
+  failed_when: false
+
+- name: Stat current kernel module tree for overlay2
+  ansible.builtin.stat:
+    path: "/lib/modules/{{ ansible_facts['kernel'] }}"
+  register: _docker_overlay_module_tree
+  when: _docker_overlay_filesystem_before.rc != 0
+
+- name: Assert current kernel module tree exists for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_module_tree.stat.exists
+      - _docker_overlay_module_tree.stat.isdir
+    fail_msg: >-
+      overlay2 requires the overlay kernel module, but overlayfs is not
+      registered and the module tree for the running kernel
+      '{{ ansible_facts['kernel'] }}' is missing under /lib/modules.
+      Reboot into the installed kernel or fix the package/kernel mismatch before
+      starting Docker.
+    success_msg: >-
+      Kernel module tree exists for {{ ansible_facts['kernel'] }}.
+  when: _docker_overlay_filesystem_before.rc != 0
+
+- name: Check overlay kernel module metadata
+  ansible.builtin.command:
+    argv:
+      - modinfo
+      - overlay
+  register: _docker_overlay_modinfo
+  changed_when: false
+  failed_when: false
+  when: _docker_overlay_filesystem_before.rc != 0
+
+- name: Assert overlay kernel module is available for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_modinfo.rc == 0
+    fail_msg: >-
+      overlay2 was selected, but overlayfs is not registered and
+      'modinfo overlay' failed:
+      {{ _docker_overlay_modinfo.stderr | default(_docker_overlay_modinfo.stdout) }}.
+    success_msg: "overlay kernel module metadata is available"
+  when: _docker_overlay_filesystem_before.rc != 0
+
+- name: Load overlay kernel module for overlay2
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - overlay
+  register: _docker_overlay_modprobe
+  changed_when: true
+  failed_when: _docker_overlay_modprobe.rc != 0
+  when: _docker_overlay_filesystem_before.rc != 0
+
+- name: Check overlay filesystem is registered
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -w
+      - overlay
+      - /proc/filesystems
+  register: _docker_overlay_filesystem
+  changed_when: false
+  failed_when: false
+
+- name: Assert overlay filesystem is registered for overlay2
+  ansible.builtin.assert:
+    that:
+      - _docker_overlay_filesystem.rc == 0
+    fail_msg: >-
+      overlay2 was selected, but overlayfs is not registered in
+      /proc/filesystems after preflight.
+    success_msg: "overlayfs is registered for overlay2"

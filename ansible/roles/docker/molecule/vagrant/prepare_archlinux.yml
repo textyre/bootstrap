@@ -3,5 +3,6 @@
   community.general.pacman:
     name:
       - docker
+      - btrfs-progs
       - shadow
     state: present
