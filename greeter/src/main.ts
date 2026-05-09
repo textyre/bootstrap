@@ -3,11 +3,11 @@ import '../styles/main.css';
 import { BootAnimator } from './animation/BootAnimator';
 import { Clock } from './components/Clock';
 import { TypewriterController } from './TypewriterController';
-import { SecurityBarcode } from './components/Barcode/SecurityBarcode';
+import { SecurityBarcode } from './components/barcode/SecurityBarcode';
 import { SystemInfoService } from './services/SystemInfoService';
 import { EnvBlock } from './components/EnvBlock/EnvBlock';
 import { BackgroundManager } from './BackgroundManager';
-import { LightDMAdapter } from './adapters/LightDM.adapter';
+import { LightDMAdapter } from './adapters/lightdm.adapter';
 import { AuthService } from './services/AuthService';
 
 // Uncomment to test Svg3DIcon component

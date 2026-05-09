@@ -1,0 +1,40 @@
+---
+# ---- Limine maintenance state ----
+
+- name: Ensure Limine target directory exists
+  ansible.builtin.file:
+    path: "{{ limine_install_target_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['limine', 'limine:configure']
+
+- name: Persist Limine install target
+  ansible.builtin.copy:
+    dest: "{{ limine_install_target_file }}"
+    content: "{{ limine_resolved_install_target }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ['limine', 'limine:configure']
+
+- name: Configure Limine update hook
+  ansible.builtin.include_tasks: "hooks/{{ limine_update_hook_kind }}.yml"
+  when: limine_update_hook_managed | bool
+  tags: ['limine', 'limine:configure', 'limine:hook']
+
+- name: Set Limine backend state fact
+  ansible.builtin.set_fact:
+    limine_changed_state_valid: true
+  tags: ['limine', 'limine:configure']
+
+- name: "Report: Configure Limine"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_limine_phases"
+    common_rpt_phase: "Configure Limine"
+    common_rpt_detail: "{{ limine_install_target_file }}"
+  tags: ['limine', 'report']

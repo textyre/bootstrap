@@ -1,0 +1,64 @@
+---
+- name: Converge Limine role
+  hosts: all
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Create Limine test directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ limine_boot_dir }}"
+        - "{{ limine_binary | dirname }}"
+        - "{{ limine_bios_sys_source | dirname }}"
+        - "{{ limine_pacman_hook_file | dirname }}"
+
+    - name: Create Limine test artifacts
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}"
+        content: "{{ item.content }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - dest: "{{ limine_config_file }}"
+          mode: "0644"
+          content: |
+            :Linux
+              PROTOCOL=linux
+              KERNEL_PATH=boot:///vmlinuz-linux
+        - dest: "{{ limine_binary }}"
+          mode: "0755"
+          content: |
+            #!/usr/bin/env sh
+            exit 0
+        - dest: "{{ limine_bios_sys_source }}"
+          mode: "0644"
+          content: "limine bios payload fixture\n"
+
+    - name: Seed stale archinstall Limine hook
+      ansible.builtin.copy:
+        dest: "{{ limine_pacman_hook_file }}"
+        force: false
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Trigger]
+          Operation = Install
+          Operation = Upgrade
+          Type = Package
+          Target = limine
+
+          [Action]
+          Description = Deploying Limine after upgrade...
+          When = PostTransaction
+          Exec = /bin/sh -c "/usr/bin/limine bios-install /dev/disk/by-id/ata-VBOX_HARDDISK_stale-clone && /usr/bin/cp /usr/share/limine/limine-bios.sys /boot/limine/"
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+  roles:
+    - role: limine

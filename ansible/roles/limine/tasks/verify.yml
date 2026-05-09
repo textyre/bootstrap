@@ -1,0 +1,25 @@
+---
+# ---- Verify Limine maintenance state ----
+
+- name: Verify Limine install target
+  ansible.builtin.include_tasks: verify/target.yml
+  tags: ['limine', 'limine:verify']
+
+- name: Verify Limine update hook
+  ansible.builtin.include_tasks: "verify/hooks/{{ limine_update_hook_kind }}.yml"
+  when: limine_update_hook_managed | bool
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Verify Limine files
+  ansible.builtin.include_tasks: verify/files.yml
+  tags: ['limine', 'limine:verify']
+
+- name: "Report: Verify Limine"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_limine_phases"
+    common_rpt_phase: "Verify Limine"
+    common_rpt_detail: "{{ _limine_verify_target_text | default(limine_resolved_install_target) }}"
+  tags: ['limine', 'report']

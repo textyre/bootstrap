@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = limine
+
+[Action]
+Description = Deploying Limine after upgrade...
+When = PostTransaction
+Exec = /bin/sh -c 'target="$(cat {{ limine_install_target_file }})" && {{ limine_binary }} bios-install "$target" && /usr/bin/cp {{ limine_bios_sys_source }} {{ limine_boot_dir }}/'

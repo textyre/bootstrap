@@ -1,0 +1,20 @@
+---
+# ---- Test backend used only by the bootloader Molecule scenario ----
+
+- name: Ensure bootloader test backend marker directory exists
+  ansible.builtin.file:
+    path: "{{ bootloader_test_backend_marker_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Record bootloader test backend invocation
+  ansible.builtin.copy:
+    dest: "{{ bootloader_test_backend_marker_file }}"
+    content: |
+      backend={{ bootloader_selected_type }}
+      role=bootloader_test_backend
+    owner: root
+    group: root
+    mode: "0644"

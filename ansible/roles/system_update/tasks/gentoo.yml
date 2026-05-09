@@ -3,6 +3,6 @@
   ansible.builtin.fail:
     msg: >-
       system_update backend for Gentoo is not implemented in this slice.
-      Add an explicit emerge/world update backend before using task system:update on Gentoo hosts.
+      Add an explicit emerge/world update backend before using task prepare:system on Gentoo hosts.
   when: system_update_fail_unimplemented_backends | bool
   tags: ['system_update', 'upgrade']

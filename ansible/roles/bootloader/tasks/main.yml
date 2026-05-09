@@ -1,0 +1,35 @@
+---
+# === Bootloader maintenance ===
+
+- name: Bootloader role
+  when: bootloader_enabled | bool
+  tags: ['bootloader']
+  block:
+
+    - name: Validate bootloader inputs
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['bootloader', 'bootloader:validate']
+
+    - name: Detect installed bootloader
+      ansible.builtin.include_tasks: detect.yml
+      tags: ['bootloader', 'bootloader:detect']
+
+    - name: Apply selected bootloader backend
+      ansible.builtin.include_role:
+        name: "{{ bootloader_selected_backend.role }}"
+      when: bootloader_selected_type != 'none'
+      tags: ['bootloader', 'bootloader:backend']
+
+    - name: "Bootloader - Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_bootloader_phases"
+        common_rpt_title: "bootloader"
+        common_rpt_footer_rows:
+          - >-
+            | {{ '%-26s' | format('Selected backend') }}
+            | {{ '%-10s' | format(bootloader_selected_type | default('none')) }}
+            | {{ '%-24s' | format((bootloader_selected_backend.role | default('none'))) }} |
+      tags: ['bootloader', 'report']

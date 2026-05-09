@@ -1,0 +1,49 @@
+---
+# ---- Limine BIOS install target ----
+
+- name: Use explicit Limine install target
+  ansible.builtin.set_fact:
+    limine_resolved_install_target: "{{ limine_bios_install_target }}"
+    limine_target_source: "explicit"
+  when: limine_bios_install_target | length > 0
+  tags: ['limine', 'limine:target']
+
+- name: Resolve Limine target from boot parent
+  ansible.builtin.include_tasks: resolve_boot_parent_target.yml
+  when:
+    - limine_resolved_install_target is not defined
+    - limine_bios_install_target_auto | bool
+  tags: ['limine', 'limine:target']
+
+- name: Assert Limine install target was resolved
+  ansible.builtin.assert:
+    that:
+      - limine_resolved_install_target is defined
+      - limine_resolved_install_target | length > 0
+    fail_msg: >-
+      Could not resolve Limine BIOS install target. Set
+      limine_bios_install_target explicitly for this host.
+    success_msg: "Limine install target resolved"
+  tags: ['limine', 'limine:target']
+
+- name: Assert resolved Limine install target is a block device
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: assert_path_state.yml
+  vars:
+    common_assert_path: "{{ limine_resolved_install_target }}"
+    common_assert_type: block
+    common_assert_follow: true
+    common_assert_label: "Limine install target"
+  when: limine_validate_target_block_device | bool
+  tags: ['limine', 'limine:target']
+
+- name: "Report: Resolve Limine target"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_limine_phases"
+    common_rpt_phase: "Resolve Limine target"
+    common_rpt_detail: "{{ limine_target_source }}: {{ limine_resolved_install_target }}"
+  tags: ['limine', 'report']

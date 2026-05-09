@@ -1,0 +1,10 @@
+---
+- name: Prepare Limine Molecule fixture
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Reset Limine molecule fixture root
+      ansible.builtin.file:
+        path: /var/lib/molecule/limine
+        state: absent
