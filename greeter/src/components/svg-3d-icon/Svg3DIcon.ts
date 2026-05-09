@@ -3,7 +3,7 @@ import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { DOMAdapter } from '../../adapters/DOM.adapter';
+import { DOMAdapter } from '../../adapters/dom.adapter';
 import { SVG3D_DEFAULTS } from '../../config/constants';
 import type {
   Svg3DIconConfig,

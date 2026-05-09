@@ -1,6 +1,6 @@
 import { TIMINGS } from '../../config/timings';
 import { CSS_CLASSES } from '../../config/selectors';
-import { DOMAdapter } from '../../adapters/DOM.adapter';
+import { DOMAdapter } from '../../adapters/dom.adapter';
 
 /**
  * Types text character-by-character into a container element with a blinking cursor.

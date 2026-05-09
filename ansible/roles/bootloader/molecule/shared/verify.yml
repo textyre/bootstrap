@@ -1,0 +1,33 @@
+---
+- name: Verify bootloader dispatcher behavior
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    bootloader_test_backend_marker_file: /tmp/bootloader-test/backend-called
+  tasks:
+    - name: Stat bootloader test backend marker
+      ansible.builtin.stat:
+        path: "{{ bootloader_test_backend_marker_file }}"
+      register: _bootloader_test_marker
+
+    - name: Read bootloader test backend marker
+      ansible.builtin.slurp:
+        src: "{{ bootloader_test_backend_marker_file }}"
+      register: _bootloader_test_marker_raw
+      when: _bootloader_test_marker.stat.exists
+
+    - name: Set bootloader test backend marker text
+      ansible.builtin.set_fact:
+        _bootloader_test_marker_text: "{{ _bootloader_test_marker_raw.content | b64decode }}"
+      when: _bootloader_test_marker.stat.exists
+
+    - name: Assert bootloader selected and invoked the backend role
+      ansible.builtin.assert:
+        that:
+          - _bootloader_test_marker.stat.exists
+          - _bootloader_test_marker.stat.isreg
+          - _bootloader_test_marker_text is regex('(?m)^backend=test_backend$')
+          - _bootloader_test_marker_text is regex('(?m)^role=bootloader_test_backend$')
+        fail_msg: "bootloader did not invoke the selected test backend role."
+        success_msg: "bootloader selected and invoked the test backend role."

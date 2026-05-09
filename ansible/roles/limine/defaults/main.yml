@@ -1,0 +1,45 @@
+---
+# Enable or disable Limine maintenance.
+limine_enabled: true
+
+# Supported OS families for this role.
+limine_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Manage package-manager update hooks: auto, true, or false.
+# auto enables only hook backends implemented for the current OS family.
+limine_manage_update_hook: auto
+
+# Mount point that contains Limine files and kernels.
+limine_boot_mount: /boot
+
+# Machine-local install target consumed by update hooks.
+limine_install_target_file: /etc/limine/install-target
+
+# Explicit Limine BIOS install target for multi-disk or custom firmware layouts.
+limine_bios_install_target: ""
+
+# Allow resolving Limine BIOS install target from limine_boot_mount.
+limine_bios_install_target_auto: true
+
+# Auto target strategy. Supported: boot_parent.
+limine_bios_install_target_auto_source: boot_parent
+
+# Directory with stable disk identity symlinks for auto-resolved targets.
+limine_bios_install_target_by_id_dir: /dev/disk/by-id
+
+# Validate that the resolved target is a block device.
+limine_validate_target_block_device: true
+
+# Limine paths.
+limine_boot_dir: /boot/limine
+limine_config_file: /boot/limine/limine.conf
+limine_binary: /usr/bin/limine
+limine_bios_sys_source: /usr/share/limine/limine-bios.sys
+
+# Arch pacman hook path. Used only when the selected hook kind is pacman.
+limine_pacman_hook_file: /etc/pacman.d/hooks/99-limine.hook

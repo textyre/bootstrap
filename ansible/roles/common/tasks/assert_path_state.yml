@@ -1,0 +1,37 @@
+---
+# ---- Shared path state assertion ----
+
+- name: "Stat path for {{ common_assert_label | default(common_assert_path) }}"
+  ansible.builtin.stat:
+    path: "{{ common_assert_path }}"
+    follow: "{{ common_assert_follow | default(false) | bool }}"
+  register: common_assert_path_stat
+
+- name: "Assert path state for {{ common_assert_label | default(common_assert_path) }}"
+  ansible.builtin.assert:
+    that:
+      - common_assert_path_stat.stat.exists
+      - >-
+        (common_assert_type | default('exists')) != 'file' or
+        (common_assert_path_stat.stat.isreg | default(false))
+      - >-
+        (common_assert_type | default('exists')) != 'directory' or
+        (common_assert_path_stat.stat.isdir | default(false))
+      - >-
+        (common_assert_type | default('exists')) != 'block' or
+        (common_assert_path_stat.stat.isblk | default(false))
+      - >-
+        common_assert_owner is not defined or
+        (common_assert_path_stat.stat.pw_name | default('')) == common_assert_owner
+      - >-
+        common_assert_group is not defined or
+        (common_assert_path_stat.stat.gr_name | default('')) == common_assert_group
+      - >-
+        common_assert_mode is not defined or
+        (common_assert_path_stat.stat.mode | default('')) == common_assert_mode
+    fail_msg: >-
+      {{ common_assert_label | default(common_assert_path) }} at {{ common_assert_path }} must be {{ common_assert_type | default('present') }}{%- if common_assert_owner is defined %}, owner={{ common_assert_owner }}{% endif -%}
+      {%- if common_assert_group is defined %}, group={{ common_assert_group }}{% endif -%}
+      {%- if common_assert_mode is defined %}, mode={{ common_assert_mode }}{% endif -%}.
+    success_msg: >-
+      {{ common_assert_label | default(common_assert_path) }} state is valid

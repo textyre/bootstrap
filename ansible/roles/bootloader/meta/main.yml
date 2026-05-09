@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: bootloader
+  author: textyre
+  description: Manage bootloader maintenance state before system preparation
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+    - name: Debian
+      versions: [all]
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
+      versions: [all]
+  galaxy_tags: [bootloader, prepare]
+dependencies: []

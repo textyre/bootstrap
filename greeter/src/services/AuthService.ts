@@ -1,4 +1,4 @@
-import type { ILightDMAdapter } from '../adapters/LightDM.adapter';
+import type { ILightDMAdapter } from '../adapters/lightdm.adapter';
 import type { AuthUser } from '../types/auth.types';
 import { bus } from './bus';
 import { MESSAGES } from '../config/messages';

@@ -1,0 +1,63 @@
+---
+- name: Verify Limine role behavior
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Stat test Limine install target file
+      ansible.builtin.stat:
+        path: "{{ limine_install_target_file }}"
+      register: _limine_molecule_target_stat
+
+    - name: Read test Limine install target file
+      ansible.builtin.slurp:
+        src: "{{ limine_install_target_file }}"
+      register: _limine_molecule_target_raw
+
+    - name: Assert target file state
+      ansible.builtin.assert:
+        that:
+          - _limine_molecule_target_stat.stat.exists
+          - _limine_molecule_target_stat.stat.isreg
+          - _limine_molecule_target_stat.stat.pw_name == 'root'
+          - _limine_molecule_target_stat.stat.gr_name == 'root'
+          - _limine_molecule_target_stat.stat.mode == '0644'
+          - (_limine_molecule_target_raw.content | b64decode | trim) == limine_bios_install_target
+        fail_msg: "Limine install target file was not created with the expected content."
+        success_msg: "Limine install target file is valid."
+
+    - name: Verify Arch pacman hook
+      when: ansible_facts['os_family'] == 'Archlinux'
+      block:
+        - name: Read test Limine hook
+          ansible.builtin.slurp:
+            src: "{{ limine_pacman_hook_file }}"
+          register: _limine_molecule_hook_raw
+
+        - name: Assert hook was normalized
+          vars:
+            _limine_molecule_hook_text: "{{ _limine_molecule_hook_raw.content | b64decode }}"
+          ansible.builtin.assert:
+            that:
+              - limine_install_target_file in _limine_molecule_hook_text
+              - _limine_molecule_hook_text is regex('(?m)^Target = limine$')
+              - _limine_molecule_hook_text is regex('(?m)^When = PostTransaction$')
+              - not (_limine_molecule_hook_text is regex('ata-VBOX_HARDDISK_stale-clone'))
+              - not (_limine_molecule_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
+            fail_msg: "Limine pacman hook was not normalized to read the machine-local target file."
+            success_msg: "Limine pacman hook is clone-safe."
+
+    - name: Verify non-Arch hook no-op
+      when: ansible_facts['os_family'] != 'Archlinux'
+      block:
+        - name: Stat non-Arch Limine hook
+          ansible.builtin.stat:
+            path: "{{ limine_pacman_hook_file }}"
+          register: _limine_molecule_non_arch_hook
+
+        - name: Assert non-Arch hook was not created
+          ansible.builtin.assert:
+            that:
+              - not _limine_molecule_non_arch_hook.stat.exists
+            fail_msg: "Non-Arch Limine scenario must not create a pacman hook."
+            success_msg: "Non-Arch Limine scenario skipped package-manager hook management."

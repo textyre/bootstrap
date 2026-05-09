@@ -4,7 +4,7 @@ import { CSS_CLASSES } from '../../config/selectors';
 import { randomString } from '../../utils/random';
 import { Scrambler } from '../../utils/Scrambler';
 import { CanvasScaler } from '../../utils/CanvasScaler';
-import { DOMAdapter } from '../../adapters/DOM.adapter';
+import { DOMAdapter } from '../../adapters/dom.adapter';
 import { Barcode } from './Barcode';
 
 export class FingerprintBarcode extends Barcode {

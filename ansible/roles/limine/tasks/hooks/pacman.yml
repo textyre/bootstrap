@@ -1,0 +1,20 @@
+---
+# ---- Pacman hook ----
+
+- name: Ensure pacman hooks directory exists
+  ansible.builtin.file:
+    path: "{{ limine_pacman_hook_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: ['limine', 'limine:configure', 'limine:hook']
+
+- name: Render Limine pacman hook
+  ansible.builtin.template:
+    src: limine/99-limine.hook.j2
+    dest: "{{ limine_pacman_hook_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  tags: ['limine', 'limine:configure', 'limine:hook']

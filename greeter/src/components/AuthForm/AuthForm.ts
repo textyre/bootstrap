@@ -3,7 +3,7 @@ import { bus } from '../../services/bus';
 import { TIMINGS } from '../../config/timings';
 import { SELECTORS, CSS_CLASSES } from '../../config/selectors';
 import { MESSAGES } from '../../config/messages';
-import { UsernameBarcode } from '../Barcode/UsernameBarcode';
+import { UsernameBarcode } from '../barcode/UsernameBarcode';
 
 export class AuthForm {
   private waitingForPrompt = false;

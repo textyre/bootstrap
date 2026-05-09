@@ -14,7 +14,7 @@ driver:
     managed: false
 
 platforms:
-  - name: Localhost
+  - name: localhost
 
 provisioner:
   name: ansible
@@ -27,6 +27,7 @@ provisioner:
     host_vars:
       localhost:
         ansible_connection: local
+        ansible_become_password: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_SUDO_PASSWORD') }}"
     group_vars:
       all:
         packages_base: [git, curl]
@@ -52,7 +53,7 @@ provisioner:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../"
 
 verifier:
   name: ansible

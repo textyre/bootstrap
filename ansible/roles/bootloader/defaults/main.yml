@@ -1,0 +1,24 @@
+---
+# Enable or disable bootloader maintenance.
+bootloader_enabled: true
+
+# Bootloader backend to manage: auto, limine, or none.
+bootloader_type: auto
+
+# Supported OS families for this role.
+bootloader_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Known bootloader backends. Detection is generic: a backend is present when
+# any declared artifact exists.
+bootloader_backends:
+  - name: limine
+    role: limine
+    detection:
+      paths:
+        - /boot/limine/limine.conf
+        - /usr/bin/limine

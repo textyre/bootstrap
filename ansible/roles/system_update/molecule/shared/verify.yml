@@ -11,10 +11,10 @@
         else _system_update_test_project_dir ~ '/roles/system_update'
       }}
   tasks:
-    - name: Read system_update playbook source
+    - name: Read prepare_system playbook source
       ansible.builtin.set_fact:
-        _system_update_test_playbook_source: >-
-          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/../../playbooks/system_update.yml') }}
+        _system_update_test_prepare_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/../../playbooks/prepare_system.yml') }}
 
     - name: Read workstation playbook source
       ansible.builtin.set_fact:
@@ -24,13 +24,21 @@
     - name: Assert playbook boundary contract
       ansible.builtin.assert:
         that:
-          - "'role: system_update' in _system_update_test_playbook_source"
-          - "'role: packages' not in _system_update_test_playbook_source"
-          - "'role: docker' not in _system_update_test_playbook_source"
-          - "'role: vm' not in _system_update_test_playbook_source"
+          - "'role: bootloader' in _system_update_test_prepare_source"
+          - "'role: system_update' in _system_update_test_prepare_source"
+          - "_system_update_test_prepare_source.find('role: bootloader') < _system_update_test_prepare_source.find('role: system_update')"
+          - "'ansible.builtin.reboot' not in _system_update_test_prepare_source"
+          - "'role: packages' not in _system_update_test_prepare_source"
+          - "'role: docker' not in _system_update_test_prepare_source"
+          - "'role: vm' not in _system_update_test_prepare_source"
           - "'role: system_update' not in _system_update_test_workstation_source"
-        fail_msg: "system_update playbook must be separate from workstation/downstream roles."
-        success_msg: "system_update playbook is isolated from workstation configuration roles."
+        fail_msg: >-
+          prepare_system.yml must run bootloader before system_update, must not
+          reboot or call downstream workstation roles, and workstation.yml must
+          stay after the system_update boundary.
+        success_msg: >-
+          prepare_system.yml order, no-reboot boundary, downstream role
+          separation, and workstation boundary are valid.
 
 - name: Verify system_update live backend and reboot boundary
   hosts: all

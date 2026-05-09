@@ -5,7 +5,7 @@
 #   task workstation
 #
 # Перед этим playbook система должна быть обновлена и перезагружена:
-#   task system:update
+#   task prepare:system
 #   reboot
 #   task workstation
 #

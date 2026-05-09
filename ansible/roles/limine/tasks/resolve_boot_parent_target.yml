@@ -1,0 +1,99 @@
+---
+# ---- Resolve Limine target from boot mount parent disk ----
+
+- name: Detect Limine boot mount source
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - -n
+      - -e
+      - -o
+      - SOURCE
+      - -T
+      - "{{ limine_boot_mount }}"
+  register: _limine_boot_source
+  changed_when: false
+  failed_when: >-
+    _limine_boot_source.rc != 0 or
+    (_limine_boot_source.stdout | trim | length == 0)
+  tags: ['limine', 'limine:target']
+
+- name: Normalize Limine boot mount source
+  ansible.builtin.set_fact:
+    _limine_boot_source_device: "{{ (_limine_boot_source.stdout | trim).split('[')[0] }}"
+  tags: ['limine', 'limine:target']
+
+- name: Detect Limine boot backing disks
+  ansible.builtin.shell: |
+    set -euo pipefail
+    node={{ _limine_boot_source_device | quote }}
+    lsblk -nrspo PATH,TYPE -s -- "$node" |
+      awk '$2 == "disk" { print $1 }' |
+      sort -u
+  args:
+    executable: /usr/bin/bash
+  register: _limine_boot_backing_disks
+  changed_when: false
+  failed_when: _limine_boot_backing_disks.rc != 0
+  tags: ['limine', 'limine:target']
+
+- name: Set Limine boot backing disk list
+  ansible.builtin.set_fact:
+    _limine_boot_backing_disk_list: >-
+      {{
+        _limine_boot_backing_disks.stdout_lines
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  tags: ['limine', 'limine:target']
+
+- name: Assert Limine boot backing disk is unambiguous
+  ansible.builtin.assert:
+    that:
+      - _limine_boot_backing_disk_list | length == 1
+    fail_msg: >-
+      Could not resolve a unique Limine BIOS install target from
+      {{ limine_boot_mount }}. Source={{ _limine_boot_source_device }},
+      backing_disks={{ _limine_boot_backing_disk_list | default([]) | join(', ') | default('none', true) }}.
+      Set limine_bios_install_target explicitly for this host.
+    success_msg: "Limine boot backing disk is unambiguous"
+  tags: ['limine', 'limine:target']
+
+- name: Set Limine boot parent disk
+  ansible.builtin.set_fact:
+    _limine_boot_parent_disk: "{{ _limine_boot_backing_disk_list | first }}"
+  tags: ['limine', 'limine:target']
+
+- name: Detect stable by-id path for Limine boot parent disk
+  ansible.builtin.shell: |
+    set -euo pipefail
+    parent={{ _limine_boot_parent_disk | quote }}
+    by_id_dir={{ limine_bios_install_target_by_id_dir | quote }}
+    [ -d "$by_id_dir" ] || exit 0
+    for path in "$by_id_dir"/*; do
+      [ -e "$path" ] || continue
+      [ "$(readlink -f "$path")" = "$parent" ] || continue
+      case "$path" in
+        *-part*) continue ;;
+      esac
+      printf '%s\n' "$path"
+      exit 0
+    done
+    exit 0
+  args:
+    executable: /usr/bin/bash
+  register: _limine_boot_parent_by_id
+  changed_when: false
+  tags: ['limine', 'limine:target']
+
+- name: Set auto-resolved Limine install target
+  ansible.builtin.set_fact:
+    limine_resolved_install_target: >-
+      {{
+        (_limine_boot_parent_by_id.stdout | trim)
+        if (_limine_boot_parent_by_id.stdout | trim | length > 0)
+        else _limine_boot_parent_disk
+      }}
+    limine_target_source: boot_parent
+  tags: ['limine', 'limine:target']

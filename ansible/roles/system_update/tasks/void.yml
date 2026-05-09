@@ -3,6 +3,6 @@
   ansible.builtin.fail:
     msg: >-
       system_update backend for Void Linux is not implemented in this slice.
-      Add an explicit xbps upgrade backend before using task system:update on Void hosts.
+      Add an explicit xbps upgrade backend before using task prepare:system on Void hosts.
   when: system_update_fail_unimplemented_backends | bool
   tags: ['system_update', 'upgrade']
