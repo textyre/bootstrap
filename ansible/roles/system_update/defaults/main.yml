@@ -23,6 +23,12 @@ system_update_arch_pacman_lock_process_names:
   - makepkg
   - yay
   - paru
+system_update_arch_pacman_lock_wait_retries: 12
+system_update_arch_pacman_lock_wait_delay: 5
+system_update_arch_pacman_database_repair_attempts: 2
+system_update_arch_pacman_repair_retries: 3
+system_update_arch_pacman_repair_retry_delay: 5
+system_update_arch_pacman_log_file: /var/log/pacman.log
 
 # Non-Arch backends are intentionally blocked until implemented explicitly.
 system_update_fail_unimplemented_backends: true

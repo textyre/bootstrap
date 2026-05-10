@@ -1,0 +1,36 @@
+---
+- name: "Arch Linux | Repeat full system upgrade for repair attempt {{ _system_update_arch_repair_attempt }}"
+  community.general.pacman:
+    update_cache: true
+    upgrade: true
+  register: _system_update_arch_repair_upgrade
+  retries: "{{ system_update_arch_pacman_repair_retries }}"
+  delay: "{{ system_update_arch_pacman_repair_retry_delay }}"
+  until: _system_update_arch_repair_upgrade is succeeded
+  when: _system_update_arch_database_check.rc != 0
+  tags: ['system_update', 'recovery', 'pacman']
+
+- name: "Arch Linux | Reinstall packages from interrupted transaction for repair attempt {{ _system_update_arch_repair_attempt }}"
+  ansible.builtin.command:
+    cmd: >-
+      pacman -S --noconfirm
+      {{ _system_update_arch_interrupted_packages | default([]) | join(' ') }}
+  register: _system_update_arch_repair_reinstall
+  changed_when: _system_update_arch_repair_reinstall.rc == 0
+  failed_when: _system_update_arch_repair_reinstall.rc != 0
+  retries: "{{ system_update_arch_pacman_repair_retries }}"
+  delay: "{{ system_update_arch_pacman_repair_retry_delay }}"
+  until: _system_update_arch_repair_reinstall.rc == 0
+  when:
+    - _system_update_arch_database_check.rc != 0
+    - (_system_update_arch_interrupted_packages | default([])) | length > 0
+  tags: ['system_update', 'recovery', 'pacman']
+
+- name: "Arch Linux | Re-check pacman database consistency for repair attempt {{ _system_update_arch_repair_attempt }}"
+  ansible.builtin.command:
+    cmd: pacman -Dk
+  register: _system_update_arch_database_check
+  changed_when: false
+  failed_when: false
+  when: _system_update_arch_database_check.rc != 0
+  tags: ['system_update', 'recovery', 'pacman']

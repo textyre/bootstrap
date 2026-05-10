@@ -1,0 +1,4 @@
+---
+- name: Include OS-family-specific package transaction recovery backend
+  ansible.builtin.include_tasks: "recovery/{{ ansible_facts['os_family'] | lower }}.yml"
+  tags: ['system_update', 'recovery']

@@ -14,7 +14,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 - [x] Configures apt parallel downloads and dpkg conflict-resolution options (Debian/Ubuntu)
 - [x] Deploys dnf.conf with parallel downloads, fastestmirror, keepcache settings (Fedora)
 - [x] Deploys xbps config and schedules weekly cache cleanup via cron (Void)
-- [x] Optionally imports reflector and runs yay setup-only on Arch (tagged `molecule-notest`)
+- [x] Runs yay setup-only on Arch (tagged `molecule-notest`)
 - [x] Validates OS is in supported list before any configuration
 - [x] Runs in-role verification after deployment (verify.yml)
 - [x] Supports external pacman cache on shared storage
@@ -31,8 +31,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
    1. Configure pacman → `tasks/archlinux/pacman.yml` (template `/etc/pacman.conf`, optional external cache)
    2. Configure paccache → `tasks/archlinux/paccache.yml` (install `pacman-contrib`, systemd timer drop-in)
    3. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
-   4. Import reflector role (tagged `molecule-notest`)
-   5. Import yay role in setup-only mode (builder user + binary, tagged `molecule-notest`)
+   4. Import yay role in setup-only mode (builder user + binary, tagged `molecule-notest`)
 4. **Debian path** (`tasks/debian.yml`):
    1. Configure apt → `tasks/apt/apt.yml` (template to `/etc/apt/apt.conf.d/10-ansible-parallel.conf`)
    2. Configure dpkg → `tasks/apt/dpkg.yml` (template to `/etc/apt/apt.conf.d/20-ansible-dpkg.conf`)
@@ -215,7 +214,7 @@ molecule test -s default
 
 **Common failures:**
 - Docker: `pacman-contrib` install fails if package cache is stale → prepare.yml runs `update_cache`
-- Vagrant: reflector/yay setup tasks attempt network access → tagged `molecule-notest`, skipped via `skip-tags`
+- Vagrant: yay setup tasks attempt network access → tagged `molecule-notest`, skipped via `skip-tags`
 
 ## Tags
 
@@ -232,7 +231,6 @@ molecule test -s default
 | `xbps-cache` | Void Linux cache cron only |
 | `portage` | Gentoo stub |
 | `pacman-cache` | Pacman external cache setup |
-| `mirrors` | Reflector mirror configuration (molecule-notest) |
 | `aur` | Yay helper setup only (molecule-notest) |
 | `report` | Structured logging phase reports |
 | `molecule-notest` | Tasks skipped in molecule tests |
@@ -249,7 +247,7 @@ task workstation -- --tags pacman
 | `defaults/main.yml` | User-facing variables and supported OS list | Adding new variables or OS support |
 | `vars/main.yml` | Internal OS-family mappings | Adding OS-specific internal values |
 | `tasks/main.yml` | Orchestrator: validate → dispatch → verify → report | Changing role flow or adding phases |
-| `tasks/archlinux.yml` | Arch dispatcher: pacman → paccache → makepkg → reflector → yay setup | Adding Arch-specific sub-tasks |
+| `tasks/archlinux.yml` | Arch dispatcher: pacman → paccache → makepkg → yay setup | Adding Arch-specific sub-tasks |
 | `tasks/archlinux/pacman.yml` | pacman.conf template + external cache | Changing pacman config logic |
 | `tasks/archlinux/paccache.yml` | paccache timer install + drop-in | Changing cache cleanup behavior |
 | `tasks/archlinux/makepkg.yml` | makepkg drop-in config | Changing build optimization |
@@ -265,7 +263,6 @@ task workstation -- --tags pacman
 | `tasks/verify.yml` | In-role verification | Adding post-deploy checks |
 | `handlers/main.yml` | pacman sync database refresh and systemd daemon-reload | Adding new handlers |
 | `meta/main.yml` | Galaxy metadata | Changing role metadata |
-| `requirements.yml` | Role dependencies (reflector, yay) | Adding role dependencies |
 | `templates/archlinux/pacman.conf.j2` | pacman.conf template | Changing pacman config format |
 | `templates/archlinux/makepkg.conf.j2` | makepkg drop-in template | Changing makepkg format |
 | `templates/apt/10-parallel.conf.j2` | apt parallel config template | Changing apt config format |
@@ -282,7 +279,6 @@ task workstation -- --tags pacman
 
 ## Dependencies
 
-- `reflector` — Arch Linux mirror configuration (imported with `molecule-notest` tag)
 - `yay` — AUR helper setup (builder user + binary, imported with `molecule-notest` tag)
 - `common` — Structured logging (`report_phase.yml`, `report_render.yml`)
 

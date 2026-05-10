@@ -39,6 +39,24 @@
         success_msg: >-
           system_update left pacman unlocked for the next workflow step.
 
+    - name: Verify Arch pacman database consistency
+      ansible.builtin.command:
+        cmd: pacman -Dk
+      register: _system_update_verify_arch_database_check
+      changed_when: false
+      failed_when: false
+
+    - name: Assert system_update left pacman database consistent
+      ansible.builtin.assert:
+        that:
+          - _system_update_verify_arch_database_check.rc == 0
+        fail_msg: >-
+          system_update left pacman database inconsistent.
+          stdout={{ _system_update_verify_arch_database_check.stdout | default('') }};
+          stderr={{ _system_update_verify_arch_database_check.stderr | default('') }}.
+        success_msg: >-
+          system_update left pacman database consistent for the next workflow step.
+
 - name: Gather package facts after system update
   ansible.builtin.package_facts:
     manager: auto

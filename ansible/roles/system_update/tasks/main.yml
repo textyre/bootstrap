@@ -18,6 +18,10 @@
       ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
       tags: ['system_update', 'upgrade']
 
+    - name: Include package transaction recovery phase
+      ansible.builtin.include_tasks: package_transaction_recovery.yml
+      tags: ['system_update', 'recovery']
+
     - name: Verify system update boundary
       ansible.builtin.include_tasks: verify.yml
       tags: ['system_update', 'verify']

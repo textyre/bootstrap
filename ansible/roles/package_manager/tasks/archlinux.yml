@@ -1,50 +1,6 @@
 ---
 # === Arch Linux: dispatcher ===
 
-- name: Check pacman database lock before package-manager operations
-  ansible.builtin.stat:
-    path: "{{ package_manager_arch_pacman_lock_file }}"
-  register: _package_manager_arch_lock
-
-- name: List process names when pacman lock exists
-  ansible.builtin.command:
-    cmd: ps -eo comm=
-  register: _package_manager_arch_process_names
-  changed_when: false
-  failed_when: _package_manager_arch_process_names.rc != 0
-  when: _package_manager_arch_lock.stat.exists
-
-- name: Derive active pacman lock holders
-  ansible.builtin.set_fact:
-    _package_manager_arch_lock_processes: >-
-      {{
-        _package_manager_arch_process_names.stdout_lines
-        | default([])
-        | map('trim')
-        | list
-        | intersect(package_manager_arch_pacman_lock_process_names)
-        | unique
-      }}
-  when: _package_manager_arch_lock.stat.exists
-
-- name: Assert pacman lock is stale before cleanup
-  ansible.builtin.assert:
-    that:
-      - (_package_manager_arch_lock_processes | default([])) | length == 0
-    fail_msg: >-
-      package_manager encountered {{ package_manager_arch_pacman_lock_file }},
-      but package-manager processes are still active:
-      {{ _package_manager_arch_lock_processes | default([]) | join(', ') }}.
-    success_msg: >-
-      {{ package_manager_arch_pacman_lock_file }} is stale and can be removed.
-  when: _package_manager_arch_lock.stat.exists
-
-- name: Remove stale pacman database lock before package-manager operations
-  ansible.builtin.file:
-    path: "{{ package_manager_arch_pacman_lock_file }}"
-    state: absent
-  when: _package_manager_arch_lock.stat.exists
-
 - name: Find pacman sync databases
   ansible.builtin.find:
     paths: /var/lib/pacman/sync
@@ -75,11 +31,6 @@
 
 - name: Configure makepkg
   ansible.builtin.include_tasks: archlinux/makepkg.yml
-
-- name: Set up Arch Linux mirrors
-  ansible.builtin.import_role:
-    name: reflector
-  tags: ['mirrors', 'reflector', 'molecule-notest']
 
 - name: Set up yay AUR helper
   ansible.builtin.import_role:

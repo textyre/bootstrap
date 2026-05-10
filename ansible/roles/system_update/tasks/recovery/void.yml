@@ -1,0 +1,8 @@
+---
+- name: "Void | Stop until package transaction recovery backend is implemented"
+  ansible.builtin.fail:
+    msg: >-
+      system_update package transaction recovery backend for Void Linux is not implemented in this slice.
+      Add an explicit xbps recovery backend before using task prepare:system on Void hosts.
+  when: system_update_fail_unimplemented_backends | bool
+  tags: ['system_update', 'recovery']
