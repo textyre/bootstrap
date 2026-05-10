@@ -126,6 +126,7 @@
         else 'system_update'
       }}
     _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
+    _system_update_test_arch_pacman_lock_path: /var/lib/pacman/db.lck
   tasks:
     - name: Skip live converge when scenario is contract-only
       ansible.builtin.meta: end_host
@@ -172,7 +173,7 @@
 
         - name: Check pacman database lock after system_update
           ansible.builtin.stat:
-            path: "{{ system_update_arch_pacman_lock_file }}"
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
           register: _system_update_test_pacman_lock_after_update
 
         - name: Check pacman database consistency after system_update

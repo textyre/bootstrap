@@ -49,6 +49,7 @@
   vars:
     _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
     _system_update_test_reboot_enabled: "{{ system_update_test_verify_reboot_boundary | default(false) | bool }}"
+    _system_update_test_arch_pacman_lock_path: /var/lib/pacman/db.lck
   tasks:
     - name: Skip live verify when scenario is contract-only
       ansible.builtin.meta: end_host
@@ -90,7 +91,7 @@
 
         - name: Check pacman database lock before workflow reboot
           ansible.builtin.stat:
-            path: "{{ system_update_arch_pacman_lock_file }}"
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
           register: _system_update_verify_pacman_lock_before_reboot
 
         - name: Assert system_update left pacman unlocked before workflow reboot
@@ -100,7 +101,7 @@
               - _system_update_verify_pre_reboot.pacman_database_check_rc_after_update == 0
               - not _system_update_verify_pacman_lock_before_reboot.stat.exists
             fail_msg: >-
-              system_update left {{ system_update_arch_pacman_lock_file }} behind
+              system_update left {{ _system_update_test_arch_pacman_lock_path }} behind
               or left pacman database inconsistent before the workflow reboot boundary.
               facts={{ _system_update_verify_pre_reboot }},
               current={{ _system_update_verify_pacman_lock_before_reboot.stat.exists }}
@@ -144,7 +145,7 @@
 
         - name: Check pacman database lock after workflow reboot
           ansible.builtin.stat:
-            path: "{{ system_update_arch_pacman_lock_file }}"
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
           register: _system_update_verify_pacman_lock_after_reboot
           when: _system_update_test_reboot_enabled
 
