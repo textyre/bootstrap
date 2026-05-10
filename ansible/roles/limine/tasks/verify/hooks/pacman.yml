@@ -25,13 +25,32 @@
     _limine_verify_hook_text: "{{ _limine_verify_hook_raw.content | b64decode }}"
   tags: ['limine', 'limine:verify', 'limine:hook']
 
-- name: Assert Limine pacman hook content is clone-safe
+- name: Assert Limine pacman hook metadata
   ansible.builtin.assert:
     that:
-      - limine_install_target_file in _limine_verify_hook_text
       - _limine_verify_hook_text is regex('(?m)^Target = limine$')
       - _limine_verify_hook_text is regex('(?m)^When = PostTransaction$')
-      - not (_limine_verify_hook_text is regex('Exec = .*\\/dev\\/disk\\/by-id\\/ata-VBOX_HARDDISK_'))
-    fail_msg: "{{ limine_pacman_hook_file }} is missing, invalid, or still embeds a disk id."
-    success_msg: "Limine pacman hook reads the machine-local install target"
+    fail_msg: "{{ limine_pacman_hook_file }} is missing required pacman hook metadata."
+    success_msg: "Limine pacman hook metadata is valid"
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Assert Limine pacman hook executes the managed helper script
+  ansible.builtin.assert:
+    that:
+      - _limine_verify_hook_text is regex('(?m)^Exec = ' ~ (limine_pacman_hook_script_file | regex_escape()) ~ '$')
+    fail_msg: "{{ limine_pacman_hook_file }} must call the managed Limine hook helper script."
+    success_msg: "Limine pacman hook executes the managed helper script"
+  tags: ['limine', 'limine:verify', 'limine:hook']
+
+- name: Assert Limine pacman hook helper state
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: assert_path_state.yml
+  vars:
+    common_assert_path: "{{ limine_pacman_hook_script_file }}"
+    common_assert_type: file
+    common_assert_owner: root
+    common_assert_group: root
+    common_assert_mode: "0755"
+    common_assert_label: "Limine pacman hook helper"
   tags: ['limine', 'limine:verify', 'limine:hook']

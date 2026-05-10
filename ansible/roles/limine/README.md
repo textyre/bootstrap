@@ -9,13 +9,38 @@
 3. **Resolve boot parent** (`tasks/resolve_boot_parent_target.yml`) — сопоставляет `limine_boot_mount` с mounted source, ancestor disk chain и стабильным `/dev/disk/by-id` path, если он доступен. Auto mode проходит только если `/boot` однозначно ведет к одному backing disk.
 4. **Validate target** (`tasks/resolve_target.yml`) — fail-fast, если target не определен, и опционально проверяет, что target является block device.
 5. **Configure target state** (`tasks/configure.yml`) — записывает `limine_install_target_file`, machine-local target file для package-manager hook.
-6. **Configure hook** (`tasks/hooks/pacman.yml`) — на Archlinux рендерит pacman hook, который читает `limine_install_target_file` во время Limine package transaction.
+6. **Configure hook** (`tasks/hooks/pacman.yml`) — на Archlinux рендерит маленький pacman hook и отдельный helper script. Hook только вызывает helper, а helper уже читает `limine_install_target_file`, вызывает `limine bios-install` для текущего machine-local target, обновляет `limine-bios.sys` в configured boot directory и делает `sync`.
 7. **Verify runtime state** (`tasks/verify.yml`) — проверяет target file, hook content, Limine binary, `limine-bios.sys` и boot directory.
 8. **Report** (`tasks/main.yml`) — выводит hook kind, target source и resolved target.
 
 ### Boundaries
 
 `limine` — backend role. Она не запускает system upgrades, не перезагружает хост, не управляет workstation roles, не добавляет другие загрузчики и не вызывает `limine bios-install` во время Ansible run. Отрендеренный package-manager hook вызывает Limine только при установке или обновлении пакета Limine.
+
+Для BIOS boot Limine должен видеть `limine-bios.sys` и `limine.conf` в одном из стандартных каталогов на partition boot device: `/boot/limine`, `/boot`, `/limine` или root. Роль не создает дополнительные candidate paths: она поддерживает тот configured boot directory, который уже используется системой, и убирает только clone-unsafe hardcoded disk id из pacman hook.
+
+### Pacman hook contract
+
+Арховая реализация теперь разделена на два понятных слоя:
+
+1. Маленький pacman hook в `limine_pacman_hook_file`.
+2. Отдельный helper script в `limine_pacman_hook_script_file`.
+
+Так hook остается минимальным, а сам boot-update flow читается как обычный shell script.
+
+Helper script делает четыре вещи и делает их именно в таком порядке:
+
+1. Читает machine-local install target из `limine_install_target_file`.
+2. Вызывает `limine bios-install` для этого target.
+3. Обновляет `{{ limine_boot_dir }}/limine-bios.sys`.
+4. Делает `sync` перед отдельным reboot boundary.
+
+Зачем это нужно:
+
+- чтение target из файла убирает clone-unsafe hardcoded disk id;
+- `bios-install` обновляет boot code на выбранном диске;
+- явное обновление `limine-bios.sys` закрепляет stage file в configured boot directory;
+- `sync` уменьшает риск незавершенных записей перед reboot после `prepare:system`.
 
 ## Variables
 
@@ -40,6 +65,7 @@
 | `limine_binary` | `/usr/bin/limine` | careful | Путь к Limine executable. |
 | `limine_bios_sys_source` | `/usr/share/limine/limine-bios.sys` | careful | BIOS support file, который копирует hook. |
 | `limine_pacman_hook_file` | `/etc/pacman.d/hooks/99-limine.hook` | careful | Archlinux pacman hook path. |
+| `limine_pacman_hook_script_file` | `/usr/local/lib/bootstrap/limine-refresh-after-upgrade.sh` | careful | Helper script, который выполняет boot-update flow для Arch pacman hook. |
 
 ### Internal mappings (`vars/`)
 
@@ -106,4 +132,6 @@ limine_manage_update_hook: false
 
 ## Verification
 
-Runtime verification остается частью роли, потому что реальный prepare run должен падать до package upgrades, если Limine state небезопасен. Molecule проверяет поведение независимо: создает stale Arch hook с hardcoded disk id, запускает роль и проверяет, что target file создан, а hook читает machine-local target file вместо встраивания старого disk id.
+Runtime verification остается частью роли, потому что реальный prepare run должен падать до package upgrades, если Limine state небезопасен. Runtime verify проверяет только safety-инварианты хоста: target file, hook path, helper script и необходимые Limine artifacts.
+
+Molecule не повторяет этот runtime verify построчно. Вместо этого он проверяет результат сценария: stale hardcoded hook заменяется на managed hook, managed hook указывает на helper script, а helper script реально выполняет boot-update flow на тестовых fixture-файлах.

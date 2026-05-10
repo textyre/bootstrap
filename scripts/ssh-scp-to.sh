@@ -14,6 +14,11 @@ SSH_HOST="${SSH_HOST:-arch-127.0.0.1-2222}"
 SSH_PORT="${SSH_PORT:-}"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=60)
 REMOTE_BASE="/home/textyre/bootstrap"
+TAR_BIN="tar"
+
+if [[ -x /usr/bin/tar ]]; then
+    TAR_BIN="/usr/bin/tar"
+fi
 
 if [[ -n "${SSH_PORT}" ]]; then
     SSH_OPTS+=(-P "${SSH_PORT}")
@@ -41,7 +46,7 @@ if [[ "${1:-}" == "--project" ]]; then
     ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" \
         "find '${REMOTE_BASE}' -delete 2>/dev/null; rm -rf '${REMOTE_BASE}' 2>/dev/null; true"
 
-    PROJECT_DIRS=(ansible dotfiles scripts)
+    PROJECT_DIRS=(ansible dotfiles scripts greeter)
     PROJECT_FILES=(Taskfile.yml bootstrap.sh AGENTS.md CLAUDE.md)
 
     for dir in "${PROJECT_DIRS[@]}"; do
@@ -49,12 +54,19 @@ if [[ "${1:-}" == "--project" ]]; then
         ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "mkdir -p ${REMOTE_BASE}/${dir}"
         if [[ "$dir" == "ansible" ]]; then
             # Use tar to exclude platform-specific artifacts that must not reach the VM
-            (cd "${REPO_ROOT}" && tar cf - \
+            (cd "${REPO_ROOT}" && "${TAR_BIN}" cf - \
                 --exclude='ansible/.venv' \
                 --exclude='ansible/__pycache__' \
                 --exclude='ansible/.molecule' \
                 --exclude='ansible/.vault-pass' \
                 --exclude='ansible/*.vault-pass' \
+                "${dir}/") | \
+                ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "tar xf - -C ${REMOTE_BASE}/"
+        elif [[ "$dir" == "greeter" ]]; then
+            # Build artefacts are created on the VM by the Taskfile before workstation runs.
+            (cd "${REPO_ROOT}" && "${TAR_BIN}" cf - \
+                --exclude='greeter/node_modules' \
+                --exclude='greeter/dist' \
                 "${dir}/") | \
                 ssh "${SSH_OPTS[@]/-P/-p}" "$SSH_HOST" "tar xf - -C ${REMOTE_BASE}/"
         else

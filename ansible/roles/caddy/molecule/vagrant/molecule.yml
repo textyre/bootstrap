@@ -36,7 +36,11 @@ provisioner:
         docker_icc: true
         docker_live_restore: false
         docker_no_new_privileges: false
-        docker_storage_driver: ""
+    host_vars:
+      arch-vm:
+        docker_storage_driver: "btrfs"
+      ubuntu-base:
+        docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
 

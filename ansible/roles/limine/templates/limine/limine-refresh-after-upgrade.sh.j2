@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+# Refresh Limine after a package transaction:
+# 1. Read the machine-local BIOS install target selected by the role.
+# 2. Refresh Limine boot code on that disk.
+# 3. Refresh limine-bios.sys in the configured boot directory.
+# 4. Flush writes before the separate reboot boundary.
+
+bios_sys_source="{{ limine_bios_sys_source }}"
+install_target_file="{{ limine_install_target_file }}"
+boot_stage_file="{{ limine_boot_dir }}/limine-bios.sys"
+
+install_target="$(cat "$install_target_file")"
+
+"{{ limine_binary }}" bios-install "$install_target"
+/usr/bin/install -Dm0644 "$bios_sys_source" "$boot_stage_file"
+/usr/bin/sync

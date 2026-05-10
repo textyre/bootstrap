@@ -29,7 +29,8 @@ firewall_ssh_rate_limit_enabled: true
 firewall_ssh_rate_limit: "4/minute"
 firewall_ssh_rate_limit_burst: 2
 
-# Docker совместимость — разрешить forward для docker0 bridge
+# Docker совместимость — разрешить forward для default bridge и user-defined
+# Docker bridge interfaces (docker0, br-*)
 # Включить, если Docker публикует порты через iptables/nftables DNAT
 firewall_docker_enabled: false
 

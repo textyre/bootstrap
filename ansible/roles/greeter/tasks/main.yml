@@ -46,7 +46,8 @@
       ansible.builtin.shell: >
         set -o pipefail &&
         cd {{ greeter_dist_dir | quote }} &&
-        find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+        find . -type f ! -name 'system-info.json' -print0 | sort -z |
+        xargs -0 sha256sum | sha256sum | awk '{print $1}'
       args:
         executable: /bin/bash
       register: _greeter_source_dist_checksum
@@ -241,6 +242,47 @@
       register: _greeter_wallpaper_stat
       tags: ['greeter', 'display']
 
+    - name: Calculate source wallpaper checksum
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        cd {{ greeter_wallpaper_source_dir | quote }} &&
+        find . -maxdepth 1 -type f -print0 | sort -z |
+        xargs -0 sha256sum | sha256sum | awk '{print $1}'
+      args:
+        executable: /bin/bash
+      register: _greeter_wallpaper_source_checksum
+      changed_when: false
+      when: _greeter_wallpaper_stat.stat.exists | default(false)
+      tags: ['greeter', 'display']
+
+    - name: Calculate deployed wallpaper checksum
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        if [ -d /usr/share/backgrounds ]; then
+          cd /usr/share/backgrounds &&
+          find . -maxdepth 1 -type f -print0 | sort -z |
+          xargs -0 sha256sum | sha256sum | awk '{print $1}';
+        else
+          echo absent;
+        fi
+      args:
+        executable: /bin/bash
+      register: _greeter_wallpaper_target_checksum
+      changed_when: false
+      failed_when: false
+      when: _greeter_wallpaper_stat.stat.exists | default(false)
+      tags: ['greeter', 'display']
+
+    - name: Determine whether wallpapers need redeploy
+      ansible.builtin.set_fact:
+        _greeter_wallpapers_need_copy: >-
+          {{
+            (_greeter_wallpaper_source_checksum.stdout | trim)
+            != (_greeter_wallpaper_target_checksum.stdout | trim)
+          }}
+      when: _greeter_wallpaper_stat.stat.exists | default(false)
+      tags: ['greeter', 'display']
+
     - name: Create backgrounds directory
       ansible.builtin.file:
         path: /usr/share/backgrounds
@@ -260,6 +302,18 @@
         mode: '0644'
         directory_mode: '0755'
         remote_src: true
+      when:
+        - _greeter_wallpaper_stat.stat.exists | default(false)
+        - _greeter_wallpapers_need_copy | default(false) | bool
+      tags: ['greeter', 'display']
+
+    - name: Normalize backgrounds directory metadata after wallpaper deploy
+      ansible.builtin.file:
+        path: /usr/share/backgrounds
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
       when: _greeter_wallpaper_stat.stat.exists | default(false)
       tags: ['greeter', 'display']
 

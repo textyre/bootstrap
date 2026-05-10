@@ -51,6 +51,19 @@
         dest: /opt/greeter-stub/greeter/index.yml
         mode: '0644'
 
+    - name: Create stub wallpaper source directory
+      ansible.builtin.file:
+        path: /opt/greeter-stub/dotfiles/wallpapers
+        state: directory
+        mode: '0755'
+
+    - name: Create stub wallpaper asset
+      ansible.builtin.copy:
+        content: |
+          molecule wallpaper fixture
+        dest: /opt/greeter-stub/dotfiles/wallpapers/molecule-wallpaper.txt
+        mode: '0644'
+
     - name: Create /etc/lightdm config directory
       # lightdm is not installed in the container (web-greeter is AUR-only);
       # the role writes the config file here unconditionally.

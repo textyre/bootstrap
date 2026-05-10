@@ -211,7 +211,7 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Reload caddy
+      notify: Restart caddy
       tags: ['vaultwarden', 'secrets']
 
     - name: "Report: Caddy"

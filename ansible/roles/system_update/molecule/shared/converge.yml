@@ -11,16 +11,32 @@
         else _system_update_test_project_dir ~ '/roles/system_update'
       }}
   tasks:
+    - name: Read generic system_update sources
+      ansible.builtin.set_fact:
+        _system_update_test_main_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/main.yml') }}
+        _system_update_test_recovery_dispatch_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/package_transaction_recovery.yml') }}
+
     - name: Read Arch backend source
       ansible.builtin.set_fact:
         _system_update_test_arch_source: >-
           {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/archlinux.yml') }}
+
+    - name: Read Arch pacman recovery sources
+      ansible.builtin.set_fact:
+        _system_update_test_arch_recovery_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/archlinux.yml') }}
+        _system_update_test_arch_repair_source: >-
+          {{ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/archlinux_pacman_repair_attempt.yml') }}
 
     - name: Read role task sources
       ansible.builtin.set_fact:
         _system_update_test_task_sources: >-
           {{
             lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/main.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/package_transaction_recovery.yml')
             ~ '\n'
             ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/archlinux.yml')
             ~ '\n'
@@ -31,7 +47,34 @@
             ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/void.yml')
             ~ '\n'
             ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/gentoo.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/archlinux.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/archlinux_pacman_repair_attempt.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/debian.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/redhat.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/void.yml')
+            ~ '\n'
+            ~ lookup('ansible.builtin.file', _system_update_test_role_dir ~ '/tasks/recovery/gentoo.yml')
           }}
+
+    - name: Assert generic system_update flow
+      ansible.builtin.assert:
+        that:
+          - "'Include OS-family-specific system update backend' in _system_update_test_main_source"
+          - "'Include package transaction recovery phase' in _system_update_test_main_source"
+          - "'Verify system update boundary' in _system_update_test_main_source"
+          - _system_update_test_main_source.find('Include OS-family-specific system update backend') < _system_update_test_main_source.find('Include package transaction recovery phase')
+          - _system_update_test_main_source.find('Include package transaction recovery phase') < _system_update_test_main_source.find('Verify system update boundary')
+          - "'recovery/' in _system_update_test_recovery_dispatch_source"
+          - "'ansible_facts' in _system_update_test_recovery_dispatch_source"
+          - "'os_family' in _system_update_test_recovery_dispatch_source"
+          - "'lower' in _system_update_test_recovery_dispatch_source"
+        fail_msg: "system_update must keep recovery as a generic post-upgrade phase with OS-family backend dispatch."
+        success_msg: "system_update flow is upgrade backend -> generic package recovery phase -> verify."
 
     - name: Assert Arch backend update order
       ansible.builtin.assert:
@@ -41,9 +84,24 @@
           - "'Full system upgrade (pacman -Su)' in _system_update_test_arch_source"
           - _system_update_test_arch_source.find('Refresh package databases (pacman -Sy)') < _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade')
           - _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade') < _system_update_test_arch_source.find('Full system upgrade (pacman -Su)')
+          - "'package_transaction_recovery' not in _system_update_test_arch_source"
+          - "'pacman_recovery' not in _system_update_test_arch_source"
           - "'upgrade: true' in _system_update_test_arch_source"
         fail_msg: "Arch backend must run pacman cache refresh, keyring update, then full system upgrade."
-        success_msg: "Arch backend order is pacman -Sy -> archlinux-keyring -> pacman -Su."
+        success_msg: "Arch backend order is pacman -Sy -> archlinux-keyring -> pacman -Su, with recovery owned by generic flow."
+
+    - name: Assert Arch backend recovery contract
+      ansible.builtin.assert:
+        that:
+          - "'system_update_arch_pacman_lock_file' in _system_update_test_arch_recovery_source"
+          - "'pacman -Dk' in _system_update_test_arch_recovery_source"
+          - "'system_update_arch_pacman_log_file' in _system_update_test_arch_recovery_source"
+          - "'archlinux_pacman_repair_attempt.yml' in _system_update_test_arch_recovery_source"
+          - "'Repeat full system upgrade' in _system_update_test_arch_repair_source"
+          - "'Reinstall packages from interrupted transaction' in _system_update_test_arch_repair_source"
+          - "'pacman -Dk' in _system_update_test_arch_repair_source"
+        fail_msg: "Arch recovery backend must keep pacman-specific recovery in dedicated recovery task files."
+        success_msg: "Arch recovery backend keeps pacman-specific recovery isolated from generic system_update flow."
 
     - name: Assert role stays inside update-only boundary
       ansible.builtin.assert:
@@ -68,6 +126,7 @@
         else 'system_update'
       }}
     _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
+    _system_update_test_arch_pacman_lock_path: /var/lib/pacman/db.lck
   tasks:
     - name: Skip live converge when scenario is contract-only
       ansible.builtin.meta: end_host
@@ -112,6 +171,18 @@
           changed_when: false
           failed_when: _system_update_test_uname_after_update.rc != 0
 
+        - name: Check pacman database lock after system_update
+          ansible.builtin.stat:
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
+          register: _system_update_test_pacman_lock_after_update
+
+        - name: Check pacman database consistency after system_update
+          ansible.builtin.command:
+            cmd: pacman -Dk
+          register: _system_update_test_pacman_database_after_update
+          changed_when: false
+          failed_when: false
+
         - name: Assert system_update did not reboot by itself
           ansible.builtin.assert:
             that:
@@ -133,7 +204,9 @@
                   'boot_id_before': _system_update_test_boot_id_before.stdout | trim,
                   'boot_id_after_update': _system_update_test_boot_id_after_update.stdout | trim,
                   'uname_before': _system_update_test_uname_before.stdout | trim,
-                  'uname_after_update': _system_update_test_uname_after_update.stdout | trim
+                  'uname_after_update': _system_update_test_uname_after_update.stdout | trim,
+                  'pacman_lock_exists_after_update': _system_update_test_pacman_lock_after_update.stat.exists,
+                  'pacman_database_check_rc_after_update': _system_update_test_pacman_database_after_update.rc
                 } | to_nice_json
               }}
 

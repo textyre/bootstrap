@@ -27,18 +27,21 @@
           - "'role: bootloader' in _system_update_test_prepare_source"
           - "'role: system_update' in _system_update_test_prepare_source"
           - "_system_update_test_prepare_source.find('role: bootloader') < _system_update_test_prepare_source.find('role: system_update')"
+          - "'role: reflector' not in _system_update_test_prepare_source"
           - "'ansible.builtin.reboot' not in _system_update_test_prepare_source"
           - "'role: packages' not in _system_update_test_prepare_source"
           - "'role: docker' not in _system_update_test_prepare_source"
           - "'role: vm' not in _system_update_test_prepare_source"
+          - "'role: reflector' in _system_update_test_workstation_source"
           - "'role: system_update' not in _system_update_test_workstation_source"
         fail_msg: >-
           prepare_system.yml must run bootloader before system_update, must not
-          reboot or call downstream workstation roles, and workstation.yml must
-          stay after the system_update boundary.
+          reboot, call reflector, or call downstream workstation roles; workstation.yml
+          must own mirror setup before package work and stay after the system_update
+          boundary.
         success_msg: >-
-          prepare_system.yml order, no-reboot boundary, downstream role
-          separation, and workstation boundary are valid.
+          prepare_system.yml order, no-reboot boundary, mirror ownership,
+          downstream role separation, and workstation boundary are valid.
 
 - name: Verify system_update live backend and reboot boundary
   hosts: all
@@ -46,6 +49,7 @@
   vars:
     _system_update_test_live_enabled: "{{ system_update_test_live | default(false) | bool }}"
     _system_update_test_reboot_enabled: "{{ system_update_test_verify_reboot_boundary | default(false) | bool }}"
+    _system_update_test_arch_pacman_lock_path: /var/lib/pacman/db.lck
   tasks:
     - name: Skip live verify when scenario is contract-only
       ansible.builtin.meta: end_host
@@ -85,6 +89,25 @@
               current={{ _system_update_verify_boot_id_before_reboot.stdout | trim }}
             success_msg: "Pre-reboot facts prove system_update did not reboot internally."
 
+        - name: Check pacman database lock before workflow reboot
+          ansible.builtin.stat:
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
+          register: _system_update_verify_pacman_lock_before_reboot
+
+        - name: Assert system_update left pacman unlocked before workflow reboot
+          ansible.builtin.assert:
+            that:
+              - not _system_update_verify_pre_reboot.pacman_lock_exists_after_update
+              - _system_update_verify_pre_reboot.pacman_database_check_rc_after_update == 0
+              - not _system_update_verify_pacman_lock_before_reboot.stat.exists
+            fail_msg: >-
+              system_update left {{ _system_update_test_arch_pacman_lock_path }} behind
+              or left pacman database inconsistent before the workflow reboot boundary.
+              facts={{ _system_update_verify_pre_reboot }},
+              current={{ _system_update_verify_pacman_lock_before_reboot.stat.exists }}
+            success_msg: >-
+              system_update left pacman unlocked and database-consistent before the workflow reboot boundary.
+
         - name: Reboot Arch host for workflow boundary verification
           ansible.builtin.reboot:
             reboot_timeout: 900
@@ -120,18 +143,26 @@
           register: _system_update_verify_lib_modules
           when: _system_update_test_reboot_enabled
 
+        - name: Check pacman database lock after workflow reboot
+          ansible.builtin.stat:
+            path: "{{ _system_update_test_arch_pacman_lock_path }}"
+          register: _system_update_verify_pacman_lock_after_reboot
+          when: _system_update_test_reboot_enabled
+
         - name: Assert workflow reboot changed boot and restored matching module tree
           ansible.builtin.assert:
             that:
               - _system_update_verify_boot_id_after_reboot.stdout | trim != _system_update_verify_pre_reboot.boot_id_after_update
               - _system_update_verify_usr_modules.stat.exists or _system_update_verify_lib_modules.stat.exists
+              - not _system_update_verify_pacman_lock_after_reboot.stat.exists
             fail_msg: >-
               Reboot boundary did not produce a fresh boot with matching modules.
               before={{ _system_update_verify_pre_reboot }},
               after_boot_id={{ _system_update_verify_boot_id_after_reboot.stdout | trim }},
               uname={{ _system_update_verify_uname_after_reboot.stdout | trim }},
               usr_modules={{ _system_update_verify_usr_modules.stat.exists | default(false) }},
-              lib_modules={{ _system_update_verify_lib_modules.stat.exists | default(false) }}
+              lib_modules={{ _system_update_verify_lib_modules.stat.exists | default(false) }},
+              pacman_lock={{ _system_update_verify_pacman_lock_after_reboot.stat.exists | default(false) }}
             success_msg: >-
               Reboot boundary verified:
               boot_id {{ _system_update_verify_pre_reboot.boot_id_after_update }}

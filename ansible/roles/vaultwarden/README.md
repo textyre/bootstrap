@@ -11,7 +11,7 @@ Self-hosted Bitwarden-compatible password manager deployed via Docker Compose, r
 5. **DNS** — adds `127.0.0.1 <domain>` to `/etc/hosts` via `lineinfile`
 6. **Admin token** — if `vaultwarden_admin_enabled` and `.admin_token` doesn't exist: generates with `openssl rand -base64 48`, writes to `vaultwarden_base_dir/.admin_token` (0600). Reads back and sets `_vaultwarden_admin_token` fact.
 7. **Docker Compose** — deploys `docker-compose.yml` from template. **Triggers handler:** "Restart vaultwarden" if file changes.
-8. **Caddy site config** — deploys `vault.caddy` to `caddy_base_dir/sites/vault.caddy`. **Triggers handler:** "Reload caddy" if file changes.
+8. **Caddy site config** — deploys `vault.caddy` to `caddy_base_dir/sites/vault.caddy`. **Triggers handler:** "Restart caddy" if file changes.
 9. **Start** (`molecule-notest`) — runs `docker compose up` via `community.docker.docker_compose_v2`. Skipped in molecule.
 10. **Backup** (when `vaultwarden_backup_enabled`) — installs backup packages, deploys `backup.sh` (0700), enables cron service (`molecule-notest`), schedules daily cron job.
 11. **Verify** (`tasks/verify.yml`) — checks `/etc/hosts` via lineinfile check_mode, file existence and permissions, admin token length, backup script presence.
@@ -22,7 +22,7 @@ Self-hosted Bitwarden-compatible password manager deployed via Docker Compose, r
 | Handler | Triggered by | What it does |
 |---------|-------------|--------------|
 | `restart vaultwarden` | `docker-compose.yml` change (step 7) | Restarts Vaultwarden containers via `docker_compose_v2` |
-| `reload caddy` | `vault.caddy` change (step 8) | Reloads Caddy configuration |
+| `Restart caddy` | `vault.caddy` change (step 8) | Delegates Caddy restart to the `caddy` role handler |
 
 ## Variables
 

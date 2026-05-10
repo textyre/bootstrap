@@ -4,6 +4,9 @@
     project_src: "{{ caddy_base_dir }}"
     state: restarted
   listen: Restart caddy
+  when:
+    - ansible_facts['virtualization_type'] | default('') != 'docker'
+    - caddy_enabled | default(true) | bool
 
 - name: Update CA trust
   ansible.builtin.command:
