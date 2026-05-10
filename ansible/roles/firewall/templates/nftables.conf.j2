@@ -1,8 +1,13 @@
 #!/usr/sbin/nft -f
 # {{ ansible_managed }}
 # Базовый firewall для рабочей станции
-
-flush ruleset
+#
+# Own only the firewall's inet filter table. Do not flush the whole ruleset:
+# Docker programs separate iptables-nft / nft tables for bridge networking.
+# Create the table if missing, then delete and recreate it atomically so the
+# ruleset stays reloadable on both first apply and later updates.
+table inet filter
+delete table inet filter
 
 table inet filter {
 {% if firewall_allow_ssh and firewall_ssh_rate_limit_enabled %}
@@ -65,9 +70,12 @@ table inet filter {
         ct state established,related accept
 
 {% if firewall_docker_enabled %}
-        # Docker bridge — разрешить новые соединения для опубликованных портов
+        # Docker bridges — разрешить новые соединения для default bridge и
+        # user-defined bridge networks (for example the shared "proxy" network)
         iifname "docker0" ct state new accept
         oifname "docker0" ct state new accept
+        iifname "br-*" ct state new accept
+        oifname "br-*" ct state new accept
 {% endif %}
     }
 

@@ -1,4 +1,44 @@
 ---
+- name: Verify Arch pacman database lock state
+  when: ansible_facts['os_family'] == 'Archlinux'
+  block:
+    - name: Check pacman database lock file
+      ansible.builtin.stat:
+        path: "{{ system_update_arch_pacman_lock_file }}"
+      register: _system_update_verify_arch_lock
+
+    - name: List process names when pacman lock remains
+      ansible.builtin.command:
+        cmd: ps -eo comm=
+      register: _system_update_verify_arch_process_names
+      changed_when: false
+      failed_when: _system_update_verify_arch_process_names.rc != 0
+      when: _system_update_verify_arch_lock.stat.exists
+
+    - name: Derive active pacman lock holders for verify
+      ansible.builtin.set_fact:
+        _system_update_verify_arch_lock_processes: >-
+          {{
+            _system_update_verify_arch_process_names.stdout_lines
+            | default([])
+            | map('trim')
+            | list
+            | intersect(system_update_arch_pacman_lock_process_names)
+            | unique
+          }}
+      when: _system_update_verify_arch_lock.stat.exists
+
+    - name: Assert system_update left pacman ready for the next workflow step
+      ansible.builtin.assert:
+        that:
+          - not _system_update_verify_arch_lock.stat.exists
+        fail_msg: >-
+          system_update left {{ system_update_arch_pacman_lock_file }} behind.
+          Active package-manager processes:
+          {{ _system_update_verify_arch_lock_processes | default([]) | join(', ') | default('none', true) }}.
+        success_msg: >-
+          system_update left pacman unlocked for the next workflow step.
+
 - name: Gather package facts after system update
   ansible.builtin.package_facts:
     manager: auto

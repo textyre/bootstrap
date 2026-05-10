@@ -25,7 +25,8 @@
     that:
       - _reflector_verify_dropin_text is regex('OnCalendar=' ~ reflector_timer_schedule)
       - _reflector_verify_dropin_text is regex('RandomizedDelaySec=' ~ reflector_timer_randomized_delay)
-    fail_msg: "Timer drop-in missing OnCalendar or RandomizedDelaySec"
+      - _reflector_verify_dropin_text is regex('Persistent=' ~ ('true' if reflector_timer_persistent | bool else 'false'))
+    fail_msg: "Timer drop-in missing OnCalendar, RandomizedDelaySec, or Persistent"
 
 - name: Gather reflector.timer systemd state
   ansible.builtin.systemd_service:

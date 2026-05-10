@@ -12,7 +12,7 @@ user_supported_os:
 # --- Primary owner (always one, admin of the machine) ---
 user_owner:
   name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-  shell: /bin/bash
+  shell: "{{ user_shell | default('/bin/bash') }}"
   groups:
     - "{{ user_sudo_group }}"
   password_hash: ""             # Empty = account locked (shadow '!'). To enable: set pre-hashed sha512 via vault.

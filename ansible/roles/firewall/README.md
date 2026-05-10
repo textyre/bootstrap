@@ -33,7 +33,7 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `firewall_ssh_rate_limit_enabled` | `true` | careful | Enable per-source-IP SSH rate limiting for IPv4+IPv6 (CRIT-01). Disabling removes brute-force protection. |
 | `firewall_ssh_rate_limit` | `"4/minute"` | careful | SSH rate limit per source IP. Lower values increase security but may block legitimate rapid reconnects. |
 | `firewall_ssh_rate_limit_burst` | `2` | careful | Burst packets allowed before rate limiting kicks in |
-| `firewall_docker_enabled` | `false` | safe | Add Docker bridge forward rules (`docker0`). Enable if Docker publishes ports via nftables DNAT. |
+| `firewall_docker_enabled` | `false` | safe | Add Docker bridge forward rules for `docker0` and user-defined `br-*` bridges. Enable if Docker publishes ports via iptables/nftables DNAT. |
 | `firewall_allow_tcp_ports` | `[]` | safe | Extra inbound TCP ports to allow |
 | `firewall_allow_udp_ports` | `[]` | safe | Extra inbound UDP ports to allow |
 
@@ -114,7 +114,7 @@ firewall_enabled: false
 | nftables won't start | `journalctl -u nftables -n 50` | Usually config syntax error: run `nft -c -f /etc/nftables.conf` to see the parse error |
 | SSH connections refused | `nft list chain inet filter input` -- check if `tcp dport 22` rule exists | Set `firewall_allow_ssh: true` and re-run the role |
 | SSH rate limiting too aggressive | `journalctl -k --grep='ssh-rate'` -- frequent hits from legitimate IPs | Increase `firewall_ssh_rate_limit` (e.g., `"10/minute"`) or `firewall_ssh_rate_limit_burst` |
-| Docker containers can't reach the network | `nft list chain inet filter forward` -- missing docker0 rules | Set `firewall_docker_enabled: true` and re-run the role |
+| Docker containers can't reach the network | `nft list chain inet filter forward` -- missing Docker bridge rules | Set `firewall_docker_enabled: true` and re-run the role |
 | Custom port not accessible | `nft list chain inet filter input` -- port rule missing | Add port to `firewall_allow_tcp_ports` or `firewall_allow_udp_ports` and re-run |
 | Config deployed but rules not loaded | `nft list tables` returns empty | Restart nftables: `systemctl restart nftables`. If it fails, check syntax first. |
 

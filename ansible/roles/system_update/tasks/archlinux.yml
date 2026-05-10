@@ -26,3 +26,52 @@
   register: _system_update_arch_upgrade
   until: _system_update_arch_upgrade is succeeded
   tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Check pacman database lock after upgrade"
+  ansible.builtin.stat:
+    path: "{{ system_update_arch_pacman_lock_file }}"
+  register: _system_update_arch_lock
+  tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | List process names when pacman lock persists"
+  ansible.builtin.command:
+    cmd: ps -eo comm=
+  register: _system_update_arch_process_names
+  changed_when: false
+  failed_when: _system_update_arch_process_names.rc != 0
+  when: _system_update_arch_lock.stat.exists
+  tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Derive active pacman lock holders"
+  ansible.builtin.set_fact:
+    _system_update_arch_lock_processes: >-
+      {{
+        _system_update_arch_process_names.stdout_lines
+        | default([])
+        | map('trim')
+        | list
+        | intersect(system_update_arch_pacman_lock_process_names)
+        | unique
+      }}
+  when: _system_update_arch_lock.stat.exists
+  tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Assert pacman lock is stale before cleanup"
+  ansible.builtin.assert:
+    that:
+      - (_system_update_arch_lock_processes | default([])) | length == 0
+    fail_msg: >-
+      system_update finished with {{ system_update_arch_pacman_lock_file }},
+      but package-manager processes are still active:
+      {{ _system_update_arch_lock_processes | default([]) | join(', ') }}.
+    success_msg: >-
+      {{ system_update_arch_pacman_lock_file }} is stale and can be removed.
+  when: _system_update_arch_lock.stat.exists
+  tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Remove stale pacman database lock"
+  ansible.builtin.file:
+    path: "{{ system_update_arch_pacman_lock_file }}"
+    state: absent
+  when: _system_update_arch_lock.stat.exists
+  tags: ['system_update', 'upgrade', 'pacman']

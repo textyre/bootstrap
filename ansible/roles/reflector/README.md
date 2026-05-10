@@ -8,7 +8,7 @@ Pacman mirror list optimization via [reflector](https://wiki.archlinux.org/title
 
 - [x] Installs `reflector` via pacman
 - [x] Deploys `/etc/xdg/reflector/reflector.conf` from Jinja2 template (single source of truth for CLI flags)
-- [x] Creates a systemd timer drop-in (`/etc/systemd/system/reflector.timer.d/override.conf`) with configurable schedule and randomized delay
+- [x] Creates a systemd timer drop-in (`/etc/systemd/system/reflector.timer.d/override.conf`) with configurable schedule, randomized delay, and explicit `Persistent` policy
 - [x] Optionally deploys a pacman alpm hook (`/etc/pacman.d/hooks/reflector-mirrorlist.hook`) that re-runs reflector when `pacman-mirrorlist` is upgraded
 - [x] Enables and starts `reflector.timer` (`daemon_reload: true`)
 - [x] Backs up current mirrorlist before update (timestamped, with rotation)
@@ -38,7 +38,17 @@ Pacman mirror list optimization via [reflector](https://wiki.archlinux.org/title
 | `reflector_update_min_interval` | `3600` | Minimum seconds between manual mirrorlist updates |
 | `reflector_backup_keep` | `3` | Max backup files to retain (`0` = unlimited) |
 | `reflector_timer_randomized_delay` | `"1h"` | `RandomizedDelaySec` for timer |
+| `reflector_timer_persistent` | `false` | Whether missed timer events should catch up immediately after boot |
 | `reflector_pacman_hook` | `true` | Deploy pacman hook for auto-update on mirror package upgrade |
+
+## Timer behavior
+
+The role already refreshes `/etc/pacman.d/mirrorlist` during converge. The
+timer is for later background maintenance only.
+
+By default the drop-in sets `Persistent=false` so a missed calendar event does
+not fire immediately after boot and race with later `pacman` work in the same
+`task workstation` run.
 
 ## Supported platforms
 

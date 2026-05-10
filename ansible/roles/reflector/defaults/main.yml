@@ -38,5 +38,10 @@ reflector_backup_keep: 3
 # Timer randomization: prevents thundering-herd on multi-machine deploys
 reflector_timer_randomized_delay: "1h"
 
+# Do not run missed timer events immediately after boot. The role already
+# refreshes mirrorlist during converge; an automatic catch-up run can collide
+# with later pacman work in the same workstation play.
+reflector_timer_persistent: false
+
 # Pacman hook: auto-update mirrorlist when pacman-mirrorlist package is upgraded
 reflector_pacman_hook: true

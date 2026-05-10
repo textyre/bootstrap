@@ -50,7 +50,7 @@ pkgmgr_pacman_cache_root: ""
 # ============================================================
 
 user_name: "{{ target_user }}"
-user_shell: /bin/bash
+user_shell: /usr/bin/zsh
 user_groups:
   - wheel
 user_create_sudo_rule: true
@@ -104,6 +104,7 @@ docker_add_user_to_group: true
 
 firewall_enabled: true
 firewall_allow_ssh: true
+firewall_docker_enabled: true
 firewall_allow_tcp_ports:
   - 80
   - 443

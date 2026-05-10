@@ -112,6 +112,11 @@
           changed_when: false
           failed_when: _system_update_test_uname_after_update.rc != 0
 
+        - name: Check pacman database lock after system_update
+          ansible.builtin.stat:
+            path: "{{ system_update_arch_pacman_lock_file }}"
+          register: _system_update_test_pacman_lock_after_update
+
         - name: Assert system_update did not reboot by itself
           ansible.builtin.assert:
             that:
@@ -133,7 +138,8 @@
                   'boot_id_before': _system_update_test_boot_id_before.stdout | trim,
                   'boot_id_after_update': _system_update_test_boot_id_after_update.stdout | trim,
                   'uname_before': _system_update_test_uname_before.stdout | trim,
-                  'uname_after_update': _system_update_test_uname_after_update.stdout | trim
+                  'uname_after_update': _system_update_test_uname_after_update.stdout | trim,
+                  'pacman_lock_exists_after_update': _system_update_test_pacman_lock_after_update.stat.exists
                 } | to_nice_json
               }}
 

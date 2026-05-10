@@ -88,6 +88,47 @@
   register: chezmoi_wallpapers_dir
   tags: ['chezmoi', 'dotfiles']
 
+- name: Calculate wallpapers source checksum
+  ansible.builtin.shell: >-
+    set -o pipefail &&
+    cd {{ (chezmoi_source_dir ~ '/wallpapers') | quote }} &&
+    find . -type f -print0 | sort -z |
+    xargs -0 sha256sum | sha256sum | awk '{print $1}'
+  args:
+    executable: /bin/bash
+  register: _chezmoi_wallpapers_source_checksum
+  changed_when: false
+  when: chezmoi_wallpapers_dir.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Calculate wallpapers target checksum
+  ansible.builtin.shell: >-
+    set -o pipefail &&
+    if [ -d {{ (chezmoi_user_home ~ '/.local/share/wallpapers') | quote }} ]; then
+      cd {{ (chezmoi_user_home ~ '/.local/share/wallpapers') | quote }} &&
+      find . -type f -print0 | sort -z |
+      xargs -0 sha256sum | sha256sum | awk '{print $1}';
+    else
+      echo absent;
+    fi
+  args:
+    executable: /bin/bash
+  register: _chezmoi_wallpapers_target_checksum
+  changed_when: false
+  failed_when: false
+  when: chezmoi_wallpapers_dir.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Determine whether wallpapers need deploy
+  ansible.builtin.set_fact:
+    _chezmoi_wallpapers_need_copy: >-
+      {{
+        (_chezmoi_wallpapers_source_checksum.stdout | trim)
+        != (_chezmoi_wallpapers_target_checksum.stdout | trim)
+      }}
+  when: chezmoi_wallpapers_dir.stat.exists
+  tags: ['chezmoi', 'dotfiles']
+
 - name: Ensure wallpapers directory exists
   ansible.builtin.file:
     path: "{{ chezmoi_user_home }}/.local/share/wallpapers"
@@ -106,6 +147,18 @@
     group: "{{ chezmoi_user }}"
     mode: '0644'
     remote_src: true
+  when:
+    - chezmoi_wallpapers_dir.stat.exists
+    - _chezmoi_wallpapers_need_copy | default(false) | bool
+  tags: ['chezmoi', 'dotfiles']
+
+- name: Normalize wallpapers directory metadata after deploy
+  ansible.builtin.file:
+    path: "{{ chezmoi_user_home }}/.local/share/wallpapers"
+    state: directory
+    owner: "{{ chezmoi_user }}"
+    group: "{{ chezmoi_user }}"
+    mode: '0755'
   when: chezmoi_wallpapers_dir.stat.exists
   tags: ['chezmoi', 'dotfiles']
 

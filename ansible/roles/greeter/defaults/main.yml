@@ -21,8 +21,8 @@ greeter_secure_mode: true
 greeter_time_language: ""
 greeter_background_images_dir: "/usr/share/backgrounds"
 
-# Путь к обоям пользователя (копируются в /usr/share/backgrounds/)
-greeter_wallpaper_source_dir: "/home/{{ ansible_facts['env']['SUDO_USER'] | default('textyre') }}/.local/share/wallpapers"
+# Путь к repo-managed обоям (копируются в /usr/share/backgrounds/)
+greeter_wallpaper_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}/wallpapers"
 
 # Префикс региона для гритера (код страны, например "KZ")
 # Используется с городом из timezone: "KZ" + "Almaty" → "KZ-ALMATY-1"

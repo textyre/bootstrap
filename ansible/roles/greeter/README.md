@@ -36,7 +36,7 @@ Override these via inventory or play vars. Do not edit `defaults/main.yml` direc
 | `greeter_secure_mode` | `true` | careful | Enables web-greeter secure mode |
 | `greeter_time_language` | `""` | safe | Optional locale override for the greeter clock |
 | `greeter_background_images_dir` | `"/usr/share/backgrounds"` | safe | Directory scanned by web-greeter for available backgrounds |
-| `greeter_wallpaper_source_dir` | `"/home/{{ ansible_facts['env']['SUDO_USER'] \| default('textyre') }}/.local/share/wallpapers"` | careful | Optional source directory copied into `/usr/share/backgrounds/`; skipped if absent |
+| `greeter_wallpaper_source_dir` | `{{ dotfiles_base_dir \| default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}/wallpapers` | careful | Optional repo-managed wallpaper source copied into `/usr/share/backgrounds/`; skipped if absent |
 | `greeter_region_prefix` | `""` | safe | Optional region prefix rendered into `system-info.json` |
 
 ### Internal files

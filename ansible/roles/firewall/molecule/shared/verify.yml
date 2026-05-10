@@ -187,14 +187,22 @@
 
     - name: Assert Docker forward rules present when docker enabled
       ansible.builtin.assert:
-        that: "'iifname \"docker0\"' in _firewall_verify_conf_text"
-        fail_msg: "Docker forward rule missing but firewall_docker_enabled is true"
+        that:
+          - "'iifname \"docker0\"' in _firewall_verify_conf_text"
+          - "'oifname \"docker0\"' in _firewall_verify_conf_text"
+          - "'iifname \"br-*\"' in _firewall_verify_conf_text"
+          - "'oifname \"br-*\"' in _firewall_verify_conf_text"
+        fail_msg: "Docker bridge forward rules missing but firewall_docker_enabled is true"
       when: firewall_docker_enabled | default(false)
 
     - name: Assert Docker forward rules NOT present when docker disabled
       ansible.builtin.assert:
-        that: "'iifname \"docker0\"' not in _firewall_verify_conf_text"
-        fail_msg: "Docker forward rule found but firewall_docker_enabled is false"
+        that:
+          - "'iifname \"docker0\"' not in _firewall_verify_conf_text"
+          - "'oifname \"docker0\"' not in _firewall_verify_conf_text"
+          - "'iifname \"br-*\"' not in _firewall_verify_conf_text"
+          - "'oifname \"br-*\"' not in _firewall_verify_conf_text"
+        fail_msg: "Docker bridge forward rules found but firewall_docker_enabled is false"
       when: not (firewall_docker_enabled | default(false))
 
     # ---- Output chain ----

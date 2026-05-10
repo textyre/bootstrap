@@ -25,6 +25,7 @@
       [Timer]
       OnCalendar={{ reflector_timer_schedule }}
       RandomizedDelaySec={{ reflector_timer_randomized_delay }}
+      Persistent={{ 'true' if reflector_timer_persistent | bool else 'false' }}
     owner: root
     group: root
     mode: '0644'

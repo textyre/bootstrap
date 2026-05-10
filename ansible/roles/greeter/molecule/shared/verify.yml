@@ -280,6 +280,33 @@
           - "'primary_html' in (_greeter_verify_index_raw.content | b64decode)"
         fail_msg: "index.yml missing primary_html directive"
 
+    # ---- wallpapers ----
+
+    - name: Stat deployed greeter wallpaper directory
+      ansible.builtin.stat:
+        path: /usr/share/backgrounds
+      register: _greeter_verify_backgrounds_dir
+
+    - name: Assert deployed greeter wallpaper directory exists
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_backgrounds_dir.stat.exists
+          - _greeter_verify_backgrounds_dir.stat.isdir
+        fail_msg: "/usr/share/backgrounds directory does not exist"
+
+    - name: Stat deployed greeter wallpaper fixture
+      ansible.builtin.stat:
+        path: /usr/share/backgrounds/molecule-wallpaper.txt
+      register: _greeter_verify_wallpaper_fixture
+
+    - name: Assert deployed greeter wallpaper fixture exists
+      ansible.builtin.assert:
+        that:
+          - _greeter_verify_wallpaper_fixture.stat.exists
+          - _greeter_verify_wallpaper_fixture.stat.isreg
+          - _greeter_verify_wallpaper_fixture.stat.mode == '0644'
+        fail_msg: "Greeter wallpaper fixture missing from /usr/share/backgrounds"
+
     # ---- /etc/lightdm directory ----
 
     - name: Stat /etc/lightdm directory
