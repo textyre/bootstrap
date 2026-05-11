@@ -453,10 +453,9 @@ tasks:
   _ensure-venv:
     internal: true
     status:
-      - test -d {{.VENV}}
+      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh --check'
     cmds:
-      - echo "Run 'task bootstrap' first"
-      - exit 1
+      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh'
 
   _ensure-vault-pass:
     internal: true

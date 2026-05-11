@@ -10,15 +10,49 @@ source "${SCRIPT_DIR}/bootstrap-env.sh"
 REPO_ROOT="${BOOTSTRAP_REPO_ROOT}"
 ANSIBLE_DIR="${REPO_ROOT}/ansible"
 VENV_DIR="${ANSIBLE_DIR}/.venv"
+REQUIREMENTS_FILE="${ANSIBLE_DIR}/requirements.txt"
+REQUIREMENTS_MARKER="${VENV_DIR}/.requirements.sha256"
 
-if [[ -x "${VENV_DIR}/bin/python" ]] && "${VENV_DIR}/bin/python" -c "import ansible" 2>/dev/null; then
+requirements_hash() {
+    sha256sum "${REQUIREMENTS_FILE}" | awk '{print $1}'
+}
+
+venv_is_healthy() {
+    local current_hash
+    local recorded_hash
+
+    [[ -x "${VENV_DIR}/bin/python" ]] || return 1
+    [[ -f "${REQUIREMENTS_MARKER}" ]] || return 1
+
+    current_hash="$(requirements_hash)"
+    recorded_hash="$(cat "${REQUIREMENTS_MARKER}")"
+    [[ "${current_hash}" == "${recorded_hash}" ]] || return 1
+
+    "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1
+import ansible
+import ara.setup
+PY
+}
+
+if [[ "${1:-}" == "--check" ]]; then
+    venv_is_healthy
+    exit $?
+fi
+
+if [[ "${1:-}" != "" ]]; then
+    echo "ERROR: Unsupported argument: $1" >&2
+    echo "Usage: scripts/setup-venv.sh [--check]" >&2
+    exit 2
+fi
+
+if venv_is_healthy; then
     echo "==> Python venv already exists and working"
     exit 0
 fi
 
-# Remove broken/incompatible venv
+# Remove broken, stale, or incompatible venv.
 if [[ -d "${VENV_DIR}" ]]; then
-    echo "==> Removing broken venv..."
+    echo "==> Removing broken or stale venv..."
     rm -rf "${VENV_DIR}"
 fi
 
@@ -71,6 +105,11 @@ export UV_INDEX_URL="${PYPI_MIRROR}"
 # with 5x safety margin. Does NOT slow happy path — only ceiling.
 export UV_HTTP_TIMEOUT=300
 uv venv "${VENV_DIR}"
-uv pip install --python "${VENV_DIR}/bin/python" -r "${ANSIBLE_DIR}/requirements.txt"
+uv pip install --python "${VENV_DIR}/bin/python" -r "${REQUIREMENTS_FILE}"
+requirements_hash > "${REQUIREMENTS_MARKER}"
+if ! venv_is_healthy; then
+    echo "ERROR: Python venv was created but failed health check" >&2
+    exit 1
+fi
 echo "==> Python venv ready"
 exit 0

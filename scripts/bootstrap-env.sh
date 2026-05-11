@@ -10,7 +10,23 @@ fi
 BOOTSTRAP_HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOTSTRAP_REPO_ROOT="$(dirname "${BOOTSTRAP_HELPER_DIR}")"
 
-: "${BOOTSTRAP_SECURE_DIR:=${BOOTSTRAP_REPO_ROOT}/.local/bootstrap}"
+if [[ -z "${BOOTSTRAP_SECURE_DIR:-}" ]]; then
+    BOOTSTRAP_SECURE_DIR="${BOOTSTRAP_REPO_ROOT}/.local/bootstrap"
+
+    if [[ ! -d "${BOOTSTRAP_SECURE_DIR}" ]] && command -v git >/dev/null 2>&1; then
+        BOOTSTRAP_GIT_COMMON_DIR="$(
+            git -C "${BOOTSTRAP_REPO_ROOT}" \
+                rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true
+        )"
+        if [[ -n "${BOOTSTRAP_GIT_COMMON_DIR}" ]]; then
+            BOOTSTRAP_GIT_COMMON_ROOT="$(dirname "${BOOTSTRAP_GIT_COMMON_DIR}")"
+            if [[ -d "${BOOTSTRAP_GIT_COMMON_ROOT}/.local/bootstrap" ]]; then
+                BOOTSTRAP_SECURE_DIR="${BOOTSTRAP_GIT_COMMON_ROOT}/.local/bootstrap"
+            fi
+        fi
+    fi
+fi
+
 : "${BOOTSTRAP_ENV_FILE:=${BOOTSTRAP_SECURE_DIR}/bootstrap.env}"
 
 if [[ -f "${BOOTSTRAP_ENV_FILE}" ]]; then
