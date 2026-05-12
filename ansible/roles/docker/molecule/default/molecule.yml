@@ -24,6 +24,7 @@ provisioner:
       localhost:
         ansible_connection: local
         ansible_become_password: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_SUDO_PASSWORD') }}"
+        docker_test_runtime_smoke_enabled: true
   playbooks:
     converge: converge.yml
     verify: verify.yml
