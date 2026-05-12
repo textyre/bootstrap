@@ -26,15 +26,8 @@ provisioner:
         caddy_enabled: false
         # Handlers skip: containers not started (molecule-notest).
         vaultwarden_compose_manage: false
-        # CI-safe docker overrides: journald log-driver with max-size/
-        # max-file log-opts is invalid (those opts are json-file only).
-        # CIS defaults (userns-remap, icc, no-new-privileges) also need
-        # user namespaces which are not available in Vagrant CI VMs.
+        # CI-safe docker override: use json-file in Vagrant fixtures.
         docker_log_driver: "json-file"
-        docker_userns_remap: ""
-        docker_icc: true
-        docker_live_restore: false
-        docker_no_new_privileges: false
     host_vars:
       arch-vm:
         docker_storage_driver: "btrfs"

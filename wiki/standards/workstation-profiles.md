@@ -94,7 +94,7 @@ In Jinja2 expressions this translates to a cascade of `if` checks, evaluated fro
 | Kernel      | `ptrace_scope: 1`                                              | Allows `gdb ./app`, `strace -p`, debugger attach to child processes |
 | Kernel      | `perf_event_paranoid: 1`                                       | Enables `perf record`, `perf stat` without root  |
 | Docker      | `icc: true`                                                    | Container-to-container communication for microservice development on docker0 bridge |
-| Docker      | `userns-remap: ""`                                             | Avoids volume permission issues during active development; named volumes recommended in production |
+| Docker      | `userns-remap: default`                                        | Keep container root remapped away from host root; prefer named volumes or read-only host mounts |
 | SSH         | `MaxStartups: 10:30:60`                                        | VS Code Remote SSH + multiple terminal sessions  |
 | Network     | No additional firewall changes                                 | Outbound is already unrestricted                 |
 | Shell       | Dev-oriented prompt, git integration, language version managers | Enhanced developer ergonomics                    |
@@ -112,7 +112,7 @@ In Jinja2 expressions this translates to a cascade of `if` checks, evaluated fro
 | CPU         | `performance` governor                                         | Maximum clock speed; no frequency scaling latency |
 | GPU         | Power saving disabled                                          | Prevents GPU downclocking mid-frame              |
 | Docker      | `no-new-privileges: false`                                     | Some game servers and Wine prefixes require setuid helpers |
-| Docker      | `userns-remap: ""`                                             | Compatibility with game server containers that bind-mount host directories |
+| Docker      | `userns-remap: default`                                        | Keep container root remapped away from host root; override only for a proven bind-mount requirement |
 | Audio       | Low-latency PipeWire configuration                             | Reduces audio crackle during high CPU load       |
 | Network     | Standard rate limiting preserved                               | Gaming traffic is outbound; inbound SSH protection still applies |
 
@@ -260,7 +260,7 @@ Concrete values for each setting per active profile. When multiple profiles are 
 | Parameter            | base      | developer | gaming | media   | security  |
 |----------------------|-----------|-----------|--------|---------|-----------|
 | `icc`                | `false`   | `true`    | `false`| `false` | `false`   |
-| `userns-remap`       | `default` | `""`      | `""`   | `default` | `default` |
+| `userns-remap`       | `default` | `default` | `default` | `default` | `default` |
 | `no-new-privileges`  | `true`    | `true`    | `false`| `true`  | `true`    |
 | `live-restore`       | `true`    | `true`    | `true` | `true`  | `true`    |
 | `log-driver`         | `journald`| `journald`| `journald` | `journald` | `journald` |

@@ -34,6 +34,82 @@
       {{ _docker_runtime_process_smoke.stderr | default('') }}
     success_msg: "Docker process smoke passed"
 
+- name: Verify Docker user namespace remap behavior
+  when: docker_userns_remap | string | trim | length > 0
+  block:
+    - name: Remove stale Docker userns smoke container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - rm
+          - -f
+          - bootstrap-docker-userns-smoke
+      changed_when: false
+      failed_when: false
+
+    - name: Start Docker userns smoke container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --name
+          - bootstrap-docker-userns-smoke
+          - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
+          - sleep
+          - "60"
+      register: _docker_userns_smoke_container
+      changed_when: false
+      failed_when: _docker_userns_smoke_container.rc != 0
+
+    - name: Inspect Docker userns smoke container PID
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - --format
+          - "{{ '{{' }}.State.Pid{{ '}}' }}"
+          - bootstrap-docker-userns-smoke
+      register: _docker_userns_smoke_pid
+      changed_when: false
+      failed_when:
+        - _docker_userns_smoke_pid.rc != 0
+          or (_docker_userns_smoke_pid.stdout | trim | int) <= 0
+
+    - name: Read host UID for Docker userns smoke process
+      ansible.builtin.command:
+        argv:
+          - ps
+          - -o
+          - uid=
+          - -p
+          - "{{ _docker_userns_smoke_pid.stdout | trim }}"
+      register: _docker_userns_smoke_host_uid
+      changed_when: false
+      failed_when: _docker_userns_smoke_host_uid.rc != 0
+
+    - name: Assert Docker userns remaps container root away from host root
+      ansible.builtin.assert:
+        that:
+          - (_docker_userns_smoke_host_uid.stdout | trim) != '0'
+        fail_msg: >-
+          Docker userns-remap is configured but the container process is still
+          running as host UID 0. Host UID:
+          {{ _docker_userns_smoke_host_uid.stdout | default('UNKNOWN') }}.
+        success_msg: >-
+          Docker userns-remap is active: container root process maps to host
+          UID {{ _docker_userns_smoke_host_uid.stdout | trim }}.
+  always:
+    - name: Clean Docker userns smoke container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - rm
+          - -f
+          - bootstrap-docker-userns-smoke
+      changed_when: false
+      failed_when: false
+
 - name: Create Docker storage smoke volume
   ansible.builtin.command:
     argv:
@@ -85,47 +161,6 @@
       {{ _docker_runtime_volume_read.stderr | default('') }}
     success_msg: "Docker named volume smoke passed"
 
-- name: Ensure Docker bind smoke directory exists
-  ansible.builtin.file:
-    path: /tmp/bootstrap-docker-bind-smoke
-    state: directory
-    mode: '0755'
-
-- name: Write through Docker bind mount
-  ansible.builtin.command:
-    argv:
-      - docker
-      - run
-      - --rm
-      - -v
-      - /tmp/bootstrap-docker-bind-smoke:/data
-      - "{{ docker_test_runtime_smoke_image | default('busybox:latest') }}"
-      - sh
-      - -c
-      - "printf bind-ok > /data/probe"
-  register: _docker_runtime_bind_write
-  changed_when: false
-  failed_when: _docker_runtime_bind_write.rc != 0
-
-- name: Read Docker bind mount result
-  ansible.builtin.command:
-    argv:
-      - cat
-      - /tmp/bootstrap-docker-bind-smoke/probe
-  register: _docker_runtime_bind_read
-  changed_when: false
-  failed_when: _docker_runtime_bind_read.rc != 0
-
-- name: Assert Docker bind mount smoke worked
-  ansible.builtin.assert:
-    that:
-      - _docker_runtime_bind_read.stdout | trim == 'bind-ok'
-    fail_msg: >-
-      Docker bind mount smoke failed:
-      {{ _docker_runtime_bind_read.stdout | default('') }}
-      {{ _docker_runtime_bind_read.stderr | default('') }}
-    success_msg: "Docker bind mount smoke passed"
-
 - name: Clean Docker storage smoke volume
   ansible.builtin.command:
     argv:
@@ -136,8 +171,3 @@
       - bootstrap-docker-storage-smoke
   changed_when: false
   failed_when: false
-
-- name: Clean Docker bind smoke directory
-  ansible.builtin.file:
-    path: /tmp/bootstrap-docker-bind-smoke
-    state: absent

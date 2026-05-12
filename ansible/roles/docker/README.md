@@ -87,14 +87,18 @@ docker_log_max_file: "5"
 - `journald` (default) -- logs go to systemd journal, searchable via `journalctl CONTAINER_NAME=...`
 - `json-file` -- logs stored as JSON files in `/var/lib/docker/containers/<id>/`, rotated by `max-size`/`max-file`
 
-### Disabling security hardening for development
+### Disabling security hardening for an explicit exception
 
 ```yaml
-# In host_vars/<dev-workstation>/docker.yml:
+# In host_vars/<workstation>/docker.yml, only after accepting the trade-off:
 docker_userns_remap: ""          # disable user namespace remapping
 docker_icc: true                 # allow inter-container communication
 docker_no_new_privileges: false  # allow setuid in containers
 ```
+
+The default remains `docker_userns_remap: "default"` for all workstation
+profiles. Writable bind mounts are the usual reason to disable it; prefer
+named volumes or read-only host mounts instead.
 
 ### Adding custom daemon.json settings
 
