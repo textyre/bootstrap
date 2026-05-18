@@ -9,14 +9,9 @@
 
     # ---- Валидация ----
 
-    - name: Assert OS is supported by package_manager role
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] in _package_manager_supported_os
-        fail_msg: >-
-          package_manager role is not supported on {{ ansible_facts['os_family'] }}.
-          Supported: {{ _package_manager_supported_os | join(', ') }}.
-      tags: ['packages']
+    - name: Validate package_manager inputs
+      ansible.builtin.include_tasks: validate.yml
+      tags: ['always', 'packages', 'package-manager', 'package_manager']
 
     # ---- Конфигурация ----
 
