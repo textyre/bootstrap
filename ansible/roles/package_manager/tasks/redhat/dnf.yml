@@ -1,9 +1,9 @@
 ---
-# === Fedora: dnf configuration ===
+# === RedHat (Fedora): dnf configuration ===
 
 - name: Deploy dnf.conf from template
   ansible.builtin.template:
-    src: fedora/dnf.conf.j2
+    src: redhat/dnf.conf.j2
     dest: /etc/dnf/dnf.conf
     owner: root
     group: root
