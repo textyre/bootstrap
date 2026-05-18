@@ -1,0 +1,16 @@
+---
+# === Void Linux: package_manager verification ===
+
+- name: Stat /etc/xbps.d/ansible.conf
+  ansible.builtin.stat:
+    path: /etc/xbps.d/ansible.conf
+  register: _package_manager_verify_xbps_stat
+  tags: ['packages', 'xbps']
+
+- name: Assert xbps config exists
+  ansible.builtin.assert:
+    that:
+      - _package_manager_verify_xbps_stat.stat.exists
+    fail_msg: "/etc/xbps.d/ansible.conf does not exist"
+    success_msg: "/etc/xbps.d/ansible.conf deployed"
+  tags: ['packages', 'xbps']

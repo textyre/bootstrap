@@ -1,0 +1,7 @@
+---
+# === Gentoo: package_manager verification stub ===
+
+- name: Gentoo package manager verification stub
+  ansible.builtin.debug:
+    msg: "Gentoo package_manager verification is a stub — no configuration is asserted"
+  tags: ['packages', 'portage']
