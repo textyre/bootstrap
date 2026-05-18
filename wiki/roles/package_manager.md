@@ -22,9 +22,25 @@ See `ansible/roles/package_manager/defaults/main.yml` for the full list with def
 
 ## Dependencies
 
-- `reflector` — Arch mirror configuration
-- `yay` — AUR helper
+- `yay` — AUR helper; part of the Arch package manager contract alongside pacman
 - `common` — Structured logging
+
+These are local bootstrap roles resolved through `ANSIBLE_ROLES_PATH`, not
+Galaxy roles resolved through a role-local `requirements.yml`.
+
+## Ownership contract
+
+The role owns the full Arch `/etc/pacman.conf` and Fedora `/etc/dnf/dnf.conf`
+files. Manual edits to those files are expected to be overwritten. Debian/Ubuntu
+and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`.
+
+## Architecture
+
+- `tasks/main.yml` is only the role flow: validate, OS dispatch, verify, report.
+- `tasks/validate.yml` owns preflight checks for supported OS families and input ranges.
+- OS-specific task directories match `ansible_facts['os_family']`: `archlinux/`, `debian/`, `redhat/`, `void/`, `gentoo/`.
+- `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/paccache_systemd.yml`.
+- `tasks/verify.yml` dispatches to OS-specific verify files. Verification checks ownership markers and read-only package-manager parser probes.
 
 ## Tags
 
@@ -48,4 +64,6 @@ See `ansible/roles/package_manager/defaults/main.yml` for the full list with def
 
 ## Drift detection
 
-The in-role `verify.yml` checks deployed configs match expected values on every run. If configs are manually edited, the role will detect the drift and re-deploy the template.
+The in-role verify dispatcher checks deployed configs match expected values on
+every run and confirms package managers can parse/read their configuration. If
+configs are manually edited, the role will re-deploy managed templates.

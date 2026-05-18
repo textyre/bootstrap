@@ -15,14 +15,25 @@
   ansible.builtin.set_fact:
     _reflector_skip: >-
       {{
-        reflector_stat.stat.exists
-        and (
-          (ansible_facts['date_time']['epoch'] | int)
-          - (reflector_stat.stat.mtime | int)
-        ) < (reflector_update_min_interval | int)
-        and (
-          not reflector_config_stat.stat.exists
-          or (reflector_stat.stat.mtime | int) >= (reflector_config_stat.stat.mtime | int)
-        )
+        (_reflector_mirrorlist_exists | bool)
+        and (_reflector_mirrorlist_is_recent | bool)
+        and (_reflector_config_is_not_newer | bool)
+      }}
+  vars:
+    _reflector_mirrorlist_exists: "{{ reflector_stat.stat.exists | bool }}"
+    _reflector_mirrorlist_age_seconds: >-
+      {{
+        (ansible_facts['date_time']['epoch'] | int)
+        - (reflector_stat.stat.mtime | default(0) | int)
+      }}
+    _reflector_mirrorlist_is_recent: >-
+      {{
+        (_reflector_mirrorlist_exists | bool)
+        and (_reflector_mirrorlist_age_seconds | int) < (reflector_update_min_interval | int)
+      }}
+    _reflector_config_is_not_newer: >-
+      {{
+        not reflector_config_stat.stat.exists
+        or (reflector_stat.stat.mtime | default(0) | int) >= (reflector_config_stat.stat.mtime | default(0) | int)
       }}
   tags: ['update']

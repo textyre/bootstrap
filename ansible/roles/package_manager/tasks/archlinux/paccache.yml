@@ -1,45 +1,20 @@
 ---
 # === Arch Linux: paccache timer ===
 
-- name: Install pacman-contrib (provides paccache)
-  community.general.pacman:
-    name: pacman-contrib
-    state: present
-    update_cache: "{{ package_manager_pacman_cache_refresh_required | bool }}"
-  when: package_manager_paccache_enabled
+- name: Assert paccache timer is supported only on systemd
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      package_manager_paccache_enabled is true, but paccache.timer is a systemd
+      timer and this host uses '{{ ansible_facts['service_mgr'] }}'. Disable
+      package_manager_paccache_enabled or add an init-specific cache cleanup
+      implementation for this init system.
+    success_msg: "paccache.timer is supported on systemd"
+  when: package_manager_paccache_enabled | bool
   tags: ['packages', 'paccache']
 
-- name: Create paccache drop-in directory
-  ansible.builtin.file:
-    path: /etc/systemd/system/paccache.service.d
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  when: package_manager_paccache_enabled
-  tags: ['packages', 'paccache']
-
-- name: Configure paccache keep count via systemd drop-in
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/paccache.service.d/keep.conf
-    owner: root
-    group: root
-    mode: '0644'
-    content: |
-      [Service]
-      ExecStart=
-      ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
-  when: package_manager_paccache_enabled
-  notify: Reload systemd daemon
-  tags: ['packages', 'paccache']
-
-- name: Enable and start paccache.timer
-  ansible.builtin.systemd:
-    name: paccache.timer
-    enabled: true
-    state: started
-    daemon_reload: false
-  when:
-    - package_manager_paccache_enabled
-    - ansible_facts['service_mgr'] == 'systemd'
+- name: Configure paccache timer for systemd
+  ansible.builtin.include_tasks: archlinux/paccache_systemd.yml
+  when: package_manager_paccache_enabled | bool
   tags: ['packages', 'paccache']

@@ -3,7 +3,7 @@
 
 - name: Deploy apt dpkg options config
   ansible.builtin.template:
-    src: apt/20-dpkg.conf.j2
+    src: debian/20-dpkg.conf.j2
     dest: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
     owner: root
     group: root
