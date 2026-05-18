@@ -14,7 +14,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 - [x] Configures apt parallel downloads and dpkg conflict-resolution options (Debian/Ubuntu)
 - [x] Deploys dnf.conf with parallel downloads, fastestmirror, keepcache settings (Fedora)
 - [x] Deploys xbps config and schedules weekly cache cleanup via cron (Void)
-- [x] Runs yay setup-only on Arch (tagged `molecule-notest`)
+- [x] Runs yay setup-only on Arch as part of the Arch package manager contract (tagged `molecule-notest`)
 - [x] Validates OS is in supported list before any configuration
 - [x] Runs in-role verification after deployment (verify.yml)
 - [x] Supports external pacman cache on shared storage
@@ -22,6 +22,18 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 ## What this role does not do
 
 - It does not perform full OS upgrades or force `archlinux-keyring` to `latest`; that belongs to the pre-workstation `system_update` lifecycle.
+
+## Ownership contract
+
+This role owns the package manager configuration files it templates:
+
+- Arch Linux: `/etc/pacman.conf`
+- Fedora / RedHat family: `/etc/dnf/dnf.conf`
+- Debian / Ubuntu: role-owned drop-ins under `/etc/apt/apt.conf.d/`
+- Void Linux: role-owned drop-in `/etc/xbps.d/ansible.conf`
+
+Manual changes to the fully owned files are expected to be overwritten on the
+next role run. Use inventory variables instead of editing managed files directly.
 
 ## Execution flow
 
@@ -31,7 +43,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
    1. Configure pacman → `tasks/archlinux/pacman.yml` (template `/etc/pacman.conf`, optional external cache)
    2. Configure paccache → `tasks/archlinux/paccache.yml` (install `pacman-contrib`, systemd timer drop-in)
    3. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
-   4. Import yay role in setup-only mode (builder user + binary, tagged `molecule-notest`)
+   4. Import yay role in setup-only mode (builder user + binary, tagged `molecule-notest`). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
 4. **Debian path** (`tasks/debian.yml`):
    1. Configure apt → `tasks/apt/apt.yml` (template to `/etc/apt/apt.conf.d/10-ansible-parallel.conf`)
    2. Configure dpkg → `tasks/apt/dpkg.yml` (template to `/etc/apt/apt.conf.d/20-ansible-dpkg.conf`)
@@ -281,6 +293,10 @@ task workstation -- --tags pacman
 
 - `yay` — AUR helper setup (builder user + binary, imported with `molecule-notest` tag)
 - `common` — Structured logging (`report_phase.yml`, `report_render.yml`)
+
+These are local project roles, not Galaxy dependencies. The role intentionally
+does not declare `requirements.yml`; execution must provide the bootstrap roles
+tree through `ANSIBLE_ROLES_PATH`, as the project Molecule and Taskfile paths do.
 
 ## License
 

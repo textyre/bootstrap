@@ -22,9 +22,17 @@ See `ansible/roles/package_manager/defaults/main.yml` for the full list with def
 
 ## Dependencies
 
-- `reflector` — Arch mirror configuration
-- `yay` — AUR helper
+- `yay` — AUR helper; part of the Arch package manager contract alongside pacman
 - `common` — Structured logging
+
+These are local bootstrap roles resolved through `ANSIBLE_ROLES_PATH`, not
+Galaxy roles resolved through a role-local `requirements.yml`.
+
+## Ownership contract
+
+The role owns the full Arch `/etc/pacman.conf` and Fedora `/etc/dnf/dnf.conf`
+files. Manual edits to those files are expected to be overwritten. Debian/Ubuntu
+and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`.
 
 ## Tags
 
