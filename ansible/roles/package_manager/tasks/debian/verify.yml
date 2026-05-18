@@ -28,3 +28,11 @@
     fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf does not exist"
     success_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf deployed"
   tags: ['packages', 'apt']
+
+- name: Verify apt can parse configuration  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: apt-config dump
+  register: _package_manager_verify_apt_parse
+  changed_when: false
+  failed_when: _package_manager_verify_apt_parse.rc != 0
+  tags: ['packages', 'apt']

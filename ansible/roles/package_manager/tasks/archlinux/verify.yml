@@ -22,6 +22,14 @@
     success_msg: "pacman.conf verified: managed by Ansible, ParallelDownloads={{ package_manager_pacman_parallel_downloads }}"
   tags: ['packages', 'pacman']
 
+- name: Verify pacman can parse pacman.conf  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: pacman-conf --config /etc/pacman.conf
+  register: _package_manager_verify_pacman_parse
+  changed_when: false
+  failed_when: _package_manager_verify_pacman_parse.rc != 0
+  tags: ['packages', 'pacman']
+
 - name: Verify makepkg drop-in deployed correctly
   when: package_manager_makepkg_enabled | bool
   tags: ['packages', 'makepkg']
@@ -49,6 +57,7 @@
         cmd: systemctl is-enabled paccache.timer
       register: _package_manager_verify_paccache_timer
       changed_when: false
+      failed_when: _package_manager_verify_paccache_timer.rc != 0
 
     - name: Assert paccache.timer is enabled
       ansible.builtin.assert:
