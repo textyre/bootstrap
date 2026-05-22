@@ -1,6 +1,8 @@
 ---
 # === RedHat (Fedora): dnf configuration ===
 
+# Полностью управляем dnf.conf из шаблона роли.
+# Это фиксирует download/cache/security-настройки dnf в воспроизводимом виде.
 - name: Deploy dnf.conf from template
   ansible.builtin.template:
     src: redhat/dnf.conf.j2

@@ -1,6 +1,8 @@
 ---
 # === Debian/Ubuntu: package_manager validation ===
 
+# Проверяем apt-настройки до записи файлов.
+# Неверный queue mode или отрицательный retry count сделали бы apt-конфиг некорректным.
 - name: Assert apt settings are valid
   ansible.builtin.assert:
     that:

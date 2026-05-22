@@ -2,6 +2,8 @@
 # === Void Linux: cache cleanup via cron ===
 # Void Linux uses runit, not systemd — cache cleanup via cron
 
+# Создаем или удаляем cron-задачу очистки кэша xbps по настройкам роли.
+# Это держит кэш пакетов под контролем без зависимости от systemd.
 - name: Schedule xbps cache cleanup via cron
   ansible.builtin.cron:
     name: "xbps cache cleanup"

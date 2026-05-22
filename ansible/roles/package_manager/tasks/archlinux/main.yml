@@ -1,12 +1,18 @@
 ---
 # === Arch Linux: dispatcher ===
 
+# Начинаем Arch-настройку с pacman, потому что это главный системный пакетный менеджер.
+# Остальные Arch-задачи должны работать уже с понятной и проверенной pacman-конфигурацией.
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
 
+# Применяем отложенные действия после изменения pacman.conf прямо сейчас.
+# Это важно, чтобы дальнейшие установки пакетов использовали уже обновленные базы pacman.
 - name: Apply pacman configuration handlers before package installs
   ansible.builtin.meta: flush_handlers
 
+# Смотрим, есть ли на хосте локальные базы пакетов pacman.
+# Если их нет, pacman не сможет нормально искать и устанавливать пакеты.
 - name: Find pacman sync databases
   ansible.builtin.find:
     paths: /var/lib/pacman/sync
@@ -14,11 +20,15 @@
     file_type: file
   register: _package_manager_pacman_sync_databases
 
+# Обновляем базы pacman, если они вообще отсутствуют.
+# Это первый запуск или очищенная система, где без refresh пакетный менеджер фактически не готов.
 - name: Refresh pacman sync databases when none exist
   community.general.pacman:
     update_cache: true
   when: _package_manager_pacman_sync_databases.matched | int == 0
 
+# Проверяем, есть ли среди баз pacman достаточно свежие файлы.
+# Так роль не дергает обновление кэша каждый раз, если данные еще актуальны.
 - name: Find fresh pacman sync databases
   ansible.builtin.find:
     paths: /var/lib/pacman/sync
@@ -28,6 +38,8 @@
   register: _package_manager_pacman_fresh_sync_databases
   when: _package_manager_pacman_sync_databases.matched | int > 0
 
+# Обновляем базы pacman только если существующий кэш устарел.
+# Это сохраняет idempotency: повторный запуск не делает лишнюю сетевую работу без причины.
 - name: Refresh pacman sync databases when cache is stale
   community.general.pacman:
     update_cache: true
@@ -35,11 +47,17 @@
     - _package_manager_pacman_sync_databases.matched | int > 0
     - _package_manager_pacman_fresh_sync_databases.matched | int == 0
 
+# Настраиваем автоматическую очистку старых пакетов из pacman cache.
+# Это не дает кэшу бесконечно расти и занимать диск.
 - name: Configure paccache
   ansible.builtin.include_tasks: archlinux/paccache.yml
 
+# Настраиваем параметры сборки Arch-пакетов из исходников.
+# Эти настройки нужны для AUR-сборок и делают результат предсказуемым.
 - name: Configure makepkg
   ansible.builtin.include_tasks: archlinux/makepkg.yml
 
+# Готовим yay как AUR helper, потому что для Arch в проекте package manager = pacman + yay.
+# Здесь включается только setup helper, а выбор AUR-пакетов остается за ролью packages.
 - name: Set up yay AUR helper
   ansible.builtin.include_tasks: archlinux/yay.yml

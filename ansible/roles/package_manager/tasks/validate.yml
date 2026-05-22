@@ -1,6 +1,8 @@
 ---
 # === Package Manager: preflight validation dispatcher ===
 
+# Проверяем, что роль запущена только на одной из поддерживаемых ОС проекта.
+# Это защищает от тихого применения неподходящих задач на неизвестной системе.
 - name: Assert OS is supported by package_manager role
   ansible.builtin.assert:
     that:
@@ -11,6 +13,8 @@
     success_msg: "package_manager supports {{ ansible_facts['os_family'] }}"
   tags: ['package_manager']
 
+# После общей проверки ОС подключаем дополнительные проверки именно для этой ОС.
+# Например, Arch и Debian имеют разные настройки и разные возможные ошибки.
 - name: Include OS-family-specific package_manager validation
   ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/validate.yml"
   tags: ['package_manager']

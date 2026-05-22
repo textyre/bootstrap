@@ -1,12 +1,16 @@
 ---
 # === RedHat/Fedora: package_manager verification ===
 
+# Читаем dnf.conf, чтобы проверить его содержимое без изменения файла.
+# Это подтверждает, что dnf использует конфигурацию, созданную ролью.
 - name: Slurp /etc/dnf/dnf.conf
   ansible.builtin.slurp:
     src: /etc/dnf/dnf.conf
   register: _package_manager_verify_dnf_raw
   tags: ['package_manager']
 
+# Проверяем, что dnf.conf содержит маркер управления Ansible.
+# Это помогает обнаружить ручную замену файла или неуспешное применение шаблона.
 - name: Assert dnf.conf is managed by Ansible
   ansible.builtin.assert:
     that:
@@ -18,6 +22,8 @@
   when: "'content' in _package_manager_verify_dnf_raw"
   tags: ['package_manager']
 
+# Просим dnf стартовать с этим конфигом и вывести версию.
+# Это простая read-only проверка, что dnf способен прочитать файл конфигурации.
 - name: Verify dnf can parse dnf.conf  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: dnf --config /etc/dnf/dnf.conf --version

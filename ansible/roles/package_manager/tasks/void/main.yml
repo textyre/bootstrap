@@ -1,8 +1,12 @@
 ---
 # === Void Linux: dispatcher ===
 
+# Настраиваем xbps как основной пакетный менеджер Void Linux.
+# Здесь роль управляет отдельным xbps drop-in файлом.
 - name: Configure xbps
   ansible.builtin.include_tasks: void/xbps.yml
 
+# Настраиваем очистку кэша xbps через cron.
+# Для Void это правильнее, чем systemd timer, потому что стандартная init-система Void — runit.
 - name: Configure cache cleanup
   ansible.builtin.include_tasks: void/cache.yml

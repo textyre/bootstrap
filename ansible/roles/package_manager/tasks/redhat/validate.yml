@@ -1,6 +1,8 @@
 ---
 # === RedHat/Fedora: package_manager validation ===
 
+# Проверяем настройки dnf до записи dnf.conf.
+# Так роль не применит некорректные значения цвета, parallel downloads или лимита installonly.
 - name: Assert dnf settings are valid
   ansible.builtin.assert:
     that:

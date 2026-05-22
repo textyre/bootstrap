@@ -1,6 +1,8 @@
 ---
 # === Package Manager: verification dispatcher ===
 
+# Подключаем проверки для той ОС, на которой сейчас выполняется роль.
+# Это подтверждает, что настроен именно нужный пакетный менеджер, без чужих проверок.
 - name: Include OS-family-specific package_manager verification
   ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/verify.yml"
   tags: ['package_manager']

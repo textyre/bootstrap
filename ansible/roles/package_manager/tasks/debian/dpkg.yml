@@ -1,6 +1,8 @@
 ---
 # === dpkg options (Debian/Ubuntu) ===
 
+# Записываем dpkg options для поведения при конфликтах конфигов во время обновлений.
+# Это снижает риск зависших unattended запусков из-за интерактивного вопроса dpkg.
 - name: Deploy apt dpkg options config
   ansible.builtin.template:
     src: debian/20-dpkg.conf.j2

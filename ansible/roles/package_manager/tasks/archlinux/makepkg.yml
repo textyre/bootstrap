@@ -1,6 +1,8 @@
 ---
 # === Arch Linux: makepkg configuration ===
 
+# Создаем каталог для makepkg drop-in конфигураций.
+# Так роль добавляет свои настройки отдельно и не переписывает весь системный makepkg.conf.
 - name: Ensure /etc/makepkg.conf.d directory exists
   ansible.builtin.file:
     path: /etc/makepkg.conf.d
@@ -11,6 +13,8 @@
   when: package_manager_makepkg_enabled
   tags: ['package_manager']
 
+# Записываем настройки сборки пакетов: параллельность и формат архива.
+# Эти параметры влияют на AUR-сборки и должны быть одинаковыми между запусками.
 - name: Deploy makepkg drop-in config
   ansible.builtin.template:
     src: archlinux/makepkg.conf.j2

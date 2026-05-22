@@ -1,6 +1,8 @@
 ---
 # === Arch Linux: package_manager validation ===
 
+# Проверяем базовые настройки pacman до изменения конфигурации.
+# Так мы не запишем небезопасный SigLevel и не примем сломанный путь внешнего кэша.
 - name: Assert pacman settings are valid
   ansible.builtin.assert:
     that:
@@ -15,6 +17,8 @@
     success_msg: "pacman input settings are valid"
   tags: ['package_manager']
 
+# Проверяем, что paccache будет оставлять хотя бы одну версию пакета.
+# Нулевое или отрицательное значение могло бы привести к слишком агрессивной очистке кэша.
 - name: Assert paccache settings are valid
   ansible.builtin.assert:
     that:
@@ -24,6 +28,8 @@
   when: package_manager_paccache_enabled | bool
   tags: ['package_manager']
 
+# Проверяем настройки makepkg до записи drop-in файла.
+# Сборка AUR-пакетов должна иметь понятные flags и корректное расширение пакета.
 - name: Assert makepkg settings are valid
   ansible.builtin.assert:
     that:

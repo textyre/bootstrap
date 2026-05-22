@@ -1,6 +1,8 @@
 ---
 # === RedHat (Fedora): dispatcher ===
 
+# Настраиваем dnf как пакетный менеджер RedHat/Fedora family.
+# Пока у этой ОС один реальный подпроцесс, но dispatcher сохраняет общую структуру роли.
 - name: Configure dnf
   ansible.builtin.include_tasks: redhat/dnf.yml
   tags: ['package_manager']

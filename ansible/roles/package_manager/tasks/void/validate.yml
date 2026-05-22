@@ -1,6 +1,8 @@
 ---
 # === Void Linux: package_manager validation ===
 
+# Проверяем поля cron-расписания до создания задачи.
+# Некорректное расписание привело бы к неработающей или неожиданной очистке кэша.
 - name: Assert xbps cache schedule is valid
   ansible.builtin.assert:
     that:

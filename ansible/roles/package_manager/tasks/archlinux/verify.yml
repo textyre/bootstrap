@@ -1,12 +1,16 @@
 ---
 # === Arch Linux: package_manager verification ===
 
+# Читаем pacman.conf, чтобы дальше проверить его содержимое без изменения файла.
+# Это подтверждает, что роль управляет именно тем конфигом, который использует pacman.
 - name: Slurp /etc/pacman.conf
   ansible.builtin.slurp:
     src: /etc/pacman.conf
   register: _package_manager_verify_pacman_raw
   tags: ['package_manager']
 
+# Проверяем, что pacman.conf создан ролью и содержит ожидаемую настройку parallel downloads.
+# Это ловит ручные правки или неполное применение шаблона.
 - name: Assert pacman.conf is managed by Ansible
   ansible.builtin.assert:
     that:
@@ -19,6 +23,8 @@
   when: "'content' in _package_manager_verify_pacman_raw"
   tags: ['package_manager']
 
+# Просим pacman-conf разобрать итоговый файл конфигурации.
+# Если синтаксис сломан, роль должна упасть сразу, пока пакетные операции еще не начались.
 - name: Verify pacman can parse pacman.conf  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: pacman-conf --config /etc/pacman.conf
@@ -27,15 +33,21 @@
   failed_when: _package_manager_verify_pacman_parse.rc != 0
   tags: ['package_manager']
 
+# Этот блок выполняется только когда роль должна управлять makepkg.
+# Он проверяет, что drop-in файл реально появился на системе.
 - name: Verify makepkg drop-in deployed correctly
   when: package_manager_makepkg_enabled | bool
   tags: ['package_manager']
   block:
+    # Смотрим фактическое состояние makepkg drop-in файла.
+    # Это безопасная проверка: она ничего не меняет, только собирает сведения.
     - name: Stat /etc/makepkg.conf.d/ansible.conf
       ansible.builtin.stat:
         path: /etc/makepkg.conf.d/ansible.conf
       register: _package_manager_verify_makepkg_stat
 
+    # Подтверждаем, что makepkg drop-in существует.
+    # Если файла нет, AUR-сборки не получат настройки роли.
     - name: Assert makepkg drop-in exists
       ansible.builtin.assert:
         that:
@@ -43,12 +55,16 @@
         fail_msg: "/etc/makepkg.conf.d/ansible.conf does not exist"
         success_msg: "/etc/makepkg.conf.d/ansible.conf exists (mode={{ _package_manager_verify_makepkg_stat.stat.mode }})"
 
+# Этот блок проверяет paccache только когда очистка кэша включена и host использует systemd.
+# На других init systems paccache.timer не является поддерживаемой реализацией этой роли.
 - name: Verify paccache.timer enabled
   when:
     - package_manager_paccache_enabled | bool
     - ansible_facts['service_mgr'] == 'systemd'
   tags: ['package_manager']
   block:
+    # Спрашиваем systemd, включен ли paccache.timer.
+    # Это проверяет не файл на диске, а реальное состояние таймера в init system.
     - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: systemctl is-enabled paccache.timer
@@ -56,6 +72,8 @@
       changed_when: false
       failed_when: _package_manager_verify_paccache_timer.rc != 0
 
+    # Подтверждаем, что timer действительно включен.
+    # Если он disabled, кэш pacman не будет очищаться автоматически.
     - name: Assert paccache.timer is enabled
       ansible.builtin.assert:
         that:

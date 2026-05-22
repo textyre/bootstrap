@@ -1,12 +1,16 @@
 ---
 # === Debian/Ubuntu: package_manager verification ===
 
+# Проверяем, что apt parallel drop-in действительно есть на диске.
+# Это первый признак, что apt-настройки роли были применены.
 - name: Stat apt parallel config
   ansible.builtin.stat:
     path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
   register: _package_manager_verify_apt_stat
   tags: ['package_manager']
 
+# Подтверждаем наличие apt drop-in файла.
+# Если файла нет, apt не получил настройки parallel/retry из роли.
 - name: Assert apt parallel config exists
   ansible.builtin.assert:
     that:
@@ -15,12 +19,16 @@
     success_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf deployed"
   tags: ['package_manager']
 
+# Проверяем, что dpkg drop-in действительно есть на диске.
+# Это нужно, чтобы обновления пакетов использовали заданную политику конфликтов.
 - name: Stat dpkg config
   ansible.builtin.stat:
     path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
   register: _package_manager_verify_dpkg_stat
   tags: ['package_manager']
 
+# Подтверждаем наличие dpkg drop-in файла.
+# Если файла нет, dpkg может снова спрашивать оператора во время обновлений.
 - name: Assert dpkg config exists
   ansible.builtin.assert:
     that:
@@ -29,6 +37,8 @@
     success_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf deployed"
   tags: ['package_manager']
 
+# Просим apt прочитать итоговую конфигурацию.
+# Это безопасная проверка синтаксиса: она ничего не устанавливает и не обновляет.
 - name: Verify apt can parse configuration  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: apt-config dump

@@ -2,6 +2,8 @@
 # === Package Manager — конфигурация пакетного менеджера ===
 # pacman (Archlinux), apt (Debian), dnf (RedHat), xbps (Void), portage (Gentoo)
 
+# Вся роль выполняется только если она включена в настройках.
+# Это позволяет временно отключить управление пакетным менеджером без удаления роли из playbook.
 - name: Package Manager role
   when: package_manager_enabled | bool
   tags: ['package_manager']
@@ -9,24 +11,32 @@
 
     # ---- Валидация ----
 
+    # Сначала проверяем настройки роли, чтобы остановиться до любых изменений на системе.
+    # Так оператор сразу видит ошибку в переменных, а не получает наполовину измененный хост.
     - name: Validate package_manager inputs
       ansible.builtin.include_tasks: validate.yml
       tags: ['package_manager']
 
     # ---- Конфигурация ----
 
+    # После проверок передаем управление задачам для конкретной ОС.
+    # Это держит общую роль читаемой и не смешивает pacman, apt, dnf, xbps и portage в одном файле.
     - name: Include OS-family-specific package manager configuration
       ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/main.yml"
       tags: ['package_manager']
 
     # ---- Верификация ----
 
+    # После настройки проверяем, что конфигурация действительно применена и читается пакетным менеджером.
+    # Это ловит ошибки сразу в роли, а не позже при установке пакетов.
     - name: Verify package_manager configuration
       ansible.builtin.include_tasks: verify.yml
       tags: ['package_manager']
 
     # ---- Логирование ----
 
+    # Записываем короткий структурированный отчет о выполненной фазе.
+    # Этот отчет нужен человеку в выводе запуска и автоматике, которая собирает результат роли.
     - name: "Report: Package Manager"
       ansible.builtin.include_role:
         name: common
@@ -38,6 +48,8 @@
           os_family={{ ansible_facts['os_family'] }}
       tags: ['package_manager']
 
+    # Печатаем итоговый отчет роли в едином формате проекта.
+    # Так запуск playbook заканчивается понятной сводкой, а не только списком Ansible task names.
     - name: "Package Manager — Execution Report"
       ansible.builtin.include_role:
         name: common
