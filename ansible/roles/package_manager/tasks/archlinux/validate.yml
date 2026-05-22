@@ -1,0 +1,37 @@
+---
+# === Arch Linux: package_manager validation ===
+
+- name: Assert pacman settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_pacman_parallel_downloads | int > 0
+      - package_manager_pacman_cache_valid_time | int >= 0
+      - "'Never' not in package_manager_pacman_siglevel"
+      - not (package_manager_pacman_external_cache | bool) or package_manager_pacman_cache_root is match('^/')
+    fail_msg: >-
+      Invalid pacman settings. Require positive ParallelDownloads,
+      non-negative cache_valid_time, no SigLevel=Never, and an absolute
+      package_manager_pacman_cache_root when external cache is enabled.
+    success_msg: "pacman input settings are valid"
+  tags: ['always', 'packages', 'pacman']
+
+- name: Assert paccache settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_paccache_keep | int > 0
+    fail_msg: "package_manager_paccache_keep must be a positive integer"
+    success_msg: "paccache input settings are valid"
+  when: package_manager_paccache_enabled | bool
+  tags: ['always', 'packages', 'paccache']
+
+- name: Assert makepkg settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_makepkg_makeflags | length > 0
+      - package_manager_makepkg_pkgext is match('^\\.')
+    fail_msg: >-
+      package_manager_makepkg_makeflags must be non-empty and
+      package_manager_makepkg_pkgext must start with a dot.
+    success_msg: "makepkg input settings are valid"
+  when: package_manager_makepkg_enabled | bool
+  tags: ['always', 'packages', 'makepkg']

@@ -1,0 +1,13 @@
+---
+# === Debian/Ubuntu: package_manager validation ===
+
+- name: Assert apt settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_apt_parallel_queue_mode in ['host', 'access']
+      - package_manager_apt_retries | int >= 0
+    fail_msg: >-
+      package_manager_apt_parallel_queue_mode must be 'host' or 'access',
+      and package_manager_apt_retries must be zero or greater.
+    success_msg: "apt input settings are valid"
+  tags: ['always', 'packages', 'apt']
