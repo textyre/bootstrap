@@ -17,7 +17,8 @@ galaxy_info:
     - name: Gentoo
       versions: [all]
   galaxy_tags: [packages, pacman, apt, dnf, xbps, portage, system]
-# Runtime deps: yay (imported in tasks/archlinux.yml, tagged molecule-notest).
+# Runtime deps: yay is imported from tasks/archlinux/yay.yml in setup-only mode.
+# reflector is an ordering assumption in workstation playbooks, not orchestrated here.
 # Available via ANSIBLE_ROLES_PATH, not declared here
 # to avoid auto-execution before the role.
 dependencies: []

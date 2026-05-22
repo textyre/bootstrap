@@ -37,14 +37,27 @@ and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`
 ## Architecture
 
 - `tasks/main.yml` is only the role flow: validate, OS dispatch, verify, report.
-- `tasks/validate.yml` owns preflight checks for supported OS families and input ranges.
+- `tasks/validate.yml` is only the preflight dispatcher and supported OS assert.
 - OS-specific task directories match `ansible_facts['os_family']`: `archlinux/`, `debian/`, `redhat/`, `void/`, `gentoo/`.
-- `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/paccache_systemd.yml`.
+- Each OS directory owns its own `main.yml`, `validate.yml`, and `verify.yml`.
+- `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/systemd/paccache.yml`.
+- `tasks/archlinux/yay.yml` imports the `yay` role in setup-only mode because Arch package management is `pacman` plus `yay` in this project.
 - `tasks/verify.yml` dispatches to OS-specific verify files. Verification checks ownership markers and read-only package-manager parser probes.
+- The role does not set computed host facts; intermediate values stay in registered task results or task-local vars.
+- Molecule shared converge and verify playbooks follow the same dispatcher pattern, with real OS-specific files only where checks exist.
 
 ## Tags
 
-`packages`, `package-manager`, `pacman`, `paccache`, `makepkg`, `apt`, `dnf`, `xbps`, `portage`, `report`
+`package_manager`
+
+The role intentionally exposes one tag. It decides internally which OS-specific
+package manager work applies to the host.
+
+## Ordering assumptions
+
+`reflector` remains a separate role. Playbooks that depend on refreshed Arch
+mirrors should run `reflector` before `package_manager`; `package_manager` does
+not orchestrate reflector itself.
 
 ## Audit events
 

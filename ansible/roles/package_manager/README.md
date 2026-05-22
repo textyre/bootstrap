@@ -14,7 +14,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 - [x] Configures apt parallel downloads and dpkg conflict-resolution options (Debian/Ubuntu)
 - [x] Deploys dnf.conf with parallel downloads, fastestmirror, keepcache settings (Fedora)
 - [x] Deploys xbps config and schedules weekly cache cleanup via cron (Void)
-- [x] Runs yay setup-only on Arch as part of the Arch package manager contract (tagged `molecule-notest`)
+- [x] Runs yay setup-only on Arch as part of the Arch package manager contract
 - [x] Validates OS is in supported list before any configuration
 - [x] Runs in-role verification after deployment (verify.yml)
 - [x] Supports external pacman cache on shared storage
@@ -38,24 +38,27 @@ next role run. Use inventory variables instead of editing managed files directly
 ## Execution flow
 
 1. **Validate** (`tasks/validate.yml`) — fail fast for unsupported OS families and invalid package-manager inputs
-2. **OS dispatch** (`tasks/main.yml`) — include `tasks/<os_family>.yml` based on `ansible_facts['os_family']`
-3. **Archlinux path** (`tasks/archlinux.yml`):
+2. **OS dispatch** (`tasks/main.yml`) — include `tasks/<os_family>/main.yml` based on `ansible_facts['os_family']`
+3. **Archlinux path** (`tasks/archlinux/main.yml`):
    1. Configure pacman → `tasks/archlinux/pacman.yml` (template `/etc/pacman.conf`, optional external cache)
-   2. Configure paccache → `tasks/archlinux/paccache.yml` (assert systemd support, then include `paccache_systemd.yml`)
+   2. Configure paccache → `tasks/archlinux/paccache.yml` (assert systemd support, then include `tasks/archlinux/systemd/paccache.yml`)
    3. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
-   4. Import yay role in setup-only mode (builder user + binary, tagged `molecule-notest`). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
-4. **Debian path** (`tasks/debian.yml`):
+   4. Include `tasks/archlinux/yay.yml`, which imports `yay` in setup-only mode (builder user + binary). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
+4. **Debian path** (`tasks/debian/main.yml`):
    1. Configure apt → `tasks/debian/apt.yml` (template to `/etc/apt/apt.conf.d/10-ansible-parallel.conf`)
    2. Configure dpkg → `tasks/debian/dpkg.yml` (template to `/etc/apt/apt.conf.d/20-ansible-dpkg.conf`)
-5. **RedHat path** (`tasks/redhat.yml`):
+5. **RedHat path** (`tasks/redhat/main.yml`):
    1. Configure dnf → `tasks/redhat/dnf.yml` (template `/etc/dnf/dnf.conf`)
-6. **Void path** (`tasks/void.yml`):
+6. **Void path** (`tasks/void/main.yml`):
    1. Configure xbps → `tasks/void/xbps.yml` (template to `/etc/xbps.d/ansible.conf`)
    2. Configure cache cron → `tasks/void/cache.yml` (weekly `xbps-remove -O`)
-7. **Gentoo path** (`tasks/gentoo.yml`) — stub, logs a message
+7. **Gentoo path** (`tasks/gentoo/main.yml`) — stub, logs a message
 8. **In-role verification** (`tasks/verify.yml`) — dispatch to OS-specific verify files, assert expected values, and run read-only parser probes
 9. **Handlers**: refresh pacman sync databases after pacman config changes; reload systemd daemon for systemd-specific paccache changes
 10. **Structured logging** — `report_phase` + `report_render` via common role
+
+The role does not publish computed package-manager state as host facts. Values
+needed by later tasks are kept as registered task results or task-local vars.
 
 ## Variables
 
@@ -227,30 +230,17 @@ molecule test -s default
 
 **Common failures:**
 - Docker: `pacman-contrib` install fails if package cache is stale → prepare.yml runs `update_cache`
-- Vagrant: yay setup tasks attempt network access → tagged `molecule-notest`, skipped via `skip-tags`
+- Arch scenarios: yay setup needs AUR/network/build dependencies because yay is part of the Arch package manager contract
 
 ## Tags
 
 | Tag | Use case |
 |-----|----------|
-| `packages` | All package manager tasks |
-| `package-manager` | Alias for `packages` |
-| `pacman` | Arch Linux pacman.conf only |
-| `paccache` | Arch Linux paccache timer only |
-| `makepkg` | Arch Linux makepkg.conf only |
-| `apt` | Debian/Ubuntu apt config only |
-| `dnf` | Fedora dnf.conf only |
-| `xbps` | Void Linux xbps config only |
-| `xbps-cache` | Void Linux cache cron only |
-| `portage` | Gentoo stub |
-| `pacman-cache` | Pacman external cache setup |
-| `aur` | Yay helper setup only (molecule-notest) |
-| `report` | Structured logging phase reports |
-| `molecule-notest` | Tasks skipped in molecule tests |
+| `package_manager` | Whole role: validate, OS-specific configuration, verify, report |
 
-Example: apply only pacman config without paccache/makepkg:
+Example: apply the package manager role:
 ```bash
-task workstation -- --tags pacman
+task workstation -- --tags package_manager
 ```
 
 ## File map
@@ -261,24 +251,25 @@ task workstation -- --tags pacman
 | `vars/main.yml` | Internal OS-family mappings | Adding OS-specific internal values |
 | `tasks/main.yml` | Orchestrator: validate → dispatch → verify → report | Changing role flow or adding phases |
 | `tasks/validate.yml` | Preflight validation for OS support and input values | Adding new variables or validation rules |
-| `tasks/archlinux.yml` | Arch dispatcher: pacman → paccache → makepkg → yay setup | Adding Arch-specific sub-tasks |
+| `tasks/archlinux/main.yml` | Arch dispatcher: pacman → paccache → makepkg → yay setup | Adding Arch-specific sub-tasks |
 | `tasks/archlinux/pacman.yml` | pacman.conf template + external cache | Changing pacman config logic |
 | `tasks/archlinux/paccache.yml` | paccache dispatcher and systemd-only assert | Changing paccache support policy |
-| `tasks/archlinux/paccache_systemd.yml` | paccache timer install + systemd drop-in | Changing systemd cache cleanup behavior |
+| `tasks/archlinux/systemd/paccache.yml` | paccache timer install + systemd drop-in | Changing systemd cache cleanup behavior |
 | `tasks/archlinux/makepkg.yml` | makepkg drop-in config | Changing build optimization |
+| `tasks/archlinux/yay.yml` | yay setup-only import | Changing Arch AUR helper setup |
 | `tasks/archlinux/verify.yml` | Arch-specific in-role verification | Changing Arch verification logic |
-| `tasks/debian.yml` | Debian/Ubuntu dispatcher: apt → dpkg | Adding Debian-specific sub-tasks |
+| `tasks/debian/main.yml` | Debian/Ubuntu dispatcher: apt → dpkg | Adding Debian-specific sub-tasks |
 | `tasks/debian/apt.yml` | apt parallel config template | Changing apt behavior |
 | `tasks/debian/dpkg.yml` | dpkg options template | Changing dpkg conflict resolution |
 | `tasks/debian/verify.yml` | Debian-specific in-role verification | Changing Debian verification logic |
-| `tasks/redhat.yml` | RedHat/Fedora dispatcher: dnf | Adding RedHat-specific sub-tasks |
+| `tasks/redhat/main.yml` | RedHat/Fedora dispatcher: dnf | Adding RedHat-specific sub-tasks |
 | `tasks/redhat/dnf.yml` | dnf.conf template | Changing dnf behavior |
 | `tasks/redhat/verify.yml` | RedHat-specific in-role verification | Changing RedHat verification logic |
-| `tasks/void.yml` | Void dispatcher: xbps → cache | Adding Void-specific sub-tasks |
+| `tasks/void/main.yml` | Void dispatcher: xbps → cache | Adding Void-specific sub-tasks |
 | `tasks/void/xbps.yml` | xbps config template | Changing xbps behavior |
 | `tasks/void/cache.yml` | xbps cache cleanup cron | Changing cleanup schedule |
 | `tasks/void/verify.yml` | Void-specific in-role verification | Changing Void verification logic |
-| `tasks/gentoo.yml` | Gentoo stub | Implementing portage support |
+| `tasks/gentoo/main.yml` | Gentoo stub | Implementing portage support |
 | `tasks/gentoo/verify.yml` | Gentoo verification stub | Implementing Gentoo verification |
 | `tasks/verify.yml` | In-role verification dispatcher | Adding platform verify dispatch |
 | `handlers/main.yml` | pacman sync database refresh and systemd daemon-reload | Adding new handlers |
@@ -289,8 +280,10 @@ task workstation -- --tags pacman
 | `templates/debian/20-dpkg.conf.j2` | dpkg options template | Changing dpkg config format |
 | `templates/redhat/dnf.conf.j2` | dnf.conf template | Changing dnf config format |
 | `templates/void/xbps.conf.j2` | xbps config template | Changing xbps config format |
-| `molecule/shared/converge.yml` | Shared converge playbook | Changing test converge flow |
-| `molecule/shared/verify.yml` | Shared verification playbook | Adding test assertions |
+| `molecule/shared/converge.yml` | Shared converge playbook and OS-specific edge-case dispatch | Changing test converge flow |
+| `molecule/shared/converge/archlinux.yml` | Arch-specific converge edge cases | Changing Arch test inputs |
+| `molecule/shared/verify.yml` | Shared verification dispatcher | Adding test platform dispatch |
+| `molecule/shared/verify/<os>.yml` | OS-specific Molecule verification | Adding test assertions |
 | `molecule/docker/molecule.yml` | Docker scenario config | Changing Docker test setup |
 | `molecule/docker/prepare.yml` | Docker test preparation | Changing Docker pre-test setup |
 | `molecule/vagrant/molecule.yml` | Vagrant scenario config | Changing Vagrant test setup |
@@ -299,8 +292,12 @@ task workstation -- --tags pacman
 
 ## Dependencies
 
-- `yay` — AUR helper setup (builder user + binary, imported with `molecule-notest` tag)
+- `yay` — AUR helper setup (builder user + binary), imported in setup-only mode on Arch
 - `common` — Structured logging (`report_phase.yml`, `report_render.yml`)
+
+`reflector` is not orchestrated by this role. Workstation playbooks should keep
+`reflector` before `package_manager` when mirror freshness is required before
+pacman configuration and cache refresh.
 
 These are local project roles, not Galaxy dependencies. The role intentionally
 does not declare `requirements.yml`; execution must provide the bootstrap roles
