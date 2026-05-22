@@ -6,10 +6,12 @@
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
 
-# Применяем отложенные действия после изменения pacman.conf прямо сейчас.
-# Это важно, чтобы дальнейшие установки пакетов использовали уже обновленные базы pacman.
-- name: Apply pacman configuration handlers before package installs
-  ansible.builtin.meta: flush_handlers
+# Если pacman.conf изменился, сразу обновляем базы pacman явной задачей.
+# Это безопаснее, чем принудительно запускать все pending handlers playbook.
+- name: Refresh pacman sync databases after pacman config change
+  community.general.pacman:
+    update_cache: true
+  when: _package_manager_pacman_conf_template.changed | default(false)
 
 # Смотрим, есть ли на хосте локальные базы пакетов pacman.
 # Если их нет, pacman не сможет нормально искать и устанавливать пакеты.

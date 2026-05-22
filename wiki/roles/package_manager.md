@@ -42,8 +42,9 @@ and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`
 - Each OS directory owns its own `main.yml`, `validate.yml`, and `verify.yml`.
 - `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/systemd/paccache.yml`.
 - `tasks/archlinux/yay.yml` imports the `yay` role in setup-only mode because Arch package management is `pacman` plus `yay` in this project.
-- `tasks/verify.yml` dispatches to OS-specific verify files. Verification checks ownership markers and read-only package-manager parser probes.
+- `tasks/verify.yml` dispatches to OS-specific verify files. Runtime verification is intentionally lightweight: it keeps parser/runtime probes in the role and leaves content assertions to Molecule.
 - The role does not set computed host facts; intermediate values stay in registered task results or task-local vars.
+- The role does not use handlers for package-manager state transitions. Pacman cache refresh and systemd daemon reload are explicit tasks near the configuration that needs them.
 - Molecule shared converge and verify playbooks follow the same dispatcher pattern, with real OS-specific files only where checks exist.
 
 ## Tags
@@ -77,6 +78,7 @@ not orchestrate reflector itself.
 
 ## Drift detection
 
-The in-role verify dispatcher checks deployed configs match expected values on
-every run and confirms package managers can parse/read their configuration. If
-configs are manually edited, the role will re-deploy managed templates.
+The in-role verify dispatcher confirms package managers can parse/read their
+configuration and checks runtime state such as `paccache.timer`. Detailed file
+content drift checks live in Molecule, while normal role runs rely on managed
+templates to re-deploy configuration when it drifts.

@@ -53,12 +53,14 @@ next role run. Use inventory variables instead of editing managed files directly
    1. Configure xbps → `tasks/void/xbps.yml` (template to `/etc/xbps.d/ansible.conf`)
    2. Configure cache cron → `tasks/void/cache.yml` (weekly `xbps-remove -O`)
 7. **Gentoo path** (`tasks/gentoo/main.yml`) — stub, logs a message
-8. **In-role verification** (`tasks/verify.yml`) — dispatch to OS-specific verify files, assert expected values, and run read-only parser probes
-9. **Handlers**: refresh pacman sync databases after pacman config changes; reload systemd daemon for systemd-specific paccache changes
+8. **In-role verification** (`tasks/verify.yml`) — dispatch to OS-specific verify files and run lightweight parser/runtime probes
+9. **Explicit state transitions**: pacman cache refresh runs as a normal task after `pacman.conf` changes; systemd daemon reload is scoped to the `paccache.timer` systemd task
 10. **Structured logging** — `report_phase` + `report_render` via common role
 
 The role does not publish computed package-manager state as host facts. Values
 needed by later tasks are kept as registered task results or task-local vars.
+The role does not use handlers for package-manager state transitions; refresh
+and daemon-reload happen next to the task that needs them.
 
 ## Variables
 
@@ -223,8 +225,8 @@ molecule test -s default
 
 **Success criteria:**
 - All templates deployed with correct permissions (root:root 0644)
-- Config contents match variable values (slurp + assert)
-- Package manager config parsers/read-only probes succeed (`pacman-conf`, `apt-config`, `dnf --version`, `xbps-query`)
+- Config contents match variable values in Molecule verification (slurp + assert)
+- In-role package manager parsers/read-only probes succeed (`pacman-conf`, `apt-config`, `dnf --version`, `xbps-query`)
 - paccache.timer enabled (Arch, systemd only)
 - Idempotence check passes (no changes on second run)
 
@@ -272,7 +274,7 @@ task workstation -- --tags package_manager
 | `tasks/gentoo/main.yml` | Gentoo stub | Implementing portage support |
 | `tasks/gentoo/verify.yml` | Gentoo verification stub | Implementing Gentoo verification |
 | `tasks/verify.yml` | In-role verification dispatcher | Adding platform verify dispatch |
-| `handlers/main.yml` | pacman sync database refresh and systemd daemon-reload | Adding new handlers |
+| `handlers/main.yml` | Empty by design; refresh/reload transitions are explicit tasks | Adding new handlers |
 | `meta/main.yml` | Galaxy metadata | Changing role metadata |
 | `templates/archlinux/pacman.conf.j2` | pacman.conf template | Changing pacman config format |
 | `templates/archlinux/makepkg.conf.j2` | makepkg drop-in template | Changing makepkg format |

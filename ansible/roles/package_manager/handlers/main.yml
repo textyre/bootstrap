@@ -1,13 +1,3 @@
 ---
-# Просим systemd перечитать unit-файлы после изменения drop-in конфигурации.
-# Без этого systemd может продолжить использовать старую версию paccache.service.
-- name: Reload systemd daemon
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: ansible_facts['service_mgr'] == 'systemd'
-
-# Обновляем базу пакетов pacman после изменения pacman.conf.
-# Это нужно, чтобы последующие установки пакетов использовали новую конфигурацию и зеркала.
-- name: Refresh pacman sync databases after pacman config change
-  community.general.pacman:
-    update_cache: true
+# У этой роли сейчас нет handlers.
+# Pacman cache refresh и systemd daemon-reload выполняются явными задачами рядом с причиной изменения.

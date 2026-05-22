@@ -21,7 +21,7 @@
   tags: ['package_manager']
 
 # Записываем drop-in, который задает сколько версий пакетов оставлять в кэше.
-# Это делает политику очистки управляемой переменной роли.
+# Перечитывание systemd выполняется ниже в задаче, которая включает paccache.timer.
 - name: Configure paccache keep count via systemd drop-in
   ansible.builtin.copy:
     dest: /etc/systemd/system/paccache.service.d/keep.conf
@@ -32,11 +32,10 @@
       [Service]
       ExecStart=
       ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
-  notify: Reload systemd daemon
   tags: ['package_manager']
 
 # Включаем и запускаем таймер очистки кэша.
-# После этого система сама периодически очищает старые версии пакетов.
+# daemon_reload здесь применяет возможные изменения drop-in перед запуском таймера.
 - name: Enable and start paccache.timer
   ansible.builtin.systemd:
     name: paccache.timer

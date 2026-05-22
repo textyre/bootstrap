@@ -1,26 +1,8 @@
 ---
 # === Void Linux: package_manager verification ===
 
-# Проверяем, что xbps drop-in файл действительно есть на диске.
-# Это подтверждает, что настройки xbps были доставлены ролью.
-- name: Stat /etc/xbps.d/ansible.conf
-  ansible.builtin.stat:
-    path: /etc/xbps.d/ansible.conf
-  register: _package_manager_verify_xbps_stat
-  tags: ['package_manager']
-
-# Подтверждаем наличие xbps drop-in файла.
-# Если файла нет, xbps работает без настроек этой роли.
-- name: Assert xbps config exists
-  ansible.builtin.assert:
-    that:
-      - _package_manager_verify_xbps_stat.stat.exists
-    fail_msg: "/etc/xbps.d/ansible.conf does not exist"
-    success_msg: "/etc/xbps.d/ansible.conf deployed"
-  tags: ['package_manager']
-
 # Просим xbps выполнить read-only запрос к своей конфигурации.
-# Так мы проверяем, что пакетный менеджер доступен и его конфигурация читается.
+# Так мы проверяем, что пакетный менеджер доступен и способен читать свое состояние.
 - name: Verify xbps can read package manager configuration  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: xbps-query -L
