@@ -12,70 +12,69 @@
       {{ (package_manager_pacman_external_cache | bool)
          | ternary(package_manager_pacman_cache_root ~ '/var/lib/pacman/sync', '/var/lib/pacman/sync') }}
   block:
-    # Определяем, где pacman сейчас хранит базы репозиториев.
-    # При external cache путь меняется, поэтому нельзя жестко проверять только /var/lib/pacman/sync.
-    - name: Check pacman package index directory
-      ansible.builtin.stat:
-        path: "{{ _package_manager_pacman_sync_dir }}"
-      register: _package_manager_pacman_sync_dir_stat
-
-    # Смотрим, есть ли на хосте локальные базы пакетов pacman.
-    # Если их нет, pacman не сможет нормально искать и устанавливать пакеты.
-    - name: Find pacman package indexes
-      ansible.builtin.find:
-        paths: "{{ _package_manager_pacman_sync_dir }}"
-        patterns: "*.db"
-        file_type: file
-      register: _package_manager_pacman_sync_databases
-      when: _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
-
-    # Если pacman.conf изменился, обновляем базы сразу с уже новой конфигурацией.
-    # Это нужно, чтобы дальнейшие установки использовали актуальные mirrors, DBPath и CacheDir.
+    # Если template реально записал новый pacman.conf, обновляем индексы один раз.
+    # Это покрывает изменения DBPath, CacheDir и набора репозиториев перед установкой пакетов.
     - name: Refresh pacman package indexes after pacman configuration change
       community.general.pacman:
         update_cache: true
       when: _package_manager_pacman_conf_changed | bool
 
-    # Обновляем базы, если директории с индексами еще нет.
-    # Это первый запуск или очищенная система, где пакетный менеджер еще не готов к поиску пакетов.
-    - name: Refresh pacman package indexes when index directory is missing
-      community.general.pacman:
-        update_cache: true
-      when:
-        - not (_package_manager_pacman_conf_changed | bool)
-        - not (_package_manager_pacman_sync_dir_stat.stat.isdir | default(false))
+    # Если pacman.conf не менялся, смотрим только на состояние самих индексов.
+    # Внутри блока три понятные ветки: нет директории, нет *.db, есть устаревшие *.db.
+    - name: Refresh pacman package indexes when existing indexes are not ready
+      when: not (_package_manager_pacman_conf_changed | bool)
+      block:
+        # Определяем, где pacman сейчас хранит базы репозиториев.
+        # При external cache путь меняется, поэтому нельзя жестко проверять только /var/lib/pacman/sync.
+        - name: Check pacman package index directory
+          ansible.builtin.stat:
+            path: "{{ _package_manager_pacman_sync_dir }}"
+          register: _package_manager_pacman_sync_dir_stat
 
-    # Обновляем базы pacman, если директория есть, но самих баз в ней нет.
-    # Без этих *.db файлов последующая install-only роль packages не сможет установить пакеты.
-    - name: Refresh pacman package indexes when none exist
-      community.general.pacman:
-        update_cache: true
-      when:
-        - not (_package_manager_pacman_conf_changed | bool)
-        - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
-        - _package_manager_pacman_sync_databases.matched | default(0) | int == 0
+        # Обновляем базы, если директории с индексами еще нет.
+        # Это первый запуск или очищенная система, где пакетный менеджер еще не готов к поиску пакетов.
+        - name: Refresh pacman package indexes when index directory is missing
+          community.general.pacman:
+            update_cache: true
+          when: not (_package_manager_pacman_sync_dir_stat.stat.isdir | default(false))
 
-    # Проверяем, есть ли среди баз pacman достаточно свежие файлы.
-    # Так роль не дергает сетевой refresh каждый запуск, если индексы еще актуальны.
-    - name: Find fresh pacman package indexes
-      ansible.builtin.find:
-        paths: "{{ _package_manager_pacman_sync_dir }}"
-        patterns: "*.db"
-        file_type: file
-        age: "-{{ package_manager_package_index_cache_valid_time }}s"
-      register: _package_manager_pacman_fresh_sync_databases
-      when:
-        - not (_package_manager_pacman_conf_changed | bool)
-        - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
-        - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
+        # Если директория есть, проверяем ее содержимое отдельным вложенным блоком.
+        # Так условия ниже читаются как проверки файлов, а не как повтор всей матрицы состояний.
+        - name: Inspect pacman package index files
+          when: _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
+          block:
+            # Смотрим, есть ли на хосте локальные базы пакетов pacman.
+            # Если их нет, pacman не сможет нормально искать и устанавливать пакеты.
+            - name: Find pacman package indexes
+              ansible.builtin.find:
+                paths: "{{ _package_manager_pacman_sync_dir }}"
+                patterns: "*.db"
+                file_type: file
+              register: _package_manager_pacman_sync_databases
 
-    # Обновляем базы pacman только если существующий кэш устарел.
-    # Это сохраняет idempotency: повторный запуск не делает лишнюю сетевую работу без причины.
-    - name: Refresh pacman package indexes when cache is stale
-      community.general.pacman:
-        update_cache: true
-      when:
-        - not (_package_manager_pacman_conf_changed | bool)
-        - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
-        - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
-        - _package_manager_pacman_fresh_sync_databases.matched | default(0) | int == 0
+            # Обновляем базы pacman, если директория есть, но самих баз в ней нет.
+            # Без этих *.db файлов последующая install-only роль packages не сможет установить пакеты.
+            - name: Refresh pacman package indexes when none exist
+              community.general.pacman:
+                update_cache: true
+              when: _package_manager_pacman_sync_databases.matched | default(0) | int == 0
+
+            # Если базы уже есть, отдельно ищем только устаревшие файлы.
+            # Даже одна старая база означает, что набор индексов уже нельзя считать актуальным.
+            - name: Find stale pacman package indexes
+              ansible.builtin.find:
+                paths: "{{ _package_manager_pacman_sync_dir }}"
+                patterns: "*.db"
+                file_type: file
+                age: "{{ package_manager_package_index_cache_valid_time }}s"
+              register: _package_manager_pacman_stale_sync_databases
+              when: _package_manager_pacman_sync_databases.matched | default(0) | int > 0
+
+            # Обновляем базы pacman, если хотя бы один существующий индекс устарел.
+            # Это сохраняет idempotency: повторный запуск не делает лишнюю сетевую работу без причины.
+            - name: Refresh pacman package indexes when cache is stale
+              community.general.pacman:
+                update_cache: true
+              when:
+                - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
+                - _package_manager_pacman_stale_sync_databases.matched | default(0) | int > 0
