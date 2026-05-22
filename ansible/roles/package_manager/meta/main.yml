@@ -6,14 +6,19 @@ galaxy_info:
   license: MIT
   min_ansible_version: "2.15"
   platforms:
+    # ArchLinux поддержан как основной pacman/yay путь роли.
     - name: ArchLinux
       versions: [all]
+    # Debian покрывает Ubuntu и другие Debian-family системы через apt/dpkg.
     - name: Debian
       versions: [all]
+    # Fedora представляет RedHat-family путь роли через dnf.
     - name: Fedora
       versions: [all]
+    # Void Linux покрывает xbps и cron-based очистку кэша без systemd.
     - name: Void Linux
       versions: [all]
+    # Gentoo объявлен в рамках пяти поддерживаемых ОС проекта, пока как stub.
     - name: Gentoo
       versions: [all]
   galaxy_tags: [packages, pacman, apt, dnf, xbps, portage, system]

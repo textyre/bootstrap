@@ -1,4 +1,6 @@
 ---
+# Повторно применяем роль на Arch с отключенными paccache и makepkg.
+# Это доказывает, что опциональные части можно выключить без поломки всей роли.
 - name: Apply role with paccache and makepkg disabled
   ansible.builtin.include_role:
     name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"

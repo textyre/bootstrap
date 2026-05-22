@@ -1,4 +1,6 @@
 ---
+# Общий verify-playbook Molecule для роли package_manager.
+# Он выбирает проверки по ОС, а сами проверки лежат в отдельных файлах.
 - name: Verify package_manager role
   hosts: all
   become: true
@@ -7,6 +9,8 @@
     - "../../defaults/main.yml"
 
   tasks:
+    # Проверяем, что для текущей ОС есть реальный файл Molecule-проверок.
+    # Это не дает добавить новую test platform без явных assertions.
     - name: Assert package_manager Molecule verification exists for this OS
       ansible.builtin.assert:
         that:
@@ -18,9 +22,13 @@
           platform in Molecule.
         success_msg: "package_manager Molecule verification supports {{ ansible_facts['os_family'] }}"
 
+    # Подключаем проверки именно для текущей ОС.
+    # Так Arch, Debian, RedHat и Void проверяются по своим собственным контрактам.
     - name: Include OS-family-specific package_manager Molecule verification
       ansible.builtin.include_tasks: "verify/{{ ansible_facts['os_family'] | lower }}.yml"
 
+    # В конце выводим короткую человеческую сводку, на какой системе verify прошел.
+    # Это помогает быстро понять результат в длинном Molecule-логе.
     - name: Show verify result
       ansible.builtin.debug:
         msg: >-

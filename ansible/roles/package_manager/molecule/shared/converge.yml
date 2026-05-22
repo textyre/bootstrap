@@ -1,4 +1,6 @@
 ---
+# Основной Molecule converge: запускает роль с настройками по умолчанию.
+# Это проверяет обычный пользовательский путь без специальных переменных.
 - name: Converge
   hosts: all
   become: true
@@ -7,12 +9,16 @@
   roles:
     - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
 
+# Второй проход запускает роль с нестандартными настройками.
+# Так тесты проверяют не только defaults, но и важные отключаемые подсистемы.
 - name: Converge — edge cases (non-default vars)
   hosts: all
   become: true
   gather_facts: true
 
   tasks:
+    # Подключаем edge cases только для той ОС, где они реально описаны.
+    # Если для ОС нет отдельного файла, тест просто пропускает этот дополнительный шаг.
     - name: Include OS-family-specific package_manager Molecule converge cases
       ansible.builtin.include_tasks: "{{ item }}"
       with_first_found:

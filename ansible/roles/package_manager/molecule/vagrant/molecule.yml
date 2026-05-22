@@ -5,11 +5,15 @@ driver:
     name: libvirt
 
 platforms:
+  # Arch VM проверяет роль в полноценной виртуальной машине, а не только в контейнере.
+  # Это ближе к реальной workstation-среде для pacman и systemd.
   - name: arch-vm
     box: arch-base
     box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
+  # Ubuntu VM проверяет Debian/apt путь в полноценной systemd-среде.
+  # Она дополняет Docker-сценарий более реалистичным окружением.
   - name: ubuntu-base
     box: ubuntu-base
     box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box

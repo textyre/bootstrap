@@ -5,6 +5,8 @@ driver:
     managed: false
 
 platforms:
+  # Локальная Molecule-платформа проверяет роль на текущем окружении.
+  # Это быстрый smoke path без создания отдельной VM или контейнера.
   - name: Localhost
 
 provisioner:
