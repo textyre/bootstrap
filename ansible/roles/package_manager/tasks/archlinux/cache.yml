@@ -34,7 +34,7 @@
     - name: Refresh pacman package indexes after pacman configuration change
       community.general.pacman:
         update_cache: true
-      when: _package_manager_pacman_conf_changed
+      when: _package_manager_pacman_conf_changed | bool
 
     # Обновляем базы, если директории с индексами еще нет.
     # Это первый запуск или очищенная система, где пакетный менеджер еще не готов к поиску пакетов.
@@ -42,7 +42,7 @@
       community.general.pacman:
         update_cache: true
       when:
-        - not _package_manager_pacman_conf_changed
+        - not (_package_manager_pacman_conf_changed | bool)
         - not (_package_manager_pacman_sync_dir_stat.stat.isdir | default(false))
 
     # Обновляем базы pacman, если директория есть, но самих баз в ней нет.
@@ -51,7 +51,7 @@
       community.general.pacman:
         update_cache: true
       when:
-        - not _package_manager_pacman_conf_changed
+        - not (_package_manager_pacman_conf_changed | bool)
         - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
         - _package_manager_pacman_sync_databases.matched | default(0) | int == 0
 
@@ -65,7 +65,7 @@
         age: "-{{ package_manager_package_index_cache_valid_time }}s"
       register: _package_manager_pacman_fresh_sync_databases
       when:
-        - not _package_manager_pacman_conf_changed
+        - not (_package_manager_pacman_conf_changed | bool)
         - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
         - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
 
@@ -75,7 +75,7 @@
       community.general.pacman:
         update_cache: true
       when:
-        - not _package_manager_pacman_conf_changed
+        - not (_package_manager_pacman_conf_changed | bool)
         - _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
         - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
         - _package_manager_pacman_fresh_sync_databases.matched | default(0) | int == 0
