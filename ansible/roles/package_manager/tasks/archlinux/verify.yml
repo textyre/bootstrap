@@ -7,12 +7,6 @@
   register: _package_manager_verify_pacman_raw
   tags: ['packages', 'pacman']
 
-- name: Set pacman.conf content fact
-  ansible.builtin.set_fact:
-    _package_manager_verify_pacman_text: "{{ _package_manager_verify_pacman_raw.content | b64decode }}"
-  when: "'content' in _package_manager_verify_pacman_raw"
-  tags: ['packages', 'pacman']
-
 - name: Assert pacman.conf is managed by Ansible
   ansible.builtin.assert:
     that:
@@ -20,6 +14,9 @@
       - "'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads | string in _package_manager_verify_pacman_text"
     fail_msg: "pacman.conf verification failed — not managed by Ansible or ParallelDownloads mismatch"
     success_msg: "pacman.conf verified: managed by Ansible, ParallelDownloads={{ package_manager_pacman_parallel_downloads }}"
+  vars:
+    _package_manager_verify_pacman_text: "{{ _package_manager_verify_pacman_raw.content | b64decode }}"
+  when: "'content' in _package_manager_verify_pacman_raw"
   tags: ['packages', 'pacman']
 
 - name: Verify pacman can parse pacman.conf  # noqa: command-instead-of-module

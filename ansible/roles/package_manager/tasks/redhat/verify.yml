@@ -7,18 +7,15 @@
   register: _package_manager_verify_dnf_raw
   tags: ['packages', 'dnf']
 
-- name: Set dnf.conf content fact
-  ansible.builtin.set_fact:
-    _package_manager_verify_dnf_text: "{{ _package_manager_verify_dnf_raw.content | b64decode }}"
-  when: "'content' in _package_manager_verify_dnf_raw"
-  tags: ['packages', 'dnf']
-
 - name: Assert dnf.conf is managed by Ansible
   ansible.builtin.assert:
     that:
       - "'Managed by Ansible' in _package_manager_verify_dnf_text"
     fail_msg: "dnf.conf verification failed — not managed by Ansible"
     success_msg: "dnf.conf verified: managed by Ansible"
+  vars:
+    _package_manager_verify_dnf_text: "{{ _package_manager_verify_dnf_raw.content | b64decode }}"
+  when: "'content' in _package_manager_verify_dnf_raw"
   tags: ['packages', 'dnf']
 
 - name: Verify dnf can parse dnf.conf  # noqa: command-instead-of-module
