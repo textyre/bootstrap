@@ -44,7 +44,8 @@ and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`
 - `tasks/archlinux/yay.yml` imports the `yay` role in setup-only mode because Arch package management is `pacman` plus `yay` in this project.
 - `tasks/verify.yml` dispatches to OS-specific verify files. Runtime verification is intentionally lightweight: it keeps parser/runtime probes in the role and leaves content assertions to Molecule.
 - The role does not set computed host facts; intermediate values stay in registered task results or task-local vars.
-- The role does not use handlers for package-manager state transitions. Pacman cache refresh and systemd daemon reload are explicit tasks near the configuration that needs them.
+- The role does not refresh package indexes or perform package lifecycle updates; those belong to `system_update`/`packages`.
+- The role does not use handlers for package-manager state transitions. Systemd daemon reload is scoped to the paccache systemd task that needs it.
 - Molecule shared converge and verify playbooks follow the same dispatcher pattern, with real OS-specific files only where checks exist.
 
 ## Tags
@@ -57,8 +58,8 @@ package manager work applies to the host.
 ## Ordering assumptions
 
 `reflector` remains a separate role. Playbooks that depend on refreshed Arch
-mirrors should run `reflector` before `package_manager`; `package_manager` does
-not orchestrate reflector itself.
+mirrors should run `reflector` before later Arch package installation;
+`package_manager` does not orchestrate reflector itself.
 
 ## Audit events
 

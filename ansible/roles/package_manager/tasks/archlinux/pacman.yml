@@ -22,7 +22,6 @@
     mode: '0644'
     backup: true
     validate: pacman-conf --config %s
-  register: _package_manager_pacman_conf_template
   tags: ['package_manager']
 
 # Этот блок готовит внешний общий кэш pacman, если он включен в переменных.

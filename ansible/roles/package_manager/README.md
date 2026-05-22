@@ -54,13 +54,16 @@ next role run. Use inventory variables instead of editing managed files directly
    2. Configure cache cron → `tasks/void/cache.yml` (weekly `xbps-remove -O`)
 7. **Gentoo path** (`tasks/gentoo/main.yml`) — stub, logs a message
 8. **In-role verification** (`tasks/verify.yml`) — dispatch to OS-specific verify files and run lightweight parser/runtime probes
-9. **Explicit state transitions**: pacman cache refresh runs as a normal task after `pacman.conf` changes; systemd daemon reload is scoped to the `paccache.timer` systemd task
+9. **Explicit state transitions**: systemd daemon reload is scoped to the `paccache.timer` systemd task
 10. **Structured logging** — `report_phase` + `report_render` via common role
 
 The role does not publish computed package-manager state as host facts. Values
 needed by later tasks are kept as registered task results or task-local vars.
-The role does not use handlers for package-manager state transitions; refresh
-and daemon-reload happen next to the task that needs them.
+The role does not refresh package indexes or perform package lifecycle updates.
+Arch package index refresh belongs to the pre-workstation `system_update`
+lifecycle; Debian apt cache refresh belongs to the `packages` role install path.
+The role does not use handlers for package-manager state transitions; systemd
+daemon-reload happens in the task that enables `paccache.timer`.
 
 ## Variables
 
@@ -274,7 +277,7 @@ task workstation -- --tags package_manager
 | `tasks/gentoo/main.yml` | Gentoo stub | Implementing portage support |
 | `tasks/gentoo/verify.yml` | Gentoo verification stub | Implementing Gentoo verification |
 | `tasks/verify.yml` | In-role verification dispatcher | Adding platform verify dispatch |
-| `handlers/main.yml` | Empty by design; refresh/reload transitions are explicit tasks | Adding new handlers |
+| `handlers/main.yml` | Empty by design; package index refresh is outside this role | Adding new handlers |
 | `meta/main.yml` | Galaxy metadata | Changing role metadata |
 | `templates/archlinux/pacman.conf.j2` | pacman.conf template | Changing pacman config format |
 | `templates/archlinux/makepkg.conf.j2` | makepkg drop-in template | Changing makepkg format |
@@ -299,7 +302,7 @@ task workstation -- --tags package_manager
 
 `reflector` is not orchestrated by this role. Workstation playbooks should keep
 `reflector` before `package_manager` when mirror freshness is required before
-pacman configuration and cache refresh.
+later Arch package installation.
 
 These are local project roles, not Galaxy dependencies. The role intentionally
 does not declare `requirements.yml`; execution must provide the bootstrap roles

@@ -7,13 +7,12 @@
   ansible.builtin.assert:
     that:
       - package_manager_pacman_parallel_downloads | int > 0
-      - package_manager_pacman_cache_valid_time | int >= 0
       - "'Never' not in package_manager_pacman_siglevel"
       - not (package_manager_pacman_external_cache | bool) or package_manager_pacman_cache_root is match('^/')
     fail_msg: >-
       Invalid pacman settings. Require positive ParallelDownloads,
-      non-negative cache_valid_time, no SigLevel=Never, and an absolute
-      package_manager_pacman_cache_root when external cache is enabled.
+      no SigLevel=Never, and an absolute package_manager_pacman_cache_root
+      when external cache is enabled.
     success_msg: "pacman input settings are valid"
   tags: ['package_manager']
 
