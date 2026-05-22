@@ -43,7 +43,9 @@ next role run. Use inventory variables instead of editing managed files directly
 2. **OS dispatch** (`tasks/main.yml`) — include `tasks/<os_family>/main.yml` based on `ansible_facts['os_family']`
 3. **Archlinux path** (`tasks/archlinux/main.yml`):
    1. Configure pacman → `tasks/archlinux/pacman.yml` (template `/etc/pacman.conf`, optional external cache)
-   2. Refresh pacman package indexes → `tasks/archlinux/cache.yml` (only when enabled and when config changed, indexes are missing, or indexes are stale)
+   2. Refresh pacman package indexes → `tasks/archlinux/cache.yml`
+      (only when enabled and when config changed, indexes are missing, or the
+      local sync directory is older than the configured freshness window)
    3. Configure paccache → `tasks/archlinux/paccache.yml` (assert systemd support, then include `tasks/archlinux/systemd/paccache.yml`)
    4. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
    5. Include `tasks/archlinux/yay.yml`, which imports `yay` in setup-only mode (builder user + binary). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
@@ -66,6 +68,9 @@ needed by later tasks are kept as registered task results or task-local vars.
 The role refreshes package indexes as package-manager preparation. That means
 `pacman -Sy` / `apt update` style index refresh only, guarded by cache age where
 the package manager supports it. It does not run full package upgrades.
+On Arch, cache age is measured from the local pacman sync directory, not from
+the `*.db` file timestamps, because pacman preserves repository timestamps on
+those database files.
 The role does not use handlers for package-manager state transitions; systemd
 daemon-reload happens in the task that enables `paccache.timer`.
 
@@ -77,7 +82,7 @@ daemon-reload happens in the task that enables `paccache.timer`.
 |----------|---------|--------|-------------|
 | `package_manager_enabled` | `true` | safe | Master toggle — set `false` to skip the entire role |
 | `package_manager_refresh_package_indexes` | `true` | safe | Refresh package indexes before later install-only package roles |
-| `package_manager_package_index_cache_valid_time` | `3600` | safe | Minimum freshness window in seconds before package indexes are refreshed again |
+| `package_manager_package_index_cache_valid_time` | `3600` | safe | Minimum freshness window in seconds before package indexes are refreshed again. Arch uses the local sync directory timestamp for this check. |
 
 ### Arch Linux / pacman
 

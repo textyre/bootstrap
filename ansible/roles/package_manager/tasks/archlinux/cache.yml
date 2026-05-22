@@ -17,10 +17,11 @@
     - name: Refresh pacman package indexes after pacman configuration change
       community.general.pacman:
         update_cache: true
+      changed_when: true
       when: _package_manager_pacman_conf_changed | bool
 
     # Если pacman.conf не менялся, смотрим только на состояние самих индексов.
-    # Внутри блока три понятные ветки: нет директории, нет *.db, есть устаревшие *.db.
+    # Внутри блока три понятные ветки: нет директории, нет *.db, истекло локальное окно свежести.
     - name: Refresh pacman package indexes when existing indexes are not ready
       when: not (_package_manager_pacman_conf_changed | bool)
       block:
@@ -36,6 +37,7 @@
         - name: Refresh pacman package indexes when index directory is missing
           community.general.pacman:
             update_cache: true
+          changed_when: true
           when: not (_package_manager_pacman_sync_dir_stat.stat.isdir | default(false))
 
         # Если директория есть, проверяем ее содержимое отдельным вложенным блоком.
@@ -57,24 +59,22 @@
             - name: Refresh pacman package indexes when none exist
               community.general.pacman:
                 update_cache: true
+              changed_when: true
               when: _package_manager_pacman_sync_databases.matched | default(0) | int == 0
 
-            # Если базы уже есть, отдельно ищем только устаревшие файлы.
-            # Даже одна старая база означает, что набор индексов уже нельзя считать актуальным.
-            - name: Find stale pacman package indexes
-              ansible.builtin.find:
-                paths: "{{ _package_manager_pacman_sync_dir }}"
-                patterns: "*.db"
-                file_type: file
-                age: "{{ package_manager_package_index_cache_valid_time }}s"
-              register: _package_manager_pacman_stale_sync_databases
-              when: _package_manager_pacman_sync_databases.matched | default(0) | int > 0
-
-            # Обновляем базы pacman, если хотя бы один существующий индекс устарел.
-            # Это сохраняет idempotency: повторный запуск не делает лишнюю сетевую работу без причины.
-            - name: Refresh pacman package indexes when cache is stale
+            # Если базы уже есть, проверяем возраст локального sync-каталога.
+            # Не используем mtime *.db: pacman сохраняет timestamp базы с зеркала,
+            # поэтому файл может выглядеть старым сразу после успешного refresh.
+            - name: Refresh pacman package indexes when local refresh window expired
               community.general.pacman:
                 update_cache: true
+              changed_when: true
+              vars:
+                _package_manager_pacman_sync_dir_age_seconds: >-
+                  {{ (ansible_facts['date_time']['epoch'] | int)
+                     - (_package_manager_pacman_sync_dir_stat.stat.mtime | default(0) | int) }}
+                _package_manager_pacman_cache_valid_seconds: >-
+                  {{ package_manager_package_index_cache_valid_time | int }}
               when:
                 - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
-                - _package_manager_pacman_stale_sync_databases.matched | default(0) | int > 0
+                - _package_manager_pacman_sync_dir_age_seconds | int >= _package_manager_pacman_cache_valid_seconds | int
