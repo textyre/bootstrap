@@ -42,9 +42,4 @@
   ansible.builtin.include_tasks: archlinux/makepkg.yml
 
 - name: Set up yay AUR helper
-  ansible.builtin.import_role:
-    name: yay
-  vars:
-    yay_manage_setup: true
-    yay_manage_aur_packages: false
-  tags: ['aur', 'yay', 'setup', 'molecule-notest']
+  ansible.builtin.include_tasks: archlinux/yay.yml

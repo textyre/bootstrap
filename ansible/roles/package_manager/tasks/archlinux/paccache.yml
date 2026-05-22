@@ -15,6 +15,6 @@
   tags: ['packages', 'paccache']
 
 - name: Configure paccache timer for systemd
-  ansible.builtin.include_tasks: archlinux/paccache_systemd.yml
+  ansible.builtin.include_tasks: archlinux/systemd/paccache.yml
   when: package_manager_paccache_enabled | bool
   tags: ['packages', 'paccache']
