@@ -1,0 +1,347 @@
+---
+# Arch Linux — pacman.conf
+# ==========================================================
+
+- name: Verify Arch Linux — pacman.conf
+  vars:
+    _package_manager_verify_pacman_text: "{{ ((_package_manager_verify_pacman_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Stat /etc/pacman.conf
+      ansible.builtin.stat:
+        path: /etc/pacman.conf
+      register: _package_manager_verify_pacman_stat
+
+    - name: Assert /etc/pacman.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_pacman_stat.stat.exists
+          - _package_manager_verify_pacman_stat.stat.isreg
+          - _package_manager_verify_pacman_stat.stat.mode == '0644'
+          - _package_manager_verify_pacman_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/pacman.conf missing or wrong permissions (expected root 0644)"
+        success_msg: >-
+          /etc/pacman.conf exists
+          (owner={{ _package_manager_verify_pacman_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_pacman_stat.stat.mode }})
+
+    - name: Read /etc/pacman.conf
+      ansible.builtin.slurp:
+        src: /etc/pacman.conf
+      register: _package_manager_verify_pacman_raw
+
+    - name: Assert slurp returned content
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_pacman_raw"
+        fail_msg: "slurp /etc/pacman.conf returned no content"
+        success_msg: "/etc/pacman.conf content successfully read"
+
+    - name: Assert pacman.conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_pacman_text"
+        fail_msg: "pacman.conf missing Ansible marker — not deployed by role"
+        success_msg: "pacman.conf contains Ansible marker"
+
+    - name: Assert HoldPkg directive present
+      ansible.builtin.assert:
+        that: "'HoldPkg' in _package_manager_verify_pacman_text"
+        fail_msg: "HoldPkg directive missing from /etc/pacman.conf"
+        success_msg: "HoldPkg directive present in /etc/pacman.conf"
+
+    - name: Assert Architecture directive present
+      ansible.builtin.assert:
+        that: "'Architecture = auto' in _package_manager_verify_pacman_text"
+        fail_msg: "Architecture = auto missing from /etc/pacman.conf"
+        success_msg: "Architecture = auto confirmed in /etc/pacman.conf"
+
+    - name: Assert ParallelDownloads value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads
+          in _package_manager_verify_pacman_text
+        fail_msg: >-
+          ParallelDownloads not set to {{ package_manager_pacman_parallel_downloads }}
+          in /etc/pacman.conf
+        success_msg: "ParallelDownloads = {{ package_manager_pacman_parallel_downloads }} confirmed in /etc/pacman.conf"
+
+    - name: Assert SigLevel value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'SigLevel    = ' ~ package_manager_pacman_siglevel
+          in _package_manager_verify_pacman_text
+        fail_msg: >-
+          SigLevel not set to {{ package_manager_pacman_siglevel }}
+          in /etc/pacman.conf
+        success_msg: "SigLevel = {{ package_manager_pacman_siglevel }} confirmed in /etc/pacman.conf"
+
+    - name: Assert LocalFileSigLevel directive present
+      ansible.builtin.assert:
+        that: "'LocalFileSigLevel = Optional' in _package_manager_verify_pacman_text"
+        fail_msg: "LocalFileSigLevel = Optional missing from /etc/pacman.conf"
+        success_msg: "LocalFileSigLevel = Optional confirmed in /etc/pacman.conf"
+
+    - name: Assert Color directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'Color' in _package_manager_verify_pacman_text"
+        fail_msg: "Color directive missing from /etc/pacman.conf"
+        success_msg: "Color directive present in /etc/pacman.conf"
+      when: package_manager_pacman_color | bool
+
+    - name: Assert CheckSpace directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'CheckSpace' in _package_manager_verify_pacman_text"
+        fail_msg: "CheckSpace directive missing from /etc/pacman.conf"
+        success_msg: "CheckSpace directive present in /etc/pacman.conf"
+      when: package_manager_pacman_check_space | bool
+
+    - name: Assert VerbosePkgLists directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'VerbosePkgLists' in _package_manager_verify_pacman_text"
+        fail_msg: "VerbosePkgLists directive missing from /etc/pacman.conf"
+        success_msg: "VerbosePkgLists directive present in /etc/pacman.conf"
+      when: package_manager_pacman_verbose_pkg_lists | bool
+
+    - name: Assert [core] repository section present
+      ansible.builtin.assert:
+        that: "'[core]' in _package_manager_verify_pacman_text"
+        fail_msg: "[core] repository section missing from /etc/pacman.conf"
+        success_msg: "[core] repository section present in /etc/pacman.conf"
+
+    - name: Assert [extra] repository section present
+      ansible.builtin.assert:
+        that: "'[extra]' in _package_manager_verify_pacman_text"
+        fail_msg: "[extra] repository section missing from /etc/pacman.conf"
+        success_msg: "[extra] repository section present in /etc/pacman.conf"
+
+    - name: Assert [multilib] section absent (when multilib disabled)
+      ansible.builtin.assert:
+        that: "'[multilib]' not in _package_manager_verify_pacman_text"
+        fail_msg: "[multilib] present in /etc/pacman.conf but package_manager_pacman_multilib is false"
+        success_msg: "[multilib] correctly absent from /etc/pacman.conf (multilib disabled)"
+      when: not (package_manager_pacman_multilib | bool)
+
+    - name: Assert [multilib] section present (when multilib enabled)
+      ansible.builtin.assert:
+        that: "'[multilib]' in _package_manager_verify_pacman_text"
+        fail_msg: "[multilib] missing from /etc/pacman.conf but package_manager_pacman_multilib is true"
+        success_msg: "[multilib] section present in /etc/pacman.conf (multilib enabled)"
+      when: package_manager_pacman_multilib | bool
+
+    - name: Verify ParallelDownloads count via grep  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: grep -c 'ParallelDownloads' /etc/pacman.conf
+      register: _package_manager_verify_pacman_pd_count
+      changed_when: false
+
+    - name: Assert exactly one ParallelDownloads line
+      ansible.builtin.assert:
+        that: _package_manager_verify_pacman_pd_count.stdout | trim == '1'
+        fail_msg: >-
+          Expected exactly 1 ParallelDownloads line, found
+          {{ _package_manager_verify_pacman_pd_count.stdout | trim }}
+        success_msg: >-
+          Exactly 1 ParallelDownloads line confirmed in /etc/pacman.conf
+
+# ==========================================================
+# Arch Linux — paccache
+# ==========================================================
+
+- name: Verify Arch Linux — paccache
+  when:
+    - package_manager_paccache_enabled | bool
+  vars:
+    _package_manager_verify_paccache_text: "{{ ((_package_manager_verify_paccache_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Check pacman-contrib is installed  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: pacman -Qi pacman-contrib
+      register: _package_manager_verify_paccache_pkg
+      changed_when: false
+
+    - name: Assert pacman-contrib is installed
+      ansible.builtin.assert:
+        that: _package_manager_verify_paccache_pkg.rc == 0
+        fail_msg: "pacman-contrib package is not installed"
+        success_msg: "pacman-contrib package is installed"
+
+    - name: Stat paccache drop-in directory
+      ansible.builtin.stat:
+        path: /etc/systemd/system/paccache.service.d
+      register: _package_manager_verify_paccache_dir
+
+    - name: Assert paccache drop-in directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_paccache_dir.stat.exists
+          - _package_manager_verify_paccache_dir.stat.isdir
+          - _package_manager_verify_paccache_dir.stat.mode == '0755'
+          - _package_manager_verify_paccache_dir.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/systemd/system/paccache.service.d missing or wrong permissions
+          (expected directory root 0755)
+        success_msg: >-
+          /etc/systemd/system/paccache.service.d exists
+          (owner={{ _package_manager_verify_paccache_dir.stat.pw_name }},
+          mode={{ _package_manager_verify_paccache_dir.stat.mode }})
+
+    - name: Stat paccache.service drop-in
+      ansible.builtin.stat:
+        path: /etc/systemd/system/paccache.service.d/keep.conf
+      register: _package_manager_verify_paccache_dropin
+
+    - name: Assert paccache drop-in exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_paccache_dropin.stat.exists
+          - _package_manager_verify_paccache_dropin.stat.mode == '0644'
+          - _package_manager_verify_paccache_dropin.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/systemd/system/paccache.service.d/keep.conf missing or wrong permissions
+          (expected root 0644)
+        success_msg: >-
+          /etc/systemd/system/paccache.service.d/keep.conf exists
+          (owner={{ _package_manager_verify_paccache_dropin.stat.pw_name }},
+          mode={{ _package_manager_verify_paccache_dropin.stat.mode }})
+
+    - name: Read paccache drop-in
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/paccache.service.d/keep.conf
+      register: _package_manager_verify_paccache_raw
+
+    - name: Assert slurp returned content (paccache)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_paccache_raw"
+        fail_msg: "slurp paccache.service.d/keep.conf returned no content"
+        success_msg: "paccache.service.d/keep.conf content successfully read"
+
+    - name: Assert paccache drop-in has [Service] section header
+      ansible.builtin.assert:
+        that: "'[Service]' in _package_manager_verify_paccache_text"
+        fail_msg: "[Service] section header missing from paccache.service.d/keep.conf"
+        success_msg: "[Service] section header present in paccache.service.d/keep.conf"
+
+    - name: Assert paccache drop-in resets ExecStart
+      ansible.builtin.assert:
+        that: "'ExecStart=' in _package_manager_verify_paccache_text"
+        fail_msg: >-
+          ExecStart= reset line missing from paccache.service.d/keep.conf
+          (required to override the upstream ExecStart)
+        success_msg: "ExecStart= reset line present in paccache.service.d/keep.conf"
+
+    - name: Assert paccache ExecStart uses /usr/bin/paccache -r
+      ansible.builtin.assert:
+        that: "'/usr/bin/paccache -r' in _package_manager_verify_paccache_text"
+        fail_msg: "/usr/bin/paccache -r command not found in paccache drop-in"
+        success_msg: "/usr/bin/paccache -r confirmed in paccache drop-in ExecStart"
+
+    - name: Assert paccache keep count in drop-in
+      ansible.builtin.assert:
+        that: >-
+          '-k ' ~ package_manager_paccache_keep
+          in _package_manager_verify_paccache_text
+        fail_msg: >-
+          paccache keep count not set to {{ package_manager_paccache_keep }}
+          in paccache.service.d/keep.conf
+        success_msg: "paccache keep count -k {{ package_manager_paccache_keep }} confirmed in paccache.service.d/keep.conf"
+
+    - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: systemctl is-enabled paccache.timer
+      register: _package_manager_verify_paccache_timer
+      changed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Assert paccache.timer is enabled (systemd)
+      ansible.builtin.assert:
+        that: _package_manager_verify_paccache_timer.stdout | trim == 'enabled'
+        fail_msg: >-
+          paccache.timer is not enabled
+          (got: {{ _package_manager_verify_paccache_timer.stdout | trim }})
+        success_msg: "paccache.timer is enabled"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+# ==========================================================
+# Arch Linux — makepkg
+# ==========================================================
+
+- name: Verify Arch Linux — makepkg
+  when:
+    - package_manager_makepkg_enabled | bool
+  vars:
+    _package_manager_verify_makepkg_text: "{{ ((_package_manager_verify_makepkg_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Stat /etc/makepkg.conf.d directory
+      ansible.builtin.stat:
+        path: /etc/makepkg.conf.d
+      register: _package_manager_verify_makepkg_dir
+
+    - name: Assert /etc/makepkg.conf.d directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_makepkg_dir.stat.exists
+          - _package_manager_verify_makepkg_dir.stat.isdir
+          - _package_manager_verify_makepkg_dir.stat.mode == '0755'
+          - _package_manager_verify_makepkg_dir.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/makepkg.conf.d missing or wrong permissions
+          (expected directory root 0755)
+        success_msg: >-
+          /etc/makepkg.conf.d exists
+          (owner={{ _package_manager_verify_makepkg_dir.stat.pw_name }},
+          mode={{ _package_manager_verify_makepkg_dir.stat.mode }})
+
+    - name: Stat /etc/makepkg.conf.d/ansible.conf
+      ansible.builtin.stat:
+        path: /etc/makepkg.conf.d/ansible.conf
+      register: _package_manager_verify_makepkg_stat
+
+    - name: Assert makepkg drop-in exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_makepkg_stat.stat.exists
+          - _package_manager_verify_makepkg_stat.stat.mode == '0644'
+          - _package_manager_verify_makepkg_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/makepkg.conf.d/ansible.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/makepkg.conf.d/ansible.conf exists
+          (owner={{ _package_manager_verify_makepkg_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_makepkg_stat.stat.mode }})
+
+    - name: Read /etc/makepkg.conf.d/ansible.conf
+      ansible.builtin.slurp:
+        src: /etc/makepkg.conf.d/ansible.conf
+      register: _package_manager_verify_makepkg_raw
+
+    - name: Assert slurp returned content (makepkg)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_makepkg_raw"
+        fail_msg: "slurp /etc/makepkg.conf.d/ansible.conf returned no content"
+        success_msg: "/etc/makepkg.conf.d/ansible.conf content successfully read"
+
+    - name: Assert makepkg conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_makepkg_text"
+        fail_msg: "/etc/makepkg.conf.d/ansible.conf missing Ansible marker"
+        success_msg: "/etc/makepkg.conf.d/ansible.conf contains Ansible marker"
+
+    - name: Assert MAKEFLAGS with -j flag present in makepkg conf
+      ansible.builtin.assert:
+        that:
+          - "'MAKEFLAGS=' in _package_manager_verify_makepkg_text"
+          - "'-j' in _package_manager_verify_makepkg_text"
+        fail_msg: "MAKEFLAGS with -j flag not found in /etc/makepkg.conf.d/ansible.conf"
+        success_msg: "MAKEFLAGS with -j flag confirmed in /etc/makepkg.conf.d/ansible.conf"
+
+    - name: Assert PKGEXT value matches variable
+      ansible.builtin.assert:
+        that: >-
+          "PKGEXT='" ~ package_manager_makepkg_pkgext ~ "'"
+          in _package_manager_verify_makepkg_text
+        fail_msg: >-
+          PKGEXT not set to {{ package_manager_makepkg_pkgext }}
+          in /etc/makepkg.conf.d/ansible.conf
+        success_msg: "PKGEXT='{{ package_manager_makepkg_pkgext }}' confirmed in /etc/makepkg.conf.d/ansible.conf"
+
+# ==========================================================

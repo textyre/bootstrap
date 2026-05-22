@@ -1,0 +1,130 @@
+---
+# Fedora — dnf.conf
+# ==========================================================
+
+- name: Verify Fedora — dnf.conf
+  vars:
+    _package_manager_verify_dnf_text: "{{ ((_package_manager_verify_dnf_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Stat /etc/dnf/dnf.conf
+      ansible.builtin.stat:
+        path: /etc/dnf/dnf.conf
+      register: _package_manager_verify_dnf_stat
+
+    - name: Assert /etc/dnf/dnf.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_dnf_stat.stat.exists
+          - _package_manager_verify_dnf_stat.stat.mode == '0644'
+          - _package_manager_verify_dnf_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/dnf/dnf.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/dnf/dnf.conf exists
+          (owner={{ _package_manager_verify_dnf_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_dnf_stat.stat.mode }})
+
+    - name: Read /etc/dnf/dnf.conf
+      ansible.builtin.slurp:
+        src: /etc/dnf/dnf.conf
+      register: _package_manager_verify_dnf_raw
+
+    - name: Assert slurp returned content (dnf)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_dnf_raw"
+        fail_msg: "slurp /etc/dnf/dnf.conf returned no content"
+        success_msg: "/etc/dnf/dnf.conf content successfully read"
+
+    - name: Assert dnf.conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_dnf_text"
+        fail_msg: "/etc/dnf/dnf.conf missing Ansible marker"
+        success_msg: "/etc/dnf/dnf.conf contains Ansible marker"
+
+    - name: Assert [main] section present
+      ansible.builtin.assert:
+        that: "'[main]' in _package_manager_verify_dnf_text"
+        fail_msg: "[main] section missing from /etc/dnf/dnf.conf"
+        success_msg: "[main] section present in /etc/dnf/dnf.conf"
+
+    - name: Assert gpgcheck enabled
+      ansible.builtin.assert:
+        that: "'gpgcheck=1' in _package_manager_verify_dnf_text"
+        fail_msg: "gpgcheck=1 missing from /etc/dnf/dnf.conf"
+        success_msg: "gpgcheck=1 confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert max_parallel_downloads value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'max_parallel_downloads=' ~ package_manager_dnf_parallel_downloads
+          in _package_manager_verify_dnf_text
+        fail_msg: "max_parallel_downloads not set to {{ package_manager_dnf_parallel_downloads }}"
+        success_msg: "max_parallel_downloads={{ package_manager_dnf_parallel_downloads }} confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert installonly_limit value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'installonly_limit=' ~ package_manager_dnf_installonly_limit
+          in _package_manager_verify_dnf_text
+        fail_msg: "installonly_limit not set to {{ package_manager_dnf_installonly_limit }}"
+        success_msg: "installonly_limit={{ package_manager_dnf_installonly_limit }} confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert clean_requirements_on_remove enabled
+      ansible.builtin.assert:
+        that: "'clean_requirements_on_remove=True' in _package_manager_verify_dnf_text"
+        fail_msg: "clean_requirements_on_remove=True missing from /etc/dnf/dnf.conf"
+        success_msg: "clean_requirements_on_remove=True confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert best enabled
+      ansible.builtin.assert:
+        that: "'best=True' in _package_manager_verify_dnf_text"
+        fail_msg: "best=True missing from /etc/dnf/dnf.conf"
+        success_msg: "best=True confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert skip_if_unavailable disabled
+      ansible.builtin.assert:
+        that: "'skip_if_unavailable=False' in _package_manager_verify_dnf_text"
+        fail_msg: "skip_if_unavailable=False missing from /etc/dnf/dnf.conf"
+        success_msg: "skip_if_unavailable=False confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert fastestmirror value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'fastestmirror=' ~ (package_manager_dnf_fastestmirror | lower)
+          in _package_manager_verify_dnf_text
+        fail_msg: >-
+          fastestmirror not set to {{ package_manager_dnf_fastestmirror | lower }}
+          in /etc/dnf/dnf.conf
+        success_msg: "fastestmirror={{ package_manager_dnf_fastestmirror | lower }} confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert color value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'color=' ~ package_manager_dnf_color
+          in _package_manager_verify_dnf_text
+        fail_msg: >-
+          color not set to {{ package_manager_dnf_color }}
+          in /etc/dnf/dnf.conf
+        success_msg: "color={{ package_manager_dnf_color }} confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert defaultyes value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'defaultyes=' ~ (package_manager_dnf_defaultyes | lower)
+          in _package_manager_verify_dnf_text
+        fail_msg: >-
+          defaultyes not set to {{ package_manager_dnf_defaultyes | lower }}
+          in /etc/dnf/dnf.conf
+        success_msg: "defaultyes={{ package_manager_dnf_defaultyes | lower }} confirmed in /etc/dnf/dnf.conf"
+
+    - name: Assert keepcache value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'keepcache=' ~ (package_manager_dnf_keepcache | ternary('1', '0'))
+          in _package_manager_verify_dnf_text
+        fail_msg: >-
+          keepcache not set to {{ package_manager_dnf_keepcache | ternary('1', '0') }}
+          in /etc/dnf/dnf.conf
+        success_msg: "keepcache={{ package_manager_dnf_keepcache | ternary('1', '0') }} confirmed in /etc/dnf/dnf.conf"
+
+# ==========================================================

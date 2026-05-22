@@ -1,0 +1,127 @@
+---
+# Debian / Ubuntu — apt parallel config
+# ==========================================================
+
+- name: Verify Debian/Ubuntu — apt parallel config
+  vars:
+    _package_manager_verify_apt_parallel_text: "{{ ((_package_manager_verify_apt_parallel_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Stat /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      register: _package_manager_verify_apt_parallel_stat
+
+    - name: Assert apt parallel config exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_apt_parallel_stat.stat.exists
+          - _package_manager_verify_apt_parallel_stat.stat.mode == '0644'
+          - _package_manager_verify_apt_parallel_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/apt/apt.conf.d/10-ansible-parallel.conf exists
+          (owner={{ _package_manager_verify_apt_parallel_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_apt_parallel_stat.stat.mode }})
+
+    - name: Read /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      register: _package_manager_verify_apt_parallel_raw
+
+    - name: Assert slurp returned content (apt parallel)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_apt_parallel_raw"
+        fail_msg: "slurp 10-ansible-parallel.conf returned no content"
+        success_msg: "10-ansible-parallel.conf content successfully read"
+
+    - name: Assert apt parallel config managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_apt_parallel_text"
+        fail_msg: "10-ansible-parallel.conf missing Ansible marker"
+        success_msg: "10-ansible-parallel.conf contains Ansible marker"
+
+    - name: Assert Queue-Mode value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'Acquire::Queue-Mode "' ~ package_manager_apt_parallel_queue_mode ~ '"'
+          in _package_manager_verify_apt_parallel_text
+        fail_msg: >-
+          Queue-Mode not set to {{ package_manager_apt_parallel_queue_mode }}
+          in 10-ansible-parallel.conf
+        success_msg: "Acquire::Queue-Mode \"{{ package_manager_apt_parallel_queue_mode }}\" confirmed in 10-ansible-parallel.conf"
+
+    - name: Assert Retries value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'Acquire::Retries "' ~ package_manager_apt_retries ~ '"'
+          in _package_manager_verify_apt_parallel_text
+        fail_msg: >-
+          Retries not set to {{ package_manager_apt_retries }}
+          in 10-ansible-parallel.conf
+        success_msg: "Acquire::Retries \"{{ package_manager_apt_retries }}\" confirmed in 10-ansible-parallel.conf"
+
+# ==========================================================
+# Debian / Ubuntu — dpkg options
+# ==========================================================
+
+- name: Verify Debian/Ubuntu — dpkg options
+  vars:
+    _package_manager_verify_dpkg_text: "{{ ((_package_manager_verify_dpkg_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    - name: Stat /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      register: _package_manager_verify_dpkg_stat
+
+    - name: Assert dpkg config exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_dpkg_stat.stat.exists
+          - _package_manager_verify_dpkg_stat.stat.mode == '0644'
+          - _package_manager_verify_dpkg_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/apt/apt.conf.d/20-ansible-dpkg.conf exists
+          (owner={{ _package_manager_verify_dpkg_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_dpkg_stat.stat.mode }})
+
+    - name: Read /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      register: _package_manager_verify_dpkg_raw
+
+    - name: Assert slurp returned content (dpkg)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_dpkg_raw"
+        fail_msg: "slurp 20-ansible-dpkg.conf returned no content"
+        success_msg: "20-ansible-dpkg.conf content successfully read"
+
+    - name: Assert dpkg config managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_dpkg_text"
+        fail_msg: "20-ansible-dpkg.conf missing Ansible marker"
+        success_msg: "20-ansible-dpkg.conf contains Ansible marker"
+
+    - name: Assert Dpkg::Options block present
+      ansible.builtin.assert:
+        that: "'Dpkg::Options' in _package_manager_verify_dpkg_text"
+        fail_msg: "Dpkg::Options block missing from 20-ansible-dpkg.conf"
+        success_msg: "Dpkg::Options block present in 20-ansible-dpkg.conf"
+
+    - name: Assert dpkg force-confdef option present (when enabled)
+      ansible.builtin.assert:
+        that: "'--force-confdef' in _package_manager_verify_dpkg_text"
+        fail_msg: "--force-confdef missing from 20-ansible-dpkg.conf"
+        success_msg: "--force-confdef present in 20-ansible-dpkg.conf"
+      when: package_manager_apt_dpkg_force_confdef | bool
+
+    - name: Assert dpkg force-confold option present (when enabled)
+      ansible.builtin.assert:
+        that: "'--force-confold' in _package_manager_verify_dpkg_text"
+        fail_msg: "--force-confold missing from 20-ansible-dpkg.conf"
+        success_msg: "--force-confold present in 20-ansible-dpkg.conf"
+      when: package_manager_apt_dpkg_force_confold | bool
+
+# ==========================================================
