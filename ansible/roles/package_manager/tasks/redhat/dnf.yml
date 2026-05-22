@@ -9,4 +9,4 @@
     group: root
     mode: '0644'
     backup: true
-  tags: ['packages', 'dnf']
+  tags: ['package_manager']

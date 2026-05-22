@@ -12,4 +12,4 @@
       valid cron range.
     success_msg: "xbps cache schedule settings are valid"
   when: package_manager_xbps_cache_cleanup_enabled | bool
-  tags: ['always', 'packages', 'xbps-cache']
+  tags: ['package_manager']

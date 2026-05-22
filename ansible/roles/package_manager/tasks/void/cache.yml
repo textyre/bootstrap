@@ -11,4 +11,4 @@
     job: "/usr/bin/xbps-remove -O"
     user: root
     state: "{{ package_manager_xbps_cache_cleanup_enabled | ternary('present', 'absent') }}"
-  tags: ['packages', 'xbps-cache']
+  tags: ['package_manager']

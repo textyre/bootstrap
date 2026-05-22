@@ -33,7 +33,6 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,aur,mirrors,molecule-notest
     extra-vars: "package_manager_pacman_multilib=true"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"

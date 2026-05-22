@@ -11,4 +11,4 @@
       DNF settings require positive parallel downloads, color in
       auto/never/always, and installonly_limit of at least 2.
     success_msg: "dnf input settings are valid"
-  tags: ['always', 'packages', 'dnf']
+  tags: ['package_manager']

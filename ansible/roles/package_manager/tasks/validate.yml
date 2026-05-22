@@ -9,8 +9,8 @@
       package_manager role is not supported on {{ ansible_facts['os_family'] }}.
       Supported: {{ _package_manager_supported_os | join(', ') }}.
     success_msg: "package_manager supports {{ ansible_facts['os_family'] }}"
-  tags: ['always', 'packages', 'package-manager', 'package_manager']
+  tags: ['package_manager']
 
 - name: Include OS-family-specific package_manager validation
   ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/validate.yml"
-  tags: ['always', 'packages', 'package-manager', 'package_manager']
+  tags: ['package_manager']

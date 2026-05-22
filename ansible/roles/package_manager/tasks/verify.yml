@@ -3,4 +3,4 @@
 
 - name: Include OS-family-specific package_manager verification
   ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/verify.yml"
-  tags: ['packages', 'package-manager', 'package_manager']
+  tags: ['package_manager']

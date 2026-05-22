@@ -8,4 +8,4 @@
     owner: root
     group: root
     mode: '0644'
-  tags: ['packages', 'apt']
+  tags: ['package_manager']

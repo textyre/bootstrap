@@ -4,4 +4,4 @@
 - name: Gentoo package manager validation stub
   ansible.builtin.debug:
     msg: "Gentoo package_manager validation is a stub — no input validation is currently required"
-  tags: ['always', 'packages', 'portage']
+  tags: ['package_manager']

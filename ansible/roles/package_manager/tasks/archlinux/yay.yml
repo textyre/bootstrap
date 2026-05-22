@@ -7,4 +7,4 @@
   vars:
     yay_manage_setup: true
     yay_manage_aur_packages: false
-  tags: ['aur', 'yay', 'setup', 'molecule-notest']
+  tags: ['package_manager']

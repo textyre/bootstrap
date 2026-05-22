@@ -3,4 +3,4 @@
 
 - name: Configure dnf
   ansible.builtin.include_tasks: redhat/dnf.yml
-  tags: ['packages', 'dnf']
+  tags: ['package_manager']

@@ -12,9 +12,9 @@
       implementation for this init system.
     success_msg: "paccache.timer is supported on systemd"
   when: package_manager_paccache_enabled | bool
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']
 
 - name: Configure paccache timer for systemd
   ansible.builtin.include_tasks: archlinux/systemd/paccache.yml
   when: package_manager_paccache_enabled | bool
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']

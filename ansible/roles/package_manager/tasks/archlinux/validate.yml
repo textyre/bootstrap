@@ -13,7 +13,7 @@
       non-negative cache_valid_time, no SigLevel=Never, and an absolute
       package_manager_pacman_cache_root when external cache is enabled.
     success_msg: "pacman input settings are valid"
-  tags: ['always', 'packages', 'pacman']
+  tags: ['package_manager']
 
 - name: Assert paccache settings are valid
   ansible.builtin.assert:
@@ -22,7 +22,7 @@
     fail_msg: "package_manager_paccache_keep must be a positive integer"
     success_msg: "paccache input settings are valid"
   when: package_manager_paccache_enabled | bool
-  tags: ['always', 'packages', 'paccache']
+  tags: ['package_manager']
 
 - name: Assert makepkg settings are valid
   ansible.builtin.assert:
@@ -34,4 +34,4 @@
       package_manager_makepkg_pkgext must start with a dot.
     success_msg: "makepkg input settings are valid"
   when: package_manager_makepkg_enabled | bool
-  tags: ['always', 'packages', 'makepkg']
+  tags: ['package_manager']

@@ -5,7 +5,7 @@
   ansible.builtin.slurp:
     src: /etc/pacman.conf
   register: _package_manager_verify_pacman_raw
-  tags: ['packages', 'pacman']
+  tags: ['package_manager']
 
 - name: Assert pacman.conf is managed by Ansible
   ansible.builtin.assert:
@@ -17,7 +17,7 @@
   vars:
     _package_manager_verify_pacman_text: "{{ _package_manager_verify_pacman_raw.content | b64decode }}"
   when: "'content' in _package_manager_verify_pacman_raw"
-  tags: ['packages', 'pacman']
+  tags: ['package_manager']
 
 - name: Verify pacman can parse pacman.conf  # noqa: command-instead-of-module
   ansible.builtin.command:
@@ -25,11 +25,11 @@
   register: _package_manager_verify_pacman_parse
   changed_when: false
   failed_when: _package_manager_verify_pacman_parse.rc != 0
-  tags: ['packages', 'pacman']
+  tags: ['package_manager']
 
 - name: Verify makepkg drop-in deployed correctly
   when: package_manager_makepkg_enabled | bool
-  tags: ['packages', 'makepkg']
+  tags: ['package_manager']
   block:
     - name: Stat /etc/makepkg.conf.d/ansible.conf
       ansible.builtin.stat:
@@ -47,7 +47,7 @@
   when:
     - package_manager_paccache_enabled | bool
     - ansible_facts['service_mgr'] == 'systemd'
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']
   block:
     - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command:

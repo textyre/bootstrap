@@ -5,7 +5,7 @@
   ansible.builtin.stat:
     path: /etc/xbps.d/ansible.conf
   register: _package_manager_verify_xbps_stat
-  tags: ['packages', 'xbps']
+  tags: ['package_manager']
 
 - name: Assert xbps config exists
   ansible.builtin.assert:
@@ -13,7 +13,7 @@
       - _package_manager_verify_xbps_stat.stat.exists
     fail_msg: "/etc/xbps.d/ansible.conf does not exist"
     success_msg: "/etc/xbps.d/ansible.conf deployed"
-  tags: ['packages', 'xbps']
+  tags: ['package_manager']
 
 - name: Verify xbps can read package manager configuration  # noqa: command-instead-of-module
   ansible.builtin.command:
@@ -21,4 +21,4 @@
   register: _package_manager_verify_xbps_parse
   changed_when: false
   failed_when: _package_manager_verify_xbps_parse.rc != 0
-  tags: ['packages', 'xbps']
+  tags: ['package_manager']

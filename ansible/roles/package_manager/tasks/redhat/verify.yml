@@ -5,7 +5,7 @@
   ansible.builtin.slurp:
     src: /etc/dnf/dnf.conf
   register: _package_manager_verify_dnf_raw
-  tags: ['packages', 'dnf']
+  tags: ['package_manager']
 
 - name: Assert dnf.conf is managed by Ansible
   ansible.builtin.assert:
@@ -16,7 +16,7 @@
   vars:
     _package_manager_verify_dnf_text: "{{ _package_manager_verify_dnf_raw.content | b64decode }}"
   when: "'content' in _package_manager_verify_dnf_raw"
-  tags: ['packages', 'dnf']
+  tags: ['package_manager']
 
 - name: Verify dnf can parse dnf.conf  # noqa: command-instead-of-module
   ansible.builtin.command:
@@ -24,4 +24,4 @@
   register: _package_manager_verify_dnf_parse
   changed_when: false
   failed_when: _package_manager_verify_dnf_parse.rc != 0
-  tags: ['packages', 'dnf']
+  tags: ['package_manager']

@@ -10,4 +10,4 @@
       package_manager_apt_parallel_queue_mode must be 'host' or 'access',
       and package_manager_apt_retries must be zero or greater.
     success_msg: "apt input settings are valid"
-  tags: ['always', 'packages', 'apt']
+  tags: ['package_manager']
