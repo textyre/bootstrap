@@ -15,6 +15,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 - [x] Deploys dnf.conf with parallel downloads, fastestmirror, keepcache settings (Fedora)
 - [x] Deploys xbps config and schedules weekly cache cleanup via cron (Void)
 - [x] Runs yay setup-only on Arch as part of the Arch package manager contract
+- [x] Refreshes package indexes as package manager preparation (Arch pacman databases, Debian apt package index)
 - [x] Validates OS is in supported list before any configuration
 - [x] Runs in-role verification after deployment (verify.yml)
 - [x] Supports external pacman cache on shared storage
@@ -22,6 +23,7 @@ Deploys optimized configuration via Jinja2 templates — no `lineinfile` patchin
 ## What this role does not do
 
 - It does not perform full OS upgrades or force `archlinux-keyring` to `latest`; that belongs to the pre-workstation `system_update` lifecycle.
+- It does not install the workstation package set; that remains the responsibility of the `packages` role.
 
 ## Ownership contract
 
@@ -41,12 +43,14 @@ next role run. Use inventory variables instead of editing managed files directly
 2. **OS dispatch** (`tasks/main.yml`) — include `tasks/<os_family>/main.yml` based on `ansible_facts['os_family']`
 3. **Archlinux path** (`tasks/archlinux/main.yml`):
    1. Configure pacman → `tasks/archlinux/pacman.yml` (template `/etc/pacman.conf`, optional external cache)
-   2. Configure paccache → `tasks/archlinux/paccache.yml` (assert systemd support, then include `tasks/archlinux/systemd/paccache.yml`)
-   3. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
-   4. Include `tasks/archlinux/yay.yml`, which imports `yay` in setup-only mode (builder user + binary). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
+   2. Refresh pacman package indexes → `tasks/archlinux/cache.yml` (only when enabled and when config changed, indexes are missing, or indexes are stale)
+   3. Configure paccache → `tasks/archlinux/paccache.yml` (assert systemd support, then include `tasks/archlinux/systemd/paccache.yml`)
+   4. Configure makepkg → `tasks/archlinux/makepkg.yml` (template drop-in to `/etc/makepkg.conf.d/`)
+   5. Include `tasks/archlinux/yay.yml`, which imports `yay` in setup-only mode (builder user + binary). This is intentional: on Arch, this project treats `pacman` + `yay` as the complete package manager surface.
 4. **Debian path** (`tasks/debian/main.yml`):
    1. Configure apt → `tasks/debian/apt.yml` (template to `/etc/apt/apt.conf.d/10-ansible-parallel.conf`)
    2. Configure dpkg → `tasks/debian/dpkg.yml` (template to `/etc/apt/apt.conf.d/20-ansible-dpkg.conf`)
+   3. Refresh apt package index → `tasks/debian/cache.yml` (`apt update` with cache validity guard)
 5. **RedHat path** (`tasks/redhat/main.yml`):
    1. Configure dnf → `tasks/redhat/dnf.yml` (template `/etc/dnf/dnf.conf`)
 6. **Void path** (`tasks/void/main.yml`):
@@ -59,9 +63,9 @@ next role run. Use inventory variables instead of editing managed files directly
 
 The role does not publish computed package-manager state as host facts. Values
 needed by later tasks are kept as registered task results or task-local vars.
-The role does not refresh package indexes or perform package lifecycle updates.
-Arch package index refresh belongs to the pre-workstation `system_update`
-lifecycle; Debian apt cache refresh belongs to the `packages` role install path.
+The role refreshes package indexes as package-manager preparation. That means
+`pacman -Sy` / `apt update` style index refresh only, guarded by cache age where
+the package manager supports it. It does not run full package upgrades.
 The role does not use handlers for package-manager state transitions; systemd
 daemon-reload happens in the task that enables `paccache.timer`.
 
@@ -72,6 +76,8 @@ daemon-reload happens in the task that enables `paccache.timer`.
 | Variable | Default | Safety | Description |
 |----------|---------|--------|-------------|
 | `package_manager_enabled` | `true` | safe | Master toggle — set `false` to skip the entire role |
+| `package_manager_refresh_package_indexes` | `true` | safe | Refresh package indexes before later install-only package roles |
+| `package_manager_package_index_cache_valid_time` | `3600` | safe | Minimum freshness window in seconds before package indexes are refreshed again |
 
 ### Arch Linux / pacman
 
@@ -177,6 +183,7 @@ package_manager_dnf_installonly_limit: 5
 | Service | `paccache.timer` | — | — | cron job | — |
 | System user | `alpm` (cache ownership) | — | — | — | — |
 | Init system | systemd | systemd | systemd | runit (cron) | — |
+| Package index refresh | guarded pacman database refresh | `apt update` with cache validity guard | — | — | — |
 | Cache cleanup | paccache timer | — (manual) | — (manual) | cron `xbps-remove -O` | — |
 
 ## Logs
@@ -199,7 +206,7 @@ This role does not create additional log files. It configures the package manage
 | paccache.timer not starting | Missing `pacman-contrib` package or non-systemd init | Ensure role ran fully; check `systemctl status paccache.timer` |
 | `[multilib]` section missing | `package_manager_pacman_multilib: false` (default) | Set `package_manager_pacman_multilib: true` in vars |
 | External cache dirs not created | `package_manager_pacman_external_cache: false` or `cache_root` empty | Set both `external_cache: true` and `cache_root` to mount path |
-| apt config not applied after role | Template deployed but apt not refreshed | Run `apt-get update` — role deploys config, doesn't trigger cache refresh |
+| apt package search still uses stale data | Package index refresh disabled or cache still inside valid time window | Enable `package_manager_refresh_package_indexes` or lower `package_manager_package_index_cache_valid_time` |
 | dnf.conf overwritten by dnf update | dnf package update replaces config | Re-run role; config has backup enabled (`backup: true` on template) |
 | Gentoo: "stub" message | Gentoo support not yet implemented | Expected behavior — portage configuration not yet automated |
 | `alpm` group ownership skipped | `alpm` user doesn't exist (older pacman) | Expected — role checks `getent` before setting group ownership |
@@ -256,16 +263,18 @@ task workstation -- --tags package_manager
 | `vars/main.yml` | Internal OS-family mappings | Adding OS-specific internal values |
 | `tasks/main.yml` | Orchestrator: validate → dispatch → verify → report | Changing role flow or adding phases |
 | `tasks/validate.yml` | Preflight validation for OS support and input values | Adding new variables or validation rules |
-| `tasks/archlinux/main.yml` | Arch dispatcher: pacman → paccache → makepkg → yay setup | Adding Arch-specific sub-tasks |
+| `tasks/archlinux/main.yml` | Arch dispatcher: pacman → cache refresh → paccache → makepkg → yay setup | Adding Arch-specific sub-tasks |
 | `tasks/archlinux/pacman.yml` | pacman.conf template + external cache | Changing pacman config logic |
+| `tasks/archlinux/cache.yml` | pacman package index refresh | Changing Arch package index refresh behavior |
 | `tasks/archlinux/paccache.yml` | paccache dispatcher and systemd-only assert | Changing paccache support policy |
 | `tasks/archlinux/systemd/paccache.yml` | paccache timer install + systemd drop-in | Changing systemd cache cleanup behavior |
 | `tasks/archlinux/makepkg.yml` | makepkg drop-in config | Changing build optimization |
 | `tasks/archlinux/yay.yml` | yay setup-only import | Changing Arch AUR helper setup |
 | `tasks/archlinux/verify.yml` | Arch-specific in-role verification | Changing Arch verification logic |
-| `tasks/debian/main.yml` | Debian/Ubuntu dispatcher: apt → dpkg | Adding Debian-specific sub-tasks |
+| `tasks/debian/main.yml` | Debian/Ubuntu dispatcher: apt → dpkg → cache refresh | Adding Debian-specific sub-tasks |
 | `tasks/debian/apt.yml` | apt parallel config template | Changing apt behavior |
 | `tasks/debian/dpkg.yml` | dpkg options template | Changing dpkg conflict resolution |
+| `tasks/debian/cache.yml` | apt package index refresh | Changing Debian package index refresh behavior |
 | `tasks/debian/verify.yml` | Debian-specific in-role verification | Changing Debian verification logic |
 | `tasks/redhat/main.yml` | RedHat/Fedora dispatcher: dnf | Adding RedHat-specific sub-tasks |
 | `tasks/redhat/dnf.yml` | dnf.conf template | Changing dnf behavior |
@@ -277,7 +286,7 @@ task workstation -- --tags package_manager
 | `tasks/gentoo/main.yml` | Gentoo stub | Implementing portage support |
 | `tasks/gentoo/verify.yml` | Gentoo verification stub | Implementing Gentoo verification |
 | `tasks/verify.yml` | In-role verification dispatcher | Adding platform verify dispatch |
-| `handlers/main.yml` | Empty by design; package index refresh is outside this role | Adding new handlers |
+| `handlers/main.yml` | Empty by design; explicit state transitions live in task files | Adding new handlers |
 | `meta/main.yml` | Galaxy metadata | Changing role metadata |
 | `templates/archlinux/pacman.conf.j2` | pacman.conf template | Changing pacman config format |
 | `templates/archlinux/makepkg.conf.j2` | makepkg drop-in template | Changing makepkg format |

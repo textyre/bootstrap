@@ -12,6 +12,6 @@
   ansible.builtin.include_tasks: debian/dpkg.yml
 
 # Обновляем apt package index отдельной фазой package_manager.
-# Роль packages после этого остается install-only и не занимается подготовкой metadata.
+# Роль packages после этого остается install-only и не занимается подготовкой индексов пакетов.
 - name: Refresh apt package index
   ansible.builtin.include_tasks: debian/cache.yml

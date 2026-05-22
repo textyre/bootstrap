@@ -9,7 +9,7 @@ Installs workstation packages via OS-native package managers and, on Arch Linux,
 3. **Build package lists** — aggregates 16 category lists plus `packages_distro[os_family]` into `packages_all`, and builds `packages_aur_all` from `yay_packages_aur` on Arch
 4. **OS-specific install** (`tasks/install-archlinux.yml` or `tasks/install-debian.yml`)
    - **Arch:** installs `packages_all` via `ansible.builtin.package`, then installs `packages_aur_all` via `yay` in install-only mode. Official packages always land before any AUR build.
-   - **Debian/Ubuntu:** updates apt cache (`cache_valid_time: 3600`) then installs `packages_all` via `ansible.builtin.package`. Install retries up to 3 times. Skipped when `packages_all` is empty.
+   - **Debian/Ubuntu:** installs `packages_all` via `ansible.builtin.apt`. Install retries up to 3 times. Skipped when `packages_all` is empty.
 5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all + packages_aur_all`; skipped when both lists are empty:
    - **Technique 1 (runtime):** `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian) — direct native package manager check
    - **Technique 2 (state):** `package_facts` + assert — confirms package is in Ansible's fact database
@@ -103,10 +103,10 @@ packages_base:
 
 | Aspect | Arch Linux | Debian / Ubuntu |
 |--------|-----------|-----------------|
-| Package manager | pacman | apt (ansible.builtin.apt for cache update) |
-| Install module | `ansible.builtin.package` | `ansible.builtin.package` |
+| Package manager | pacman | apt |
+| Install module | `ansible.builtin.package` | `ansible.builtin.apt` |
 | System upgrade | not performed by this role | not performed by this role |
-| Cache update | handled by pre-workstation `system_update` lifecycle | `apt update` with `cache_valid_time: 3600` |
+| Package index refresh | performed before this role by `package_manager` | performed before this role by `package_manager` |
 | Package query | `pacman -Q <pkg>` | `dpkg-query -W -f='${Status}' <pkg>` |
 
 ## Logs
@@ -194,7 +194,7 @@ ansible-playbook site.yml --tags packages --skip-tags report
 | `defaults/main.yml` | All configurable settings and supported OS list | No — override via inventory |
 | `tasks/main.yml` | Execution orchestrator: preflight → build list → install → verify → report | When adding/removing steps |
 | `tasks/install-archlinux.yml` | Arch-specific package install | When changing Arch install behavior |
-| `tasks/install-debian.yml` | Debian/Ubuntu-specific: cache update + package install | When changing Debian install behavior |
+| `tasks/install-debian.yml` | Debian/Ubuntu-specific package install | When changing Debian install behavior |
 | `tasks/verify.yml` | In-role post-install verification: native PM command + package_facts assert | When changing verification logic |
 | `meta/main.yml` | Role metadata and galaxy info | When updating supported platforms |
 | `molecule/docker/` | Docker CI scenario (Arch + Ubuntu + empty-list edge cases) | When changing CI test coverage |
