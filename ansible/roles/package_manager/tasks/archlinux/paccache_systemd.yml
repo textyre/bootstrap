@@ -5,7 +5,6 @@
   community.general.pacman:
     name: pacman-contrib
     state: present
-    update_cache: "{{ package_manager_pacman_cache_refresh_required | bool }}"
   tags: ['packages', 'paccache']
 
 - name: Create paccache drop-in directory
