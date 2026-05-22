@@ -16,7 +16,7 @@
     # ---- Конфигурация ----
 
     - name: Include OS-family-specific package manager configuration
-      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/main.yml"
       tags: ['packages']
 
     # ---- Верификация ----
