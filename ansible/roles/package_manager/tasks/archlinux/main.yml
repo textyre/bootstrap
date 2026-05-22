@@ -6,6 +6,11 @@
 - name: Configure pacman
   ansible.builtin.include_tasks: archlinux/pacman.yml
 
+# Обновляем базы пакетов pacman отдельной фазой package_manager.
+# Это готовит почву для последующей install-only роли packages и не делает full system upgrade.
+- name: Refresh pacman package indexes
+  ansible.builtin.include_tasks: archlinux/cache.yml
+
 # Настраиваем автоматическую очистку старых пакетов из pacman cache.
 # Это не дает кэшу бесконечно расти и занимать диск.
 - name: Configure paccache

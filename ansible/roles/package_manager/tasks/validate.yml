@@ -13,6 +13,16 @@
     success_msg: "package_manager supports {{ ansible_facts['os_family'] }}"
   tags: ['package_manager']
 
+# Проверяем общие настройки refresh индексов пакетов.
+# Отрицательное время жизни кэша не имеет смысла и сделало бы условия обновления нечитабельными.
+- name: Assert package index refresh settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_package_index_cache_valid_time | int >= 0
+    fail_msg: "package_manager_package_index_cache_valid_time must be zero or greater"
+    success_msg: "package index refresh settings are valid"
+  tags: ['package_manager']
+
 # После общей проверки ОС подключаем дополнительные проверки именно для этой ОС.
 # Например, Arch и Debian имеют разные настройки и разные возможные ошибки.
 - name: Include OS-family-specific package_manager validation

@@ -12,6 +12,11 @@ _package_manager_supported_os:
   - Void
   - Gentoo
 
+# Package index refresh prepares package managers for later install-only roles.
+# This is not a full system upgrade.
+package_manager_refresh_package_indexes: true
+package_manager_package_index_cache_valid_time: 3600
+
 # --- Arch Linux / pacman ---
 package_manager_pacman_parallel_downloads: 5
 package_manager_pacman_color: true

@@ -1,0 +1,11 @@
+---
+# === Debian/Ubuntu: package index refresh ===
+
+# Обновляем индекс apt в роли package_manager, потому что это подготовка пакетного менеджера.
+# Установка конкретных пакетов остается в роли packages, а full upgrade остается в system_update.
+- name: Refresh apt package index
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ package_manager_package_index_cache_valid_time | int }}"
+  when: package_manager_refresh_package_indexes | bool
+  tags: ['package_manager']

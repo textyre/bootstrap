@@ -10,3 +10,8 @@
 # Это важно для предсказуемых обновлений, где dpkg задает меньше интерактивных вопросов.
 - name: Configure dpkg
   ansible.builtin.include_tasks: debian/dpkg.yml
+
+# Обновляем apt package index отдельной фазой package_manager.
+# Роль packages после этого остается install-only и не занимается подготовкой metadata.
+- name: Refresh apt package index
+  ansible.builtin.include_tasks: debian/cache.yml
