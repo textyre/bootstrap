@@ -23,6 +23,12 @@
   tags: ['install', 'aur']
 
 - name: Install AUR packages
+  vars:
+    _yay_command_path: >-
+      {{ ansible_facts.get('env', {}).get(
+        'PATH',
+        '/usr/local/sbin:/usr/local/bin:/usr/bin'
+      ) }}
   kewlfft.aur.aur:
     name: "{{ yay_packages_aur }}"
     use: yay
@@ -31,6 +37,6 @@
   become_user: "{{ yay_builder_user }}"
   environment:
     PATH: >-
-      {{ ansible_env.PATH }}{{ ':/usr/bin/core_perl:/usr/bin/vendor_perl:/usr/bin/site_perl'
+      {{ _yay_command_path }}{{ ':/usr/bin/core_perl:/usr/bin/vendor_perl:/usr/bin/site_perl'
          if ansible_facts['os_family'] == 'Archlinux' else '' }}
   tags: ['install', 'aur']

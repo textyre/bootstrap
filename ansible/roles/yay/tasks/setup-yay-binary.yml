@@ -9,8 +9,12 @@
       Set yay_builder_user explicitly in defaults or group_vars.
   tags: ['aur', 'setup']
 
-- name: Check if yay is already installed
-  ansible.builtin.command: yay --version
+- name: Check if yay is already usable by the AUR builder
+  # yay warns when it is executed as root. Checking as the dedicated builder
+  # matches the user that will later build and install AUR packages.
+  ansible.builtin.command: /usr/bin/yay --version
+  become: true
+  become_user: "{{ yay_builder_user }}"
   register: yay_exists
   changed_when: false
   failed_when: false
@@ -24,28 +28,30 @@
   when: yay_exists.rc == 0
   tags: ['aur', 'setup']
 
-- name: Set fact — yay needs rebuild due to broken shared libs
-  ansible.builtin.set_fact:
-    yay_needs_rebuild: "{{ 'not found' in (yay_ldd.stdout | default('')) }}"
-  when: yay_exists.rc == 0
-  tags: ['aur', 'setup']
-
 - name: Remove broken yay binary to trigger rebuild
+  # Если ldd видит отсутствующие shared libraries, старый бинарь нельзя
+  # считать рабочим. Удаляем его, чтобы следующий блок собрал yay заново.
   ansible.builtin.file:
     path: /usr/bin/yay
     state: absent
-  when: yay_needs_rebuild | default(false)
+  when:
+    - yay_exists.rc == 0
+    - "'not found' in (yay_ldd.stdout | default(''))"
   tags: ['aur', 'setup']
 
 - name: Install build dependencies
   community.general.pacman:
     name: "{{ yay_build_deps }}"
     state: present
-  when: yay_exists.rc != 0 or yay_needs_rebuild | default(false)
+  when: >-
+    yay_exists.rc != 0 or
+    'not found' in (yay_ldd.stdout | default(''))
   tags: ['aur', 'setup']
 
 - name: Build and install yay
-  when: yay_exists.rc != 0 or yay_needs_rebuild | default(false)
+  when: >-
+    yay_exists.rc != 0 or
+    'not found' in (yay_ldd.stdout | default(''))
   tags: ['aur', 'setup']
   block:
     - name: Create temp build directory
@@ -66,6 +72,12 @@
         version: master
 
     - name: Build yay package
+      vars:
+        _yay_command_path: >-
+          {{ ansible_facts.get('env', {}).get(
+            'PATH',
+            '/usr/local/sbin:/usr/local/bin:/usr/bin'
+          ) }}
       become: true
       become_user: "{{ yay_builder_user }}"
       ansible.builtin.command:
@@ -73,7 +85,7 @@
         chdir: "{{ yay_build_dir.path }}/yay"
       environment:
         PATH: >-
-          {{ ansible_env.PATH }}{{ ':/usr/bin/core_perl:/usr/bin/vendor_perl:/usr/bin/site_perl'
+          {{ _yay_command_path }}{{ ':/usr/bin/core_perl:/usr/bin/vendor_perl:/usr/bin/site_perl'
              if ansible_facts['os_family'] == 'Archlinux' else '' }}
       changed_when: true
 
@@ -102,13 +114,17 @@
         state: absent
       when: yay_build_dir is defined
 
-- name: Verify yay installed
-  ansible.builtin.command: yay --version
+- name: Verify yay installed for the AUR builder
+  # The role promise is not just "the binary exists"; the AUR builder must be
+  # able to execute it without root-only warnings.
+  ansible.builtin.command: /usr/bin/yay --version
+  become: true
+  become_user: "{{ yay_builder_user }}"
   register: yay_version
   changed_when: false
   tags: ['aur', 'setup']
 
 - name: Report yay version
   ansible.builtin.debug:
-    msg: "yay установлен: {{ yay_version.stdout }}"
+    msg: "yay установлен для {{ yay_builder_user }}: {{ yay_version.stdout }}"
   tags: ['aur']

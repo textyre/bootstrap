@@ -104,9 +104,11 @@
         that: _yay_verify_binary.stat.exists
         fail_msg: "yay binary not found at /usr/bin/yay"
 
-    - name: Verify yay version
+    - name: Verify yay version as aur_builder
       ansible.builtin.command:
-        cmd: yay --version
+        cmd: /usr/bin/yay --version
+      become: true
+      become_user: "{{ yay_builder_user }}"
       register: _yay_verify_version
       changed_when: false
       failed_when: false
