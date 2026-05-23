@@ -92,7 +92,7 @@ daemon-reload happens in the task that enables `paccache.timer`.
 | `package_manager_pacman_color` | `true` | safe | Enable color output |
 | `package_manager_pacman_verbose_pkg_lists` | `true` | safe | Verbose package lists |
 | `package_manager_pacman_check_space` | `true` | safe | Check available disk space before install |
-| `package_manager_pacman_siglevel` | `"Required DatabaseOptional"` | internal | Signature verification level. Preflight rejects unsafe overrides such as `Never`, `TrustAll`, or values that stop requiring official package signatures. `LocalFileSigLevel` remains `Optional` so locally built AUR packages still install. |
+| `package_manager_pacman_siglevel` | `"Required DatabaseOptional"` | internal | Signature verification level. Preflight accepts only safe global/package/database tokens that keep official package signatures required. `LocalFileSigLevel` remains `Optional` so locally built AUR packages still install. |
 | `package_manager_pacman_multilib` | `false` | careful | Enable [multilib] repository — adds 32-bit package support |
 | `package_manager_pacman_external_cache` | `false` | careful | Use external shared cache — requires `cache_root` |
 | `package_manager_pacman_cache_root` | `""` | careful | Path to external cache root (requires `external_cache: true`) |
@@ -110,7 +110,7 @@ daemon-reload happens in the task that enables `paccache.timer`.
 |----------|---------|--------|-------------|
 | `package_manager_makepkg_enabled` | `true` | safe | Deploy makepkg drop-in config |
 | `package_manager_makepkg_makeflags` | `"-j<vcpus>"` | safe | Parallel make jobs (auto-detects CPU count) |
-| `package_manager_makepkg_pkgext` | `".pkg.tar.zst"` | safe | Package archive format. Must be one of the role allow-listed pacman package suffixes such as `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz`, or `.pkg.tar`. |
+| `package_manager_makepkg_pkgext` | `".pkg.tar.zst"` | safe | Package archive format. Must start with `.pkg.tar` and use only safe suffix characters, for example `.pkg.tar` or `.pkg.tar.zst`. |
 
 ### Debian / Ubuntu / apt
 

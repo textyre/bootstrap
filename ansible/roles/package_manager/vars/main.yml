@@ -1,16 +1,14 @@
 ---
 # === Internal OS-family mappings (not for user override) ===
 
-# Package archive extensions accepted by this role for makepkg output.
-# Keeping this as an allow-list prevents accidental config injection through
-# PKGEXT while still allowing common pacman/libarchive package formats.
-_package_manager_makepkg_supported_pkgext:
-  - ".pkg.tar"
-  - ".pkg.tar.gz"
-  - ".pkg.tar.bz2"
-  - ".pkg.tar.xz"
-  - ".pkg.tar.zst"
-  - ".pkg.tar.lzo"
-  - ".pkg.tar.lrz"
-  - ".pkg.tar.lz4"
-  - ".pkg.tar.lz"
+# SigLevel tokens accepted by this role for the global pacman SigLevel line.
+# The list is intentionally conservative: official package signatures must
+# stay required, while database signatures may remain optional.
+_package_manager_pacman_safe_siglevel_tokens:
+  - Required
+  - TrustedOnly
+  - PackageRequired
+  - PackageTrustedOnly
+  - DatabaseRequired
+  - DatabaseOptional
+  - DatabaseTrustedOnly

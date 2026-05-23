@@ -92,9 +92,19 @@
     - name: Find built yay package
       ansible.builtin.find:
         paths: "{{ yay_build_dir.path }}/yay"
-        patterns: "yay-*.pkg.tar.*"
+        patterns: "yay-*.pkg.tar*"
         excludes: "*-debug-*"
       register: yay_pkg
+
+    - name: Assert yay package was built
+      ansible.builtin.assert:
+        that:
+          - yay_pkg.matched | int > 0
+        fail_msg: >-
+          makepkg finished but no yay package archive was found in
+          {{ yay_build_dir.path }}/yay. Expected a file matching
+          yay-*.pkg.tar*.
+        success_msg: "Built yay package archive found"
 
     - name: Remove stale yay package before reinstall
       community.general.pacman:

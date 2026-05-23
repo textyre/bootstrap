@@ -21,6 +21,11 @@
   vars:
     _package_manager_pacman_siglevel_text: "{{ package_manager_pacman_siglevel | string | trim }}"
     _package_manager_pacman_siglevel_tokens: "{{ (package_manager_pacman_siglevel | string | trim).split() }}"
+    _package_manager_pacman_unknown_siglevel_tokens: >-
+      {{
+        _package_manager_pacman_siglevel_tokens
+        | difference(_package_manager_pacman_safe_siglevel_tokens)
+      }}
     _package_manager_pacman_required_siglevel_tokens:
       - Required
       - PackageRequired
@@ -28,16 +33,18 @@
     that:
       - _package_manager_pacman_siglevel_text | length > 0
       - _package_manager_pacman_siglevel_text is match('^[A-Za-z]+( [A-Za-z]+)*$')
-      - "'Never' not in _package_manager_pacman_siglevel_tokens"
-      - "'TrustAll' not in _package_manager_pacman_siglevel_tokens"
+      - _package_manager_pacman_unknown_siglevel_tokens | length == 0
       - >-
         (_package_manager_pacman_siglevel_tokens
         | intersect(_package_manager_pacman_required_siglevel_tokens)
         | length) > 0
     fail_msg: >-
       package_manager_pacman_siglevel must keep official package signatures
-      required and must not contain unsafe tokens like Never or TrustAll.
-      Current value: {{ package_manager_pacman_siglevel }}
+      required and may only use safe tokens:
+      {{ _package_manager_pacman_safe_siglevel_tokens | join(', ') }}.
+      Current value: {{ package_manager_pacman_siglevel }}.
+      Unsafe or unknown tokens:
+      {{ _package_manager_pacman_unknown_siglevel_tokens | default([]) | join(', ') }}.
     success_msg: "pacman signature policy is safe"
   tags: ['package_manager']
 
@@ -59,12 +66,12 @@
     that:
       - package_manager_makepkg_makeflags | length > 0
       - not (package_manager_makepkg_makeflags is search('[\r\n"]'))
-      - package_manager_makepkg_pkgext in _package_manager_makepkg_supported_pkgext
+      - package_manager_makepkg_pkgext is match('^\\.pkg\\.tar(\\.[A-Za-z0-9][A-Za-z0-9_-]*)*$')
     fail_msg: >-
       package_manager_makepkg_makeflags must be non-empty and
       must not contain newlines or double quotes.
-      package_manager_makepkg_pkgext must be one of:
-      {{ _package_manager_makepkg_supported_pkgext | join(', ') }}.
+      package_manager_makepkg_pkgext must start with .pkg.tar and contain only
+      safe suffix characters, for example .pkg.tar or .pkg.tar.zst.
     success_msg: "makepkg input settings are valid"
   when: package_manager_makepkg_enabled | bool
   tags: ['package_manager']
