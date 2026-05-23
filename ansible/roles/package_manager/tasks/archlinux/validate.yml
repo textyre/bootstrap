@@ -1,19 +1,44 @@
 ---
 # === Arch Linux: package_manager validation ===
 
-# Проверяем базовые настройки pacman до изменения конфигурации.
-# Так мы не запишем небезопасный SigLevel и не примем сломанный путь внешнего кэша.
-- name: Assert pacman settings are valid
+# Проверяем базовые числовые настройки pacman до изменения конфигурации.
+# Если parallel downloads или путь к cache root сломаны, лучше остановиться до записи pacman.conf.
+- name: Assert pacman numeric and path settings are valid
   ansible.builtin.assert:
     that:
+      - package_manager_pacman_parallel_downloads | string is match('^[0-9]+$')
       - package_manager_pacman_parallel_downloads | int > 0
-      - "'Never' not in package_manager_pacman_siglevel"
       - not (package_manager_pacman_external_cache | bool) or package_manager_pacman_cache_root is match('^/')
     fail_msg: >-
-      Invalid pacman settings. Require positive ParallelDownloads,
-      no SigLevel=Never, and an absolute package_manager_pacman_cache_root
-      when external cache is enabled.
-    success_msg: "pacman input settings are valid"
+      Invalid pacman settings. Require positive numeric ParallelDownloads and
+      an absolute package_manager_pacman_cache_root when external cache is enabled.
+    success_msg: "pacman numeric and path settings are valid"
+  tags: ['package_manager']
+
+# Проверяем политику подписи пакетов отдельно от остальных настроек.
+# Это supply-chain защита: роль не должна молча принять режим без проверки подписей.
+- name: Assert pacman signature policy is safe
+  vars:
+    _package_manager_pacman_siglevel_text: "{{ package_manager_pacman_siglevel | string | trim }}"
+    _package_manager_pacman_siglevel_tokens: "{{ (package_manager_pacman_siglevel | string | trim).split() }}"
+    _package_manager_pacman_required_siglevel_tokens:
+      - Required
+      - PackageRequired
+  ansible.builtin.assert:
+    that:
+      - _package_manager_pacman_siglevel_text | length > 0
+      - _package_manager_pacman_siglevel_text is match('^[A-Za-z]+( [A-Za-z]+)*$')
+      - "'Never' not in _package_manager_pacman_siglevel_tokens"
+      - "'TrustAll' not in _package_manager_pacman_siglevel_tokens"
+      - >-
+        (_package_manager_pacman_siglevel_tokens
+        | intersect(_package_manager_pacman_required_siglevel_tokens)
+        | length) > 0
+    fail_msg: >-
+      package_manager_pacman_siglevel must keep official package signatures
+      required and must not contain unsafe tokens like Never or TrustAll.
+      Current value: {{ package_manager_pacman_siglevel }}
+    success_msg: "pacman signature policy is safe"
   tags: ['package_manager']
 
 # Проверяем, что paccache будет оставлять хотя бы одну версию пакета.
@@ -33,10 +58,13 @@
   ansible.builtin.assert:
     that:
       - package_manager_makepkg_makeflags | length > 0
-      - package_manager_makepkg_pkgext is match('^\\.')
+      - not (package_manager_makepkg_makeflags is search('[\r\n"]'))
+      - package_manager_makepkg_pkgext in _package_manager_makepkg_supported_pkgext
     fail_msg: >-
       package_manager_makepkg_makeflags must be non-empty and
-      package_manager_makepkg_pkgext must start with a dot.
+      must not contain newlines or double quotes.
+      package_manager_makepkg_pkgext must be one of:
+      {{ _package_manager_makepkg_supported_pkgext | join(', ') }}.
     success_msg: "makepkg input settings are valid"
   when: package_manager_makepkg_enabled | bool
   tags: ['package_manager']

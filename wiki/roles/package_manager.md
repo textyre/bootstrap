@@ -16,10 +16,11 @@ See `ansible/roles/package_manager/defaults/main.yml` for the full list with def
 | `package_manager_refresh_package_indexes` | Refresh package indexes as package manager preparation |
 | `package_manager_package_index_cache_valid_time` | Freshness window before package indexes are refreshed again. On Arch this is based on the local pacman sync directory timestamp, not repository `*.db` timestamps. |
 | `package_manager_pacman_parallel_downloads` | Pacman parallel downloads (Arch) |
-| `package_manager_pacman_siglevel` | Signature verification level (Arch) — supply chain sensitive |
+| `package_manager_pacman_siglevel` | Signature verification level (Arch) — supply chain sensitive. Unsafe overrides such as `Never`, `TrustAll`, or policies without required official package signatures fail preflight. Local package signatures stay optional through `LocalFileSigLevel = Optional` for AUR-built packages. |
 | `package_manager_pacman_multilib` | Enable 32-bit multilib repo (Arch) |
 | `package_manager_paccache_enabled` | Enable paccache timer (Arch) |
 | `package_manager_makepkg_enabled` | Enable makepkg drop-in (Arch) |
+| `package_manager_makepkg_pkgext` | makepkg package archive suffix. The role accepts only known pacman package suffixes, for example `.pkg.tar.zst`, `.pkg.tar.xz`, `.pkg.tar.gz`, and `.pkg.tar`. |
 | `package_manager_dnf_keepcache` | Keep dnf cache (Fedora) |
 
 ## Dependencies

@@ -1,4 +1,16 @@
 ---
 # === Internal OS-family mappings (not for user override) ===
-# Currently empty — package_manager uses distro-native config paths directly.
-# Add OS-family-specific variables here if needed in the future.
+
+# Package archive extensions accepted by this role for makepkg output.
+# Keeping this as an allow-list prevents accidental config injection through
+# PKGEXT while still allowing common pacman/libarchive package formats.
+_package_manager_makepkg_supported_pkgext:
+  - ".pkg.tar"
+  - ".pkg.tar.gz"
+  - ".pkg.tar.bz2"
+  - ".pkg.tar.xz"
+  - ".pkg.tar.zst"
+  - ".pkg.tar.lzo"
+  - ".pkg.tar.lrz"
+  - ".pkg.tar.lz4"
+  - ".pkg.tar.lz"

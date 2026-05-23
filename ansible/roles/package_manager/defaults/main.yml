@@ -35,7 +35,8 @@ package_manager_paccache_keep: 3
 
 # makepkg (оптимизация сборки пакетов из AUR)
 package_manager_makepkg_enabled: true
-package_manager_makepkg_makeflags: "-j{{ ansible_processor_vcpus | default(2) }}"
+package_manager_makepkg_makeflags: >-
+  -j{{ (ansible_facts | default({})).get('processor_vcpus', 2) }}
 package_manager_makepkg_pkgext: ".pkg.tar.zst"
 
 # --- Debian / apt ---
