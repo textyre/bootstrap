@@ -7,7 +7,7 @@ _packages_debian_package_map:
   unzip: [unzip]
   rsync: [rsync]
   openssh: [openssh-client, openssh-server]
-  chezmoi: [chezmoi]
+  chezmoi: []
   nftables: [nftables]
   cronie: [cron]
   sqlite: [sqlite3]

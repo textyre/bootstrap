@@ -99,7 +99,9 @@ Override these through inventory, usually `inventory/group_vars/all/packages.yml
 The category variables are distro-agnostic package IDs owned by inventory. Each
 implemented backend translates those IDs to native package names internally.
 `packages_distro` is already OS-family-specific and is appended after backend
-translation.
+translation. If a package ID has no native apt package in Ubuntu, the Debian
+backend maps it to an empty list instead of trying to install an Arch package
+name through apt.
 
 ## Backend Tasks
 
