@@ -154,7 +154,6 @@ as packages with those literal names.
 1. Updates apt cache with `cache_valid_time: 3600`.
 2. Installs `_packages_official_all`, the apt-native list produced by
    `vars/debian.yml`, with `ansible.builtin.apt`.
-3. Runs `dpkg --audit` and fails if dpkg has pending configuration.
 
 ### Debian Verify
 
