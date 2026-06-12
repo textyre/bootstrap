@@ -37,9 +37,6 @@ dependency:
   name: galaxy
   options:
     requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../../requirements.yml
-    ignore-errors: true
-  # Local monorepo roles from packages/requirements.yml are resolved through
-  # ANSIBLE_ROLES_PATH, not Ansible Galaxy.
 
 provisioner:
   name: ansible
