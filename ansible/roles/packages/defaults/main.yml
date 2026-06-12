@@ -7,14 +7,6 @@
 # Enable/disable the entire role (safe to set false on specific hosts)
 packages_enabled: true
 
-# Supported OS families — only these five are tested and maintained
-_packages_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
 # Package category lists — all default to []; override in group_vars/all/packages.yml
 packages_base: []       # Core CLI utilities (git, curl, htop, etc.)
 packages_editors: []    # Text editors and IDEs
@@ -32,6 +24,11 @@ packages_fonts: []      # Fonts including Nerd Fonts
 packages_theming: []    # GTK/Qt themes and icon packs
 packages_search: []     # Search utilities (fzf, ripgrep)
 packages_viewers: []    # File viewers (bat, jq)
+
+# Arch AUR package inputs. The packages role owns this public interface; the
+# Arch backend maps it to the concrete AUR helper implementation.
+packages_aur: []
+packages_aur_remove_conflicts: []
 
 # Third-party release mirrors are an explicit operator decision, not a default.
 # Leave false unless you intentionally want the AUR transport proxy workaround.

@@ -1,0 +1,22 @@
+---
+- name: "Report: Void package installation skipped"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_packages_phases"
+    common_rpt_phase: "Install packages"
+    common_rpt_status: "skip"
+    common_rpt_detail: "Void unsupported"
+  tags: ['packages', 'report']
+
+- name: "Report: Void package verification skipped"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_packages_phases"
+    common_rpt_phase: "Verify packages"
+    common_rpt_status: "skip"
+    common_rpt_detail: "Void unsupported"
+  tags: ['packages', 'report']

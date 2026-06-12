@@ -1,6 +1,4 @@
 ---
-# Debian/Ubuntu: update cache then install packages
-
 # cache_valid_time requires ansible.builtin.apt (no generic equivalent in ansible.builtin.package)
 - name: Update apt cache (Debian/Ubuntu)
   ansible.builtin.apt:
@@ -10,14 +8,12 @@
 
 - name: Install packages (apt)
   ansible.builtin.apt:
-    name: "{{ packages_all }}"
+    name: "{{ _packages_official_all }}"
     state: present
   retries: 3
   delay: 5
   register: _packages_install_result
   until: _packages_install_result is succeeded
-  when:
-    - packages_all | length > 0
   tags: ['packages', 'install']
 
 - name: Assert dpkg package database has no pending configuration
@@ -29,6 +25,4 @@
     _packages_dpkg_audit.rc != 0 or
     (_packages_dpkg_audit.stdout | trim | length > 0) or
     (_packages_dpkg_audit.stderr | trim | length > 0)
-  when:
-    - packages_all | length > 0
   tags: ['packages', 'install']

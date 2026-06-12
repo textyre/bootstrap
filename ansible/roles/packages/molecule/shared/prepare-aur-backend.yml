@@ -1,0 +1,17 @@
+---
+- name: Prepare packages role AUR backend
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../inventory/group_vars/all/packages.yml"
+  tasks:
+    - name: Prepare Arch AUR backend
+      ansible.builtin.include_role:
+        name: yay
+      vars:
+        yay_manage_setup: true
+        yay_manage_aur_packages: false
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - packages_aur | length > 0

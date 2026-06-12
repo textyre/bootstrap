@@ -1,30 +1,13 @@
 ---
 - name: Install packages (pacman)
   ansible.builtin.package:
-    name: "{{ packages_all }}"
+    name: "{{ _packages_official_all }}"
     state: present
   retries: 3
   delay: 5
   register: _packages_install_result
   until: _packages_install_result is succeeded
-  when:
-    - packages_all | length > 0
   tags: ['packages', 'install']
-
-- name: Set up AUR helper (yay)
-  ansible.builtin.include_role:
-    name: yay
-    apply:
-      tags:
-        - packages
-        - install
-        - aur
-  vars:
-    yay_manage_setup: true
-    yay_manage_aur_packages: false
-  when:
-    - packages_aur_all | length > 0
-  tags: ['packages', 'install', 'aur']
 
 - name: Apply AUR transport proxy workaround layer
   ansible.builtin.include_role:
@@ -35,11 +18,11 @@
         - install
         - aur
   when:
-    - packages_aur_all | length > 0
+    - _packages_archlinux_aur
     - packages_aur_transport_proxy_enabled | bool
   tags: ['packages', 'install', 'aur']
 
-- name: Install AUR packages (yay)
+- name: Install AUR packages
   ansible.builtin.include_role:
     name: yay
     apply:
@@ -50,8 +33,8 @@
   vars:
     yay_manage_setup: false
     yay_manage_aur_packages: true
-    yay_packages_aur: "{{ packages_aur_all }}"
-    yay_packages_official: "{{ packages_all }}"
-  when:
-    - packages_aur_all | length > 0
+    yay_packages_aur: "{{ _packages_archlinux_aur }}"
+    yay_packages_aur_remove_conflicts: "{{ packages_aur_remove_conflicts }}"
+    yay_packages_official: "{{ _packages_official_all }}"
+  when: _packages_archlinux_aur
   tags: ['packages', 'install', 'aur']

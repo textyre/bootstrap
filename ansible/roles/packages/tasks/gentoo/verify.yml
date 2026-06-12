@@ -1,0 +1,7 @@
+---
+- name: Skip Gentoo packages verification because backend is not implemented
+  ansible.builtin.debug:
+    msg: >-
+      packages role verification for Gentoo is not implemented yet; verify phase
+      is skipped.
+  tags: ['packages']
