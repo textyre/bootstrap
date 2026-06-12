@@ -1,0 +1,7 @@
+---
+_packages_backend_official_all: >-
+  {{ (_packages_common_all + packages_distro.get(ansible_facts['os_family'], []))
+     | unique
+     | list }}
+
+_packages_backend_verify_all: "{{ _packages_backend_official_all + _packages_archlinux_aur }}"

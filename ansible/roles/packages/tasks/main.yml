@@ -8,6 +8,16 @@
   tags: ['packages']
   block:
 
+    - name: Include package backend variables
+      ansible.builtin.include_vars: "{{ item }}"
+      with_first_found:
+        - files:
+            - "{{ ansible_facts['os_family'] | lower }}.yml"
+          paths:
+            - "{{ role_path }}/vars"
+          skip: true
+      tags: ['packages']
+
     - name: Install packages (OS-specific)
       ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/install.yml"
       tags: ['packages', 'install']

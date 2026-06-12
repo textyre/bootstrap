@@ -1,8 +1,8 @@
 ---
 # Internal derived package lists. Public inputs live in defaults/inventory;
-# these variables are the role's private interface between task files.
+# OS backends map these agnostic inputs to native package names.
 
-_packages_official_all: >-
+_packages_common_all: >-
   {{ packages_base
      + packages_editors
      + packages_docker
@@ -18,10 +18,12 @@ _packages_official_all: >-
      + packages_fonts
      + packages_theming
      + packages_search
-     + packages_viewers
-     + packages_distro.get(ansible_facts['os_family'], []) }}
+     + packages_viewers }}
+
+_packages_official_all: "{{ _packages_backend_official_all | default([]) }}"
 
 _packages_archlinux_aur: "{{ packages_aur }}"
+_packages_archlinux_aur_enabled: "{{ (_packages_archlinux_aur | length) > 0 }}"
 _packages_archlinux_verify_all: "{{ _packages_official_all + _packages_archlinux_aur }}"
 _packages_archlinux_official_count: "{{ _packages_official_all | length }}"
 _packages_archlinux_aur_count: "{{ _packages_archlinux_aur | length }}"
@@ -31,9 +33,4 @@ _packages_debian_verify_all: "{{ _packages_official_all }}"
 _packages_debian_official_count: "{{ _packages_official_all | length }}"
 _packages_debian_verify_count: "{{ _packages_debian_verify_all | length }}"
 
-_packages_verify_all: >-
-  {{ _packages_archlinux_verify_all
-     if ansible_facts['os_family'] == 'Archlinux'
-     else _packages_debian_verify_all
-     if ansible_facts['os_family'] == 'Debian'
-     else [] }}
+_packages_verify_all: "{{ _packages_backend_verify_all | default([]) }}"
