@@ -39,3 +39,7 @@ _packages_backend_verify_all: >-
       + _packages_archlinux_aur)
      | unique
      | list }}
+
+_packages_backend_verify_argv:
+  - pacman
+  - "-Q"

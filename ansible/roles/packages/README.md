@@ -64,6 +64,8 @@ Backend vars are loaded explicitly from `vars/<os_family>.yml`.
 | `_packages_archlinux_verify_all` | Native package names expected after Arch install, plus AUR packages |
 | `_packages_debian_verify_all` | Native apt package names expected after Debian install |
 | `_packages_verify_all` | Expected package list for the current OS family |
+| `_packages_backend_verify_argv` | Native installed-package verification command prefix |
+| `_packages_backend_verify_success_text` | Optional stdout text required for a successful verification command |
 
 These variables are not inventory API. They are the private interface between
 the role entrypoint, OS-specific task files, reports, and Molecule verify.
@@ -133,7 +135,8 @@ moving AUR helper setup into `packages`.
 
 `tasks/archlinux/verify.yml`:
 
-1. Runs `pacman -Q {{ item }}` for every package in `_packages_verify_all`.
+1. Runs the Arch backend verification command (`pacman -Q`) for every package
+   in `_packages_verify_all`.
 
 The Arch backend keeps inventory IDs such as `xorg`, `xorg-apps`, and
 `xorg-drivers` valid for installation, but maps those package-group IDs to
@@ -159,9 +162,8 @@ as packages with those literal names.
 
 `tasks/debian/verify.yml`:
 
-1. Runs `dpkg-query` for every package in `_packages_verify_all`.
-2. Gathers package facts.
-3. Asserts every package in `_packages_verify_all` exists in `ansible_facts.packages`.
+1. Runs the Debian backend verification command (`dpkg-query`) for every package
+   in `_packages_verify_all`.
 
 ### Debian Report
 
@@ -260,9 +262,8 @@ It:
 2. Loads `roles/packages/vars/main.yml`.
 3. Loads `roles/packages/vars/{{ os_family }}.yml` when present.
 4. Derives the expected native package list for the current Molecule run.
-5. Asserts the expected package list is not empty.
-6. Gathers `ansible.builtin.package_facts`.
-7. Asserts every expected package exists in `ansible_facts.packages`.
+5. Asserts the expected package list and backend verification command are not empty.
+6. Runs the backend verification command for every expected package.
 
 Molecule verify checks installed state. It does not call the role's own
 `tasks/<os_family>/verify.yml` task files.
@@ -293,10 +294,10 @@ ansible-playbook site.yml --tags packages --skip-tags report
 | `vars/debian.yml` | Debian/Ubuntu apt package-name mapping |
 | `tasks/main.yml` | Role entrypoint: load backend vars, install, verify, report, render report |
 | `tasks/archlinux/install.yml` | Arch official package install and AUR package install |
-| `tasks/archlinux/verify.yml` | Arch package verification via `pacman -Q` |
+| `tasks/archlinux/verify.yml` | Arch package verification via backend command |
 | `tasks/archlinux/report.yml` | Arch report rows |
-| `tasks/debian/install.yml` | Debian/Ubuntu apt cache, install, and dpkg audit |
-| `tasks/debian/verify.yml` | Debian/Ubuntu verification via `dpkg-query` and package facts |
+| `tasks/debian/install.yml` | Debian/Ubuntu apt cache and install |
+| `tasks/debian/verify.yml` | Debian/Ubuntu verification via backend command |
 | `tasks/debian/report.yml` | Debian/Ubuntu report rows |
 | `tasks/gentoo/*` | Gentoo no-op placeholder backend |
 | `tasks/redhat/*` | RedHat/Fedora no-op placeholder backend |

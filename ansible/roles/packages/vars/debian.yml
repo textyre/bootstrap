@@ -69,3 +69,10 @@ _packages_backend_official_all: >-
      | list }}
 
 _packages_backend_verify_all: "{{ _packages_backend_official_all }}"
+
+_packages_backend_verify_argv:
+  - dpkg-query
+  - "-W"
+  - "-f=${Status}"
+
+_packages_backend_verify_success_text: "install ok installed"

@@ -1,32 +1,13 @@
 ---
-- name: Verify Debian package installed (dpkg-query)
+- name: Verify Debian package installed
   ansible.builtin.command:
-    cmd: "dpkg-query -W -f='${Status}' {{ item }}"
-  register: _packages_verify_dpkg
+    argv: "{{ _packages_backend_verify_argv + [item] }}"
+  register: _packages_verify_package
   changed_when: false
   failed_when: >-
-    _packages_verify_dpkg.rc != 0 or
-    'install ok installed' not in _packages_verify_dpkg.stdout
-  loop: "{{ _packages_verify_all }}"
-  loop_control:
-    label: "{{ item }}"
-  tags: ['packages']
-
-- name: Gather package facts
-  ansible.builtin.package_facts:
-    manager: auto
-  changed_when: false
-  tags: ['packages']
-
-- name: Assert all Debian packages are installed
-  ansible.builtin.assert:
-    that:
-      - item in ansible_facts.packages
-    fail_msg: >-
-      Package '{{ item }}' is not installed on {{ ansible_facts['distribution'] }}.
-      Check that the package name is correct for this OS family ({{ ansible_facts['os_family'] }}).
-    success_msg: "Package '{{ item }}' is installed"
-    quiet: true
+    _packages_verify_package.rc != 0 or
+    (_packages_backend_verify_success_text | default('') | length > 0 and
+     _packages_backend_verify_success_text not in _packages_verify_package.stdout)
   loop: "{{ _packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
