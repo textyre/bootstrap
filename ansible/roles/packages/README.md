@@ -201,13 +201,14 @@ role itself still runs only the package installation path.
 
 `molecule/docker/molecule.yml` runs:
 
-1. `syntax`
-2. `create`
-3. `prepare`
-4. `converge`
-5. `idempotence`
-6. `verify`
-7. `destroy`
+1. `dependency`
+2. `syntax`
+3. `create`
+4. `prepare`
+5. `converge`
+6. `idempotence`
+7. `verify`
+8. `destroy`
 
 `molecule/docker/prepare.yml`:
 
