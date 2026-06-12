@@ -24,12 +24,12 @@ _packages_official_all: "{{ _packages_backend_official_all | default([]) }}"
 
 _packages_archlinux_aur: "{{ packages_aur }}"
 _packages_archlinux_aur_enabled: "{{ (_packages_archlinux_aur | length) > 0 }}"
-_packages_archlinux_verify_all: "{{ _packages_official_all + _packages_archlinux_aur }}"
+_packages_archlinux_verify_all: "{{ _packages_verify_all }}"
 _packages_archlinux_official_count: "{{ _packages_official_all | length }}"
 _packages_archlinux_aur_count: "{{ _packages_archlinux_aur | length }}"
 _packages_archlinux_verify_count: "{{ _packages_archlinux_verify_all | length }}"
 
-_packages_debian_verify_all: "{{ _packages_official_all }}"
+_packages_debian_verify_all: "{{ _packages_verify_all }}"
 _packages_debian_official_count: "{{ _packages_official_all | length }}"
 _packages_debian_verify_count: "{{ _packages_debian_verify_all | length }}"
 

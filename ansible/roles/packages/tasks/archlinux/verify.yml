@@ -1,22 +1,11 @@
 ---
-- name: Verify Arch official package installed (pacman -Q)
+- name: Verify Arch package installed (pacman -Q)
   ansible.builtin.command:
     cmd: "pacman -Q {{ item }}"
   register: _packages_verify_pacman
   changed_when: false
   failed_when: _packages_verify_pacman.rc != 0
-  loop: "{{ _packages_official_all }}"
+  loop: "{{ _packages_verify_all }}"
   loop_control:
     label: "{{ item }}"
   tags: ['packages']
-
-- name: Verify Arch AUR package installed (pacman -Q)
-  ansible.builtin.command:
-    cmd: "pacman -Q {{ item }}"
-  register: _packages_verify_aur_pacman
-  changed_when: false
-  failed_when: _packages_verify_aur_pacman.rc != 0
-  loop: "{{ _packages_archlinux_aur }}"
-  loop_control:
-    label: "{{ item }}"
-  tags: ['packages', 'aur']

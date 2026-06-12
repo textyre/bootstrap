@@ -19,7 +19,7 @@
     common_rpt_fact: "_packages_phases"
     common_rpt_phase: "Verify packages"
     common_rpt_detail: >-
-      {{ _packages_archlinux_verify_count }} packages verified
-      ({{ _packages_archlinux_official_count }} official +
-      {{ _packages_archlinux_aur_count }} AUR) on {{ ansible_facts['os_family'] }}
+      {{ _packages_archlinux_verify_count }} installed package names verified
+      from {{ _packages_archlinux_official_count }} official install IDs +
+      {{ _packages_archlinux_aur_count }} AUR IDs on {{ ansible_facts['os_family'] }}
   tags: ['packages', 'report']

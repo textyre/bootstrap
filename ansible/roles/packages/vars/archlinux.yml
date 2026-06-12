@@ -4,4 +4,38 @@ _packages_backend_official_all: >-
      | unique
      | list }}
 
-_packages_backend_verify_all: "{{ _packages_backend_official_all + _packages_archlinux_aur }}"
+_packages_archlinux_group_package_map:
+  xorg:
+    - xorg-server
+  xorg-apps:
+    - xorg-xauth
+    - xorg-xrandr
+    - xorg-xrdb
+  xorg-drivers:
+    - xf86-input-libinput
+
+_packages_archlinux_group_ids: "{{ _packages_archlinux_group_package_map.keys() | list }}"
+
+_packages_archlinux_official_package_all: >-
+  {{ _packages_backend_official_all
+     | reject('in', _packages_archlinux_group_ids)
+     | list }}
+
+_packages_archlinux_official_group_all: >-
+  {{ _packages_backend_official_all
+     | select('in', _packages_archlinux_group_ids)
+     | list }}
+
+_packages_archlinux_group_verify_all: >-
+  {{ _packages_archlinux_official_group_all
+     | map('extract', _packages_archlinux_group_package_map)
+     | flatten
+     | unique
+     | list }}
+
+_packages_backend_verify_all: >-
+  {{ (_packages_archlinux_official_package_all
+      + _packages_archlinux_group_verify_all
+      + _packages_archlinux_aur)
+     | unique
+     | list }}

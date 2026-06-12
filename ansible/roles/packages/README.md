@@ -61,8 +61,8 @@ Backend vars are loaded explicitly from `vars/<os_family>.yml`.
 | `_packages_official_all` | Native package list produced by the current OS backend |
 | `_packages_archlinux_aur` | Arch AUR package list from `packages_aur` |
 | `_packages_archlinux_aur_enabled` | Boolean used by Arch AUR tasks |
-| `_packages_archlinux_verify_all` | Official packages plus AUR packages |
-| `_packages_debian_verify_all` | Official packages only |
+| `_packages_archlinux_verify_all` | Native package names expected after Arch install, plus AUR packages |
+| `_packages_debian_verify_all` | Native apt package names expected after Debian install |
 | `_packages_verify_all` | Expected package list for the current OS family |
 
 These variables are not inventory API. They are the private interface between
@@ -133,9 +133,12 @@ moving AUR helper setup into `packages`.
 
 `tasks/archlinux/verify.yml`:
 
-1. Runs `pacman -Q {{ item }}` for every package in `_packages_official_all`.
-2. Runs `pacman -Q {{ item }}` for every package in `_packages_archlinux_aur`
-   under the `aur` tag.
+1. Runs `pacman -Q {{ item }}` for every package in `_packages_verify_all`.
+
+The Arch backend keeps inventory IDs such as `xorg`, `xorg-apps`, and
+`xorg-drivers` valid for installation, but maps those package-group IDs to
+native package names for verification because pacman groups are not installed
+as packages with those literal names.
 
 ### Archlinux Report
 
