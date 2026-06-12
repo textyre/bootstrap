@@ -1,0 +1,14 @@
+---
+# Role dependencies for packages (TEST-010).
+# Local monorepo roles used via include_role:
+#   - aur_transport_proxy (optional Arch AUR transport workaround)
+#   - common (reporting)
+#   - yay (Arch AUR backend)
+#
+# Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH to the local roles
+# directory, so these roles are resolved from the source tree. Molecule installs
+# Galaxy collections from ansible/requirements.yml, not local monorepo roles.
+roles:
+  - name: aur_transport_proxy
+  - name: common
+  - name: yay

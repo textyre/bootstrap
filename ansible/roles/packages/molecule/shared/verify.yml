@@ -16,34 +16,28 @@
 
   tasks:
 
-    - name: Include package backend variables
-      ansible.builtin.include_vars: "{{ item }}"
-      with_first_found:
-        - files:
-            - "{{ ansible_facts['os_family'] | lower }}.yml"
-          paths:
-            - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/vars"
-          skip: true
-
     - name: Assert package inventory produced expected packages
       ansible.builtin.assert:
         that:
           - _packages_verify_all | length > 0
-          - _packages_backend_verify_argv is defined
-          - (_packages_backend_verify_argv | default([])) | length > 0
-        fail_msg: "Package backend produced an empty package list or verify command"
+        fail_msg: "Package inventory produced an empty expected package list"
         success_msg: "Package inventory produced {{ _packages_verify_all | length }} expected packages"
         quiet: true
 
-    - name: Verify expected package installed through backend
-      ansible.builtin.command:
-        argv: "{{ _packages_backend_verify_argv + [item] }}"
-      register: _packages_molecule_verify_package
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+        manager: auto
       changed_when: false
-      failed_when: >-
-        _packages_molecule_verify_package.rc != 0 or
-        (_packages_backend_verify_success_text | default('') | length > 0 and
-         _packages_backend_verify_success_text not in _packages_molecule_verify_package.stdout)
+
+    - name: Assert expected packages are installed
+      ansible.builtin.assert:
+        that:
+          - item in ansible_facts.packages
+        fail_msg: >-
+          Package '{{ item }}' is not installed on
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+        success_msg: "Package '{{ item }}' is installed"
+        quiet: true
       loop: "{{ _packages_verify_all }}"
       loop_control:
         label: "{{ item }}"

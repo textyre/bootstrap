@@ -18,7 +18,7 @@
         - install
         - aur
   when:
-    - _packages_archlinux_aur_enabled | bool
+    - _packages_archlinux_aur
     - packages_aur_transport_proxy_enabled | bool
   tags: ['packages', 'install', 'aur']
 
@@ -36,5 +36,5 @@
     yay_packages_aur: "{{ _packages_archlinux_aur }}"
     yay_packages_aur_remove_conflicts: "{{ packages_aur_remove_conflicts }}"
     yay_packages_official: "{{ _packages_official_all }}"
-  when: _packages_archlinux_aur_enabled | bool
+  when: _packages_archlinux_aur
   tags: ['packages', 'install', 'aur']

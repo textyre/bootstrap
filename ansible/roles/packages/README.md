@@ -3,9 +3,8 @@
 Ensures package lists from inventory are installed on the target host.
 
 The role does not own package data. Public inputs come from inventory and role
-defaults. The role builds the inventory-owned package input list in
-`vars/main.yml`, loads OS-family backend variables from `vars/<os_family>.yml`,
-then routes install, verify, and report work to an OS-family task directory.
+defaults. The role builds internal package lists in `vars/main.yml`, then routes
+install, verify, and report work to an OS-family task directory.
 
 Implemented install backends:
 
@@ -30,20 +29,16 @@ the `yay` binary. In the workstation flow that preparation belongs to
 1. **Packages role**
    Guarded by `packages_enabled | bool`. If disabled, the whole role block is skipped.
 
-2. **Include package backend variables**
-   Loads `vars/{{ ansible_facts['os_family'] | lower }}.yml` when that backend
-   variable file exists.
-
-3. **Install packages (OS-specific)**
+2. **Install packages (OS-specific)**
    Includes `tasks/{{ ansible_facts['os_family'] | lower }}/install.yml`.
 
-4. **Verify packages**
+3. **Verify packages**
    Includes `tasks/{{ ansible_facts['os_family'] | lower }}/verify.yml`.
 
-5. **Report package phases**
+4. **Report package phases**
    Includes `tasks/{{ ansible_facts['os_family'] | lower }}/report.yml`.
 
-6. **Packages -- Execution Report**
+5. **Packages -- Execution Report**
    Calls `common` role task `report_render.yml` for `_packages_phases`.
 
 The role does not validate OS family in a separate task. If an OS-family task
@@ -53,19 +48,14 @@ currently declared but unimplemented OS backends have no-op task files.
 ## Derived Variables
 
 `vars/main.yml` is role-internal. Ansible loads it when the role starts.
-Backend vars are loaded explicitly from `vars/<os_family>.yml`.
 
 | Variable | Meaning |
 |----------|---------|
-| `_packages_common_all` | Concatenation of inventory-owned package category inputs, before OS backend translation |
-| `_packages_official_all` | Native package list produced by the current OS backend |
+| `_packages_official_all` | Concatenation of all official package category lists plus `packages_distro[os_family]` |
 | `_packages_archlinux_aur` | Arch AUR package list from `packages_aur` |
-| `_packages_archlinux_aur_enabled` | Boolean used by Arch AUR tasks |
-| `_packages_archlinux_verify_all` | Native package names expected after Arch install, plus AUR packages |
-| `_packages_debian_verify_all` | Native apt package names expected after Debian install |
+| `_packages_archlinux_verify_all` | Official packages plus AUR packages |
+| `_packages_debian_verify_all` | Official packages only |
 | `_packages_verify_all` | Expected package list for the current OS family |
-| `_packages_backend_verify_argv` | Native installed-package verification command prefix |
-| `_packages_backend_verify_success_text` | Optional stdout text required for a successful verification command |
 
 These variables are not inventory API. They are the private interface between
 the role entrypoint, OS-specific task files, reports, and Molecule verify.
@@ -98,12 +88,8 @@ Override these through inventory, usually `inventory/group_vars/all/packages.yml
 | `packages_aur_remove_conflicts` | `[]` | Arch packages to remove before installing AUR replacements |
 | `packages_aur_transport_proxy_enabled` | `false` | Enables optional AUR transport proxy workaround |
 
-The category variables are distro-agnostic package IDs owned by inventory. Each
-implemented backend translates those IDs to native package names internally.
-`packages_distro` is already OS-family-specific and is appended after backend
-translation. If a package ID has no native apt package in Ubuntu, the Debian
-backend maps it to an empty list instead of trying to install an Arch package
-name through apt.
+Package names are passed to the selected backend as-is. This role does not
+translate package names between distributions.
 
 ## Backend Tasks
 
@@ -135,13 +121,9 @@ moving AUR helper setup into `packages`.
 
 `tasks/archlinux/verify.yml`:
 
-1. Runs the Arch backend verification command (`pacman -Q`) for every package
-   in `_packages_verify_all`.
-
-The Arch backend keeps inventory IDs such as `xorg`, `xorg-apps`, and
-`xorg-drivers` valid for installation, but maps those package-group IDs to
-native package names for verification because pacman groups are not installed
-as packages with those literal names.
+1. Runs `pacman -Q {{ item }}` for every package in `_packages_official_all`.
+2. Runs `pacman -Q {{ item }}` for every package in `_packages_archlinux_aur`
+   under the `aur` tag.
 
 ### Archlinux Report
 
@@ -155,15 +137,16 @@ as packages with those literal names.
 `tasks/debian/install.yml`:
 
 1. Updates apt cache with `cache_valid_time: 3600`.
-2. Installs `_packages_official_all`, the apt-native list produced by
-   `vars/debian.yml`, with `ansible.builtin.apt`.
+2. Installs `_packages_official_all` with `ansible.builtin.apt`.
+3. Runs `dpkg --audit` and fails if dpkg has pending configuration.
 
 ### Debian Verify
 
 `tasks/debian/verify.yml`:
 
-1. Runs the Debian backend verification command (`dpkg-query`) for every package
-   in `_packages_verify_all`.
+1. Runs `dpkg-query` for every package in `_packages_verify_all`.
+2. Gathers package facts.
+3. Asserts every package in `_packages_verify_all` exists in `ansible_facts.packages`.
 
 ### Debian Report
 
@@ -207,14 +190,13 @@ role itself still runs only the package installation path.
 
 `molecule/docker/molecule.yml` runs:
 
-1. `dependency`
-2. `syntax`
-3. `create`
-4. `prepare`
-5. `converge`
-6. `idempotence`
-7. `verify`
-8. `destroy`
+1. `syntax`
+2. `create`
+3. `prepare`
+4. `converge`
+5. `idempotence`
+6. `verify`
+7. `destroy`
 
 `molecule/docker/prepare.yml`:
 
@@ -248,8 +230,7 @@ the playbooks run.
 1. Loads `inventory/group_vars/all/packages.yml` through `vars_files`.
 2. Runs the `packages` role on all Molecule hosts.
 
-The role itself loads `vars/main.yml` and the current backend vars during the
-role run.
+The role itself loads `vars/main.yml` during the role run.
 
 ### Shared Verify
 
@@ -260,10 +241,10 @@ It:
 
 1. Loads `inventory/group_vars/all/packages.yml`.
 2. Loads `roles/packages/vars/main.yml`.
-3. Loads `roles/packages/vars/{{ os_family }}.yml` when present.
-4. Derives the expected native package list for the current Molecule run.
-5. Asserts the expected package list and backend verification command are not empty.
-6. Runs the backend verification command for every expected package.
+3. Derives the expected package list for the current Molecule run.
+4. Asserts the expected package list is not empty.
+5. Gathers `ansible.builtin.package_facts`.
+6. Asserts every expected package exists in `ansible_facts.packages`.
 
 Molecule verify checks installed state. It does not call the role's own
 `tasks/<os_family>/verify.yml` task files.
@@ -289,15 +270,13 @@ ansible-playbook site.yml --tags packages --skip-tags report
 | File | Purpose |
 |------|---------|
 | `defaults/main.yml` | Public defaults |
-| `vars/main.yml` | Internal inventory-input aggregation and backend interface variables |
-| `vars/archlinux.yml` | Arch backend package list mapping |
-| `vars/debian.yml` | Debian/Ubuntu apt package-name mapping |
-| `tasks/main.yml` | Role entrypoint: load backend vars, install, verify, report, render report |
+| `vars/main.yml` | Internal derived package lists |
+| `tasks/main.yml` | Role entrypoint: install, verify, report, render report |
 | `tasks/archlinux/install.yml` | Arch official package install and AUR package install |
-| `tasks/archlinux/verify.yml` | Arch package verification via backend command |
+| `tasks/archlinux/verify.yml` | Arch package verification via `pacman -Q` |
 | `tasks/archlinux/report.yml` | Arch report rows |
-| `tasks/debian/install.yml` | Debian/Ubuntu apt cache and install |
-| `tasks/debian/verify.yml` | Debian/Ubuntu verification via backend command |
+| `tasks/debian/install.yml` | Debian/Ubuntu apt cache, install, and dpkg audit |
+| `tasks/debian/verify.yml` | Debian/Ubuntu verification via `dpkg-query` and package facts |
 | `tasks/debian/report.yml` | Debian/Ubuntu report rows |
 | `tasks/gentoo/*` | Gentoo no-op placeholder backend |
 | `tasks/redhat/*` | RedHat/Fedora no-op placeholder backend |
