@@ -22,7 +22,7 @@ _packages_debian_package_map:
   xorg-xinit: [xinit]
   xorg-drivers: [xserver-xorg-video-all, xserver-xorg-input-all]
   picom: [picom]
-  dmenu: [dmenu]
+  dmenu: [suckless-tools]
   rofi: [rofi]
   dunst: [dunst]
   feh: [feh]
