@@ -129,16 +129,6 @@ packages_viewers:
   - bat               # cat с подсветкой синтаксиса
   - jq                # просмотр и обработка JSON
 
-# --- Пакеты специфичные для дистрибутива ---
-# Ключи: Archlinux, Debian (значения ansible_os_family)
-packages_distro:
-  Archlinux:
-    - base-devel       # компиляция, makepkg
-    - pacman-contrib   # paccache, checkupdates, pacdiff
-    - perl             # pod2man и др., нужен для сборки AUR пакетов (i3, etc.)
-  Debian:
-    - build-essential
-
 # --- VirtualBox Guest Additions (only if running in VirtualBox VM) ---
 # Used by role: vm
 vm_packages_virtualbox_guest:

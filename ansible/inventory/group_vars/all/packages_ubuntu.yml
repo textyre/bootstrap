@@ -1,0 +1,57 @@
+---
+# === Пакеты Ubuntu — роль roles/packages ===
+# Берет из центрального реестра packages.yml только те имена, которые существуют
+# в apt без переименования, и дополняет их отдельными apt-именами.
+
+packages_ubuntu_from_packages: >-
+  {{ packages_base | difference(['openssh', 'chezmoi', 'cronie', 'sqlite'])
+     + packages_editors
+     + packages_docker | difference(['docker', 'python-requests'])
+     + packages_xorg | difference(['xorg-apps', 'xorg-xinit', 'xorg-drivers'])
+     + packages_wm | difference(['dmenu'])
+     + packages_filemanager
+     + packages_network | difference(['networkmanager', 'network-manager-applet'])
+     + packages_media
+     + packages_desktop
+     + packages_graphics | difference(['mesa'])
+     + packages_session
+     + packages_terminal | difference(['starship'])
+     + packages_fonts | difference([
+       'ttf-jetbrains-mono-nerd',
+       'ttf-firacode-nerd',
+       'ttf-hack-nerd',
+       'ttf-iosevka-nerd',
+       'ttf-nerd-fonts-symbols',
+       'ttf-font-awesome',
+       'noto-fonts',
+       'terminus-font',
+     ])
+     + packages_theming
+     + packages_search
+     + packages_viewers }}
+
+packages_ubuntu_apt_only:
+  - openssh-client
+  - openssh-server
+  - cron
+  - sqlite3
+  - docker.io
+  - python3-requests
+  - x11-apps
+  - xinit
+  - xserver-xorg-video-all
+  - suckless-tools
+  - network-manager
+  - network-manager-gnome
+  - libgl1-mesa-dri
+  - mesa-utils
+  - fonts-jetbrains-mono
+  - fonts-firacode
+  - fonts-hack
+  - fonts-iosevka
+  - fonts-font-awesome
+  - fonts-noto
+  - fonts-terminus
+  - build-essential
+
+packages_ubuntu: "{{ packages_ubuntu_from_packages + packages_ubuntu_apt_only }}"

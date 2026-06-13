@@ -51,7 +51,7 @@ currently declared but unimplemented OS backends have no-op task files.
 
 | Variable | Meaning |
 |----------|---------|
-| `_packages_official_all` | Concatenation of all official package category lists plus `packages_distro[os_family]` |
+| `_packages_official_all` | Official package list selected for the current OS |
 | `_packages_archlinux_aur` | Arch AUR package list from `packages_aur` |
 | `_packages_archlinux_verify_all` | Official packages plus AUR packages |
 | `_packages_debian_verify_all` | Official packages only |
@@ -62,7 +62,7 @@ the role entrypoint, OS-specific task files, reports, and Molecule verify.
 
 ## Public Inputs
 
-Override these through inventory, usually `inventory/group_vars/all/packages.yml`.
+Override these through inventory, usually `inventory/group_vars/all/packages*.yml`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -83,7 +83,8 @@ Override these through inventory, usually `inventory/group_vars/all/packages.yml
 | `packages_theming` | `[]` | Theme/icon packages |
 | `packages_search` | `[]` | Search tools |
 | `packages_viewers` | `[]` | Viewers and data tools |
-| `packages_distro` | `{}` | Extra package lists keyed by `ansible_facts['os_family']` |
+| `packages_archlinux` | `[]` | Arch Linux package list passed to pacman |
+| `packages_ubuntu` | `[]` | Ubuntu package list passed to apt |
 | `packages_aur` | `[]` | Arch-only AUR packages requested by inventory |
 | `packages_aur_remove_conflicts` | `[]` | Arch packages to remove before installing AUR replacements |
 | `packages_aur_transport_proxy_enabled` | `false` | Enables optional AUR transport proxy workaround |
