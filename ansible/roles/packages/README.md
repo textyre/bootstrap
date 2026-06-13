@@ -83,7 +83,7 @@ Override these through inventory, usually `inventory/group_vars/all/packages*.ym
 | `packages_theming` | `[]` | Theme/icon packages |
 | `packages_search` | `[]` | Search tools |
 | `packages_viewers` | `[]` | Viewers and data tools |
-| `packages_archlinux` | `[]` | Arch Linux package list passed to pacman |
+| `packages_archlinux` | `[]` | Arch Linux package and pacman group list passed to pacman |
 | `packages_ubuntu` | `[]` | Ubuntu package list passed to apt |
 | `packages_aur` | `[]` | Arch-only AUR packages requested by inventory |
 | `packages_aur_remove_conflicts` | `[]` | Arch packages to remove before installing AUR replacements |
@@ -122,8 +122,11 @@ moving AUR helper setup into `packages`.
 
 `tasks/archlinux/verify.yml`:
 
-1. Runs `pacman -Q {{ item }}` for every package in `_packages_official_all`.
-2. Runs `pacman -Q {{ item }}` for every package in `_packages_archlinux_aur`
+1. Probes every entry in `_packages_official_all` with `pacman -Q`.
+2. For entries that are not installed package names, resolves them with
+   `pacman -Sgq` as pacman groups and verifies each resolved group member with
+   `pacman -Q`.
+3. Runs `pacman -Q {{ item }}` for every package in `_packages_archlinux_aur`
    under the `aur` tag.
 
 ### Archlinux Report

@@ -48,7 +48,6 @@ packages_ubuntu_apt_only:
   - fonts-jetbrains-mono
   - fonts-firacode
   - fonts-hack
-  - fonts-iosevka
   - fonts-font-awesome
   - fonts-noto
   - fonts-terminus

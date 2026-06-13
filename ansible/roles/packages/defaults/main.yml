@@ -24,7 +24,7 @@ packages_fonts: []      # Fonts including Nerd Fonts
 packages_theming: []    # GTK/Qt themes and icon packs
 packages_search: []     # Search utilities (fzf, ripgrep)
 packages_viewers: []    # File viewers (bat, jq)
-packages_archlinux: []  # Arch Linux package names
+packages_archlinux: []  # Arch Linux package or pacman group names
 packages_ubuntu: []     # Ubuntu package names
 
 # Arch AUR package inputs. The packages role owns this public interface; the
