@@ -1,128 +1,29 @@
 ---
 # === Локализация ===
 # validate → generate → verify → configure → report
-# Soft-fail: ошибки конфига и генерации не крашат плей, но видны в репорте.
+# Fail-fast: invalid inputs and unsupported platforms stop before mutation.
 
-# ======================================================================
-# ---- Сброс фактов (идемпотентность при многократном запуске) ----
-# ======================================================================
-
-- name: Reset locale role facts
-  ansible.builtin.set_fact:
-    locale_skip: false
-    locale_skip_reason: ""
-    locale_verify_ok: true
-    locale_verify_missing: []
+- name: Locale role
+  when: locale_enabled | bool
   tags: ['locale']
-
-# ======================================================================
-# ---- Валидация ----
-# ======================================================================
-
-- name: Validate locale configuration
-  ansible.builtin.include_tasks: validate/main.yml
-  tags: ['locale']
-
-- name: "Report: Validate config"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_locale_phases"
-    common_rpt_phase: "Validate config"
-    common_rpt_status: "{{ 'fail' if (locale_skip) else 'done' }}"
-    common_rpt_detail: "{{ locale_skip_reason }}"
-  tags: ['locale', 'report']
-
-# ======================================================================
-# ---- Generate / Verify / Configure (пропуск при невалидных переменных) ----
-# ======================================================================
-
-- name: Generate, verify and configure locale
-  when: not locale_skip
   block:
 
-    # ---- Генерация локалей (дистро-специфик) ----
-
-    - name: "Generate locales ({{ ansible_facts['os_family'] }})"
-      ansible.builtin.include_tasks: "{{ locale_generate_file }}"
-      with_first_found:
-        - files:
-            - "generate/{{ ansible_facts['os_family'] | lower }}.yml"
-          skip: true
-      loop_control:
-        loop_var: locale_generate_file
+    - name: Validate locale phase
+      ansible.builtin.include_tasks: validate/main.yml
       tags: ['locale']
 
-    - name: Warn about unsupported OS for locale generation
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: locale generation skipped —
-          '{{ ansible_facts['os_family'] }}' not supported.
-          Supported: {{ locale_supported_os_families | join(', ') }}.
-      when: ansible_facts['os_family'] | lower not in locale_supported_os_families
+    - name: Generate locale phase
+      ansible.builtin.include_tasks: generate/main.yml
       tags: ['locale']
 
-    - name: "Report: Generate locales"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Generate locales"
-        common_rpt_status: "{{ 'skip' if ansible_facts['os_family'] | lower not in locale_supported_os_families else 'done' }}"
-        common_rpt_detail: "{{ locale_list | join(', ') }}"
+    - name: Verify locale phase
+      ansible.builtin.include_tasks: verify/main.yml
+      tags: ['locale']
+
+    - name: Configure locale phase
+      ansible.builtin.include_tasks: configure/main.yml
+      tags: ['locale']
+
+    - name: Render locale execution report
+      ansible.builtin.include_tasks: report/main.yml
       tags: ['locale', 'report']
-
-    # ---- Проверка (до configure, чтобы не писать сломанный locale.conf) ----
-
-    - name: Verify locale generation
-      ansible.builtin.include_tasks: verify/glibc.yml
-      tags: ['locale']
-
-    - name: "Report: Verify locales"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Verify locales"
-        common_rpt_status: "{{ 'fail' if not (locale_verify_ok) else 'done' }}"
-        common_rpt_detail: >-
-          {{
-            (locale_list | length | string) + ' locales OK'
-            if (locale_verify_ok)
-            else (locale_verify_missing | join(', '))
-          }}
-      tags: ['locale', 'report']
-
-    # ---- Настройка системной локали (только если verify прошёл) ----
-
-    - name: Configure system locale
-      ansible.builtin.include_tasks: configure/glibc.yml
-      when: locale_verify_ok
-      tags: ['locale']
-
-    - name: "Report: Configure locale.conf"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Configure locale.conf"
-        common_rpt_status: "{{ 'skip' if not (locale_verify_ok) else 'done' }}"
-        common_rpt_detail: "{{ locale_default if (locale_verify_ok) else '' }}"
-      tags: ['locale', 'report']
-
-# ======================================================================
-# ---- Итоговый отчёт ----
-# ======================================================================
-
-- name: "Locale — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_locale_phases"
-    common_rpt_title: "locale"
-  tags: ['locale', 'report']

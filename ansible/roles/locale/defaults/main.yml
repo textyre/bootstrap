@@ -1,6 +1,17 @@
 ---
 # === Локаль ===
 
+# Включить/выключить всю роль целиком.
+locale_enabled: true
+
+# Поддерживаемые OS family значения (ROLE-003).
+_locale_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Локали для генерации (все должны быть сгенерированы до использования)
 locale_list:
   - "en_US.UTF-8"

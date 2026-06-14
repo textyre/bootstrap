@@ -1,0 +1,13 @@
+---
+# === locale: configure phase ===
+
+- name: Configure system locale
+  ansible.builtin.include_tasks: configure/glibc.yml
+  tags: ['locale']
+
+- name: Report locale.conf configuration
+  ansible.builtin.include_tasks: report/phase.yml
+  vars:
+    _locale_report_phase: "Configure locale.conf"
+    _locale_report_detail: "{{ _locale_config_path }} LANG={{ locale_default }}"
+  tags: ['locale', 'report']

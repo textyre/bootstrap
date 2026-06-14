@@ -1,0 +1,13 @@
+---
+# === locale: verify phase ===
+
+- name: Verify locale generation
+  ansible.builtin.include_tasks: verify/glibc.yml
+  tags: ['locale']
+
+- name: Report locale verification
+  ansible.builtin.include_tasks: report/phase.yml
+  vars:
+    _locale_report_phase: "Verify locales"
+    _locale_report_detail: "{{ locale_list | length }} locales OK"
+  tags: ['locale', 'report']

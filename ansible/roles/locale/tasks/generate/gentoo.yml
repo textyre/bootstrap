@@ -1,0 +1,20 @@
+---
+# Генерация локалей (Gentoo)
+# Gentoo uses /etc/locale.gen plus locale-gen, similar to Arch.
+
+- name: Enable locales in /etc/locale.gen
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: "^#?{{ item }}"
+    line: "{{ item }} {{ item.split('.')[-1] }}"
+    create: false
+  loop: "{{ locale_list }}"
+  register: _locale_gentoo_enabled
+  tags: ['locale']
+
+- name: Generate locales
+  ansible.builtin.command: locale-gen
+  register: _locale_generate_gentoo
+  changed_when: _locale_gentoo_enabled is changed
+  failed_when: _locale_generate_gentoo.rc != 0
+  tags: ['locale']

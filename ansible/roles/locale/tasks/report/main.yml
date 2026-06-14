@@ -1,0 +1,11 @@
+---
+# === locale: final report phase ===
+
+- name: "Locale -- Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_locale_phases"
+    common_rpt_title: "locale"
+  tags: ['locale', 'report']

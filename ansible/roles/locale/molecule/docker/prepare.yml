@@ -26,13 +26,10 @@
         - "ru_RU.UTF-8 UTF-8"
       when: ansible_facts['os_family'] == 'Debian'
 
-    # Both Arch and Debian use /etc/locale.gen for locale generation
-    - name: Ensure locale entries exist in /etc/locale.gen
-      ansible.builtin.lineinfile:
+    # Keep locale.gen present but do not pre-create target locale entries.
+    # Arch/Gentoo generation tasks must add/enable these entries themselves.
+    - name: Ensure /etc/locale.gen exists
+      ansible.builtin.file:
         path: /etc/locale.gen
-        line: "{{ item }}"
-        create: true
+        state: touch
         mode: '0644'
-      loop:
-        - "#en_US.UTF-8 UTF-8"
-        - "#ru_RU.UTF-8 UTF-8"

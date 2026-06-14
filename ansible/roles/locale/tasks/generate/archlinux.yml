@@ -16,5 +16,7 @@
 
 - name: Generate locales
   ansible.builtin.command: locale-gen
+  register: _locale_generate_archlinux
   changed_when: _locale_gen_enabled is changed
+  failed_when: _locale_generate_archlinux.rc != 0
   tags: ['locale']

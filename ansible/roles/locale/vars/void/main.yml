@@ -1,0 +1,3 @@
+---
+# OS-specific variables for Void Linux
+_locale_config_path: /etc/locale.conf

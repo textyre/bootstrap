@@ -1,6 +1,5 @@
 ---
-# Тестирует soft-fail validation: роль не должна создавать /etc/locale.conf
-# при невалидной конфигурации.
+# Тестирует fail-fast validation для невалидной публичной конфигурации.
 driver:
   name: default
   options:

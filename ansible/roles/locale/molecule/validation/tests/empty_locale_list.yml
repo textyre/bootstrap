@@ -1,0 +1,20 @@
+---
+- name: Apply role with empty locale_list
+  block:
+    - name: Include locale role
+      ansible.builtin.include_role:
+        name: locale
+      vars:
+        locale_list: []
+        locale_default: "en_US.UTF-8"
+        locale_lc_overrides: {}
+
+    - name: Fail if empty locale_list was accepted
+      ansible.builtin.fail:
+        msg: "Expected locale validation failure for empty locale_list"
+  rescue:
+    - name: Assert role failed for empty locale_list
+      ansible.builtin.assert:
+        that:
+          - "'locale_list must be a non-empty list' in ansible_failed_result.msg"
+        fail_msg: "Role failed without a useful empty-list validation message"

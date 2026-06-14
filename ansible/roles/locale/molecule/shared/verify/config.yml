@@ -1,0 +1,48 @@
+---
+# Verify /etc/locale.conf file contract and rendered content.
+
+- name: Stat locale.conf
+  ansible.builtin.stat:
+    path: /etc/locale.conf
+  register: _locale_verify_conf_stat
+
+- name: Assert locale.conf exists
+  ansible.builtin.assert:
+    that:
+      - _locale_verify_conf_stat.stat.exists
+    fail_msg: "/etc/locale.conf does not exist"
+
+- name: Assert locale.conf permissions
+  ansible.builtin.assert:
+    that:
+      - _locale_verify_conf_stat.stat.mode == '0644'
+      - _locale_verify_conf_stat.stat.pw_name == 'root'
+      - _locale_verify_conf_stat.stat.gr_name == 'root'
+    fail_msg: >-
+      /etc/locale.conf has wrong permissions/ownership:
+      mode={{ _locale_verify_conf_stat.stat.mode }},
+      owner={{ _locale_verify_conf_stat.stat.pw_name }},
+      group={{ _locale_verify_conf_stat.stat.gr_name }}
+
+- name: Slurp locale.conf
+  ansible.builtin.slurp:
+    src: /etc/locale.conf
+  register: _locale_verify_conf_content
+
+- name: Assert locale.conf contains LANG
+  ansible.builtin.assert:
+    that:
+      - >-
+        'LANG=' ~ locale_default in
+        (_locale_verify_conf_content.content | b64decode)
+    fail_msg: "LANG={{ locale_default }} not found in /etc/locale.conf"
+
+- name: Assert locale.conf contains LC_* overrides
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.key ~ '=' ~ item.value in
+        (_locale_verify_conf_content.content | b64decode)
+    fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
+  loop: "{{ locale_lc_overrides | dict2items }}"
+  when: locale_lc_overrides | length > 0
