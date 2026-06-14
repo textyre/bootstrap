@@ -1,0 +1,12 @@
+---
+# === Таймзона — timezone database package verification ===
+
+- name: Gather installed package facts for timezone database
+  ansible.builtin.package_facts:
+    manager: auto
+  changed_when: false
+  tags: ['timezone']
+
+- name: Verify timezone database package for OS family
+  ansible.builtin.include_tasks: "verify/tzdata/{{ ansible_facts['os_family'] | lower }}/main.yml"
+  tags: ['timezone']

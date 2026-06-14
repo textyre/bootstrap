@@ -1,0 +1,10 @@
+---
+# OS-specific variables for Debian family systems
+_timezone_tzdata_package: tzdata
+_timezone_cron_service:
+  systemd: cron
+  runit: cron
+  openrc: cron
+  s6: cron
+  dinit: cron
+  default: cron

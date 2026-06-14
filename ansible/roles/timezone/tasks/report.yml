@@ -1,0 +1,21 @@
+---
+# === Таймзона — report (ROLE-008) ===
+
+- name: "Report: Verify timezone"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_timezone_phases"
+    common_rpt_phase: "Verify timezone"
+    common_rpt_detail: "{{ timezone_name }}"
+  tags: ['timezone', 'report']
+
+- name: "Timezone — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_timezone_phases"
+    common_rpt_title: "timezone"
+  tags: ['timezone', 'report']

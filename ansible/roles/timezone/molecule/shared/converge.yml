@@ -3,6 +3,8 @@
   hosts: all
   become: true
   gather_facts: true
+  vars:
+    timezone_name: "Asia/Almaty"
 
   roles:
     - role: timezone

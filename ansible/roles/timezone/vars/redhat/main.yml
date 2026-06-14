@@ -1,0 +1,10 @@
+---
+# OS-specific variables for RedHat family systems
+_timezone_tzdata_package: tzdata
+_timezone_cron_service:
+  systemd: crond
+  runit: crond
+  openrc: crond
+  s6: crond
+  dinit: crond
+  default: crond

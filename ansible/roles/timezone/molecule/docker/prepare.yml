@@ -7,23 +7,30 @@
   become: true
   gather_facts: true
   tasks:
-    # Cron installed ONLY on Archlinux to test both handler paths:
-    #   Arch: cron present → handler fires → verify cron running
-    #   Ubuntu: cron absent → handler skips gracefully
-    - name: Install cron for handler testing (Archlinux only)
-      community.general.pacman:
-        name: cronie
+    - name: Install cron for restart testing
+      ansible.builtin.package:
+        name: "{{ _timezone_prepare_cron_package[ansible_facts['os_family']] }}"
         state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
+      vars:
+        _timezone_prepare_cron_package:
+          Archlinux: cronie
+          Debian: cron
+      when: ansible_facts['os_family'] in _timezone_prepare_cron_package
 
-    - name: Reload systemd after cronie install (Archlinux only)
+    - name: Reload systemd after cron install
       ansible.builtin.systemd:
         daemon_reload: true
-      when: ansible_facts['os_family'] == 'Archlinux'
+      when:
+        - ansible_facts['os_family'] in ['Archlinux', 'Debian']
+        - ansible_facts['service_mgr'] == 'systemd'
 
-    - name: Enable and start cronie (Archlinux only)
+    - name: Enable and start cron
       ansible.builtin.service:
-        name: cronie
+        name: "{{ _timezone_prepare_cron_service[ansible_facts['os_family']] }}"
         enabled: true
         state: started
-      when: ansible_facts['os_family'] == 'Archlinux'
+      vars:
+        _timezone_prepare_cron_service:
+          Archlinux: cronie
+          Debian: cron
+      when: ansible_facts['os_family'] in _timezone_prepare_cron_service

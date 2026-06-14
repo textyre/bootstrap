@@ -1,8 +1,7 @@
 ---
 # === Таймзона ===
-# Имя таймзоны в формате tz database (ls /usr/share/zoneinfo/)
-# Реальное значение задаётся в group_vars/all/system.yml
-timezone_name: "UTC"
+# Включить/выключить всю роль целиком.
+timezone_enabled: true
 
 # Поддерживаемые дистрибутивы (ROLE-003)
 _timezone_supported_os:

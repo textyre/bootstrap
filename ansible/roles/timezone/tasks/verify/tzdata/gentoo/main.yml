@@ -1,0 +1,10 @@
+---
+# === Таймзона — Gentoo timezone-data verification ===
+
+- name: Assert timezone-data package is installed
+  ansible.builtin.assert:
+    that:
+      - "'timezone-data' in ansible_facts.packages"
+    fail_msg: "Timezone database package 'timezone-data' is not installed"
+    quiet: true
+  tags: ['timezone']
