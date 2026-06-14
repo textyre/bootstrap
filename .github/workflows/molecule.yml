@@ -127,12 +127,13 @@ jobs:
   test-docker:
     needs: detect
     if: needs.detect.outputs.empty == 'false'
-    name: "${{ matrix.role }} (test-docker)"
+    name: "${{ matrix.role }} (test-docker/${{ matrix.platform }})"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       matrix:
         role: ${{ fromJSON(needs.detect.outputs.matrix) }}
+        platform: [arch, ubuntu]
       fail-fast: false
     container:
       image: ghcr.io/${{ github.repository }}/ci-env:latest
@@ -147,15 +148,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Molecule
-        run: molecule test -s docker
+        run: |
+          if [ "${{ matrix.platform }}" = "arch" ]; then
+            PLATFORM=Archlinux-systemd
+          else
+            PLATFORM=Ubuntu-systemd
+          fi
+          molecule test -s docker --platform-name "$PLATFORM"
         working-directory: "ansible/roles/${{ matrix.role }}"
 
       - name: Annotate failure
         if: failure()
         run: |
-          echo "::error title=Molecule FAILED (${{ matrix.role }})::Docker scenario for role '${{ matrix.role }}' failed. Check the log above for details."
+          echo "::error title=Molecule FAILED (${{ matrix.role }}/${{ matrix.platform }})::Docker scenario for role '${{ matrix.role }}' on '${{ matrix.platform }}' failed. Check the log above for details."
 
       - name: Annotate success
         if: success()
         run: |
-          echo "::notice title=Molecule PASSED (${{ matrix.role }})::Docker scenario for role '${{ matrix.role }}' passed."
+          echo "::notice title=Molecule PASSED (${{ matrix.role }}/${{ matrix.platform }})::Docker scenario for role '${{ matrix.role }}' on '${{ matrix.platform }}' passed."

@@ -1,0 +1,7 @@
+---
+- name: Skip Void packages install because backend is not implemented
+  ansible.builtin.debug:
+    msg: >-
+      packages role backend for Void is not implemented yet; install phase is
+      skipped.
+  tags: ['packages', 'install']

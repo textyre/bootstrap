@@ -27,7 +27,7 @@
   when:
     - yay_manage_aur_packages | bool
     - not (yay_manage_setup | bool)
-    - yay_packages_aur | default([]) | length > 0
+    - yay_packages_aur | length > 0
   tags: ['aur', 'install']
 
 - name: Assert yay exists for AUR-only mode
@@ -41,7 +41,7 @@
   when:
     - yay_manage_aur_packages | bool
     - not (yay_manage_setup | bool)
-    - yay_packages_aur | default([]) | length > 0
+    - yay_packages_aur | length > 0
   tags: ['aur', 'install']
 
 - name: Set up AUR builder user
@@ -58,5 +58,5 @@
   ansible.builtin.include_tasks: manage-aur-packages.yml
   when:
     - yay_manage_aur_packages | bool
-    - yay_packages_aur | default([]) | length > 0
+    - yay_packages_aur | length > 0
   tags: ['aur', 'install']

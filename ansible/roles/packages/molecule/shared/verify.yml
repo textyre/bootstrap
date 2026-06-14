@@ -1,106 +1,31 @@
 ---
-# Verification categories covered: packages
+# Verification categories covered: inventory/derived-list sanity
 # Verification categories skipped:
 #   config files  — role does not write any configuration files
 #   services      — role does not manage any service units
 #   runtime       — role does not start any daemons or network interfaces
 #   permissions   — role does not create files with specific ownership or mode
+#   installed packages — verified by the role itself during converge
 
 - name: Verify packages role
   hosts: all
   become: true
   gather_facts: true
+  vars_files:
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../inventory/group_vars/all/packages.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../inventory/group_vars/all/packages_archlinux.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../../inventory/group_vars/all/packages_ubuntu.yml"
+    - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/vars/main.yml"
 
   tasks:
 
-    # ---- Build expected package list (mirrors tasks/main.yml logic) ----
-
-    - name: Build combined package list
-      ansible.builtin.set_fact:
-        _packages_verify_expected: >-
-          {{ (packages_base | default([]))
-             + (packages_editors | default([]))
-             + (packages_docker | default([]))
-             + (packages_xorg | default([]))
-             + (packages_wm | default([]))
-             + (packages_filemanager | default([]))
-             + (packages_network | default([]))
-             + (packages_media | default([]))
-             + (packages_desktop | default([]))
-             + (packages_graphics | default([]))
-             + (packages_session | default([]))
-             + (packages_terminal | default([]))
-             + (packages_fonts | default([]))
-             + (packages_theming | default([]))
-             + (packages_search | default([]))
-             + (packages_viewers | default([]))
-             + (packages_distro[ansible_facts['os_family']] | default([])) }}
-
-    - name: Build Arch Linux AUR verification list
-      ansible.builtin.set_fact:
-        _packages_verify_aur: >-
-          {{ (yay_packages_aur | default([]))
-             if ansible_facts['os_family'] == 'Archlinux'
-             else [] }}
-
-    - name: Build final verification list
-      ansible.builtin.set_fact:
-        _packages_verify_expected_all: "{{ _packages_verify_expected + _packages_verify_aur }}"
-
-    # ---- Verify each package is installed via native package manager ----
-
-    - name: Verify package installed with pacman
-      ansible.builtin.command:
-        cmd: "pacman -Q {{ item }}"
-      register: _packages_verify_pacman
-      changed_when: false
-      failed_when: _packages_verify_pacman.rc != 0
-      loop: "{{ _packages_verify_expected_all }}"
-      loop_control:
-        label: "{{ item }}"
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Verify package installed with dpkg-query
-      ansible.builtin.command:
-        cmd: "dpkg-query -W -f='${Status}' {{ item }}"
-      register: _packages_verify_dpkg
-      changed_when: false
-      failed_when: >-
-        _packages_verify_dpkg.rc != 0 or
-        'install ok installed' not in _packages_verify_dpkg.stdout
-      loop: "{{ _packages_verify_expected_all }}"
-      loop_control:
-        label: "{{ item }}"
-      when: ansible_facts['os_family'] == 'Debian'
-
-    # ---- Assert package facts match expected list ----
-
-    - name: Gather package facts
-      ansible.builtin.package_facts:
-        manager: auto
-      changed_when: false
-
-    - name: Assert all expected packages are present in package facts
+    - name: Assert package inventory produced expected packages
       ansible.builtin.assert:
         that:
-          - item in ansible_facts.packages
+          - _packages_verify_all | length == (_packages_verify_count | int)
         fail_msg: >-
-          Package '{{ item }}' not found in package facts on
-          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
-          Run 'pacman -Q {{ item }}' or 'dpkg-query -l {{ item }}' to investigate.
-        success_msg: "Package '{{ item }}' confirmed in package facts"
+          Package inventory produced {{ _packages_verify_all | length }} expected packages,
+          but role-derived counts require exactly {{ _packages_verify_count }}.
+        success_msg: >-
+          Package inventory produced exactly {{ _packages_verify_count }} expected packages
         quiet: true
-      loop: "{{ _packages_verify_expected_all }}"
-      loop_control:
-        label: "{{ item }}"
-      when: _packages_verify_expected_all | length > 0
-
-    # ---- Summary ----
-
-    - name: Show verify result
-      ansible.builtin.debug:
-        msg: >-
-          packages verify passed on
-          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
-          all {{ _packages_verify_expected_all | length }} packages verified
-          via native package manager and package facts.

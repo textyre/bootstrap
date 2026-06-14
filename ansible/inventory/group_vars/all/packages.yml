@@ -1,6 +1,6 @@
 ---
 # === ЦЕНТРАЛЬНЫЙ РЕЕСТР ПАКЕТОВ ===
-# Единственный источник данных для ролей packages и yay backend.
+# Единственный источник данных для роли packages.
 # Роли содержат только логику; данные живут здесь.
 #
 # Сервисы (docker, lightdm) → соответствующие роли docker/lightdm
@@ -11,19 +11,6 @@
 #   Per-runtime: ansible-playbook ... -e '{"packages_docker": ["docker", "docker-compose", "docker-buildx"]}'
 #
 # Ansible precedence: role defaults (2) < group_vars/all (4) < host_vars (8) < -e (22)
-
-# ============================================================
-#  yay backend — setup в roles/package_manager, install в roles/packages
-# ============================================================
-
-# URL репозитория yay в AUR
-yay_source_url: "https://aur.archlinux.org/yay.git"
-
-# Зависимости для сборки yay из исходников (setup helper)
-yay_build_deps:
-  - base-devel
-  - git
-  - go
 
 # ============================================================
 #  Пакеты рабочей станции — роль roles/packages
@@ -110,7 +97,7 @@ packages_graphics:
 # --- Сессия / грифтер ---
 packages_session:
   - lightdm             # display manager
-  # nody-greeter (AUR) — устанавливается через yay_packages_aur
+  # nody-greeter (AUR) — устанавливается через packages_aur
 
 # --- Терминал ---
 packages_terminal:
@@ -142,16 +129,6 @@ packages_viewers:
   - bat               # cat с подсветкой синтаксиса
   - jq                # просмотр и обработка JSON
 
-# --- Пакеты специфичные для дистрибутива ---
-# Ключи: Archlinux, Debian (значения ansible_os_family)
-packages_distro:
-  Archlinux:
-    - base-devel       # компиляция, makepkg
-    - pacman-contrib   # paccache, checkupdates, pacdiff
-    - perl             # pod2man и др., нужен для сборки AUR пакетов (i3, etc.)
-  Debian:
-    - build-essential
-
 # --- VirtualBox Guest Additions (only if running in VirtualBox VM) ---
 # Used by role: vm
 vm_packages_virtualbox_guest:
@@ -172,38 +149,16 @@ vm_packages_hyperv_guest:
 vm_packages_kvm_guest:
   - qemu-guest-agent         # Guest Agent (filesystem freeze, shutdown, exec)
 
-# --- Агрегированный список официальных пакетов (для standalone yay / conflict validation) ---
-# В основном workstation flow roles/packages передаёт packages_all в yay автоматически.
-# ВАЖНО: использует ansible_facts['os_family'] → плей должен иметь gather_facts: true.
-yay_packages_official: >-
-  {{ packages_base
-     + packages_editors
-     + packages_docker
-     + packages_xorg
-     + packages_wm
-     + packages_filemanager
-     + packages_network
-     + packages_media
-     + packages_desktop
-     + packages_graphics
-     + packages_session
-     + packages_terminal
-     + packages_fonts
-     + packages_theming
-     + packages_search
-     + packages_viewers
-     + (packages_distro[ansible_facts['os_family']] | default([])) }}
-
 # --- Пакеты конфликтующие с AUR заменами ---
 # Удаляются перед установкой AUR пакетов
-yay_packages_aur_remove_conflicts:
+packages_aur_remove_conflicts:
   - i3lock            # заменяется на i3lock-color из AUR
   - i3-wm             # заменяется на i3-rounded-border-patch-git из AUR
   - lightdm-gtk-greeter # заменяется на nody-greeter из AUR
 
-# --- AUR пакеты (только Arch Linux, через yay) ---
-# roles/package_manager поднимает yay binary, roles/packages использует его для установки.
-yay_packages_aur:
+# --- AUR пакеты (только Arch Linux, через AUR backend) ---
+# roles/packages использует AUR backend для установки этих пакетов.
+packages_aur:
   - i3-rounded-border-patch-git   # i3 с патчем для скруглённых углов
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi

@@ -1,203 +1,293 @@
 # packages
 
-Installs workstation packages via OS-native package managers and, on Arch Linux, via AUR through `yay`.
+Ensures package lists from inventory are installed on the target host.
 
-## Execution flow
+The role does not own package data. Public inputs come from inventory and role
+defaults. The role builds internal package lists in `vars/main.yml`, then routes
+install, verify, and report work to an OS-family task directory.
 
-1. **Guard** — skips entire role if `packages_enabled: false`
-2. **Preflight assert** — fails fast with a clear message if the OS family is not in `_packages_supported_os`; supported: Archlinux, Debian, RedHat, Void, Gentoo
-3. **Build package lists** — aggregates 16 category lists plus `packages_distro[os_family]` into `packages_all`, and builds `packages_aur_all` from `yay_packages_aur` on Arch
-4. **OS-specific install** (`tasks/install-archlinux.yml` or `tasks/install-debian.yml`)
-   - **Arch:** installs `packages_all` via `ansible.builtin.package`, then installs `packages_aur_all` via `yay` in install-only mode. Official packages always land before any AUR build.
-   - **Debian/Ubuntu:** updates apt cache (`cache_valid_time: 3600`) then installs `packages_all` via `ansible.builtin.package`. Install retries up to 3 times. Skipped when `packages_all` is empty.
-5. **Verify** (`tasks/verify.yml`) — two-technique verification for every package in `packages_all + packages_aur_all`; skipped when both lists are empty:
-   - **Technique 1 (runtime):** `pacman -Q <pkg>` (Arch) or `dpkg-query -W <pkg>` (Debian) — direct native package manager check
-   - **Technique 2 (state):** `package_facts` + assert — confirms package is in Ansible's fact database
-6. **Report** — calls `common/report_phase.yml` for each phase (verify + install) and `common/report_render.yml` to emit a structured execution table (skipped via `--skip-tags report` in CI)
+Implemented install backends:
 
-### Failure behavior
+- `Archlinux`
+- `Debian` (Ubuntu uses this Ansible OS family)
 
-- **Step 2 (preflight):** hard fail with `fail_msg` listing supported OS families
-- **Step 4 (install):** retries 3× with 5s delay for native package manager steps; AUR install fails with the underlying `yay`/`kewlfft.aur` error if helper setup or build fails
-- **Step 5 (verify):** fails with `fail_msg` naming the missing package and diagnostic commands to run
+Declared placeholder backends:
 
-## Variables
+- `Gentoo`
+- `RedHat`
+- `Void`
 
-### Configurable (`defaults/main.yml`)
+For Arch AUR packages, this role calls the `yay` backend in package-management
+mode only. It does not set up `yay`, the AUR builder user, sudoers, makepkg, or
+the `yay` binary. In the workstation flow that preparation belongs to
+`package_manager`.
 
-Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+## Role Flow
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `packages_enabled` | `true` | safe | Set `false` to skip this role entirely on a specific host |
-| `packages_base` | `[]` | safe | Core CLI utilities (git, curl, htop, etc.) |
-| `packages_editors` | `[]` | safe | Text editors and IDEs |
-| `packages_docker` | `[]` | safe | Docker and container tools |
-| `packages_xorg` | `[]` | safe | X.Org display server and drivers |
-| `packages_wm` | `[]` | safe | Window manager and compositor |
-| `packages_filemanager` | `[]` | safe | File manager tools |
-| `packages_network` | `[]` | safe | Networking utilities |
-| `packages_media` | `[]` | safe | Audio and video players |
-| `packages_desktop` | `[]` | safe | Desktop environment extras |
-| `packages_graphics` | `[]` | safe | Image viewers and graphics tools |
-| `packages_session` | `[]` | safe | Session management and display managers |
-| `packages_terminal` | `[]` | safe | Terminal emulators |
-| `packages_fonts` | `[]` | safe | Fonts including Nerd Fonts |
-| `packages_theming` | `[]` | safe | GTK/Qt themes and icon packs |
-| `packages_search` | `[]` | safe | Search utilities (fzf, ripgrep) |
-| `packages_viewers` | `[]` | safe | File viewers (bat, jq) |
-| `packages_distro` | `{}` | safe | Distro-specific extras keyed by `os_family` (e.g. `Archlinux`, `Debian`) |
-| `_packages_supported_os` | 5-entry list | internal | Do not change — defines the supported OS families for the preflight assert |
+`tasks/main.yml` contains the role flow:
 
-Arch Linux AUR inputs (`yay_packages_aur`, `yay_packages_aur_remove_conflicts`) remain defined in inventory and are consumed by this role after official packages are installed.
+1. **Packages role**
+   Guarded by `packages_enabled | bool`. If disabled, the whole role block is skipped.
 
-## Examples
+2. **Install packages (OS-specific)**
+   Includes `tasks/{{ ansible_facts['os_family'] | lower }}/install.yml`.
 
-### Installing packages on all hosts
+3. **Verify packages**
+   Includes `tasks/{{ ansible_facts['os_family'] | lower }}/verify.yml`.
 
-```yaml
-# In group_vars/all/packages.yml:
-packages_base:
-  - git
-  - curl
-  - htop
-  - tmux
+4. **Report package phases**
+   Includes `tasks/{{ ansible_facts['os_family'] | lower }}/report.yml`.
 
-packages_editors:
-  - vim
-  - neovim
+5. **Packages -- Execution Report**
+   Calls `common` role task `report_render.yml` for `_packages_phases`.
 
-packages_search:
-  - fzf
-  - ripgrep
+The role does not validate OS family in a separate task. If an OS-family task
+directory is missing, the include fails with Ansible's missing-file error. The
+currently declared but unimplemented OS backends have no-op task files.
 
-packages_distro:
-  Archlinux:
-    - base-devel
-    - pacman-contrib
-  Debian:
-    - build-essential
-```
+## Derived Variables
 
-### Disabling the role on a specific host
+`vars/main.yml` is role-internal. Ansible loads it when the role starts.
 
-```yaml
-# In host_vars/<hostname>/packages.yml:
-packages_enabled: false
-```
+| Variable | Meaning |
+|----------|---------|
+| `_packages_official_all` | Official package list selected for the current OS |
+| `_packages_archlinux_aur` | Arch AUR package list from `packages_aur` |
+| `_packages_archlinux_verify_all` | Official packages plus AUR packages |
+| `_packages_debian_verify_all` | Official packages only |
+| `_packages_verify_all` | Expected package list for the current OS family |
 
-This skips all tasks including preflight and verification.
+These variables are not inventory API. They are the private interface between
+the role entrypoint, OS-specific task files, reports, and Molecule verify.
 
-### Installing only base packages (minimal profile)
+## Public Inputs
 
-```yaml
-# In host_vars/server01/packages.yml:
-packages_base:
-  - git
-  - curl
-  - tmux
-# All other categories remain [] — role installs only packages_base
-```
+Override these through inventory, usually `inventory/group_vars/all/packages*.yml`.
 
-## Cross-platform details
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `packages_enabled` | `true` | Master toggle for the role |
+| `packages_base` | `[]` | Core CLI utilities |
+| `packages_editors` | `[]` | Editors |
+| `packages_docker` | `[]` | Docker and container tools |
+| `packages_xorg` | `[]` | X.Org packages |
+| `packages_wm` | `[]` | Window-manager packages and helpers |
+| `packages_filemanager` | `[]` | File manager packages |
+| `packages_network` | `[]` | Network packages |
+| `packages_media` | `[]` | Media control packages |
+| `packages_desktop` | `[]` | Desktop integration packages |
+| `packages_graphics` | `[]` | Graphics packages |
+| `packages_session` | `[]` | Session/display-manager packages |
+| `packages_terminal` | `[]` | Terminal packages |
+| `packages_fonts` | `[]` | Font packages |
+| `packages_theming` | `[]` | Theme/icon packages |
+| `packages_search` | `[]` | Search tools |
+| `packages_viewers` | `[]` | Viewers and data tools |
+| `packages_archlinux` | `[]` | Arch Linux package and pacman group list passed to pacman |
+| `packages_ubuntu` | `[]` | Ubuntu package list passed to apt |
+| `packages_aur` | `[]` | Arch-only AUR packages requested by inventory |
+| `packages_aur_remove_conflicts` | `[]` | Arch packages to remove before installing AUR replacements |
+| `packages_aur_transport_proxy_enabled` | `false` | Enables optional AUR transport proxy workaround |
 
-| Aspect | Arch Linux | Debian / Ubuntu |
-|--------|-----------|-----------------|
-| Package manager | pacman | apt (ansible.builtin.apt for cache update) |
-| Install module | `ansible.builtin.package` | `ansible.builtin.package` |
-| System upgrade | not performed by this role | not performed by this role |
-| Cache update | handled by pre-workstation `system_update` lifecycle | `apt update` with `cache_valid_time: 3600` |
-| Package query | `pacman -Q <pkg>` | `dpkg-query -W -f='${Status}' <pkg>` |
+Package names are passed to the selected backend as-is. This role does not
+translate package names between distributions.
 
-## Logs
+## Backend Tasks
 
-This role does not create log files. All output is written to Ansible stdout.
+### Archlinux Install
 
-### Reading ansible output
+`tasks/archlinux/install.yml`:
 
-| Output | Meaning |
-|--------|---------|
-| `packages verify passed: all N packages confirmed installed` | In-role verify succeeded |
-| `FAILED! => {"msg": "Package 'X' is not installed..."}` | A package failed to install; see package manager error above |
-| `packages -- Execution Report` table | Structured phase summary (skipped in CI via `--skip-tags report`) |
-| `Retrying... attempt N of 3` | Transient mirror failure; role will retry automatically |
+1. **Install packages (pacman)**
+   Installs `_packages_official_all` with `ansible.builtin.package`.
 
-## Troubleshooting
+2. **Apply AUR transport proxy workaround layer**
+   Includes role `aur_transport_proxy` only when `_packages_archlinux_aur` is
+   non-empty and `packages_aur_transport_proxy_enabled` is true.
 
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| Role fails at preflight with "OS family not supported" | `ansible -m setup <host> \| grep os_family` — check actual os_family value | Add the host to a supported distro or check if `ansible_facts['os_family']` returns unexpected value |
-| Package install fails with "target not found" (Arch) | `pacman -Ss <pkg>` on host — package may not exist or name is wrong | Check exact package name in Arch repos; Arch names differ from Debian (e.g. `openssh` vs `openssh-client`) |
-| Package install fails with "unable to locate package" (Ubuntu) | `apt-cache search <pkg>` on host — package may need a PPA or different name | Check Ubuntu package name; some Arch packages have no direct apt equivalent |
-| AUR install fails with `yay_manage_aur_packages=true ... requires an existing yay binary` | `package_manager` or yay setup phase was skipped before running `packages` | Run `package_manager` first, or pre-provision `yay` in the scenario/play before `packages` |
-| Verify fails with "Package X not found in package facts" | `pacman -Q <pkg>` or `dpkg -l <pkg>` on host | Package manager installed it but `package_facts` module used different name format — check for epoch prefix (e.g. `1:vim`) |
-| Idempotence failure: second converge shows `changed=1` | Look for which package task changed | Fix the non-idempotent install/AUR task; full OS upgrade belongs to `system_update`, not this role |
-| Role skips silently with no output | Check `packages_enabled` in host/group vars — may be `false` | Set `packages_enabled: true` or remove the override |
+3. **Install AUR packages**
+   Includes role `yay` only when `_packages_archlinux_aur` is non-empty.
+   Passes:
 
-## Testing
+   - `yay_manage_setup: false`
+   - `yay_manage_aur_packages: true`
+   - `yay_packages_aur: "{{ _packages_archlinux_aur }}"`
+   - `yay_packages_aur_remove_conflicts: "{{ packages_aur_remove_conflicts }}"`
+   - `yay_packages_official: "{{ _packages_official_all }}"`
 
-Both scenarios required. Run Docker for fast feedback; Vagrant for cross-platform validation.
+This keeps package installation inside the Arch backend task file without
+moving AUR helper setup into `packages`.
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, task logic, or adding packages | Logic correctness, idempotence, Arch + Ubuntu full list, Arch AUR path, empty-list edge cases |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or when Docker results are suspicious | Real VM, real package manager, Arch VM + Ubuntu VM, yay-backed AUR install |
+### Archlinux Verify
 
-### Success criteria
+`tasks/archlinux/verify.yml`:
 
-- All steps complete: `syntax → create → prepare → converge → idempotence → verify → destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assert tasks pass; final line shows `packages verify passed`
-- No `FAILED` tasks in output
+1. Probes every entry in `_packages_official_all` with `pacman -Q`.
+2. For entries that are not installed package names, resolves them with
+   `pacman -Sgq` as pacman groups and verifies each resolved group member with
+   `pacman -Q`.
+3. Runs `pacman -Q {{ item }}` for every package in `_packages_archlinux_aur`
+   under the `aur` tag.
 
-### What the tests verify
+### Archlinux Report
 
-| Category | What is checked | Test requirement |
-|----------|----------------|-----------------|
-| Packages | Every package in `packages_all` is installed (`pacman -Q` / `dpkg-query`) | TEST-008 |
-| Package facts | Every package present in `ansible_facts.packages` after `package_facts` gather | TEST-008 |
-| Empty list edge case | Role completes without error when all package lists are `[]` | TEST-011 |
-| Idempotence | Second converge run shows `changed=0` | TEST-007 |
+`tasks/archlinux/report.yml`:
 
-### Common test failures
+1. Adds an install phase row to `_packages_phases`.
+2. Adds a verify phase row to `_packages_phases`.
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `target not found: <pkg>` (Arch) | Package name doesn't exist in pacman repos | Check exact name: `pacman -Ss <pkg>` |
-| `Unable to locate package <pkg>` (Ubuntu) | Package not in apt repos | Check Ubuntu name: `apt-cache search <pkg>` |
-| `idempotence: changed=1` | Package install or AUR task is not idempotent | Check which task changed and fix state detection |
-| `Package X not found in package facts` | `package_facts` module uses different name format | Known for packages with epoch prefix; investigate with `pacman -Qi <pkg>` |
-| `Assertion failed: OS family not supported` | Molecule platform uses unexpected os_family | Check image: `ansible -m setup localhost \| grep os_family` |
-| Vagrant: `Python not found` | Bootstrap in prepare.yml skipped | Run full sequence: `molecule test -s vagrant`, not just `converge` |
+### Debian Install
+
+`tasks/debian/install.yml`:
+
+1. Updates apt cache with `cache_valid_time: 3600`.
+2. Installs `_packages_official_all` with `ansible.builtin.apt`.
+3. Runs `dpkg --audit` and fails if dpkg has pending configuration.
+
+### Debian Verify
+
+`tasks/debian/verify.yml`:
+
+1. Runs `dpkg-query` for every package in `_packages_verify_all`.
+2. Gathers package facts.
+3. Asserts every package in `_packages_verify_all` exists in `ansible_facts.packages`.
+
+### Debian Report
+
+`tasks/debian/report.yml`:
+
+1. Adds an install phase row to `_packages_phases`.
+2. Adds a verify phase row to `_packages_phases`.
+
+### Placeholder Backends
+
+`tasks/gentoo/*`, `tasks/redhat/*`, and `tasks/void/*`:
+
+1. Install task prints that the backend is not implemented and skips install.
+2. Verify task prints that verification is not implemented and skips verify.
+3. Report task records skipped install and verify phases.
+
+## Molecule Tests
+
+Required scenarios:
+
+| Scenario | Platforms | Purpose |
+|----------|-----------|---------|
+| `docker` | `Archlinux-systemd`, `Ubuntu-systemd` | Fast role feedback on Arch and Ubuntu containers |
+| `vagrant` | `arch-vm`, `ubuntu-base` | VM validation on Arch and Ubuntu |
+
+Manual scenario:
+
+| Scenario | Platform | Purpose |
+|----------|----------|---------|
+| `default` | `localhost` | Delegated smoke run on the current host |
+
+All scenarios use Molecule Galaxy dependency resolution with
+`ansible/requirements.yml`. This installs required collections such as
+`community.general` and `kewlfft.aur`; it does not run any Ansible role.
+
+AUR installation requires a prepared AUR backend. The Molecule `prepare` phase
+sets up that backend on Arch when `packages_aur` is non-empty; the `packages`
+role itself still runs only the package installation path.
+
+### Docker Scenario Flow
+
+`molecule/docker/molecule.yml` runs:
+
+1. `syntax`
+2. `create`
+3. `prepare`
+4. `converge`
+5. `idempotence`
+6. `verify`
+7. `destroy`
+
+`molecule/docker/prepare.yml`:
+
+1. Updates pacman cache on Arch.
+2. Updates apt cache on Debian/Ubuntu.
+3. Imports `molecule/shared/prepare-aur-backend.yml`.
+
+The scenario installs Galaxy collections from `ansible/requirements.yml` before
+the playbooks run.
+
+### Vagrant Scenario Flow
+
+`molecule/vagrant/molecule.yml` runs the same sequence as Docker.
+
+`molecule/vagrant/prepare.yml`:
+
+1. Imports the shared Vagrant bootstrap playbook.
+2. Imports `molecule/shared/prepare-aur-backend.yml`.
+
+`molecule/shared/prepare-aur-backend.yml` sets up the Arch AUR backend when
+`packages_aur` is non-empty. It calls `yay` setup-only mode and does not run
+`packages`.
+
+The scenario installs Galaxy collections from `ansible/requirements.yml` before
+the playbooks run.
+
+### Shared Converge
+
+`molecule/shared/converge.yml`:
+
+1. Loads `inventory/group_vars/all/packages.yml` through `vars_files`.
+2. Runs the `packages` role on all Molecule hosts.
+
+The role itself loads `vars/main.yml` during the role run.
+
+### Shared Verify
+
+`molecule/shared/verify.yml` is a separate Ansible run. It does not inherit
+variables from converge.
+
+It:
+
+1. Loads `inventory/group_vars/all/packages.yml`.
+2. Loads `roles/packages/vars/main.yml`.
+3. Derives the expected package list for the current Molecule run.
+4. Asserts the expected package list is not empty.
+5. Gathers `ansible.builtin.package_facts`.
+6. Asserts every expected package exists in `ansible_facts.packages`.
+
+Molecule verify checks installed state. It does not call the role's own
+`tasks/<os_family>/verify.yml` task files.
 
 ## Tags
 
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `packages` | Entire role | Full apply |
-| `packages,install` | Build list + install step only | Re-install packages without re-running verify or report |
-| `aur` | Arch AUR install path inside `packages` | Skip or target only the yay-backed portion |
-| `report` | Report tasks only | Re-generate execution report |
+| Tag | What it selects |
+|-----|-----------------|
+| `packages` | The role block and all role tasks tagged with `packages` |
+| `install` | Install tasks |
+| `aur` | Arch AUR-related tasks |
+| `report` | Report tasks |
+
+Examples:
 
 ```bash
-# Run only the install phase (skip report and verify)
-ansible-playbook site.yml --tags packages,install --skip-tags report
-
-# Run package installation without report output
+ansible-playbook site.yml --tags install --skip-tags report
 ansible-playbook site.yml --tags packages --skip-tags report
 ```
 
-## File map
+## File Map
 
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable settings and supported OS list | No — override via inventory |
-| `tasks/main.yml` | Execution orchestrator: preflight → build list → install → verify → report | When adding/removing steps |
-| `tasks/install-archlinux.yml` | Arch-specific package install | When changing Arch install behavior |
-| `tasks/install-debian.yml` | Debian/Ubuntu-specific: cache update + package install | When changing Debian install behavior |
-| `tasks/verify.yml` | In-role post-install verification: native PM command + package_facts assert | When changing verification logic |
-| `meta/main.yml` | Role metadata and galaxy info | When updating supported platforms |
-| `molecule/docker/` | Docker CI scenario (Arch + Ubuntu + empty-list edge cases) | When changing CI test coverage |
-| `molecule/vagrant/` | Vagrant cross-platform scenario (Arch VM + Ubuntu VM) | When changing full-system test coverage |
-| `molecule/shared/converge.yml` | Shared converge playbook used by docker and vagrant | Rarely |
-| `molecule/shared/verify.yml` | Shared molecule verify playbook | When changing verification assertions |
+| File | Purpose |
+|------|---------|
+| `defaults/main.yml` | Public defaults |
+| `vars/main.yml` | Internal derived package lists |
+| `tasks/main.yml` | Role entrypoint: install, verify, report, render report |
+| `tasks/archlinux/install.yml` | Arch official package install and AUR package install |
+| `tasks/archlinux/verify.yml` | Arch package verification via `pacman -Q` |
+| `tasks/archlinux/report.yml` | Arch report rows |
+| `tasks/debian/install.yml` | Debian/Ubuntu apt cache, install, and dpkg audit |
+| `tasks/debian/verify.yml` | Debian/Ubuntu verification via `dpkg-query` and package facts |
+| `tasks/debian/report.yml` | Debian/Ubuntu report rows |
+| `tasks/gentoo/*` | Gentoo no-op placeholder backend |
+| `tasks/redhat/*` | RedHat/Fedora no-op placeholder backend |
+| `tasks/void/*` | Void no-op placeholder backend |
+| `molecule/docker/` | Docker scenario |
+| `molecule/vagrant/` | Vagrant scenario |
+| `molecule/default/` | Delegated localhost scenario |
+| `molecule/shared/prepare-aur-backend.yml` | Shared Arch AUR backend precondition |
+| `molecule/shared/converge.yml` | Shared role run |
+| `molecule/shared/verify.yml` | Shared installed-state verification |

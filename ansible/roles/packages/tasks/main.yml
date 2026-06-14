@@ -1,99 +1,23 @@
 ---
 # === Workstation package installation ===
-# Official packages install directly. AUR packages install via yay on Arch Linux.
+# Official packages install through the OS backend. Platform extras stay hidden
+# behind the OS-specific task file.
 
 - name: Packages role
   when: packages_enabled | bool
   tags: ['packages']
   block:
 
-    # ---- Preflight: supported OS ----
-
-    - name: Assert supported operating system
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] in _packages_supported_os
-        fail_msg: >-
-          OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ _packages_supported_os | join(', ') }}
-        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-      tags: ['packages']
-
-    # ---- Build combined package list ----
-
-    - name: Build combined package list
-      ansible.builtin.set_fact:
-        packages_all: >-
-          {{ packages_base
-             + packages_editors
-             + packages_docker
-             + packages_xorg
-             + packages_wm
-             + packages_filemanager
-             + packages_network
-             + packages_media
-             + packages_desktop
-             + packages_graphics
-             + packages_session
-             + packages_terminal
-             + packages_fonts
-             + packages_theming
-             + packages_search
-             + packages_viewers
-             + (packages_distro[ansible_facts['os_family']] | default([])) }}
-      tags: ['packages', 'install']
-
-    - name: Build Arch Linux AUR package list
-      ansible.builtin.set_fact:
-        packages_aur_all: >-
-          {{ yay_packages_aur | default([])
-             if ansible_facts['os_family'] == 'Archlinux'
-             else [] }}
-      tags: ['packages', 'install', 'aur']
-
-    - name: Build combined verification package list
-      ansible.builtin.set_fact:
-        packages_verify_all: >-
-          {{ packages_all + packages_aur_all }}
-      tags: ['packages']
-
-    # ---- OS-specific package installation ----
-
     - name: Install packages (OS-specific)
-      ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/install.yml"
       tags: ['packages', 'install']
-
-    # ---- In-role verification ----
 
     - name: Verify packages
-      ansible.builtin.include_tasks: verify.yml
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/verify.yml"
       tags: ['packages']
 
-    # ---- Report ----
-
-    - name: "Report: Package installation"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_packages_phases"
-        common_rpt_phase: "Install packages"
-        common_rpt_detail: >-
-          {{ packages_all | length }} official +
-          {{ packages_aur_all | length }} AUR on {{ ansible_facts['os_family'] }}
-      tags: ['packages', 'report']
-
-    - name: "Report: Package verification"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_packages_phases"
-        common_rpt_phase: "Verify packages"
-        common_rpt_detail: >-
-          {{ packages_verify_all | length }} packages verified
-          ({{ packages_all | length }} official +
-          {{ packages_aur_all | length }} AUR) on {{ ansible_facts['os_family'] }}
+    - name: Report package phases
+      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/report.yml"
       tags: ['packages', 'report']
 
     - name: "Packages -- Execution Report"

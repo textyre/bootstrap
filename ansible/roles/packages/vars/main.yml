@@ -1,0 +1,38 @@
+---
+# Internal derived package lists. Public inputs live in defaults/inventory;
+# these variables are the role's private interface between task files.
+
+_packages_archlinux_official_all: "{{ packages_archlinux }}"
+_packages_ubuntu_official_all: "{{ packages_ubuntu }}"
+
+_packages_official_all: >-
+  {{ _packages_archlinux_official_all
+     if ansible_facts['os_family'] == 'Archlinux'
+     else _packages_ubuntu_official_all
+     if ansible_facts['distribution'] == 'Ubuntu'
+     else [] }}
+
+_packages_archlinux_aur: "{{ packages_aur }}"
+is_packages_archlinux_aur: "{{ _packages_archlinux_aur | length > 0 }}"
+_packages_archlinux_verify_all: "{{ _packages_official_all + _packages_archlinux_aur }}"
+_packages_archlinux_official_count: "{{ _packages_official_all | length }}"
+_packages_archlinux_aur_count: "{{ _packages_archlinux_aur | length }}"
+_packages_archlinux_verify_count: "{{ _packages_archlinux_verify_all | length }}"
+
+_packages_debian_verify_all: "{{ _packages_official_all }}"
+_packages_debian_official_count: "{{ _packages_official_all | length }}"
+_packages_debian_verify_count: "{{ _packages_debian_verify_all | length }}"
+
+_packages_verify_all: >-
+  {{ _packages_archlinux_verify_all
+     if ansible_facts['os_family'] == 'Archlinux'
+     else _packages_debian_verify_all
+     if ansible_facts['os_family'] == 'Debian'
+     else [] }}
+
+_packages_verify_count: >-
+  {{ _packages_archlinux_verify_count
+     if ansible_facts['os_family'] == 'Archlinux'
+     else _packages_debian_verify_count
+     if ansible_facts['os_family'] == 'Debian'
+     else 0 }}

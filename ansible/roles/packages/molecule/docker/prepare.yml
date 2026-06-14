@@ -1,36 +1,19 @@
 ---
-- name: Prepare controller for packages docker scenario
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Install kewlfft.aur collection for AUR-backed package scenarios
-      ansible.builtin.command: ansible-galaxy collection install kewlfft.aur
-      changed_when: true
-      when:
-        - hostvars['Archlinux-systemd'].yay_packages_aur | default([]) | length > 0
-
 - name: Prepare
   hosts: all
   become: true
   gather_facts: true
   tasks:
-    - name: Update pacman package cache (Arch)
+    - name: Update pacman package cache
       community.general.pacman:
         update_cache: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Update apt cache (Ubuntu)
+    - name: Update apt package cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Set up yay backend for packages role (Arch)
-      ansible.builtin.include_role:
-        name: yay
-      vars:
-        yay_manage_setup: true
-        yay_manage_aur_packages: false
-      when:
-        - ansible_facts['os_family'] == 'Archlinux'
-        - yay_packages_aur | default([]) | length > 0
+- name: Prepare packages role AUR backend
+  ansible.builtin.import_playbook: ../shared/prepare-aur-backend.yml

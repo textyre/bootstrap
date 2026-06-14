@@ -1,6 +1,6 @@
 ---
 # === yay: AUR helper — defaults ===
-# Переопределяются в group_vars/all/packages.yml
+# Override only when changing the AUR backend implementation itself.
 
 # URL репозитория yay в AUR
 yay_source_url: "https://aur.archlinux.org/yay.git"
@@ -24,7 +24,8 @@ yay_build_deps:
   - git
   - go
 
-# AUR package management — заполняются в group_vars/all/packages.yml
+# AUR package management — callers pass these explicitly when using this role
+# as a backend.
 yay_packages_aur: []
 yay_packages_aur_remove_conflicts: []
 yay_packages_official: []

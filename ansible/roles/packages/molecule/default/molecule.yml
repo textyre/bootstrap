@@ -4,7 +4,7 @@
 # DELEGATED DRIVER: Применяет роль к localhost
 #
 # ВНИМАНИЕ: Этот тест РЕАЛЬНО устанавливает пакеты в систему!
-#   - Устанавливает пакеты из всех packages_* групп
+#   - Устанавливает пакеты из inventory/group_vars/all/packages.yml
 #
 # Перед запуском: Создайте снапшот VM!
 
@@ -15,6 +15,11 @@ driver:
 
 platforms:
   - name: localhost
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../../requirements.yml
 
 provisioner:
   name: ansible
@@ -28,28 +33,8 @@ provisioner:
       localhost:
         ansible_connection: local
         ansible_become_password: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_SUDO_PASSWORD') }}"
-    group_vars:
-      all:
-        packages_base: [git, curl]
-        packages_editors: [vim]
-        packages_docker: []
-        packages_xorg: []
-        packages_wm: []
-        packages_filemanager: []
-        packages_network: []
-        packages_media: []
-        packages_desktop: []
-        packages_graphics: []
-        packages_session: []
-        packages_terminal: []
-        packages_fonts: []
-        packages_theming: []
-        packages_search: []
-        packages_viewers: [jq]
-        packages_distro:
-          Archlinux: [base-devel]
-          Debian: [build-essential]
   playbooks:
+    prepare: ../shared/prepare-aur-backend.yml
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
   env:
@@ -60,7 +45,9 @@ verifier:
 
 scenario:
   test_sequence:
+    - dependency
     - syntax
+    - prepare
     - converge
     - idempotence
     - verify
