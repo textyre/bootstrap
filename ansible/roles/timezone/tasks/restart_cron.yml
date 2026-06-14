@@ -1,0 +1,38 @@
+---
+# Scoped cron restart for timezone changes.
+
+- name: Gather service facts for cron restart
+  ansible.builtin.service_facts:
+  tags: ['timezone']
+
+- name: Determine cron service name
+  ansible.builtin.set_fact:
+    _timezone_cron_service_name: >-
+      {{ _timezone_cron_service.get(
+           ansible_facts['service_mgr'],
+           _timezone_cron_service.get('default', 'cron')
+         ) }}
+  tags: ['timezone']
+
+- name: Determine whether cron service is present
+  ansible.builtin.set_fact:
+    _timezone_cron_service_present: >-
+      {{ _timezone_cron_service_name in ansible_facts.services or
+         (_timezone_cron_service_name ~ '.service') in ansible_facts.services }}
+  tags: ['timezone']
+
+- name: Restart cron if present
+  ansible.builtin.service:
+    name: "{{ _timezone_cron_service_name }}"
+    state: restarted
+  when: _timezone_cron_service_present | bool
+  tags: ['timezone']
+
+- name: Set cron restart report
+  ansible.builtin.set_fact:
+    _timezone_cron_restart_status: "{{ 'done' if _timezone_cron_service_present | bool else 'skip' }}"
+    _timezone_cron_restart_detail: >-
+      {{ _timezone_cron_service_name
+         if _timezone_cron_service_present | bool
+         else _timezone_cron_service_name ~ ' absent' }}
+  tags: ['timezone']

@@ -7,19 +7,21 @@
   become: true
   gather_facts: true
   tasks:
-    # Cron installed ONLY on Archlinux to test both handler paths:
-    #   Arch: cron present → handler fires → verify cron running
-    #   Ubuntu: cron absent → handler skips gracefully
-    - name: Install cron for handler testing (Archlinux only)
-      community.general.pacman:
+    # Cron installed ONLY on Archlinux to test both restart paths:
+    #   Arch: cron present -> scoped restart path can run
+    #   Ubuntu: cron absent -> scoped restart skips gracefully
+    - name: Install cron for restart testing (Archlinux only)
+      ansible.builtin.package:
         name: cronie
         state: present
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Reload systemd after cronie install (Archlinux only)
+    - name: Reload systemd after cronie install (Archlinux systemd only)
       ansible.builtin.systemd:
         daemon_reload: true
-      when: ansible_facts['os_family'] == 'Archlinux'
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - ansible_facts['service_mgr'] == 'systemd'
 
     - name: Enable and start cronie (Archlinux only)
       ansible.builtin.service:

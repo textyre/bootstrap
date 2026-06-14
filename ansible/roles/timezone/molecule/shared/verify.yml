@@ -3,8 +3,19 @@
   hosts: all
   become: true
   gather_facts: true
+  vars_files:
+    - >-
+      {{ (lookup('env', 'REPO_ROOT') ~ '/ansible/inventory/group_vars/all/system.yml')
+         if (lookup('env', 'REPO_ROOT') | length > 0)
+         else (lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/../../inventory/group_vars/all/system.yml') }}
 
   tasks:
+
+    - name: Load timezone OS-specific variables
+      ansible.builtin.include_vars: >-
+        {{ (lookup('env', 'REPO_ROOT') ~ '/ansible/roles/timezone/vars/' ~ (ansible_facts['os_family'] | lower) ~ '.yml')
+           if (lookup('env', 'REPO_ROOT') | length > 0)
+           else (lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/vars/' ~ (ansible_facts['os_family'] | lower) ~ '.yml') }}
 
     # ---- /etc/localtime is a symlink ----
 
@@ -26,13 +37,14 @@
       ansible.builtin.command: readlink -f /etc/localtime
       register: _timezone_verify_localtime_target
       changed_when: false
+      failed_when: _timezone_verify_localtime_target.rc != 0
 
     - name: Assert /etc/localtime points to expected timezone
       ansible.builtin.assert:
         that:
-          - timezone_name in _timezone_verify_localtime_target.stdout
+          - _timezone_verify_localtime_target.stdout == '/usr/share/zoneinfo/' ~ timezone_name
         fail_msg: >-
-          Expected '{{ timezone_name }}' in symlink target,
+          Expected '/usr/share/zoneinfo/{{ timezone_name }}',
           got '{{ _timezone_verify_localtime_target.stdout }}'
 
     # ---- timedatectl (systemd hosts only) ----
@@ -47,13 +59,15 @@
     - name: Assert timedatectl reports expected timezone (systemd)
       ansible.builtin.assert:
         that:
+          - _timezone_verify_timedatectl.rc == 0
           - _timezone_verify_timedatectl.stdout == timezone_name
         fail_msg: >-
-          timedatectl expected '{{ timezone_name }}',
-          got '{{ _timezone_verify_timedatectl.stdout }}'
-      when:
-        - ansible_facts['service_mgr'] == 'systemd'
-        - _timezone_verify_timedatectl.rc == 0
+          timedatectl failed or reported a different timezone:
+          rc={{ _timezone_verify_timedatectl.rc }},
+          stdout='{{ _timezone_verify_timedatectl.stdout }}',
+          stderr='{{ _timezone_verify_timedatectl.stderr }}',
+          expected='{{ timezone_name }}'
+      when: ansible_facts['service_mgr'] == 'systemd'
 
     # ---- tzdata package installed ----
 
@@ -65,17 +79,12 @@
       ansible.builtin.assert:
         that:
           - >-
-            (timezone_packages_tzdata[ansible_facts['os_family']]
-             | default(timezone_packages_tzdata.get('default', 'tzdata')))
-            in ansible_facts.packages
-        fail_msg: >-
-          tzdata package '{{ timezone_packages_tzdata[ansible_facts['os_family']]
-            | default(timezone_packages_tzdata.get('default', 'tzdata')) }}'
-          not found in installed packages
-      when: timezone_packages_tzdata is defined
+            _timezone_tzdata_package in ansible_facts.packages or
+            (_timezone_tzdata_package | regex_replace('^.*/', '')) in ansible_facts.packages
+        fail_msg: "Timezone database package '{{ _timezone_tzdata_package }}' not found in installed packages"
 
-    # ---- cron handler: service running when present ----
-    # Docker: cron on Arch (handler fires), absent on Ubuntu (handler skips)
+    # ---- cron restart: service running when present ----
+    # Docker: cron on Arch (restart path can run), absent on Ubuntu (skip path)
     # Vagrant/default: cron may or may not be installed — assertion conditional
 
     - name: Gather service facts for cron check
@@ -84,7 +93,10 @@
     - name: Determine expected cron service name
       ansible.builtin.set_fact:
         _timezone_verify_cron_name: >-
-          {{ 'crond' if ansible_facts['os_family'] in ['Archlinux', 'RedHat', 'Void', 'Gentoo'] else 'cron' }}
+          {{ _timezone_cron_service.get(
+               ansible_facts['service_mgr'],
+               _timezone_cron_service.get('default', 'cron')
+             ) }}
 
     - name: Assert cron service is running (when present)
       ansible.builtin.assert:
@@ -97,21 +109,12 @@
       when:
         - (_timezone_verify_cron_name ~ '.service') in ansible_facts.services
 
-    - name: Show cron handler skip (when absent)
+    - name: Show cron restart skip (when absent)
       ansible.builtin.debug:
-        msg: "Cron service '{{ _timezone_verify_cron_name }}' not installed — handler skip path confirmed"
+        msg: "Cron service '{{ _timezone_verify_cron_name }}' not installed; restart skip path confirmed"
       when:
         - (_timezone_verify_cron_name ~ '.service') not in ansible_facts.services
         - _timezone_verify_cron_name not in ansible_facts.services
-
-    # ---- timezone_packages_tzdata undefined path ----
-
-    - name: Show tzdata variable status
-      ansible.builtin.debug:
-        msg: >-
-          timezone_packages_tzdata is {{ 'defined' if timezone_packages_tzdata is defined else 'undefined' }}
-          — {{ 'tzdata install was executed' if timezone_packages_tzdata is defined
-               else 'tzdata install was skipped (expected)' }}
 
     # ---- /etc/timezone file (Debian/Ubuntu, non-systemd only) ----
     # NOTE: community.general.timezone on systemd hosts uses timedatectl
@@ -151,6 +154,7 @@
       ansible.builtin.command: date +%Z
       register: _timezone_verify_date_output
       changed_when: false
+      failed_when: _timezone_verify_date_output.rc != 0
 
     - name: Show timezone abbreviation from date
       ansible.builtin.debug:
@@ -176,15 +180,19 @@
     # never touching /etc/localtime.
 
     - name: Attempt to set invalid timezone (negative test)
-      community.general.timezone:
-        name: "Invalid/NotATimezone"
-      register: _timezone_verify_invalid
-      ignore_errors: true
+      block:
+        - name: Set invalid timezone candidate
+          community.general.timezone:
+            name: "Invalid/NotATimezone"
+      rescue:
+        - name: Record invalid timezone rejection
+          ansible.builtin.set_fact:
+            _timezone_verify_invalid_rejected: true
 
     - name: Assert invalid timezone is rejected
       ansible.builtin.assert:
         that:
-          - _timezone_verify_invalid is failed
+          - _timezone_verify_invalid_rejected | default(false) | bool
         fail_msg: "Invalid timezone was NOT rejected by the timezone module"
 
     # ---- Summary ----
@@ -195,5 +203,5 @@
           timezone verify passed on
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}:
           /etc/localtime -> {{ _timezone_verify_localtime_target.stdout }},
-          tzdata installed,
+          {{ _timezone_tzdata_package }} installed,
           date TZ={{ _timezone_verify_date_output.stdout }}

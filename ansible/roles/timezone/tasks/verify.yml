@@ -5,13 +5,16 @@
   ansible.builtin.command: readlink -f /etc/localtime
   register: _timezone_verify_symlink
   changed_when: false
+  failed_when: _timezone_verify_symlink.rc != 0
   tags: ['timezone']
 
 - name: Assert timezone matches expected value
   ansible.builtin.assert:
     that:
-      - timezone_name in _timezone_verify_symlink.stdout
-    fail_msg: "Timezone mismatch: got '{{ _timezone_verify_symlink.stdout }}', expected '{{ timezone_name }}'"
+      - _timezone_verify_symlink.stdout == '/usr/share/zoneinfo/' ~ timezone_name
+    fail_msg: >-
+      Timezone mismatch: got '{{ _timezone_verify_symlink.stdout }}',
+      expected '/usr/share/zoneinfo/{{ timezone_name }}'
     quiet: true
   tags: ['timezone']
 
@@ -26,10 +29,32 @@
 - name: Assert timedatectl agrees with expected timezone (systemd only)
   ansible.builtin.assert:
     that:
+      - _timezone_verify_timedatectl.rc == 0
       - _timezone_verify_timedatectl.stdout == timezone_name
-    fail_msg: "timedatectl reports '{{ _timezone_verify_timedatectl.stdout }}', expected '{{ timezone_name }}'"
+    fail_msg: >-
+      timedatectl failed or reported a different timezone:
+      rc={{ _timezone_verify_timedatectl.rc }},
+      stdout='{{ _timezone_verify_timedatectl.stdout }}',
+      stderr='{{ _timezone_verify_timedatectl.stderr }}',
+      expected='{{ timezone_name }}'
     quiet: true
-  when:
-    - ansible_facts['service_mgr'] == 'systemd'
-    - _timezone_verify_timedatectl.rc == 0
+  when: ansible_facts['service_mgr'] == 'systemd'
+  tags: ['timezone']
+
+- name: Gather package facts for timezone database
+  ansible.builtin.package_facts:
+    manager: auto
+  changed_when: false
+  when: timezone_manage_tzdata | bool
+  tags: ['timezone']
+
+- name: Assert timezone database package is installed
+  ansible.builtin.assert:
+    that:
+      - >-
+        _timezone_tzdata_package in ansible_facts.packages or
+        (_timezone_tzdata_package | regex_replace('^.*/', '')) in ansible_facts.packages
+    fail_msg: "Timezone database package '{{ _timezone_tzdata_package }}' is not installed"
+    quiet: true
+  when: timezone_manage_tzdata | bool
   tags: ['timezone']

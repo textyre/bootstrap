@@ -18,12 +18,6 @@ provisioner:
       Localhost:
         ansible_connection: local
         ansible_become_password: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') + '/.vault-pass') }}"
-    group_vars:
-      all:
-        timezone_name: "Asia/Almaty"
-        timezone_packages_tzdata:
-          Gentoo: "sys-libs/timezone-data"
-          default: "tzdata"
   playbooks:
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml

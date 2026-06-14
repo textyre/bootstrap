@@ -1,8 +1,19 @@
 ---
 # === Таймзона ===
+# Включить/выключить всю роль целиком.
+timezone_enabled: true
+
 # Имя таймзоны в формате tz database (ls /usr/share/zoneinfo/)
 # Реальное значение задаётся в group_vars/all/system.yml
 timezone_name: "UTC"
+
+# Управлять пакетом базы данных часовых поясов.
+# OS-specific имя пакета задаётся в vars/<os_family>.yml.
+timezone_manage_tzdata: true
+
+# Перезапускать cron, если таймзона действительно изменилась.
+# Полезно для уже запущенных cron-демонов; пропускается, если cron не установлен.
+timezone_restart_cron_enabled: true
 
 # Поддерживаемые дистрибутивы (ROLE-003)
 _timezone_supported_os:

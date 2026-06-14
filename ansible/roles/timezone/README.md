@@ -5,33 +5,39 @@ Sets the system timezone and ensures the `tzdata` database package is installed.
 ## What this role does
 
 - [x] Asserts OS family is supported (ROLE-003 preflight)
+- [x] Can be disabled per host with `timezone_enabled: false`
+- [x] Loads OS-specific backend variables from `vars/<os_family>.yml`
 - [x] Validates `timezone_name` is defined and non-empty
-- [x] Installs `tzdata` package (name resolved from `timezone_packages_tzdata` dict, keyed by `os_family`; skipped when undefined)
+- [x] Installs the timezone database package when `timezone_manage_tzdata` is true
 - [x] Sets system timezone via `community.general.timezone` (`/etc/localtime` symlink on all platforms; `/etc/timezone` only on non-systemd Debian/Ubuntu)
 - [x] Verifies the applied timezone via `readlink -f /etc/localtime` and `timedatectl` on systemd (ROLE-005, `tasks/verify.yml`)
-- [x] Restarts cron after a timezone change (skipped when cron is not installed)
+- [x] Restarts cron after an actual timezone change when cron is present
 - [x] Reports execution phases via `common/report_phase.yml` (ROLE-008)
 
 ## Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `timezone_enabled` | `true` | Enable or disable the entire role |
 | `timezone_name` | `"UTC"` | Timezone name in tz database format (`ls /usr/share/zoneinfo/`) |
-| `timezone_packages_tzdata` | _(undefined)_ | Package name dict keyed by `os_family` with `default` fallback. Task is skipped when undefined. |
+| `timezone_manage_tzdata` | `true` | Install the OS-specific timezone database package from `vars/<os_family>.yml` |
+| `timezone_restart_cron_enabled` | `true` | Restart cron after `community.general.timezone` reports a real change |
 
-Production values are set in `inventory/group_vars/all/system.yml`:
+Production timezone values are set in `inventory/group_vars/all/system.yml`:
 
 ```yaml
 timezone_name: "Asia/Almaty"
 ```
 
-`timezone_packages_tzdata` comes from `inventory/group_vars/all/packages.yml`:
+Role-internal OS backend variables:
 
-```yaml
-timezone_packages_tzdata:
-  Gentoo: "sys-libs/timezone-data"
-  default: "tzdata"
-```
+| OS family | Timezone package | Cron service default |
+|-----------|------------------|----------------------|
+| Archlinux | `tzdata` | `cronie` |
+| Debian | `tzdata` | `cron` |
+| RedHat | `tzdata` | `crond` |
+| Void | `tzdata` | `cronie` |
+| Gentoo | `sys-libs/timezone-data` | `cronie` |
 
 ## Responsibility boundaries
 
@@ -42,17 +48,17 @@ timezone_packages_tzdata:
 | RTC hardware clock mode (UTC vs local) | `ntp` role (`ntp_rtcsync: true`) |
 | Clock accuracy (NTP sync) | `ntp` role (chrony) |
 
-## Handlers
+## Cron restart
 
-`restart cron` — triggered by timezone change. Collects `service_facts` and restarts the distro-appropriate cron daemon only when present.
-Checks both bare (`crond`) and systemd (`crond.service`) service keys.
+The role does not use Ansible handlers for cron. After setting the timezone it
+registers the `community.general.timezone` result and includes
+`tasks/restart_cron.yml` only when the timezone changed and
+`timezone_restart_cron_enabled` is true.
 
-| OS family | Cron service |
-|-----------|-------------|
-| Archlinux | `crond` |
-| Debian / Ubuntu | `cron` |
-| RedHat | `crond` |
-| Void / Gentoo | `crond` |
+`tasks/restart_cron.yml` collects `service_facts`, resolves the cron service
+name from the current `ansible_facts['service_mgr']`, and restarts cron only
+when the service exists. This avoids `meta: flush_handlers`, so this role does
+not flush unrelated handlers from the surrounding play.
 
 ## Testing
 
@@ -73,12 +79,15 @@ Vagrant requires `libvirt` provider.
 Docker prepare imports shared `molecule/shared/prepare-docker.yml` for cache updates,
 then adds role-specific cron installation for Archlinux only.
 
+Converge and verify both load `inventory/group_vars/all/system.yml`, so Molecule
+uses the same `timezone_name` variable path as the workstation play.
+
 ### Docker scenario — platform-differentiated testing
 
-| Platform | Cron? | `timezone_packages_tzdata`? | Tests |
-|----------|-------|----------------------------|-------|
-| Archlinux-systemd | installed | defined (host_vars) | handler fires, tzdata installed |
-| Ubuntu-systemd | absent | undefined | handler skips, tzdata install skipped |
+| Platform | Cron? | Tests |
+|----------|-------|-------|
+| Archlinux-systemd | installed | restart path, tzdata installed |
+| Ubuntu-systemd | absent | restart skip path, tzdata installed |
 
 ### Negative tests
 
@@ -91,7 +100,7 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo
 
 ## Tags
 
-`timezone`, `timezone,report`
+`timezone`, `report`
 
 ## License
 
