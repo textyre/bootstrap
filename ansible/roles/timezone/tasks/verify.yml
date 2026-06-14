@@ -1,60 +1,15 @@
 ---
 # === Таймзона — in-role verification (ROLE-005) ===
 
-- name: Verify timezone symlink
-  ansible.builtin.command: readlink -f /etc/localtime
-  register: _timezone_verify_symlink
-  changed_when: false
-  failed_when: _timezone_verify_symlink.rc != 0
+- name: Verify /etc/localtime target
+  ansible.builtin.include_tasks: verify/localtime.yml
   tags: ['timezone']
 
-- name: Assert timezone matches expected value
-  ansible.builtin.assert:
-    that:
-      - _timezone_verify_symlink.stdout == '/usr/share/zoneinfo/' ~ timezone_name
-    fail_msg: >-
-      Timezone mismatch: got '{{ _timezone_verify_symlink.stdout }}',
-      expected '/usr/share/zoneinfo/{{ timezone_name }}'
-    quiet: true
-  tags: ['timezone']
-
-- name: Verify timezone via timedatectl (systemd only)
-  ansible.builtin.command: timedatectl show --property=Timezone --value
-  register: _timezone_verify_timedatectl
-  changed_when: false
-  failed_when: false
+- name: Verify timezone through timedatectl
+  ansible.builtin.include_tasks: verify/systemd/main.yml
   when: ansible_facts['service_mgr'] == 'systemd'
   tags: ['timezone']
 
-- name: Assert timedatectl agrees with expected timezone (systemd only)
-  ansible.builtin.assert:
-    that:
-      - _timezone_verify_timedatectl.rc == 0
-      - _timezone_verify_timedatectl.stdout == timezone_name
-    fail_msg: >-
-      timedatectl failed or reported a different timezone:
-      rc={{ _timezone_verify_timedatectl.rc }},
-      stdout='{{ _timezone_verify_timedatectl.stdout }}',
-      stderr='{{ _timezone_verify_timedatectl.stderr }}',
-      expected='{{ timezone_name }}'
-    quiet: true
-  when: ansible_facts['service_mgr'] == 'systemd'
-  tags: ['timezone']
-
-- name: Gather package facts for timezone database
-  ansible.builtin.package_facts:
-    manager: auto
-  changed_when: false
-  when: timezone_manage_tzdata | bool
-  tags: ['timezone']
-
-- name: Assert timezone database package is installed
-  ansible.builtin.assert:
-    that:
-      - >-
-        _timezone_tzdata_package in ansible_facts.packages or
-        (_timezone_tzdata_package | regex_replace('^.*/', '')) in ansible_facts.packages
-    fail_msg: "Timezone database package '{{ _timezone_tzdata_package }}' is not installed"
-    quiet: true
-  when: timezone_manage_tzdata | bool
+- name: Verify timezone database package
+  ansible.builtin.include_tasks: verify/tzdata.yml
   tags: ['timezone']

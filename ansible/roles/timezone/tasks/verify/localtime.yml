@@ -1,0 +1,19 @@
+---
+# === Таймзона — /etc/localtime verification ===
+
+- name: Read /etc/localtime target
+  ansible.builtin.command: readlink -f /etc/localtime
+  register: _timezone_verify_localtime_target
+  changed_when: false
+  failed_when: _timezone_verify_localtime_target.rc != 0
+  tags: ['timezone']
+
+- name: Assert /etc/localtime points to expected timezone
+  ansible.builtin.assert:
+    that:
+      - _timezone_verify_localtime_target.stdout == '/usr/share/zoneinfo/' ~ timezone_name
+    fail_msg: >-
+      Timezone mismatch: got '{{ _timezone_verify_localtime_target.stdout }}',
+      expected '/usr/share/zoneinfo/{{ timezone_name }}'
+    quiet: true
+  tags: ['timezone']

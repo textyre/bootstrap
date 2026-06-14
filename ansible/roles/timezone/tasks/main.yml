@@ -2,152 +2,32 @@
 # === Таймзона ===
 # Установка системной таймзоны
 # Дистро-агностик, инит-агностик
-# Preflight → Действие → Проверка → Логирование
-
-# ======================================================================
-# ---- Preflight (ROLE-003) ----
-# ======================================================================
 
 - name: Timezone role
   when: timezone_enabled | bool
   tags: ['timezone']
   block:
 
-    - name: Assert supported operating system
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] in _timezone_supported_os
-        fail_msg: >-
-          OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ _timezone_supported_os | join(', ') }}
-        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+    - name: Run timezone preflight
+      ansible.builtin.include_tasks: assert.yml
       tags: ['timezone']
 
-    - name: Include OS-specific timezone variables
-      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+    - name: Install timezone database
+      ansible.builtin.include_tasks: install.yml
       tags: ['timezone']
 
-    - name: Assert timezone_name is defined and non-empty
-      ansible.builtin.assert:
-        that:
-          - timezone_name is defined
-          - timezone_name is string
-          - timezone_name | trim | length > 0
-        fail_msg: "timezone_name must be a non-empty string (e.g., 'UTC', 'America/New_York')"
-        success_msg: "timezone_name = '{{ timezone_name }}'"
+    - name: Set system timezone
+      ansible.builtin.include_tasks: set_timezone.yml
       tags: ['timezone']
 
-    - name: Assert timezone backend variables are loaded
-      ansible.builtin.assert:
-        that:
-          - _timezone_tzdata_package is defined
-          - _timezone_tzdata_package is string
-          - _timezone_tzdata_package | length > 0
-          - _timezone_cron_service is mapping
-        fail_msg: "Timezone OS variables are incomplete for {{ ansible_facts['os_family'] }}"
-        quiet: true
-      tags: ['timezone']
-
-# ======================================================================
-# ---- Установка tzdata ----
-# ======================================================================
-
-    - name: Install tzdata
-      ansible.builtin.package:
-        name: "{{ _timezone_tzdata_package }}"
-        state: present
-      when: timezone_manage_tzdata | bool
-      tags: ['timezone']
-
-    - name: "Report: Install tzdata"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_timezone_phases"
-        common_rpt_phase: "Install tzdata"
-        common_rpt_detail: "{{ _timezone_tzdata_package if timezone_manage_tzdata | bool else 'disabled' }}"
-        common_rpt_status: "{{ 'done' if timezone_manage_tzdata | bool else 'skip' }}"
-      tags: ['timezone', 'report']
-
-# ======================================================================
-# ---- Установка таймзоны ----
-# ======================================================================
-
-    - name: Set timezone
-      community.general.timezone:
-        name: "{{ timezone_name }}"
-      register: _timezone_set_result
-      tags: ['timezone']
-
-    - name: "Report: Set timezone"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_timezone_phases"
-        common_rpt_phase: "Set timezone"
-        common_rpt_detail: "{{ timezone_name }} ({{ 'changed' if _timezone_set_result is changed else 'ok' }})"
-      tags: ['timezone', 'report']
-
-# ======================================================================
-# ---- Перезапуск cron после смены таймзоны ----
-# ======================================================================
-
-    - name: Initialize cron restart report
-      ansible.builtin.set_fact:
-        _timezone_cron_restart_status: "skip"
-        _timezone_cron_restart_detail: >-
-          {{ 'disabled' if not (timezone_restart_cron_enabled | bool)
-             else 'timezone unchanged' if not (_timezone_set_result is changed)
-             else 'cron not installed' }}
-      tags: ['timezone']
-
-    - name: Restart cron after timezone change
+    - name: Restart cron for timezone change
       ansible.builtin.include_tasks: restart_cron.yml
-      when:
-        - timezone_restart_cron_enabled | bool
-        - _timezone_set_result is changed
       tags: ['timezone']
-
-    - name: "Report: Restart cron"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_timezone_phases"
-        common_rpt_phase: "Restart cron"
-        common_rpt_status: "{{ _timezone_cron_restart_status }}"
-        common_rpt_detail: "{{ _timezone_cron_restart_detail }}"
-      tags: ['timezone', 'report']
-
-# ======================================================================
-# ---- Проверка (ROLE-005) ----
-# ======================================================================
 
     - name: Verify timezone
       ansible.builtin.include_tasks: verify.yml
       tags: ['timezone']
 
-# ======================================================================
-# ---- Отчёт (ROLE-008) ----
-# ======================================================================
-
-    - name: "Report: Verify timezone"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_timezone_phases"
-        common_rpt_phase: "Verify timezone"
-        common_rpt_detail: "{{ timezone_name }}"
-      tags: ['timezone', 'report']
-
-    - name: "Timezone — Execution Report"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_render.yml
-      vars:
-        common_rpt_fact: "_timezone_phases"
-        common_rpt_title: "timezone"
+    - name: Render timezone execution report
+      ansible.builtin.include_tasks: report.yml
       tags: ['timezone', 'report']

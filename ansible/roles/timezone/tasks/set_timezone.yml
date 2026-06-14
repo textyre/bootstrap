@@ -1,0 +1,18 @@
+---
+# === Таймзона — apply ===
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone_name }}"
+  register: _timezone_set_result
+  tags: ['timezone']
+
+- name: "Report: Set timezone"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_timezone_phases"
+    common_rpt_phase: "Set timezone"
+    common_rpt_detail: "{{ timezone_name }} ({{ 'changed' if _timezone_set_result is changed else 'ok' }})"
+  tags: ['timezone', 'report']

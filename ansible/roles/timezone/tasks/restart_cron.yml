@@ -1,38 +1,44 @@
 ---
-# Scoped cron restart for timezone changes.
+# === Таймзона — cron restart ===
 
-- name: Gather service facts for cron restart
-  ansible.builtin.service_facts:
-  tags: ['timezone']
-
-- name: Determine cron service name
-  ansible.builtin.set_fact:
+- name: Manage cron restart after timezone change
+  vars:
     _timezone_cron_service_name: >-
       {{ _timezone_cron_service.get(
            ansible_facts['service_mgr'],
            _timezone_cron_service.get('default', 'cron')
          ) }}
-  tags: ['timezone']
+  block:
 
-- name: Determine whether cron service is present
-  ansible.builtin.set_fact:
-    _timezone_cron_service_present: >-
-      {{ _timezone_cron_service_name in ansible_facts.services or
-         (_timezone_cron_service_name ~ '.service') in ansible_facts.services }}
-  tags: ['timezone']
+    - name: Restart cron service
+      ansible.builtin.service:
+        name: "{{ _timezone_cron_service_name }}"
+        state: restarted
+      register: _timezone_cron_restart_result
+      when: _timezone_set_result is changed
+      tags: ['timezone']
 
-- name: Restart cron if present
-  ansible.builtin.service:
-    name: "{{ _timezone_cron_service_name }}"
-    state: restarted
-  when: _timezone_cron_service_present | bool
-  tags: ['timezone']
+    - name: Assert cron restart was executed after timezone change
+      ansible.builtin.assert:
+        that:
+          - _timezone_cron_restart_result is changed
+        fail_msg: >-
+          Timezone changed, but cron service '{{ _timezone_cron_service_name }}'
+          was not reported as restarted.
+        quiet: true
+      when: _timezone_set_result is changed
+      tags: ['timezone']
 
-- name: Set cron restart report
-  ansible.builtin.set_fact:
-    _timezone_cron_restart_status: "{{ 'done' if _timezone_cron_service_present | bool else 'skip' }}"
-    _timezone_cron_restart_detail: >-
-      {{ _timezone_cron_service_name
-         if _timezone_cron_service_present | bool
-         else _timezone_cron_service_name ~ ' absent' }}
-  tags: ['timezone']
+    - name: "Report: Restart cron"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_timezone_phases"
+        common_rpt_phase: "Restart cron"
+        common_rpt_status: "{{ 'done' if _timezone_set_result is changed else 'skip' }}"
+        common_rpt_detail: >-
+          {{ _timezone_cron_service_name
+             if _timezone_set_result is changed
+             else 'timezone unchanged' }}
+      tags: ['timezone', 'report']

@@ -3,11 +3,8 @@
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - >-
-      {{ (lookup('env', 'REPO_ROOT') ~ '/ansible/inventory/group_vars/all/system.yml')
-         if (lookup('env', 'REPO_ROOT') | length > 0)
-         else (lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/../../inventory/group_vars/all/system.yml') }}
+  vars:
+    timezone_name: "Asia/Almaty"
 
   roles:
     - role: timezone

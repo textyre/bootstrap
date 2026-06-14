@@ -1,0 +1,10 @@
+---
+# === Таймзона — RedHat tzdata verification ===
+
+- name: Assert tzdata package is installed
+  ansible.builtin.assert:
+    that:
+      - "'tzdata' in ansible_facts.packages"
+    fail_msg: "Timezone database package 'tzdata' is not installed"
+    quiet: true
+  tags: ['timezone']
