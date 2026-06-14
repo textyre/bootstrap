@@ -3,14 +3,8 @@
   hosts: all
   become: true
   gather_facts: false
-
-  vars:
-    test_locales:
-      - "en_US.UTF-8"
-      - "ru_RU.UTF-8"
-    test_locale: "en_US.UTF-8"
-    test_lc_overrides:
-      LC_TIME: "ru_RU.UTF-8"
+  vars_files:
+    - vars.yml
 
   tasks:
     # ---- 1. Config file exists ----
@@ -57,9 +51,9 @@
       ansible.builtin.assert:
         that:
           - >-
-            'LANG=' ~ test_locale in
+            'LANG=' ~ locale_default in
             (_locale_verify_conf_content.content | b64decode)
-        fail_msg: "LANG={{ test_locale }} not found in /etc/locale.conf"
+        fail_msg: "LANG={{ locale_default }} not found in /etc/locale.conf"
 
     # ---- 4. Config file content — LC_* overrides ----
 
@@ -70,7 +64,7 @@
             item.key ~ '=' ~ item.value in
             (_locale_verify_conf_content.content | b64decode)
         fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
-      loop: "{{ test_lc_overrides | dict2items }}"
+      loop: "{{ locale_lc_overrides | dict2items }}"
 
     # ---- 5. Locales are generated (locale -a) ----
 
@@ -78,6 +72,7 @@
       ansible.builtin.command: locale -a
       register: _locale_verify_available
       changed_when: false
+      failed_when: _locale_verify_available.rc != 0
 
     - name: Assert all test locales are generated
       ansible.builtin.assert:
@@ -91,7 +86,7 @@
              | map('lower')
              | map('regex_replace', '[\\-\\.]', '')
              | list }}
-      loop: "{{ test_locales }}"
+      loop: "{{ locale_list }}"
 
     # ---- 6. Functional smoke test — locale command (env sourced from locale.conf) ----
 
@@ -109,14 +104,15 @@
       ansible.builtin.command: locale
       register: _locale_verify_locale_cmd
       changed_when: false
+      failed_when: _locale_verify_locale_cmd.rc != 0
       environment: "{{ _locale_conf_env }}"
 
     - name: Assert LANG is active in locale output
       ansible.builtin.assert:
         that:
-          - "'LANG=' ~ test_locale in _locale_verify_locale_cmd.stdout"
+          - "'LANG=' ~ locale_default in _locale_verify_locale_cmd.stdout"
         fail_msg: >-
-          LANG={{ test_locale }} not found in locale output:
+          LANG={{ locale_default }} not found in locale output:
           {{ _locale_verify_locale_cmd.stdout }}
 
     - name: Assert LC_* overrides are active in locale output
@@ -126,7 +122,7 @@
         fail_msg: >-
           {{ item.key }}={{ item.value }} not found in locale output:
           {{ _locale_verify_locale_cmd.stdout }}
-      loop: "{{ test_lc_overrides | dict2items }}"
+      loop: "{{ locale_lc_overrides | dict2items }}"
 
     # ---- 7. Ansible managed marker in locale.conf ----
 

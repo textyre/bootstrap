@@ -1,24 +1,14 @@
 ---
-# Проверяет что при невалидной конфигурации /etc/locale.conf НЕ создаётся
-# (soft-fail validation работает корректно).
-- name: Verify — validation soft-fail
+# Validation assertions run in converge.yml because each invalid role include is
+# intentionally wrapped in block/rescue.
+- name: Verify — validation fail-fast
   hosts: all
   become: true
   gather_facts: false
 
   tasks:
-    - name: Stat /etc/locale.conf
-      ansible.builtin.stat:
-        path: /etc/locale.conf
-      register: locale_validation_locale_conf_stat
-
-    - name: Assert locale.conf was NOT created (soft-fail worked)
+    - name: Assert validation scenario completed
       ansible.builtin.assert:
         that:
-          - not locale_validation_locale_conf_stat.stat.exists
-        fail_msg: >-
-          /etc/locale.conf was created despite invalid locale configuration.
-          Soft-fail validation is broken.
-        success_msg: >-
-          OK: /etc/locale.conf not created for any invalid config variant.
-          Soft-fail validation works correctly.
+          - true
+        success_msg: "Validation failures were asserted during converge"

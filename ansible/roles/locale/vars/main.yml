@@ -1,8 +1,3 @@
 ---
-# Supported os_family values for locale generation
-# Used in main.yml for with_first_found dispatch and unsupported-OS warning
-locale_supported_os_families:
-  - archlinux
-  - debian
-  - redhat
-  - void
+# Role-internal variables are loaded through vars/<os_family>/main.yml during
+# validation. Public inputs live in defaults and inventory.

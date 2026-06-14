@@ -1,8 +1,5 @@
 ---
 # Проверка локалей (glibc)
-# Soft-fail: выставляет locale_verify_ok (bool) и locale_verify_missing (list).
-# НЕ крашит плей — main.yml читает locale_verify_ok для репорта и configure.
-#
 # Нормализация нужна потому что locale -a выводит en_US.utf8,
 # а стандартная запись — en_US.UTF-8.
 
@@ -10,15 +7,26 @@
   ansible.builtin.command: locale -a
   register: locale_check
   changed_when: false
+  failed_when: locale_check.rc != 0
   tags: ['locale']
 
-- name: Check each requested locale is available
-  ansible.builtin.set_fact:
-    locale_verify_ok: false
-    locale_verify_missing: "{{ locale_verify_missing + [item] }}"
+- name: Assert requested locales are available
+  ansible.builtin.assert:
+    that:
+      - normalized in available
+    fail_msg: >-
+      Locale {{ item }} was not generated. Available locales:
+      {{ locale_check.stdout_lines | join(', ') }}
+    success_msg: "Locale {{ item }} is available"
   vars:
     normalized: "{{ item | lower | replace('-', '') | replace('.', '') }}"
-    available: "{{ locale_check.stdout_lines | map('lower') | map('replace', '-', '') | map('replace', '.', '') }}"
-  when: normalized not in available
+    available: >-
+      {{ locale_check.stdout_lines
+         | map('lower')
+         | map('replace', '-', '')
+         | map('replace', '.', '')
+         | list }}
   loop: "{{ locale_list }}"
+  loop_control:
+    label: "{{ item }}"
   tags: ['locale']
