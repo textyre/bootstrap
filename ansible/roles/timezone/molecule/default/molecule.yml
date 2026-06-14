@@ -20,7 +20,6 @@ provisioner:
         ansible_become_password: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') + '/.vault-pass') }}"
   playbooks:
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 
@@ -32,4 +31,3 @@ scenario:
     - syntax
     - converge
     - idempotence
-    - verify

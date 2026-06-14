@@ -87,7 +87,7 @@ molecule test -s docker
 molecule test -s vagrant
 ```
 
-All three scenarios share `molecule/shared/converge.yml` and `molecule/shared/verify.yml`.
+All three scenarios share `molecule/shared/converge.yml`.
 Vagrant requires `libvirt` provider.
 
 Docker prepare imports shared `molecule/shared/prepare-docker.yml` for cache updates,
@@ -96,8 +96,9 @@ then adds role-specific cron installation for the tested platforms.
 Molecule sets `timezone_name: "Asia/Almaty"` directly and does not depend on
 workstation inventory group vars.
 
-Molecule verify reuses the role-owned `assert.yml` and `verify.yml` tasks instead
-of duplicating role verification logic in the test playbook.
+Molecule does not run a separate verify playbook for this role. The role performs
+its runtime checks during converge, so the scenarios test that converge succeeds,
+idempotence holds, and the same role flow works across the platform matrix.
 
 ### Docker scenario — platform-differentiated testing
 
