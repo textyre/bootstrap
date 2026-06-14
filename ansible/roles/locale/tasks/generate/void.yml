@@ -9,13 +9,5 @@
     line: "{{ item }} UTF-8"
     state: present
   loop: "{{ locale_list }}"
-  register: _locale_void_enabled
-  tags: ['locale']
-
-- name: Reconfigure glibc-locales (Void)
-  ansible.builtin.command: xbps-reconfigure -f glibc-locales
-  register: _locale_void_reconfigure
-  changed_when: _locale_void_enabled is changed
-  failed_when: _locale_void_reconfigure.rc != 0
-  when: _locale_void_enabled is changed
+  notify: Reconfigure glibc-locales
   tags: ['locale']
