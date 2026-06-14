@@ -10,7 +10,7 @@
          ) }}
   block:
 
-    - name: Restart cron service
+    - name: Restart cron service  # noqa: no-handler
       ansible.builtin.service:
         name: "{{ _timezone_cron_service_name }}"
         state: restarted
@@ -18,7 +18,7 @@
       when: _timezone_set_result is changed
       tags: ['timezone']
 
-    - name: Assert cron restart was executed after timezone change
+    - name: Assert cron restart was executed after timezone change  # noqa: no-handler
       ansible.builtin.assert:
         that:
           - _timezone_cron_restart_result is changed
