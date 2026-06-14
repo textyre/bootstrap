@@ -1,0 +1,7 @@
+---
+- name: Skip Void packages verification because backend is not implemented
+  ansible.builtin.debug:
+    msg: >-
+      packages role verification for Void is not implemented yet; verify phase
+      is skipped.
+  tags: ['packages']

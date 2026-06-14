@@ -1,0 +1,24 @@
+---
+# === Таймзона — preflight (ROLE-003) ===
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _timezone_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _timezone_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['timezone']
+
+- name: Include OS-specific timezone variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}/main.yml"
+  tags: ['timezone']
+
+- name: Assert timezone_name is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - timezone_name | default('', true) | trim | length > 0
+    fail_msg: "timezone_name must be a non-empty string (e.g., 'UTC', 'America/New_York')"
+    success_msg: "timezone_name = '{{ timezone_name }}'"
+  tags: ['timezone']

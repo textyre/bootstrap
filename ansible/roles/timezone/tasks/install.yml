@@ -1,0 +1,18 @@
+---
+# === Таймзона — tzdata ===
+
+- name: Install tzdata
+  ansible.builtin.package:
+    name: "{{ _timezone_tzdata_package }}"
+    state: present
+  tags: ['timezone']
+
+- name: "Report: Install tzdata"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_timezone_phases"
+    common_rpt_phase: "Install tzdata"
+    common_rpt_detail: "{{ _timezone_tzdata_package }}"
+  tags: ['timezone', 'report']

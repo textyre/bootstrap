@@ -1,18 +1,16 @@
 ---
-# Debian/Ubuntu: install packages only
+# Debian/Ubuntu: install packages only.
 
 # Устанавливаем подготовленный список Debian/Ubuntu пакетов.
 # Обновление apt package index выполняет package_manager до этой роли.
 - name: Install packages (apt)
   ansible.builtin.apt:
-    name: "{{ packages_all }}"
+    name: "{{ _packages_official_all }}"
     state: present
   retries: 3
   delay: 5
   register: _packages_install_result
   until: _packages_install_result is succeeded
-  when:
-    - packages_all | length > 0
   tags: ['packages', 'install']
 
 # Проверяем, что dpkg не оставил незавершенную конфигурацию пакетов.
@@ -26,6 +24,4 @@
     _packages_dpkg_audit.rc != 0 or
     (_packages_dpkg_audit.stdout | trim | length > 0) or
     (_packages_dpkg_audit.stderr | trim | length > 0)
-  when:
-    - packages_all | length > 0
   tags: ['packages', 'install']

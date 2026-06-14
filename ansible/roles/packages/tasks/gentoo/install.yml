@@ -1,0 +1,7 @@
+---
+- name: Skip Gentoo packages install because backend is not implemented
+  ansible.builtin.debug:
+    msg: >-
+      packages role backend for Gentoo is not implemented yet; install phase is
+      skipped.
+  tags: ['packages', 'install']
