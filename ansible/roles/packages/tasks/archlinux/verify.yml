@@ -1,28 +1,30 @@
 ---
 - name: Probe Arch official entries as packages (pacman -Q)
   ansible.builtin.command:
-    cmd: "pacman -Q {{ _packages_archlinux_entry }}"
+    cmd: "pacman -Q {{ item }}"
   register: _packages_verify_archlinux_package
   changed_when: false
   failed_when: false
   loop: "{{ _packages_official_all }}"
   loop_control:
-    loop_var: _packages_archlinux_entry
-    label: "{{ _packages_archlinux_entry }}"
+    label: "{{ item }}"
   tags: ['packages']
 
 - name: Resolve Arch official entries that are package groups
   ansible.builtin.command:
-    cmd: "pacman -Sgq {{ _packages_archlinux_entry_probe.item }}"
+    cmd: "pacman -Sgq {{ item }}"
   register: _packages_verify_archlinux_group
   changed_when: false
   failed_when: >-
     _packages_verify_archlinux_group.rc != 0 or
     (_packages_verify_archlinux_group.stdout | trim | length == 0)
-  loop: "{{ _packages_verify_archlinux_package.results | rejectattr('rc', 'equalto', 0) | list }}"
+  loop: >-
+    {{ _packages_verify_archlinux_package.results
+       | rejectattr('rc', 'equalto', 0)
+       | map(attribute='item')
+       | list }}
   loop_control:
-    loop_var: _packages_archlinux_entry_probe
-    label: "{{ _packages_archlinux_entry_probe.item }}"
+    label: "{{ item }}"
   tags: ['packages']
 
 - name: Verify Arch package group members installed (pacman -Q)
