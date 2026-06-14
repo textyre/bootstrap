@@ -40,19 +40,9 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
       forks: 1
-  inventory:
-    group_vars:
-      all:
-        timezone_name: "Asia/Almaty"
-    host_vars:
-      Archlinux-systemd:
-        timezone_packages_tzdata:
-          Gentoo: "sys-libs/timezone-data"
-          default: "tzdata"
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
 
 verifier:
   name: ansible
@@ -64,5 +54,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

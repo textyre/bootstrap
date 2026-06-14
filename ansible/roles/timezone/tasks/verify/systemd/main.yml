@@ -1,0 +1,23 @@
+---
+# === Таймзона — systemd verification ===
+
+- name: Read timezone via timedatectl
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: _timezone_verify_timedatectl
+  changed_when: false
+  failed_when: false
+  tags: ['timezone']
+
+- name: Assert timedatectl reports expected timezone
+  ansible.builtin.assert:
+    that:
+      - _timezone_verify_timedatectl.rc == 0
+      - _timezone_verify_timedatectl.stdout == timezone_name
+    fail_msg: >-
+      timedatectl failed or reported a different timezone:
+      rc={{ _timezone_verify_timedatectl.rc }},
+      stdout='{{ _timezone_verify_timedatectl.stdout }}',
+      stderr='{{ _timezone_verify_timedatectl.stderr }}',
+      expected='{{ timezone_name }}'
+    quiet: true
+  tags: ['timezone']

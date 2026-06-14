@@ -1,0 +1,44 @@
+---
+# === Таймзона — cron restart ===
+
+- name: Manage cron restart after timezone change
+  vars:
+    _timezone_cron_service_name: >-
+      {{ _timezone_cron_service.get(
+           ansible_facts['service_mgr'],
+           _timezone_cron_service.get('default', 'cron')
+         ) }}
+  block:
+
+    - name: Restart cron service  # noqa: no-handler
+      ansible.builtin.service:
+        name: "{{ _timezone_cron_service_name }}"
+        state: restarted
+      register: _timezone_cron_restart_result
+      when: _timezone_set_result is changed
+      tags: ['timezone']
+
+    - name: Assert cron restart was executed after timezone change  # noqa: no-handler
+      ansible.builtin.assert:
+        that:
+          - _timezone_cron_restart_result is changed
+        fail_msg: >-
+          Timezone changed, but cron service '{{ _timezone_cron_service_name }}'
+          was not reported as restarted.
+        quiet: true
+      when: _timezone_set_result is changed
+      tags: ['timezone']
+
+    - name: "Report: Restart cron"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_phase.yml
+      vars:
+        common_rpt_fact: "_timezone_phases"
+        common_rpt_phase: "Restart cron"
+        common_rpt_status: "{{ 'done' if _timezone_set_result is changed else 'skip' }}"
+        common_rpt_detail: >-
+          {{ _timezone_cron_service_name
+             if _timezone_set_result is changed
+             else 'timezone unchanged' }}
+      tags: ['timezone', 'report']

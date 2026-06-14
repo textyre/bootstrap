@@ -1,3 +1,36 @@
 ---
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
+
+- name: Prepare (timezone-specific)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install cron for restart testing
+      ansible.builtin.package:
+        name: "{{ _timezone_prepare_cron_package[ansible_facts['os_family']] }}"
+        state: present
+      vars:
+        _timezone_prepare_cron_package:
+          Archlinux: cronie
+          Debian: cron
+      when: ansible_facts['os_family'] in _timezone_prepare_cron_package
+
+    - name: Reload systemd after cron install
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when:
+        - ansible_facts['os_family'] in ['Archlinux', 'Debian']
+        - ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Enable and start cron
+      ansible.builtin.service:
+        name: "{{ _timezone_prepare_cron_service[ansible_facts['os_family']] }}"
+        enabled: true
+        state: started
+      vars:
+        _timezone_prepare_cron_service:
+          Archlinux: cronie
+          Debian: cron
+      when: ansible_facts['os_family'] in _timezone_prepare_cron_service

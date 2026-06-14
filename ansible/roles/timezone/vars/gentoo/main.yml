@@ -1,0 +1,10 @@
+---
+# OS-specific variables for Gentoo
+_timezone_tzdata_package: sys-libs/timezone-data
+_timezone_cron_service:
+  systemd: cronie
+  runit: cronie
+  openrc: cronie
+  s6: cronie
+  dinit: cronie
+  default: cronie
