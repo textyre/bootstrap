@@ -1,10 +1,11 @@
 ---
-# Verification categories covered: installed package state
+# Verification categories covered: inventory/derived-list sanity
 # Verification categories skipped:
 #   config files  — role does not write any configuration files
 #   services      — role does not manage any service units
 #   runtime       — role does not start any daemons or network interfaces
 #   permissions   — role does not create files with specific ownership or mode
+#   installed packages — verified by the role itself during converge
 
 - name: Verify packages role
   hosts: all
@@ -21,11 +22,10 @@
     - name: Assert package inventory produced expected packages
       ansible.builtin.assert:
         that:
-          - _packages_verify_all | length > 0
-        fail_msg: "Package inventory produced an empty expected package list"
-        success_msg: "Package inventory produced {{ _packages_verify_all | length }} expected packages"
+          - _packages_verify_all | length == (_packages_verify_count | int)
+        fail_msg: >-
+          Package inventory produced {{ _packages_verify_all | length }} expected packages,
+          but role-derived counts require exactly {{ _packages_verify_count }}.
+        success_msg: >-
+          Package inventory produced exactly {{ _packages_verify_count }} expected packages
         quiet: true
-
-    - name: Reuse role verify tasks
-      ansible.builtin.include_tasks: >-
-        {{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/tasks/{{ ansible_facts['os_family'] | lower }}/verify.yml
