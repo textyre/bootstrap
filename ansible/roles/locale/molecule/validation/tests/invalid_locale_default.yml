@@ -1,0 +1,21 @@
+---
+- name: Apply role with locale_default outside locale_list
+  block:
+    - name: Include locale role
+      ansible.builtin.include_role:
+        name: locale
+      vars:
+        locale_list:
+          - "en_US.UTF-8"
+        locale_default: "ru_RU.UTF-8"
+        locale_lc_overrides: {}
+
+    - name: Fail if invalid locale_default was accepted
+      ansible.builtin.fail:
+        msg: "Expected locale validation failure for locale_default outside locale_list"
+  rescue:
+    - name: Assert role failed for locale_default outside locale_list
+      ansible.builtin.assert:
+        that:
+          - "'must be present in locale_list' in ansible_failed_result.msg"
+        fail_msg: "Role failed without a useful locale_default validation message"

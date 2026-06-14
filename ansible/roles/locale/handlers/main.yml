@@ -1,3 +1,0 @@
----
-# Locale has no handlers. Backend state transitions run inline so verification
-# observes the new locale archive without flushing unrelated play handlers.

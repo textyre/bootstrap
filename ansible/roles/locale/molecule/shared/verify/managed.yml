@@ -1,0 +1,10 @@
+---
+# Verify the rendered file is owned by Ansible.
+
+- name: Assert locale.conf contains Ansible managed marker
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_locale_verify_conf_content.content | b64decode)
+        is regex('Ansible managed')
+    fail_msg: "/etc/locale.conf missing Ansible managed marker"

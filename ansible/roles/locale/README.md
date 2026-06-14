@@ -4,11 +4,11 @@ Generates system locales and configures process locale defaults through `/etc/lo
 
 ## Execution flow
 
-1. **Validate** (`tasks/validate/main.yml`) — asserts supported OS family, loads `vars/<os_family>/main.yml`, and rejects invalid public inputs before host mutation.
-2. **Generate locales** (`tasks/generate/<os_family>.yml`) — uses the platform backend to make every locale in `locale_list` available.
-3. **Verify generated locales** (`tasks/verify/glibc.yml`) — runs `locale -a` and fails if any requested locale is missing.
-4. **Configure system locale** (`tasks/configure/glibc.yml`) — writes `/etc/locale.conf` from `templates/locale.conf.j2`.
-5. **Report** — records validate, generate, verify, and configure phases through `common/report_phase.yml`, then renders `_locale_phases`.
+1. **Validate** (`tasks/validate/main.yml`) — runs preflight validation from `tasks/validate/preflight.yml`, loads `vars/<os_family>/main.yml`, and records the validation phase.
+2. **Generate locales** (`tasks/generate/main.yml`) — dispatches to `tasks/generate/<os_family>.yml` and records the generation phase.
+3. **Verify generated locales** (`tasks/verify/main.yml`) — runs verification from `tasks/verify/glibc.yml` and records the verification phase.
+4. **Configure system locale** (`tasks/configure/main.yml`) — deploys `/etc/locale.conf` through `tasks/configure/glibc.yml` and records the configuration phase.
+5. **Report** (`tasks/report/main.yml`) — renders the accumulated `_locale_phases` execution report.
 
 ### Handlers
 
@@ -32,11 +32,11 @@ Override these via inventory, not by editing `defaults/main.yml`.
 
 | File | What it contains | When to edit |
 |------|------------------|--------------|
-| `vars/archlinux/main.yml` | glibc backend, config path, Arch generation task | Changing Arch locale backend behavior |
-| `vars/debian/main.yml` | glibc backend, config path, Debian generation task | Changing Ubuntu/Debian locale backend behavior |
-| `vars/redhat/main.yml` | glibc backend, config path, RedHat generation task | Changing Fedora/RedHat locale backend behavior |
-| `vars/void/main.yml` | glibc backend, config path, Void generation task | Changing Void locale backend behavior |
-| `vars/gentoo/main.yml` | glibc backend, config path, Gentoo generation task | Changing Gentoo locale backend behavior |
+| `vars/archlinux/main.yml` | Config path and Arch generation task | Changing Arch locale behavior |
+| `vars/debian/main.yml` | Config path and Debian generation task | Changing Ubuntu/Debian locale behavior |
+| `vars/redhat/main.yml` | Config path and RedHat generation task | Changing Fedora/RedHat locale behavior |
+| `vars/void/main.yml` | Config path and Void generation task | Changing Void locale behavior |
+| `vars/gentoo/main.yml` | Config path and Gentoo generation task | Changing Gentoo locale behavior |
 
 ## Examples
 
@@ -65,7 +65,7 @@ locale_enabled: false
 | Aspect | Arch Linux | Ubuntu/Debian | Fedora/RedHat | Void Linux | Gentoo |
 |--------|------------|---------------|---------------|------------|--------|
 | Config path | `/etc/locale.conf` | `/etc/locale.conf` | `/etc/locale.conf` | `/etc/locale.conf` | `/etc/locale.conf` |
-| Generation backend | `/etc/locale.gen` + `locale-gen` | `community.general.locale_gen` | `glibc-langpack-*` packages | `/etc/default/libc-locales` + `xbps-reconfigure` | `/etc/locale.gen` + `locale-gen` |
+| Generation method | `/etc/locale.gen` + `locale-gen` | `community.general.locale_gen` | `glibc-langpack-*` packages | `/etc/default/libc-locales` + `xbps-reconfigure` | `/etc/locale.gen` + `locale-gen` |
 | Verification | `locale -a` | `locale -a` | `locale -a` | `locale -a` | `locale -a` |
 
 ## Logs
@@ -77,7 +77,7 @@ This role does not create log files. Locale generation errors surface in the Ans
 | Symptom | Diagnosis | Fix |
 |---------|-----------|-----|
 | Role fails during Validate | Read the assert `fail_msg` | Ensure `locale_list` is non-empty and contains `locale_default` plus all override values. |
-| Requested locale is missing after Generate | Run `locale -a` | Check the OS backend file under `tasks/generate/` and confirm the locale name matches distro syntax. |
+| Requested locale is missing after Generate | Run `locale -a` | Check the OS task file under `tasks/generate/` and confirm the locale name matches distro syntax. |
 | `/etc/locale.conf` was not updated | Check whether Verify failed before Configure | Fix locale generation first; configure intentionally runs only after verify passes. |
 | Ubuntu rejects a locale in Molecule | Check `/usr/share/i18n/SUPPORTED` in prepare output | Add the locale entry to scenario prepare data or use a supported locale name. |
 | Void locale remains unavailable | Run `xbps-reconfigure -f glibc-locales` manually for diagnosis | Fix `/etc/default/libc-locales` content or package state; the role runs reconfigure only after file changes. |
@@ -117,12 +117,13 @@ task workstation -- --tags locale
 | File | Purpose | Edit? |
 |------|---------|-------|
 | `defaults/main.yml` | Public role inputs and supported OS list | No, override public values via inventory |
-| `vars/<os_family>/main.yml` | Backend path and config path per OS family | Only when changing platform behavior |
+| `vars/<os_family>/main.yml` | Config path and generation task per OS family | Only when changing platform behavior |
 | `tasks/main.yml` | Role flow router | When adding/removing phases |
-| `tasks/validate/main.yml` | Preflight assertions | When changing public API rules |
-| `tasks/generate/` | OS-specific locale generation | When changing distro backend behavior |
-| `tasks/verify/glibc.yml` | In-role generation verification | When changing verification logic |
-| `tasks/configure/glibc.yml` | `/etc/locale.conf` deployment | When changing config deployment |
+| `tasks/validate/` | Validate phase tasks | When validate phase flow or public API checks change |
+| `tasks/generate/` | OS-specific locale generation | When changing distro generation behavior |
+| `tasks/verify/` | In-role generation verification | When changing verification logic |
+| `tasks/configure/` | `/etc/locale.conf` deployment | When changing config deployment |
+| `tasks/report/` | Report phase tasks and row helper | When report wiring changes |
 | `templates/locale.conf.j2` | Rendered locale config | When changing file content |
 | `molecule/` | Scenario definitions and verification | When changing test coverage |
 

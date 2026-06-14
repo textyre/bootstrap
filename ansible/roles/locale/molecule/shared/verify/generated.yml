@@ -1,0 +1,38 @@
+---
+# Verify locales are generated and, where applicable, enabled in locale.gen.
+
+- name: Get available locales
+  ansible.builtin.command: locale -a
+  register: _locale_verify_available
+  changed_when: false
+  failed_when: _locale_verify_available.rc != 0
+
+- name: Assert all test locales are generated
+  ansible.builtin.assert:
+    that:
+      - locale_normalized in available_list
+    fail_msg: "{{ item }} locale not found in locale -a output"
+  vars:
+    locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
+    available_list: >-
+      {{ _locale_verify_available.stdout_lines
+         | map('lower')
+         | map('regex_replace', '[\\-\\.]', '')
+         | list }}
+  loop: "{{ locale_list }}"
+
+- name: Slurp locale.gen
+  ansible.builtin.slurp:
+    src: /etc/locale.gen
+  register: _locale_verify_locale_gen
+  when: ansible_facts['os_family'] in ['Archlinux', 'Gentoo']
+
+- name: Assert locale.gen contains active locale entries
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_locale_verify_locale_gen.content | b64decode)
+        is regex('(?m)^' ~ (item | regex_escape) ~ '\\s+')
+    fail_msg: "{{ item }} is not active in /etc/locale.gen"
+  loop: "{{ locale_list }}"
+  when: ansible_facts['os_family'] in ['Archlinux', 'Gentoo']

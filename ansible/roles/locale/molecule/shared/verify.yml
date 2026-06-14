@@ -2,134 +2,16 @@
 - name: Verify locale
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
-    - vars.yml
+    - ../../defaults/main.yml
 
   tasks:
-    # ---- 1. Config file exists ----
+    - name: Verify locale.conf file contract
+      ansible.builtin.include_tasks: verify/config.yml
 
-    - name: Stat locale.conf
-      ansible.builtin.stat:
-        path: /etc/locale.conf
-      register: _locale_verify_conf_stat
+    - name: Verify generated locale availability
+      ansible.builtin.include_tasks: verify/generated.yml
 
-    - name: Assert locale.conf exists
-      ansible.builtin.assert:
-        that:
-          - _locale_verify_conf_stat.stat.exists
-        fail_msg: "/etc/locale.conf does not exist"
-
-    # ---- 2. Config file permissions and ownership ----
-
-    - name: Assert locale.conf permissions
-      ansible.builtin.assert:
-        that:
-          - _locale_verify_conf_stat.stat.mode == '0644'
-          - _locale_verify_conf_stat.stat.pw_name == 'root'
-          - _locale_verify_conf_stat.stat.gr_name == 'root'
-        fail_msg: >-
-          /etc/locale.conf has wrong permissions/ownership:
-          mode={{ _locale_verify_conf_stat.stat.mode }},
-          owner={{ _locale_verify_conf_stat.stat.pw_name }},
-          group={{ _locale_verify_conf_stat.stat.gr_name }}
-
-    # ---- 3. Config file content — LANG ----
-
-    - name: Slurp locale.conf
-      ansible.builtin.slurp:
-        src: /etc/locale.conf
-      register: _locale_verify_conf_content
-
-    - name: Assert slurp returned content
-      ansible.builtin.assert:
-        that:
-          - "'content' in _locale_verify_conf_content"
-        fail_msg: "slurp of /etc/locale.conf returned no content"
-
-    - name: Assert locale.conf contains LANG
-      ansible.builtin.assert:
-        that:
-          - >-
-            'LANG=' ~ locale_default in
-            (_locale_verify_conf_content.content | b64decode)
-        fail_msg: "LANG={{ locale_default }} not found in /etc/locale.conf"
-
-    # ---- 4. Config file content — LC_* overrides ----
-
-    - name: Assert locale.conf contains LC_* overrides
-      ansible.builtin.assert:
-        that:
-          - >-
-            item.key ~ '=' ~ item.value in
-            (_locale_verify_conf_content.content | b64decode)
-        fail_msg: "{{ item.key }}={{ item.value }} not found in /etc/locale.conf"
-      loop: "{{ locale_lc_overrides | dict2items }}"
-
-    # ---- 5. Locales are generated (locale -a) ----
-
-    - name: Get available locales
-      ansible.builtin.command: locale -a
-      register: _locale_verify_available
-      changed_when: false
-      failed_when: _locale_verify_available.rc != 0
-
-    - name: Assert all test locales are generated
-      ansible.builtin.assert:
-        that:
-          - locale_normalized in available_list
-        fail_msg: "{{ item }} locale not found in locale -a output"
-      vars:
-        locale_normalized: "{{ item | lower | regex_replace('[\\-\\.]', '') }}"
-        available_list: >-
-          {{ _locale_verify_available.stdout_lines
-             | map('lower')
-             | map('regex_replace', '[\\-\\.]', '')
-             | list }}
-      loop: "{{ locale_list }}"
-
-    # ---- 6. Functional smoke test — locale command (env sourced from locale.conf) ----
-
-    - name: Parse locale.conf into env dict for smoke test
-      ansible.builtin.set_fact:
-        _locale_conf_env: >-
-          {{
-            dict(
-              (_locale_verify_conf_content.content | b64decode)
-              | regex_findall('(?m)^(LC_[A-Z_]+|LANG)=(.+)$')
-            )
-          }}
-
-    - name: Run locale command (env from /etc/locale.conf)
-      ansible.builtin.command: locale
-      register: _locale_verify_locale_cmd
-      changed_when: false
-      failed_when: _locale_verify_locale_cmd.rc != 0
-      environment: "{{ _locale_conf_env }}"
-
-    - name: Assert LANG is active in locale output
-      ansible.builtin.assert:
-        that:
-          - "'LANG=' ~ locale_default in _locale_verify_locale_cmd.stdout"
-        fail_msg: >-
-          LANG={{ locale_default }} not found in locale output:
-          {{ _locale_verify_locale_cmd.stdout }}
-
-    - name: Assert LC_* overrides are active in locale output
-      ansible.builtin.assert:
-        that:
-          - "item.key ~ '=' ~ item.value in _locale_verify_locale_cmd.stdout"
-        fail_msg: >-
-          {{ item.key }}={{ item.value }} not found in locale output:
-          {{ _locale_verify_locale_cmd.stdout }}
-      loop: "{{ locale_lc_overrides | dict2items }}"
-
-    # ---- 7. Ansible managed marker in locale.conf ----
-
-    - name: Assert locale.conf contains Ansible managed marker
-      ansible.builtin.assert:
-        that:
-          - >-
-            (_locale_verify_conf_content.content | b64decode)
-            is regex('Ansible managed')
-        fail_msg: "/etc/locale.conf missing Ansible managed marker"
+    - name: Verify Ansible managed marker
+      ansible.builtin.include_tasks: verify/managed.yml

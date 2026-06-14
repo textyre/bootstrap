@@ -8,67 +8,22 @@
   tags: ['locale']
   block:
 
-    - name: Validate locale configuration
+    - name: Validate locale phase
       ansible.builtin.include_tasks: validate/main.yml
       tags: ['locale']
 
-    - name: "Report: Validate config"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Validate config"
-        common_rpt_detail: "{{ locale_default }} from {{ locale_list | join(', ') }}"
-      tags: ['locale', 'report']
-
-    - name: "Generate locales ({{ ansible_facts['os_family'] }})"
-      ansible.builtin.include_tasks: "{{ _locale_generate_file }}"
+    - name: Generate locale phase
+      ansible.builtin.include_tasks: generate/main.yml
       tags: ['locale']
 
-    - name: "Report: Generate locales"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Generate locales"
-        common_rpt_detail: "{{ ansible_facts['os_family'] }}: {{ locale_list | join(', ') }}"
-      tags: ['locale', 'report']
-
-    - name: Verify locale generation
-      ansible.builtin.include_tasks: verify/glibc.yml
+    - name: Verify locale phase
+      ansible.builtin.include_tasks: verify/main.yml
       tags: ['locale']
 
-    - name: "Report: Verify locales"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Verify locales"
-        common_rpt_detail: "{{ locale_list | length }} locales OK"
-      tags: ['locale', 'report']
-
-    - name: Configure system locale
-      ansible.builtin.include_tasks: configure/glibc.yml
+    - name: Configure locale phase
+      ansible.builtin.include_tasks: configure/main.yml
       tags: ['locale']
 
-    - name: "Report: Configure locale.conf"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_phase: "Configure locale.conf"
-        common_rpt_detail: "{{ _locale_config_path }} LANG={{ locale_default }}"
-      tags: ['locale', 'report']
-
-    - name: "Locale -- Execution Report"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_render.yml
-      vars:
-        common_rpt_fact: "_locale_phases"
-        common_rpt_title: "locale"
+    - name: Render locale execution report
+      ansible.builtin.include_tasks: report/main.yml
       tags: ['locale', 'report']

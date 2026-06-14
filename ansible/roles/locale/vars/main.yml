@@ -1,3 +1,0 @@
----
-# Role-internal variables are loaded through vars/<os_family>/main.yml during
-# validation. Public inputs live in defaults and inventory.
