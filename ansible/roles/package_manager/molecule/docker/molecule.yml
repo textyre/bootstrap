@@ -3,6 +3,8 @@ driver:
   name: docker
 
 platforms:
+  # Arch container нужен, чтобы проверить pacman, paccache, makepkg и yay setup.
+  # Он запускается с systemd, потому что paccache.timer является systemd-реализацией.
   - name: Archlinux-systemd
     image: "${MOLECULE_ARCH_IMAGE:-ghcr.io/textyre/arch-base:latest}"
     pre_build_image: true
@@ -15,6 +17,8 @@ platforms:
       - /tmp
     privileged: true
 
+  # Ubuntu container проверяет Debian/apt ветку роли.
+  # Он тоже запускается с systemd, чтобы тестовая среда была ближе к workstation hosts.
   - name: Ubuntu-systemd
     image: "${MOLECULE_UBUNTU_IMAGE:-ghcr.io/textyre/ubuntu-base:latest}"
     pre_build_image: true
@@ -33,7 +37,6 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report,aur,mirrors,molecule-notest
     extra-vars: "package_manager_pacman_multilib=true"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"

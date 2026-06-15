@@ -1,8 +1,0 @@
----
-# === Debian: dispatcher ===
-
-- name: Configure apt
-  ansible.builtin.include_tasks: debian/apt.yml
-
-- name: Configure dpkg
-  ansible.builtin.include_tasks: debian/dpkg.yml

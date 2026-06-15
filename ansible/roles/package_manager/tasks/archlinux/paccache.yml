@@ -1,6 +1,8 @@
 ---
 # === Arch Linux: paccache timer ===
 
+# paccache реализован здесь через systemd timer, поэтому сразу проверяем init system.
+# На non-systemd хосте роль должна явно объяснить ограничение, а не молча пропустить настройку.
 - name: Assert paccache timer is supported only on systemd
   ansible.builtin.assert:
     that:
@@ -12,9 +14,11 @@
       implementation for this init system.
     success_msg: "paccache.timer is supported on systemd"
   when: package_manager_paccache_enabled | bool
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']
 
+# Если paccache включен и systemd поддержан, подключаем реальную systemd-реализацию.
+# Так init-specific детали лежат отдельно от общей Arch-логики.
 - name: Configure paccache timer for systemd
-  ansible.builtin.include_tasks: archlinux/paccache_systemd.yml
+  ansible.builtin.include_tasks: archlinux/systemd/paccache.yml
   when: package_manager_paccache_enabled | bool
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']

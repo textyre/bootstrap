@@ -12,6 +12,11 @@ _package_manager_supported_os:
   - Void
   - Gentoo
 
+# Package index refresh prepares package managers for later install-only roles.
+# This is not a full system upgrade.
+package_manager_refresh_package_indexes: true
+package_manager_package_index_cache_valid_time: 3600
+
 # --- Arch Linux / pacman ---
 package_manager_pacman_parallel_downloads: 5
 package_manager_pacman_color: true
@@ -23,7 +28,6 @@ package_manager_pacman_multilib: false
 # Внешний кэш pacman (опционально)
 package_manager_pacman_external_cache: false
 package_manager_pacman_cache_root: ""
-package_manager_pacman_cache_valid_time: 3600
 
 # paccache (очистка устаревших версий из кэша)
 package_manager_paccache_enabled: true
@@ -31,7 +35,8 @@ package_manager_paccache_keep: 3
 
 # makepkg (оптимизация сборки пакетов из AUR)
 package_manager_makepkg_enabled: true
-package_manager_makepkg_makeflags: "-j{{ ansible_processor_vcpus | default(2) }}"
+package_manager_makepkg_makeflags: >-
+  -j{{ (ansible_facts | default({})).get('processor_vcpus', 2) }}
 package_manager_makepkg_pkgext: ".pkg.tar.zst"
 
 # --- Debian / apt ---

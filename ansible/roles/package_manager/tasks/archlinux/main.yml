@@ -1,0 +1,27 @@
+---
+# === Arch Linux: dispatcher ===
+
+# Начинаем Arch-настройку с pacman, потому что это главный системный пакетный менеджер.
+# Остальные Arch-задачи должны работать уже с понятной и проверенной pacman-конфигурацией.
+- name: Configure pacman
+  ansible.builtin.include_tasks: archlinux/pacman.yml
+
+# Обновляем базы пакетов pacman отдельной фазой package_manager.
+# Это готовит почву для последующей install-only роли packages и не делает full system upgrade.
+- name: Refresh pacman package indexes
+  ansible.builtin.include_tasks: archlinux/cache.yml
+
+# Настраиваем автоматическую очистку старых пакетов из pacman cache.
+# Это не дает кэшу бесконечно расти и занимать диск.
+- name: Configure paccache
+  ansible.builtin.include_tasks: archlinux/paccache.yml
+
+# Настраиваем параметры сборки Arch-пакетов из исходников.
+# Эти настройки нужны для AUR-сборок и делают результат предсказуемым.
+- name: Configure makepkg
+  ansible.builtin.include_tasks: archlinux/makepkg.yml
+
+# Готовим yay как AUR helper, потому что для Arch в проекте package manager = pacman + yay.
+# Здесь включается только setup helper, а выбор AUR-пакетов остается за ролью packages.
+- name: Set up yay AUR helper
+  ansible.builtin.include_tasks: archlinux/yay.yml

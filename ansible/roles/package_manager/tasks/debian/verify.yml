@@ -1,38 +1,12 @@
 ---
 # === Debian/Ubuntu: package_manager verification ===
 
-- name: Stat apt parallel config
-  ansible.builtin.stat:
-    path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
-  register: _package_manager_verify_apt_stat
-  tags: ['packages', 'apt']
-
-- name: Assert apt parallel config exists
-  ansible.builtin.assert:
-    that:
-      - _package_manager_verify_apt_stat.stat.exists
-    fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf does not exist"
-    success_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf deployed"
-  tags: ['packages', 'apt']
-
-- name: Stat dpkg config
-  ansible.builtin.stat:
-    path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
-  register: _package_manager_verify_dpkg_stat
-  tags: ['packages', 'apt']
-
-- name: Assert dpkg config exists
-  ansible.builtin.assert:
-    that:
-      - _package_manager_verify_dpkg_stat.stat.exists
-    fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf does not exist"
-    success_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf deployed"
-  tags: ['packages', 'apt']
-
+# Просим apt прочитать итоговую конфигурацию.
+# Это независимая read-only проверка: apt должен принять общий набор своих конфигов.
 - name: Verify apt can parse configuration  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: apt-config dump
   register: _package_manager_verify_apt_parse
   changed_when: false
   failed_when: _package_manager_verify_apt_parse.rc != 0
-  tags: ['packages', 'apt']
+  tags: ['package_manager']

@@ -1,7 +1,9 @@
 ---
 # === Gentoo: package_manager verification stub ===
 
+# Явно показываем, что Gentoo-верификация пока не проверяет состояние portage.
+# Это документирует текущее ограничение роли прямо в выводе Ansible.
 - name: Gentoo package manager verification stub
   ansible.builtin.debug:
     msg: "Gentoo package_manager verification is a stub — no configuration is asserted"
-  tags: ['packages', 'portage']
+  tags: ['package_manager']

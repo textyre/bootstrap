@@ -1,14 +1,18 @@
 ---
 # === Arch Linux: конфигурация pacman ===
 
+# Если включили внешний кэш pacman, путь к нему должен быть задан явно.
+# Иначе роль создала бы непонятные каталоги не там, где оператор ожидал.
 - name: Assert external cache config is valid
   ansible.builtin.assert:
     that:
       - package_manager_pacman_cache_root | length > 0
     msg: "package_manager_pacman_cache_root must be set when package_manager_pacman_external_cache is true"
   when: package_manager_pacman_external_cache
-  tags: ['packages', 'pacman']
+  tags: ['package_manager']
 
+# Полностью управляем pacman.conf из шаблона роли.
+# Это делает настройки pacman воспроизводимыми и проверяет файл перед установкой на место.
 - name: Deploy pacman.conf from template
   ansible.builtin.template:
     src: archlinux/pacman.conf.j2
@@ -18,13 +22,17 @@
     mode: '0644'
     backup: true
     validate: pacman-conf --config %s
-  notify: Refresh pacman sync databases after pacman config change
-  tags: ['packages', 'pacman']
+  register: _package_manager_pacman_conf_template
+  tags: ['package_manager']
 
+# Этот блок готовит внешний общий кэш pacman, если он включен в переменных.
+# Он полезен для ускорения установок и переиспользования скачанных пакетов.
 - name: Setup external pacman cache
   when: package_manager_pacman_external_cache and package_manager_pacman_cache_root | length > 0
-  tags: ['packages', 'pacman-cache']
+  tags: ['package_manager']
   block:
+    # Создаем структуру каталогов, которую pacman ожидает внутри внешнего кэша.
+    # Без этих директорий pacman не сможет хранить базы, пакеты и настройки в общем месте.
     - name: Create pacman cache directories
       ansible.builtin.file:
         path: "{{ item }}"
@@ -37,6 +45,8 @@
         - "{{ package_manager_pacman_cache_root }}/var/cache/pacman/pkg"
         - "{{ package_manager_pacman_cache_root }}/etc/pacman.d"
 
+    # Проверяем, есть ли системный пользователь alpm в этой версии Arch/pacman.
+    # Если он есть, каталоги кэша можно сделать групповыми для корректных прав pacman.
     - name: Check if alpm user exists
       ansible.builtin.getent:
         database: passwd
@@ -44,6 +54,8 @@
       register: package_manager_alpm_user
       failed_when: false
 
+    # Показываем понятное сообщение о результате проверки alpm.
+    # Это объясняет оператору, почему роль будет или не будет менять группу каталогов.
     - name: Log alpm user lookup result
       ansible.builtin.debug:
         msg: >-
@@ -51,6 +63,8 @@
           and 'alpm' in package_manager_alpm_user.ansible_facts.getent_passwd)
           | ternary('found — will set group ownership', 'not found — skipping ownership') }}
 
+    # Если alpm существует, даем группе alpm права на каталоги кэша.
+    # Это соответствует современному pacman и помогает корректно работать с shared cache.
     - name: Set alpm ownership on pacman cache dirs
       ansible.builtin.file:
         path: "{{ item }}"

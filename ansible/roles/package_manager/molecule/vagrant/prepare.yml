@@ -1,3 +1,5 @@
 ---
+# Подключаем общий prepare-playbook для Vagrant VM.
+# Это держит bootstrap виртуальных машин единым для всех ролей проекта.
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml

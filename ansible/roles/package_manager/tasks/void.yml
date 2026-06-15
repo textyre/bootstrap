@@ -1,8 +1,0 @@
----
-# === Void Linux: dispatcher ===
-
-- name: Configure xbps
-  ansible.builtin.include_tasks: void/xbps.yml
-
-- name: Configure cache cleanup
-  ansible.builtin.include_tasks: void/cache.yml

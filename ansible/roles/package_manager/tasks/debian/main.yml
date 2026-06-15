@@ -1,0 +1,17 @@
+---
+# === Debian: dispatcher ===
+
+# Настраиваем apt как основной пакетный менеджер Debian/Ubuntu.
+# Здесь лежат настройки загрузок и повторных попыток для apt.
+- name: Configure apt
+  ansible.builtin.include_tasks: debian/apt.yml
+
+# Настраиваем поведение dpkg при конфликтах конфигурационных файлов.
+# Это важно для предсказуемых обновлений, где dpkg задает меньше интерактивных вопросов.
+- name: Configure dpkg
+  ansible.builtin.include_tasks: debian/dpkg.yml
+
+# Обновляем apt package index отдельной фазой package_manager.
+# Роль packages после этого остается install-only и не занимается подготовкой индексов пакетов.
+- name: Refresh apt package index
+  ansible.builtin.include_tasks: debian/cache.yml

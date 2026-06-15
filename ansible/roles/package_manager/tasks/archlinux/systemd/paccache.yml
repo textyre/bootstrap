@@ -1,0 +1,45 @@
+---
+# === Arch Linux: paccache systemd timer ===
+
+# Устанавливаем pacman-contrib, потому что именно этот пакет приносит команду paccache.
+# Без него systemd timer существовал бы, но очищать кэш было бы нечем.
+- name: Install pacman-contrib (provides paccache)
+  community.general.pacman:
+    name: pacman-contrib
+    state: present
+  tags: ['package_manager']
+
+# Создаем каталог для systemd drop-in файла paccache.service.
+# Drop-in позволяет менять только нужный параметр, не копируя весь upstream unit.
+- name: Create paccache drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/paccache.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['package_manager']
+
+# Записываем drop-in, который задает сколько версий пакетов оставлять в кэше.
+# Перечитывание systemd выполняется ниже в задаче, которая включает paccache.timer.
+- name: Configure paccache keep count via systemd drop-in
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/paccache.service.d/keep.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/paccache -r -k {{ package_manager_paccache_keep }}
+  tags: ['package_manager']
+
+# Включаем и запускаем таймер очистки кэша.
+# daemon_reload здесь применяет возможные изменения drop-in перед запуском таймера.
+- name: Enable and start paccache.timer
+  ansible.builtin.systemd:
+    name: paccache.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: ['package_manager']

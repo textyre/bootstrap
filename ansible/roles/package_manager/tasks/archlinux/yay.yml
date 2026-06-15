@@ -1,0 +1,12 @@
+---
+# === Arch Linux: yay setup ===
+
+# Подключаем роль yay только для подготовки helper: пользователь сборки и сам бинарник.
+# Установка конкретных AUR-пакетов остается отдельной ответственностью роли packages.
+- name: Set up yay AUR helper
+  ansible.builtin.import_role:
+    name: yay
+  vars:
+    yay_manage_setup: true
+    yay_manage_aur_packages: false
+  tags: ['package_manager']

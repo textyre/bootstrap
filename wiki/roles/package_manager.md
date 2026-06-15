@@ -13,11 +13,14 @@ See `ansible/roles/package_manager/defaults/main.yml` for the full list with def
 | Variable | Description |
 |----------|-------------|
 | `package_manager_enabled` | Master toggle |
+| `package_manager_refresh_package_indexes` | Refresh package indexes as package manager preparation |
+| `package_manager_package_index_cache_valid_time` | Freshness window before package indexes are refreshed again. On Arch this is based on the local pacman sync directory timestamp, not repository `*.db` timestamps. |
 | `package_manager_pacman_parallel_downloads` | Pacman parallel downloads (Arch) |
-| `package_manager_pacman_siglevel` | Signature verification level (Arch) — supply chain sensitive |
+| `package_manager_pacman_siglevel` | Signature verification level (Arch) — supply chain sensitive. Preflight accepts only safe tokens that keep official package signatures required. Local package signatures stay optional through `LocalFileSigLevel = Optional` for AUR-built packages. |
 | `package_manager_pacman_multilib` | Enable 32-bit multilib repo (Arch) |
 | `package_manager_paccache_enabled` | Enable paccache timer (Arch) |
 | `package_manager_makepkg_enabled` | Enable makepkg drop-in (Arch) |
+| `package_manager_makepkg_pkgext` | makepkg package archive suffix. The role accepts `.pkg.tar` plus safe optional suffixes, for example `.pkg.tar` or `.pkg.tar.zst`. |
 | `package_manager_dnf_keepcache` | Keep dnf cache (Fedora) |
 
 ## Dependencies
@@ -37,14 +40,32 @@ and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`
 ## Architecture
 
 - `tasks/main.yml` is only the role flow: validate, OS dispatch, verify, report.
-- `tasks/validate.yml` owns preflight checks for supported OS families and input ranges.
+- `tasks/validate.yml` is only the preflight dispatcher and supported OS assert.
 - OS-specific task directories match `ansible_facts['os_family']`: `archlinux/`, `debian/`, `redhat/`, `void/`, `gentoo/`.
-- `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/paccache_systemd.yml`.
-- `tasks/verify.yml` dispatches to OS-specific verify files. Verification checks ownership markers and read-only package-manager parser probes.
+- Each OS directory owns its own `main.yml`, `validate.yml`, and `verify.yml`.
+- `tasks/archlinux/paccache.yml` is the paccache dispatcher and support assert; systemd implementation lives in `tasks/archlinux/systemd/paccache.yml`.
+- `tasks/archlinux/cache.yml` refreshes pacman package indexes after pacman configuration and before later package installation. Pacman freshness is measured from the local sync directory because pacman preserves upstream timestamps on `*.db` files.
+- `tasks/archlinux/yay.yml` imports the `yay` role in setup-only mode because Arch package management is `pacman` plus `yay` in this project.
+- `tasks/debian/cache.yml` refreshes the apt package index after apt/dpkg configuration and before later package installation.
+- `tasks/verify.yml` dispatches to OS-specific verify files. Runtime verification is intentionally lightweight: it keeps parser/runtime probes in the role and leaves content assertions to Molecule.
+- The role does not set computed host facts; intermediate values stay in registered task results or task-local vars.
+- The role refreshes package indexes as package-manager preparation, but it does not perform full OS upgrades or install the workstation package set.
+- The role does not use handlers for package-manager state transitions. Systemd daemon reload is scoped to the paccache systemd task that needs it.
+- Molecule shared converge and verify playbooks follow the same dispatcher pattern, with real OS-specific files only where checks exist.
 
 ## Tags
 
-`packages`, `package-manager`, `pacman`, `paccache`, `makepkg`, `apt`, `dnf`, `xbps`, `portage`, `report`
+`package_manager`
+
+The role intentionally exposes one tag. It decides internally which OS-specific
+package manager work applies to the host.
+
+## Ordering assumptions
+
+`reflector` remains a separate role. Playbooks that depend on refreshed Arch
+mirrors should run `reflector` before `package_manager`, because
+`package_manager` refreshes pacman indexes against the currently configured
+mirrors and does not orchestrate reflector itself.
 
 ## Audit events
 
@@ -64,6 +85,7 @@ and Void use role-owned drop-ins under `/etc/apt/apt.conf.d/` and `/etc/xbps.d/`
 
 ## Drift detection
 
-The in-role verify dispatcher checks deployed configs match expected values on
-every run and confirms package managers can parse/read their configuration. If
-configs are manually edited, the role will re-deploy managed templates.
+The in-role verify dispatcher confirms package managers can parse/read their
+configuration and checks runtime state such as `paccache.timer`. Detailed file
+content drift checks live in Molecule, while normal role runs rely on managed
+templates to re-deploy configuration when it drifts.

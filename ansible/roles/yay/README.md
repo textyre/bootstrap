@@ -7,7 +7,7 @@ AUR helper installation and AUR package management backend for Arch Linux.
 - [x] Creates a dedicated `aur_builder` system user (UID < 1000, shell `/usr/bin/nologin`)
 - [x] Grants `aur_builder` passwordless `sudo` access to `/usr/bin/pacman` only (`/etc/sudoers.d/yay-aur-builder`, mode `0440`)
 - [x] Installs build dependencies (`base-devel`, `git`, `go`)
-- [x] Checks if yay is already installed and validates shared libraries (`ldd`) to detect breakage after Go upgrades
+- [x] Checks if yay is already usable by `aur_builder` and validates shared libraries (`ldd`) to detect breakage after Go upgrades
 - [x] Builds yay from source via `makepkg` as `aur_builder` (clones from AUR, compiles, installs via `pacman -U`)
 - [x] Cleans up build artifacts (`/tmp/yay_build_*`) in an `always:` block
 - [x] Supports split execution: setup-only or AUR-install-only via role flags
@@ -77,11 +77,11 @@ Verify assertions (14 total):
 7. Sudoers content has `NOPASSWD: /usr/bin/pacman`
 8. Build dependencies installed (`base-devel`, `git`, `go`)
 9. `yay` binary at `/usr/bin/yay`
-10. `yay --version` succeeds
+10. `aur_builder` can run `yay --version`
 11. No broken shared libs (`ldd /usr/bin/yay`)
 12. No leftover `/tmp/yay_build_*` directories
 13. AUR packages installed (`pacman -Q`, conditional)
-14. `aur_builder` can execute `yay --version`
+14. `aur_builder` can execute `yay --version` in the functional check
 
 ## Notes
 

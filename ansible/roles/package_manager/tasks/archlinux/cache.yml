@@ -1,0 +1,80 @@
+---
+# === Arch Linux: package index refresh ===
+
+# Вся логика refresh вынесена отдельно от pacman.conf.
+# Так видно границу: package_manager готовит индексы пакетов, а packages потом только устанавливает пакеты.
+- name: Refresh pacman package indexes
+  when: package_manager_refresh_package_indexes | bool
+  tags: ['package_manager']
+  vars:
+    _package_manager_pacman_conf_changed: "{{ _package_manager_pacman_conf_template.changed | default(false) | bool }}"
+    _package_manager_pacman_sync_dir: >-
+      {{ (package_manager_pacman_external_cache | bool)
+         | ternary(package_manager_pacman_cache_root ~ '/var/lib/pacman/sync', '/var/lib/pacman/sync') }}
+  block:
+    # Если template реально записал новый pacman.conf, обновляем индексы один раз.
+    # Это покрывает изменения DBPath, CacheDir и набора репозиториев перед установкой пакетов.
+    - name: Refresh pacman package indexes after pacman configuration change
+      community.general.pacman:
+        update_cache: true
+      changed_when: true
+      when: _package_manager_pacman_conf_changed | bool
+
+    # Если pacman.conf не менялся, смотрим только на состояние самих индексов.
+    # Внутри блока три понятные ветки: нет директории, нет *.db, истекло локальное окно свежести.
+    - name: Refresh pacman package indexes when existing indexes are not ready
+      when: not (_package_manager_pacman_conf_changed | bool)
+      block:
+        # Определяем, где pacman сейчас хранит базы репозиториев.
+        # При external cache путь меняется, поэтому нельзя жестко проверять только /var/lib/pacman/sync.
+        - name: Check pacman package index directory
+          ansible.builtin.stat:
+            path: "{{ _package_manager_pacman_sync_dir }}"
+          register: _package_manager_pacman_sync_dir_stat
+
+        # Обновляем базы, если директории с индексами еще нет.
+        # Это первый запуск или очищенная система, где пакетный менеджер еще не готов к поиску пакетов.
+        - name: Refresh pacman package indexes when index directory is missing
+          community.general.pacman:
+            update_cache: true
+          changed_when: true
+          when: not (_package_manager_pacman_sync_dir_stat.stat.isdir | default(false))
+
+        # Если директория есть, проверяем ее содержимое отдельным вложенным блоком.
+        # Так условия ниже читаются как проверки файлов, а не как повтор всей матрицы состояний.
+        - name: Inspect pacman package index files
+          when: _package_manager_pacman_sync_dir_stat.stat.isdir | default(false)
+          block:
+            # Смотрим, есть ли на хосте локальные базы пакетов pacman.
+            # Если их нет, pacman не сможет нормально искать и устанавливать пакеты.
+            - name: Find pacman package indexes
+              ansible.builtin.find:
+                paths: "{{ _package_manager_pacman_sync_dir }}"
+                patterns: "*.db"
+                file_type: file
+              register: _package_manager_pacman_sync_databases
+
+            # Обновляем базы pacman, если директория есть, но самих баз в ней нет.
+            # Без этих *.db файлов последующая install-only роль packages не сможет установить пакеты.
+            - name: Refresh pacman package indexes when none exist
+              community.general.pacman:
+                update_cache: true
+              changed_when: true
+              when: _package_manager_pacman_sync_databases.matched | default(0) | int == 0
+
+            # Если базы уже есть, проверяем возраст локального sync-каталога.
+            # Не используем mtime *.db: pacman сохраняет timestamp базы с зеркала,
+            # поэтому файл может выглядеть старым сразу после успешного refresh.
+            - name: Refresh pacman package indexes when local refresh window expired
+              community.general.pacman:
+                update_cache: true
+              changed_when: true
+              vars:
+                _package_manager_pacman_sync_dir_age_seconds: >-
+                  {{ (ansible_facts['date_time']['epoch'] | int)
+                     - (_package_manager_pacman_sync_dir_stat.stat.mtime | default(0) | int) }}
+                _package_manager_pacman_cache_valid_seconds: >-
+                  {{ package_manager_package_index_cache_valid_time | int }}
+              when:
+                - _package_manager_pacman_sync_databases.matched | default(0) | int > 0
+                - _package_manager_pacman_sync_dir_age_seconds | int >= _package_manager_pacman_cache_valid_seconds | int

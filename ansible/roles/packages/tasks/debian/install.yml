@@ -1,11 +1,8 @@
 ---
-# cache_valid_time requires ansible.builtin.apt (no generic equivalent in ansible.builtin.package)
-- name: Update apt cache (Debian/Ubuntu)
-  ansible.builtin.apt:
-    update_cache: true
-    cache_valid_time: 3600
-  tags: ['packages', 'install']
+# Debian/Ubuntu: install packages only.
 
+# Устанавливаем подготовленный список Debian/Ubuntu пакетов.
+# Обновление apt package index выполняет package_manager до этой роли.
 - name: Install packages (apt)
   ansible.builtin.apt:
     name: "{{ _packages_official_all }}"
@@ -16,6 +13,8 @@
   until: _packages_install_result is succeeded
   tags: ['packages', 'install']
 
+# Проверяем, что dpkg не оставил незавершенную конфигурацию пакетов.
+# Это ловит поломанное состояние после установки, а не занимается обновлением системы.
 - name: Assert dpkg package database has no pending configuration
   ansible.builtin.command:
     cmd: dpkg --audit

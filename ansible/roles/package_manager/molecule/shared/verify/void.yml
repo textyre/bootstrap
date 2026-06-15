@@ -1,0 +1,132 @@
+---
+# Void Linux — xbps.conf
+# ==========================================================
+
+# Проверяем xbps-конфигурацию на Void Linux.
+# Этот блок доказывает, что role доставила drop-in файл для package manager.
+- name: Verify Void Linux — xbps.conf
+  vars:
+    _package_manager_verify_xbps_text: "{{ ((_package_manager_verify_xbps_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Проверяем каталог xbps drop-ins.
+    # Он нужен, чтобы xbps мог читать отдельный конфиг роли.
+    - name: Stat /etc/xbps.d directory
+      ansible.builtin.stat:
+        path: /etc/xbps.d
+      register: _package_manager_verify_xbps_dir
+
+    # Подтверждаем права и владельца каталога xbps drop-ins.
+    # Каталог конфигурации должен быть root-owned и безопасным.
+    - name: Assert /etc/xbps.d directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_xbps_dir.stat.exists
+          - _package_manager_verify_xbps_dir.stat.isdir
+          - _package_manager_verify_xbps_dir.stat.mode == '0755'
+          - _package_manager_verify_xbps_dir.stat.pw_name == 'root'
+        fail_msg: "/etc/xbps.d missing or wrong permissions (expected directory root 0755)"
+        success_msg: >-
+          /etc/xbps.d exists
+          (owner={{ _package_manager_verify_xbps_dir.stat.pw_name }},
+          mode={{ _package_manager_verify_xbps_dir.stat.mode }})
+
+    # Проверяем сам xbps drop-in файл роли.
+    # Это базовая проверка, что template был доставлен.
+    - name: Stat /etc/xbps.d/ansible.conf
+      ansible.builtin.stat:
+        path: /etc/xbps.d/ansible.conf
+      register: _package_manager_verify_xbps_stat
+
+    # Подтверждаем права и владельца xbps drop-in файла.
+    # Неправильные права могли бы сделать конфигурацию небезопасной или нечитаемой.
+    - name: Assert /etc/xbps.d/ansible.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_xbps_stat.stat.exists
+          - _package_manager_verify_xbps_stat.stat.mode == '0644'
+          - _package_manager_verify_xbps_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/xbps.d/ansible.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/xbps.d/ansible.conf exists
+          (owner={{ _package_manager_verify_xbps_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_xbps_stat.stat.mode }})
+
+    # Читаем xbps drop-in для проверки содержимого.
+    # Следующие assertions смотрят на смысл конфигурации, а не только на файл.
+    - name: Read /etc/xbps.d/ansible.conf
+      ansible.builtin.slurp:
+        src: /etc/xbps.d/ansible.conf
+      register: _package_manager_verify_xbps_raw
+
+    # Проверяем, что xbps drop-in действительно прочитан.
+    # Без содержимого нельзя подтвердить настройки роли.
+    - name: Assert slurp returned content (xbps)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_xbps_raw"
+        fail_msg: "slurp /etc/xbps.d/ansible.conf returned no content"
+        success_msg: "/etc/xbps.d/ansible.conf content successfully read"
+
+    # Проверяем маркер Ansible в xbps drop-in.
+    # Он показывает, что файл управляется ролью.
+    - name: Assert xbps.conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_xbps_text"
+        fail_msg: "/etc/xbps.d/ansible.conf missing Ansible marker"
+        success_msg: "/etc/xbps.d/ansible.conf contains Ansible marker"
+
+    # Проверяем, что syslog для xbps отключен согласно шаблону роли.
+    # Это подтверждает конкретное ожидаемое содержимое xbps-конфига.
+    - name: Assert syslog disabled in xbps.conf
+      ansible.builtin.assert:
+        that: "'syslog=false' in _package_manager_verify_xbps_text"
+        fail_msg: "syslog=false missing from /etc/xbps.d/ansible.conf"
+        success_msg: "syslog=false confirmed in /etc/xbps.d/ansible.conf"
+
+# ==========================================================
+# Void Linux — xbps cache cron
+# ==========================================================
+
+# Проверяем cron-задачу очистки кэша xbps.
+# Для Void эта реализация не зависит от systemd и подходит под runit.
+- name: Verify Void Linux — xbps cache cron
+  when:
+    - package_manager_xbps_cache_cleanup_enabled | bool
+  block:
+
+    # Читаем root crontab, чтобы увидеть запланированную очистку xbps cache.
+    # Команда read-only и не меняет расписание.
+    - name: Read crontab for root (xbps cache cleanup)
+      ansible.builtin.command:
+        cmd: crontab -l -u root
+      register: _package_manager_verify_xbps_crontab
+      changed_when: false
+      failed_when: false
+
+    # Проверяем, что cron содержит команду очистки xbps cache.
+    # Если записи нет, кэш пакетов не будет очищаться автоматически.
+    - name: Assert xbps cache cleanup cron entry present
+      ansible.builtin.assert:
+        that: "'xbps-remove -O' in _package_manager_verify_xbps_crontab.stdout"
+        fail_msg: "xbps cache cleanup cron job not found in root crontab"
+        success_msg: "xbps cache cleanup cron job (xbps-remove -O) found in root crontab"
+
+    # Проверяем, что расписание cron совпадает с переменными роли.
+    # Это доказывает, что публичные настройки расписания реально применились.
+    - name: Assert cron schedule matches variables
+      ansible.builtin.assert:
+        that: >-
+          package_manager_xbps_cache_cron_minute ~ ' '
+          ~ package_manager_xbps_cache_cron_hour ~ ' * * '
+          ~ package_manager_xbps_cache_cron_weekday
+          in _package_manager_verify_xbps_crontab.stdout
+        fail_msg: >-
+          xbps cache cleanup cron schedule does not match variables
+          (expected: {{ package_manager_xbps_cache_cron_minute }}
+          {{ package_manager_xbps_cache_cron_hour }} * * {{ package_manager_xbps_cache_cron_weekday }})
+        success_msg: >-
+          xbps cache cleanup cron schedule confirmed
+          ({{ package_manager_xbps_cache_cron_minute }}
+          {{ package_manager_xbps_cache_cron_hour }} * * {{ package_manager_xbps_cache_cron_weekday }})
+
+# ==========================================================

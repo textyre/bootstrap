@@ -1,6 +1,8 @@
 ---
-# === Package Manager: preflight validation ===
+# === Package Manager: preflight validation dispatcher ===
 
+# Проверяем, что роль запущена только на одной из поддерживаемых ОС проекта.
+# Это защищает от тихого применения неподходящих задач на неизвестной системе.
 - name: Assert OS is supported by package_manager role
   ansible.builtin.assert:
     that:
@@ -9,84 +11,20 @@
       package_manager role is not supported on {{ ansible_facts['os_family'] }}.
       Supported: {{ _package_manager_supported_os | join(', ') }}.
     success_msg: "package_manager supports {{ ansible_facts['os_family'] }}"
-  tags: ['always', 'packages', 'package-manager', 'package_manager']
+  tags: ['package_manager']
 
-- name: Assert pacman settings are valid
+# Проверяем общие настройки refresh индексов пакетов.
+# Отрицательное время жизни кэша не имеет смысла и сделало бы условия обновления нечитабельными.
+- name: Assert package index refresh settings are valid
   ansible.builtin.assert:
     that:
-      - package_manager_pacman_parallel_downloads | int > 0
-      - package_manager_pacman_cache_valid_time | int >= 0
-      - "'Never' not in package_manager_pacman_siglevel"
-      - not (package_manager_pacman_external_cache | bool) or package_manager_pacman_cache_root is match('^/')
-    fail_msg: >-
-      Invalid pacman settings. Require positive ParallelDownloads,
-      non-negative cache_valid_time, no SigLevel=Never, and an absolute
-      package_manager_pacman_cache_root when external cache is enabled.
-    success_msg: "pacman input settings are valid"
-  when: ansible_facts['os_family'] == 'Archlinux'
-  tags: ['always', 'packages', 'pacman']
+      - package_manager_package_index_cache_valid_time | int >= 0
+    fail_msg: "package_manager_package_index_cache_valid_time must be zero or greater"
+    success_msg: "package index refresh settings are valid"
+  tags: ['package_manager']
 
-- name: Assert paccache settings are valid
-  ansible.builtin.assert:
-    that:
-      - package_manager_paccache_keep | int > 0
-    fail_msg: "package_manager_paccache_keep must be a positive integer"
-    success_msg: "paccache input settings are valid"
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - package_manager_paccache_enabled | bool
-  tags: ['always', 'packages', 'paccache']
-
-- name: Assert makepkg settings are valid
-  ansible.builtin.assert:
-    that:
-      - package_manager_makepkg_makeflags | length > 0
-      - package_manager_makepkg_pkgext is match('^\\.')
-    fail_msg: >-
-      package_manager_makepkg_makeflags must be non-empty and
-      package_manager_makepkg_pkgext must start with a dot.
-    success_msg: "makepkg input settings are valid"
-  when:
-    - ansible_facts['os_family'] == 'Archlinux'
-    - package_manager_makepkg_enabled | bool
-  tags: ['always', 'packages', 'makepkg']
-
-- name: Assert apt settings are valid
-  ansible.builtin.assert:
-    that:
-      - package_manager_apt_parallel_queue_mode in ['host', 'access']
-      - package_manager_apt_retries | int >= 0
-    fail_msg: >-
-      package_manager_apt_parallel_queue_mode must be 'host' or 'access',
-      and package_manager_apt_retries must be zero or greater.
-    success_msg: "apt input settings are valid"
-  when: ansible_facts['os_family'] == 'Debian'
-  tags: ['always', 'packages', 'apt']
-
-- name: Assert dnf settings are valid
-  ansible.builtin.assert:
-    that:
-      - package_manager_dnf_parallel_downloads | int > 0
-      - package_manager_dnf_color in ['auto', 'never', 'always']
-      - package_manager_dnf_installonly_limit | int >= 2
-    fail_msg: >-
-      DNF settings require positive parallel downloads, color in
-      auto/never/always, and installonly_limit of at least 2.
-    success_msg: "dnf input settings are valid"
-  when: ansible_facts['os_family'] == 'RedHat'
-  tags: ['always', 'packages', 'dnf']
-
-- name: Assert xbps cache schedule is valid
-  ansible.builtin.assert:
-    that:
-      - package_manager_xbps_cache_cron_minute is match('^(\\*|\\*/[1-9][0-9]*|[0-5]?[0-9])$')
-      - package_manager_xbps_cache_cron_hour is match('^(\\*|\\*/[1-9][0-9]*|[01]?[0-9]|2[0-3])$')
-      - package_manager_xbps_cache_cron_weekday is match('^(\\*|\\*/[1-9][0-9]*|[0-7])$')
-    fail_msg: >-
-      xbps cache cron fields must be '*', '*/N', or a numeric value in the
-      valid cron range.
-    success_msg: "xbps cache schedule settings are valid"
-  when:
-    - ansible_facts['os_family'] == 'Void'
-    - package_manager_xbps_cache_cleanup_enabled | bool
-  tags: ['always', 'packages', 'xbps-cache']
+# После общей проверки ОС подключаем дополнительные проверки именно для этой ОС.
+# Например, Arch и Debian имеют разные настройки и разные возможные ошибки.
+- name: Include OS-family-specific package_manager validation
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}/validate.yml"
+  tags: ['package_manager']

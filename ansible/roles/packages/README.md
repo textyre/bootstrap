@@ -92,6 +92,9 @@ Override these through inventory, usually `inventory/group_vars/all/packages*.ym
 Package names are passed to the selected backend as-is. This role does not
 translate package names between distributions.
 
+Package index refresh is handled before this role by `package_manager`; this
+role installs already-selected package lists and verifies installed state.
+
 ## Backend Tasks
 
 ### Archlinux Install
@@ -140,9 +143,12 @@ moving AUR helper setup into `packages`.
 
 `tasks/debian/install.yml`:
 
-1. Updates apt cache with `cache_valid_time: 3600`.
-2. Installs `_packages_official_all` with `ansible.builtin.apt`.
-3. Runs `dpkg --audit` and fails if dpkg has pending configuration.
+1. Installs `_packages_official_all` with `ansible.builtin.apt`.
+2. Runs `dpkg --audit` and fails if dpkg has pending configuration.
+
+The Debian backend does not refresh apt package indexes. That preparation
+belongs to `package_manager`, keeping `packages` focused on installation and
+post-install state checks.
 
 ### Debian Verify
 
@@ -279,7 +285,7 @@ ansible-playbook site.yml --tags packages --skip-tags report
 | `tasks/archlinux/install.yml` | Arch official package install and AUR package install |
 | `tasks/archlinux/verify.yml` | Arch package verification via `pacman -Q` |
 | `tasks/archlinux/report.yml` | Arch report rows |
-| `tasks/debian/install.yml` | Debian/Ubuntu apt cache, install, and dpkg audit |
+| `tasks/debian/install.yml` | Debian/Ubuntu package install and dpkg audit |
 | `tasks/debian/verify.yml` | Debian/Ubuntu verification via `dpkg-query` and package facts |
 | `tasks/debian/report.yml` | Debian/Ubuntu report rows |
 | `tasks/gentoo/*` | Gentoo no-op placeholder backend |

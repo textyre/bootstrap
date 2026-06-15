@@ -1,0 +1,161 @@
+---
+# Debian / Ubuntu — apt parallel config
+# ==========================================================
+
+# Проверяем apt drop-in с настройками загрузки.
+# Этот блок доказывает, что Debian/Ubuntu получил конфигурацию apt из роли.
+- name: Verify Debian/Ubuntu — apt parallel config
+  vars:
+    _package_manager_verify_apt_parallel_text: "{{ ((_package_manager_verify_apt_parallel_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Проверяем файл apt parallel config на диске.
+    # Это базовая проверка, что template был доставлен.
+    - name: Stat /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      register: _package_manager_verify_apt_parallel_stat
+
+    # Подтверждаем права и владельца apt drop-in файла.
+    # apt-конфигурация должна быть root-owned и доступной для чтения.
+    - name: Assert apt parallel config exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_apt_parallel_stat.stat.exists
+          - _package_manager_verify_apt_parallel_stat.stat.mode == '0644'
+          - _package_manager_verify_apt_parallel_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/apt/apt.conf.d/10-ansible-parallel.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/apt/apt.conf.d/10-ansible-parallel.conf exists
+          (owner={{ _package_manager_verify_apt_parallel_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_apt_parallel_stat.stat.mode }})
+
+    # Читаем apt drop-in для проверки содержимого.
+    # Следующие assertions сверяют файл с переменными роли.
+    - name: Read /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/10-ansible-parallel.conf
+      register: _package_manager_verify_apt_parallel_raw
+
+    # Проверяем, что apt drop-in действительно прочитан.
+    # Без содержимого нельзя проверить Queue-Mode и Retries.
+    - name: Assert slurp returned content (apt parallel)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_apt_parallel_raw"
+        fail_msg: "slurp 10-ansible-parallel.conf returned no content"
+        success_msg: "10-ansible-parallel.conf content successfully read"
+
+    # Проверяем маркер Ansible в apt drop-in.
+    # Он показывает, что файл управляется ролью.
+    - name: Assert apt parallel config managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_apt_parallel_text"
+        fail_msg: "10-ansible-parallel.conf missing Ansible marker"
+        success_msg: "10-ansible-parallel.conf contains Ansible marker"
+
+    # Проверяем режим очереди apt downloads.
+    # Это подтверждает, что настройка роли реально попала в apt.
+    - name: Assert Queue-Mode value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'Acquire::Queue-Mode "' ~ package_manager_apt_parallel_queue_mode ~ '"'
+          in _package_manager_verify_apt_parallel_text
+        fail_msg: >-
+          Queue-Mode not set to {{ package_manager_apt_parallel_queue_mode }}
+          in 10-ansible-parallel.conf
+        success_msg: "Acquire::Queue-Mode \"{{ package_manager_apt_parallel_queue_mode }}\" confirmed in 10-ansible-parallel.conf"
+
+    # Проверяем количество повторов загрузки apt.
+    # Это важно для устойчивости установки при временных сетевых ошибках.
+    - name: Assert Retries value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'Acquire::Retries "' ~ package_manager_apt_retries ~ '"'
+          in _package_manager_verify_apt_parallel_text
+        fail_msg: >-
+          Retries not set to {{ package_manager_apt_retries }}
+          in 10-ansible-parallel.conf
+        success_msg: "Acquire::Retries \"{{ package_manager_apt_retries }}\" confirmed in 10-ansible-parallel.conf"
+
+# ==========================================================
+# Debian / Ubuntu — dpkg options
+# ==========================================================
+
+# Проверяем dpkg options drop-in.
+# Этот блок доказывает, что обновления пакетов будут вести себя предсказуемо при конфликтах конфигов.
+- name: Verify Debian/Ubuntu — dpkg options
+  vars:
+    _package_manager_verify_dpkg_text: "{{ ((_package_manager_verify_dpkg_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Проверяем файл dpkg options на диске.
+    # Это базовое доказательство доставки второго apt drop-in файла.
+    - name: Stat /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      register: _package_manager_verify_dpkg_stat
+
+    # Подтверждаем права и владельца dpkg drop-in файла.
+    # Неправильные права на apt/dpkg config могут нарушить обновления пакетов.
+    - name: Assert dpkg config exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_dpkg_stat.stat.exists
+          - _package_manager_verify_dpkg_stat.stat.mode == '0644'
+          - _package_manager_verify_dpkg_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/apt/apt.conf.d/20-ansible-dpkg.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/apt/apt.conf.d/20-ansible-dpkg.conf exists
+          (owner={{ _package_manager_verify_dpkg_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_dpkg_stat.stat.mode }})
+
+    # Читаем dpkg drop-in для проверки содержимого.
+    # Следующие assertions проверяют, что нужные options реально записаны.
+    - name: Read /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/20-ansible-dpkg.conf
+      register: _package_manager_verify_dpkg_raw
+
+    # Проверяем, что dpkg drop-in действительно прочитан.
+    # Без содержимого нельзя подтвердить политику обработки конфигов.
+    - name: Assert slurp returned content (dpkg)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_dpkg_raw"
+        fail_msg: "slurp 20-ansible-dpkg.conf returned no content"
+        success_msg: "20-ansible-dpkg.conf content successfully read"
+
+    # Проверяем маркер Ansible в dpkg drop-in.
+    # Это отделяет управляемый файл роли от ручной конфигурации.
+    - name: Assert dpkg config managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_dpkg_text"
+        fail_msg: "20-ansible-dpkg.conf missing Ansible marker"
+        success_msg: "20-ansible-dpkg.conf contains Ansible marker"
+
+    # Проверяем, что в файле есть блок Dpkg::Options.
+    # Без этого блока отдельные force options не будут применяться apt.
+    - name: Assert Dpkg::Options block present
+      ansible.builtin.assert:
+        that: "'Dpkg::Options' in _package_manager_verify_dpkg_text"
+        fail_msg: "Dpkg::Options block missing from 20-ansible-dpkg.conf"
+        success_msg: "Dpkg::Options block present in 20-ansible-dpkg.conf"
+
+    # Если force-confdef включен, проверяем наличие соответствующей опции.
+    # Она помогает dpkg выбирать default action при конфликте конфигов.
+    - name: Assert dpkg force-confdef option present (when enabled)
+      ansible.builtin.assert:
+        that: "'--force-confdef' in _package_manager_verify_dpkg_text"
+        fail_msg: "--force-confdef missing from 20-ansible-dpkg.conf"
+        success_msg: "--force-confdef present in 20-ansible-dpkg.conf"
+      when: package_manager_apt_dpkg_force_confdef | bool
+
+    # Если force-confold включен, проверяем наличие соответствующей опции.
+    # Она помогает сохранить старый конфиг при конфликте во время обновления.
+    - name: Assert dpkg force-confold option present (when enabled)
+      ansible.builtin.assert:
+        that: "'--force-confold' in _package_manager_verify_dpkg_text"
+        fail_msg: "--force-confold missing from 20-ansible-dpkg.conf"
+        success_msg: "--force-confold present in 20-ansible-dpkg.conf"
+      when: package_manager_apt_dpkg_force_confold | bool
+
+# ==========================================================

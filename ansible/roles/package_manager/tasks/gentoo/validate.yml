@@ -1,0 +1,9 @@
+---
+# === Gentoo: package_manager validation stub ===
+
+# Явно показываем, что для Gentoo пока нет дополнительных входных проверок.
+# Когда появится portage-реализация, ее preflight должен быть добавлен сюда.
+- name: Gentoo package manager validation stub
+  ansible.builtin.debug:
+    msg: "Gentoo package_manager validation is a stub — no input validation is currently required"
+  tags: ['package_manager']

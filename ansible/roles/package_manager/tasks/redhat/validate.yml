@@ -1,0 +1,16 @@
+---
+# === RedHat/Fedora: package_manager validation ===
+
+# Проверяем настройки dnf до записи dnf.conf.
+# Так роль не применит некорректные значения цвета, parallel downloads или лимита installonly.
+- name: Assert dnf settings are valid
+  ansible.builtin.assert:
+    that:
+      - package_manager_dnf_parallel_downloads | int > 0
+      - package_manager_dnf_color in ['auto', 'never', 'always']
+      - package_manager_dnf_installonly_limit | int >= 2
+    fail_msg: >-
+      DNF settings require positive parallel downloads, color in
+      auto/never/always, and installonly_limit of at least 2.
+    success_msg: "dnf input settings are valid"
+  tags: ['package_manager']

@@ -1,57 +1,26 @@
 ---
 # === Arch Linux: package_manager verification ===
 
-- name: Slurp /etc/pacman.conf
-  ansible.builtin.slurp:
-    src: /etc/pacman.conf
-  register: _package_manager_verify_pacman_raw
-  tags: ['packages', 'pacman']
-
-- name: Set pacman.conf content fact
-  ansible.builtin.set_fact:
-    _package_manager_verify_pacman_text: "{{ _package_manager_verify_pacman_raw.content | b64decode }}"
-  when: "'content' in _package_manager_verify_pacman_raw"
-  tags: ['packages', 'pacman']
-
-- name: Assert pacman.conf is managed by Ansible
-  ansible.builtin.assert:
-    that:
-      - "'Managed by Ansible' in _package_manager_verify_pacman_text"
-      - "'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads | string in _package_manager_verify_pacman_text"
-    fail_msg: "pacman.conf verification failed — not managed by Ansible or ParallelDownloads mismatch"
-    success_msg: "pacman.conf verified: managed by Ansible, ParallelDownloads={{ package_manager_pacman_parallel_downloads }}"
-  tags: ['packages', 'pacman']
-
+# Просим pacman-conf разобрать реальный итоговый файл конфигурации.
+# Это независимая проверка: важен не текст шаблона, а способность pacman читать свой конфиг.
 - name: Verify pacman can parse pacman.conf  # noqa: command-instead-of-module
   ansible.builtin.command:
     cmd: pacman-conf --config /etc/pacman.conf
   register: _package_manager_verify_pacman_parse
   changed_when: false
   failed_when: _package_manager_verify_pacman_parse.rc != 0
-  tags: ['packages', 'pacman']
+  tags: ['package_manager']
 
-- name: Verify makepkg drop-in deployed correctly
-  when: package_manager_makepkg_enabled | bool
-  tags: ['packages', 'makepkg']
-  block:
-    - name: Stat /etc/makepkg.conf.d/ansible.conf
-      ansible.builtin.stat:
-        path: /etc/makepkg.conf.d/ansible.conf
-      register: _package_manager_verify_makepkg_stat
-
-    - name: Assert makepkg drop-in exists
-      ansible.builtin.assert:
-        that:
-          - _package_manager_verify_makepkg_stat.stat.exists
-        fail_msg: "/etc/makepkg.conf.d/ansible.conf does not exist"
-        success_msg: "/etc/makepkg.conf.d/ansible.conf exists (mode={{ _package_manager_verify_makepkg_stat.stat.mode }})"
-
+# Этот блок проверяет paccache только когда очистка кэша включена и host использует systemd.
+# На других init systems paccache.timer не является поддерживаемой реализацией этой роли.
 - name: Verify paccache.timer enabled
   when:
     - package_manager_paccache_enabled | bool
     - ansible_facts['service_mgr'] == 'systemd'
-  tags: ['packages', 'paccache']
+  tags: ['package_manager']
   block:
+    # Спрашиваем systemd, включен ли paccache.timer.
+    # Это проверяет не файл на диске, а реальное состояние таймера в init system.
     - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: systemctl is-enabled paccache.timer
@@ -59,6 +28,8 @@
       changed_when: false
       failed_when: _package_manager_verify_paccache_timer.rc != 0
 
+    # Подтверждаем, что timer действительно включен.
+    # Если он disabled, кэш pacman не будет очищаться автоматически.
     - name: Assert paccache.timer is enabled
       ansible.builtin.assert:
         that:

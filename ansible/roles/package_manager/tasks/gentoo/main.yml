@@ -3,7 +3,9 @@
 # Gentoo support is declared for completeness (ROLE-003).
 # Implement portage configuration tasks when a Gentoo host is enrolled.
 
+# Явно сообщаем, что Gentoo пока является stub-веткой без изменений системы.
+# Это лучше, чем молчаливо делать вид, что portage уже настроен.
 - name: Gentoo package manager — stub
   ansible.builtin.debug:
     msg: "Gentoo package_manager support is a stub — no configuration applied"
-  tags: ['packages', 'portage']
+  tags: ['package_manager']

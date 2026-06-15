@@ -1,0 +1,437 @@
+---
+# Arch Linux — pacman.conf
+# ==========================================================
+
+# Проверяем главный конфиг pacman на Arch.
+# Этот блок доказывает, что роль записала рабочий и ожидаемый pacman.conf.
+- name: Verify Arch Linux — pacman.conf
+  vars:
+    _package_manager_verify_pacman_text: "{{ ((_package_manager_verify_pacman_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Смотрим, существует ли pacman.conf и какие у него права.
+    # Это базовая проверка безопасности и факта доставки файла.
+    - name: Stat /etc/pacman.conf
+      ansible.builtin.stat:
+        path: /etc/pacman.conf
+      register: _package_manager_verify_pacman_stat
+
+    # Подтверждаем, что pacman.conf является обычным root-owned файлом с ожидаемыми правами.
+    # Неправильные права или владелец могут быть признаком ручной порчи конфигурации.
+    - name: Assert /etc/pacman.conf exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_pacman_stat.stat.exists
+          - _package_manager_verify_pacman_stat.stat.isreg
+          - _package_manager_verify_pacman_stat.stat.mode == '0644'
+          - _package_manager_verify_pacman_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/pacman.conf missing or wrong permissions (expected root 0644)"
+        success_msg: >-
+          /etc/pacman.conf exists
+          (owner={{ _package_manager_verify_pacman_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_pacman_stat.stat.mode }})
+
+    # Читаем pacman.conf, чтобы дальше проверять его содержимое.
+    # Slurp не меняет файл, только возвращает текст в Ansible.
+    - name: Read /etc/pacman.conf
+      ansible.builtin.slurp:
+        src: /etc/pacman.conf
+      register: _package_manager_verify_pacman_raw
+
+    # Проверяем, что чтение pacman.conf реально вернуло данные.
+    # Без содержимого следующие assertions были бы бессмысленными.
+    - name: Assert slurp returned content
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_pacman_raw"
+        fail_msg: "slurp /etc/pacman.conf returned no content"
+        success_msg: "/etc/pacman.conf content successfully read"
+
+    # Проверяем маркер Ansible в pacman.conf.
+    # Он показывает, что файл пришел из роли, а не был создан вручную.
+    - name: Assert pacman.conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_pacman_text"
+        fail_msg: "pacman.conf missing Ansible marker — not deployed by role"
+        success_msg: "pacman.conf contains Ansible marker"
+
+    # Проверяем, что pacman сохраняет базовые пакеты от случайного удаления.
+    # HoldPkg является важной штатной защитой pacman.
+    - name: Assert HoldPkg directive present
+      ansible.builtin.assert:
+        that: "'HoldPkg' in _package_manager_verify_pacman_text"
+        fail_msg: "HoldPkg directive missing from /etc/pacman.conf"
+        success_msg: "HoldPkg directive present in /etc/pacman.conf"
+
+    # Проверяем, что pacman сам определяет архитектуру системы.
+    # Это предотвращает жестко заданную архитектуру в шаблоне.
+    - name: Assert Architecture directive present
+      ansible.builtin.assert:
+        that: "'Architecture = auto' in _package_manager_verify_pacman_text"
+        fail_msg: "Architecture = auto missing from /etc/pacman.conf"
+        success_msg: "Architecture = auto confirmed in /etc/pacman.conf"
+
+    # Проверяем, что число параллельных загрузок совпадает с переменной роли.
+    # Так тест подтверждает не просто наличие строки, а связь конфигурации с API роли.
+    - name: Assert ParallelDownloads value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'ParallelDownloads = ' ~ package_manager_pacman_parallel_downloads
+          in _package_manager_verify_pacman_text
+        fail_msg: >-
+          ParallelDownloads not set to {{ package_manager_pacman_parallel_downloads }}
+          in /etc/pacman.conf
+        success_msg: "ParallelDownloads = {{ package_manager_pacman_parallel_downloads }} confirmed in /etc/pacman.conf"
+
+    # Проверяем уровень проверки подписей пакетов.
+    # Это supply-chain настройка, поэтому тест должен ловить любое расхождение.
+    - name: Assert SigLevel value matches variable
+      ansible.builtin.assert:
+        that: >-
+          'SigLevel    = ' ~ package_manager_pacman_siglevel
+          in _package_manager_verify_pacman_text
+        fail_msg: >-
+          SigLevel not set to {{ package_manager_pacman_siglevel }}
+          in /etc/pacman.conf
+        success_msg: "SigLevel = {{ package_manager_pacman_siglevel }} confirmed in /etc/pacman.conf"
+
+    # Проверяем политику подписи локальных файлов.
+    # Эта строка нужна, чтобы pacman корректно работал с локальными пакетами.
+    - name: Assert LocalFileSigLevel directive present
+      ansible.builtin.assert:
+        that: "'LocalFileSigLevel = Optional' in _package_manager_verify_pacman_text"
+        fail_msg: "LocalFileSigLevel = Optional missing from /etc/pacman.conf"
+        success_msg: "LocalFileSigLevel = Optional confirmed in /etc/pacman.conf"
+
+    # Если цветной вывод включен, убеждаемся, что pacman.conf это отражает.
+    # Это проверяет пользовательскую настройку видимости вывода pacman.
+    - name: Assert Color directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'Color' in _package_manager_verify_pacman_text"
+        fail_msg: "Color directive missing from /etc/pacman.conf"
+        success_msg: "Color directive present in /etc/pacman.conf"
+      when: package_manager_pacman_color | bool
+
+    # Если проверка свободного места включена, убеждаемся, что pacman будет ее делать.
+    # Это помогает избежать неудачной установки из-за нехватки диска.
+    - name: Assert CheckSpace directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'CheckSpace' in _package_manager_verify_pacman_text"
+        fail_msg: "CheckSpace directive missing from /etc/pacman.conf"
+        success_msg: "CheckSpace directive present in /etc/pacman.conf"
+      when: package_manager_pacman_check_space | bool
+
+    # Если verbose package lists включены, убеждаемся, что pacman.conf содержит эту опцию.
+    # Это делает вывод pacman более информативным для оператора.
+    - name: Assert VerbosePkgLists directive present (when enabled)
+      ansible.builtin.assert:
+        that: "'VerbosePkgLists' in _package_manager_verify_pacman_text"
+        fail_msg: "VerbosePkgLists directive missing from /etc/pacman.conf"
+        success_msg: "VerbosePkgLists directive present in /etc/pacman.conf"
+      when: package_manager_pacman_verbose_pkg_lists | bool
+
+    # Проверяем наличие core repository.
+    # Без core Arch не сможет получать базовые системные пакеты.
+    - name: Assert [core] repository section present
+      ansible.builtin.assert:
+        that: "'[core]' in _package_manager_verify_pacman_text"
+        fail_msg: "[core] repository section missing from /etc/pacman.conf"
+        success_msg: "[core] repository section present in /etc/pacman.conf"
+
+    # Проверяем наличие extra repository.
+    # Большая часть пользовательских пакетов Arch приходит именно оттуда.
+    - name: Assert [extra] repository section present
+      ansible.builtin.assert:
+        that: "'[extra]' in _package_manager_verify_pacman_text"
+        fail_msg: "[extra] repository section missing from /etc/pacman.conf"
+        success_msg: "[extra] repository section present in /etc/pacman.conf"
+
+    # Если multilib отключен, проверяем, что секция не появилась случайно.
+    # Это важно, потому что multilib расширяет набор доступных 32-bit пакетов.
+    - name: Assert [multilib] section absent (when multilib disabled)
+      ansible.builtin.assert:
+        that: "'[multilib]' not in _package_manager_verify_pacman_text"
+        fail_msg: "[multilib] present in /etc/pacman.conf but package_manager_pacman_multilib is false"
+        success_msg: "[multilib] correctly absent from /etc/pacman.conf (multilib disabled)"
+      when: not (package_manager_pacman_multilib | bool)
+
+    # Если multilib включен, проверяем, что секция действительно присутствует.
+    # Так тест подтверждает, что опция роли меняет pacman.conf как ожидается.
+    - name: Assert [multilib] section present (when multilib enabled)
+      ansible.builtin.assert:
+        that: "'[multilib]' in _package_manager_verify_pacman_text"
+        fail_msg: "[multilib] missing from /etc/pacman.conf but package_manager_pacman_multilib is true"
+        success_msg: "[multilib] section present in /etc/pacman.conf (multilib enabled)"
+      when: package_manager_pacman_multilib | bool
+
+    # Считаем строки ParallelDownloads в итоговом файле.
+    # Это ловит дубли, которые могли бы запутать будущих читателей конфигурации.
+    - name: Verify ParallelDownloads count via grep  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: grep -c 'ParallelDownloads' /etc/pacman.conf
+      register: _package_manager_verify_pacman_pd_count
+      changed_when: false
+
+    # Подтверждаем, что ParallelDownloads задан ровно один раз.
+    # Один источник значения делает конфигурацию однозначной.
+    - name: Assert exactly one ParallelDownloads line
+      ansible.builtin.assert:
+        that: _package_manager_verify_pacman_pd_count.stdout | trim == '1'
+        fail_msg: >-
+          Expected exactly 1 ParallelDownloads line, found
+          {{ _package_manager_verify_pacman_pd_count.stdout | trim }}
+        success_msg: >-
+          Exactly 1 ParallelDownloads line confirmed in /etc/pacman.conf
+
+# ==========================================================
+# Arch Linux — paccache
+# ==========================================================
+
+# Проверяем systemd-таймер очистки pacman cache.
+# Этот блок нужен, чтобы убедиться: кэш не будет бесконтрольно расти после настройки роли.
+- name: Verify Arch Linux — paccache
+  when:
+    - package_manager_paccache_enabled | bool
+  vars:
+    _package_manager_verify_paccache_text: "{{ ((_package_manager_verify_paccache_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Проверяем, что установлен пакет с командой paccache.
+    # Без pacman-contrib таймер не сможет выполнить очистку.
+    - name: Check pacman-contrib is installed  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: pacman -Qi pacman-contrib
+      register: _package_manager_verify_paccache_pkg
+      changed_when: false
+
+    # Подтверждаем успешную установку pacman-contrib.
+    # Это превращает результат команды в понятную ошибку Molecule, если пакет отсутствует.
+    - name: Assert pacman-contrib is installed
+      ansible.builtin.assert:
+        that: _package_manager_verify_paccache_pkg.rc == 0
+        fail_msg: "pacman-contrib package is not installed"
+        success_msg: "pacman-contrib package is installed"
+
+    # Проверяем каталог systemd drop-in для paccache.service.
+    # Он должен существовать, чтобы systemd видел переопределение ExecStart.
+    - name: Stat paccache drop-in directory
+      ansible.builtin.stat:
+        path: /etc/systemd/system/paccache.service.d
+      register: _package_manager_verify_paccache_dir
+
+    # Подтверждаем права и владельца каталога drop-in.
+    # Это защищает systemd-конфигурацию от небезопасных прав.
+    - name: Assert paccache drop-in directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_paccache_dir.stat.exists
+          - _package_manager_verify_paccache_dir.stat.isdir
+          - _package_manager_verify_paccache_dir.stat.mode == '0755'
+          - _package_manager_verify_paccache_dir.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/systemd/system/paccache.service.d missing or wrong permissions
+          (expected directory root 0755)
+        success_msg: >-
+          /etc/systemd/system/paccache.service.d exists
+          (owner={{ _package_manager_verify_paccache_dir.stat.pw_name }},
+          mode={{ _package_manager_verify_paccache_dir.stat.mode }})
+
+    # Проверяем сам drop-in файл keep.conf.
+    # В нем роль хранит выбранную политику retention для paccache.
+    - name: Stat paccache.service drop-in
+      ansible.builtin.stat:
+        path: /etc/systemd/system/paccache.service.d/keep.conf
+      register: _package_manager_verify_paccache_dropin
+
+    # Подтверждаем, что keep.conf существует с правильными правами.
+    # Неправильные права на systemd drop-in являются риском для стабильности сервиса.
+    - name: Assert paccache drop-in exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_paccache_dropin.stat.exists
+          - _package_manager_verify_paccache_dropin.stat.mode == '0644'
+          - _package_manager_verify_paccache_dropin.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/systemd/system/paccache.service.d/keep.conf missing or wrong permissions
+          (expected root 0644)
+        success_msg: >-
+          /etc/systemd/system/paccache.service.d/keep.conf exists
+          (owner={{ _package_manager_verify_paccache_dropin.stat.pw_name }},
+          mode={{ _package_manager_verify_paccache_dropin.stat.mode }})
+
+    # Читаем keep.conf для проверки содержимого.
+    # Следующие assertions смотрят не только наличие файла, но и смысл настройки.
+    - name: Read paccache drop-in
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/paccache.service.d/keep.conf
+      register: _package_manager_verify_paccache_raw
+
+    # Проверяем, что drop-in файл удалось прочитать.
+    # Без содержимого невозможно подтвердить команду очистки и keep count.
+    - name: Assert slurp returned content (paccache)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_paccache_raw"
+        fail_msg: "slurp paccache.service.d/keep.conf returned no content"
+        success_msg: "paccache.service.d/keep.conf content successfully read"
+
+    # Проверяем, что drop-in относится к секции Service.
+    # Это нужно systemd, чтобы переопределение ExecStart сработало.
+    - name: Assert paccache drop-in has [Service] section header
+      ansible.builtin.assert:
+        that: "'[Service]' in _package_manager_verify_paccache_text"
+        fail_msg: "[Service] section header missing from paccache.service.d/keep.conf"
+        success_msg: "[Service] section header present in paccache.service.d/keep.conf"
+
+    # Проверяем, что старый ExecStart сначала сбрасывается.
+    # В systemd без пустого ExecStart новый ExecStart не заменит старую команду корректно.
+    - name: Assert paccache drop-in resets ExecStart
+      ansible.builtin.assert:
+        that: "'ExecStart=' in _package_manager_verify_paccache_text"
+        fail_msg: >-
+          ExecStart= reset line missing from paccache.service.d/keep.conf
+          (required to override the upstream ExecStart)
+        success_msg: "ExecStart= reset line present in paccache.service.d/keep.conf"
+
+    # Проверяем, что drop-in запускает именно paccache в режиме удаления старых версий.
+    # Это подтверждает назначение таймера: чистить кэш, а не просто существовать.
+    - name: Assert paccache ExecStart uses /usr/bin/paccache -r
+      ansible.builtin.assert:
+        that: "'/usr/bin/paccache -r' in _package_manager_verify_paccache_text"
+        fail_msg: "/usr/bin/paccache -r command not found in paccache drop-in"
+        success_msg: "/usr/bin/paccache -r confirmed in paccache drop-in ExecStart"
+
+    # Проверяем, что число сохраняемых версий совпадает с переменной роли.
+    # Так тест связывает поведение таймера с публичной настройкой package_manager_paccache_keep.
+    - name: Assert paccache keep count in drop-in
+      ansible.builtin.assert:
+        that: >-
+          '-k ' ~ package_manager_paccache_keep
+          in _package_manager_verify_paccache_text
+        fail_msg: >-
+          paccache keep count not set to {{ package_manager_paccache_keep }}
+          in paccache.service.d/keep.conf
+        success_msg: "paccache keep count -k {{ package_manager_paccache_keep }} confirmed in paccache.service.d/keep.conf"
+
+    # Спрашиваем systemd, включен ли таймер paccache.
+    # Это проверяет реальное состояние init system, а не только наличие файлов.
+    - name: Check paccache.timer is enabled  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        cmd: systemctl is-enabled paccache.timer
+      register: _package_manager_verify_paccache_timer
+      changed_when: false
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+    # Подтверждаем, что systemd считает таймер enabled.
+    # Если таймер выключен, автоматическая очистка кэша не будет запускаться.
+    - name: Assert paccache.timer is enabled (systemd)
+      ansible.builtin.assert:
+        that: _package_manager_verify_paccache_timer.stdout | trim == 'enabled'
+        fail_msg: >-
+          paccache.timer is not enabled
+          (got: {{ _package_manager_verify_paccache_timer.stdout | trim }})
+        success_msg: "paccache.timer is enabled"
+      when: ansible_facts['service_mgr'] == 'systemd'
+
+# ==========================================================
+# Arch Linux — makepkg
+# ==========================================================
+
+# Проверяем настройки makepkg, которые используются при сборке AUR-пакетов.
+# Этот блок доказывает, что role подготовила build-конфигурацию Arch.
+- name: Verify Arch Linux — makepkg
+  when:
+    - package_manager_makepkg_enabled | bool
+  vars:
+    _package_manager_verify_makepkg_text: "{{ ((_package_manager_verify_makepkg_raw | default({})).content | default('')) | b64decode }}"
+  block:
+
+    # Проверяем каталог для makepkg drop-in файлов.
+    # Он должен существовать, чтобы отдельный конфиг роли был загружен makepkg.
+    - name: Stat /etc/makepkg.conf.d directory
+      ansible.builtin.stat:
+        path: /etc/makepkg.conf.d
+      register: _package_manager_verify_makepkg_dir
+
+    # Подтверждаем права и владельца каталога makepkg drop-ins.
+    # Каталог конфигурации сборки должен принадлежать root и быть доступен для чтения.
+    - name: Assert /etc/makepkg.conf.d directory exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_makepkg_dir.stat.exists
+          - _package_manager_verify_makepkg_dir.stat.isdir
+          - _package_manager_verify_makepkg_dir.stat.mode == '0755'
+          - _package_manager_verify_makepkg_dir.stat.pw_name == 'root'
+        fail_msg: >-
+          /etc/makepkg.conf.d missing or wrong permissions
+          (expected directory root 0755)
+        success_msg: >-
+          /etc/makepkg.conf.d exists
+          (owner={{ _package_manager_verify_makepkg_dir.stat.pw_name }},
+          mode={{ _package_manager_verify_makepkg_dir.stat.mode }})
+
+    # Проверяем файл makepkg drop-in, который пишет роль.
+    # В нем лежат MAKEFLAGS и формат пакета.
+    - name: Stat /etc/makepkg.conf.d/ansible.conf
+      ansible.builtin.stat:
+        path: /etc/makepkg.conf.d/ansible.conf
+      register: _package_manager_verify_makepkg_stat
+
+    # Подтверждаем, что makepkg drop-in существует с корректными правами.
+    # Это базовая гарантия, что makepkg сможет прочитать настройки роли.
+    - name: Assert makepkg drop-in exists with correct permissions
+      ansible.builtin.assert:
+        that:
+          - _package_manager_verify_makepkg_stat.stat.exists
+          - _package_manager_verify_makepkg_stat.stat.mode == '0644'
+          - _package_manager_verify_makepkg_stat.stat.pw_name == 'root'
+        fail_msg: "/etc/makepkg.conf.d/ansible.conf missing or wrong permissions"
+        success_msg: >-
+          /etc/makepkg.conf.d/ansible.conf exists
+          (owner={{ _package_manager_verify_makepkg_stat.stat.pw_name }},
+          mode={{ _package_manager_verify_makepkg_stat.stat.mode }})
+
+    # Читаем makepkg drop-in для проверки содержимого.
+    # Это нужно, чтобы убедиться не только в наличии файла, но и в правильных значениях.
+    - name: Read /etc/makepkg.conf.d/ansible.conf
+      ansible.builtin.slurp:
+        src: /etc/makepkg.conf.d/ansible.conf
+      register: _package_manager_verify_makepkg_raw
+
+    # Проверяем, что makepkg drop-in действительно прочитан.
+    # Если Ansible не получил содержимое, дальнейшие assertions не имеют смысла.
+    - name: Assert slurp returned content (makepkg)
+      ansible.builtin.assert:
+        that: "'content' in _package_manager_verify_makepkg_raw"
+        fail_msg: "slurp /etc/makepkg.conf.d/ansible.conf returned no content"
+        success_msg: "/etc/makepkg.conf.d/ansible.conf content successfully read"
+
+    # Проверяем маркер Ansible в makepkg drop-in.
+    # Он показывает, что файл создан ролью, а не вручную.
+    - name: Assert makepkg conf managed by Ansible
+      ansible.builtin.assert:
+        that: "'Managed by Ansible' in _package_manager_verify_makepkg_text"
+        fail_msg: "/etc/makepkg.conf.d/ansible.conf missing Ansible marker"
+        success_msg: "/etc/makepkg.conf.d/ansible.conf contains Ansible marker"
+
+    # Проверяем, что MAKEFLAGS содержит параллельную сборку.
+    # Это подтверждает оптимизацию сборки AUR-пакетов.
+    - name: Assert MAKEFLAGS with -j flag present in makepkg conf
+      ansible.builtin.assert:
+        that:
+          - "'MAKEFLAGS=' in _package_manager_verify_makepkg_text"
+          - "'-j' in _package_manager_verify_makepkg_text"
+        fail_msg: "MAKEFLAGS with -j flag not found in /etc/makepkg.conf.d/ansible.conf"
+        success_msg: "MAKEFLAGS with -j flag confirmed in /etc/makepkg.conf.d/ansible.conf"
+
+    # Проверяем формат архива пакета, который будет создавать makepkg.
+    # Значение должно совпадать с публичной переменной роли.
+    - name: Assert PKGEXT value matches variable
+      ansible.builtin.assert:
+        that: >-
+          "PKGEXT='" ~ package_manager_makepkg_pkgext ~ "'"
+          in _package_manager_verify_makepkg_text
+        fail_msg: >-
+          PKGEXT not set to {{ package_manager_makepkg_pkgext }}
+          in /etc/makepkg.conf.d/ansible.conf
+        success_msg: "PKGEXT='{{ package_manager_makepkg_pkgext }}' confirmed in /etc/makepkg.conf.d/ansible.conf"
+
+# ==========================================================

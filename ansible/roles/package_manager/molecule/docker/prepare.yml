@@ -1,14 +1,20 @@
 ---
+# Подготавливаем контейнеры перед тестом роли.
+# Здесь обновляются только кэши пакетных менеджеров, чтобы converge не падал на пустой базе.
 - name: Prepare
   hosts: all
   become: true
   gather_facts: true
   tasks:
+    # На Arch контейнере обновляем базу pacman перед установкой pacman-contrib/yay dependencies.
+    # Это снижает шум тестов и проверяет роль на свежем индексе пакетов.
     - name: Update pacman package cache
       community.general.pacman:
         update_cache: true
       when: ansible_os_family == 'Archlinux'
 
+    # На Debian/Ubuntu контейнере обновляем apt cache перед проверками.
+    # Без этого apt может не найти пакеты в чистом контейнере.
     - name: Update apt package cache
       ansible.builtin.apt:
         update_cache: true
