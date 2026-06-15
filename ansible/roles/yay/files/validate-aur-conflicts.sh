@@ -10,25 +10,7 @@ set -euo pipefail
 
 rc=0
 for pkg in $AUR_PACKAGES; do
-  yay_info=""
-  yay_error=$(mktemp)
-  for attempt in 1 2 3 4 5; do
-    if yay_info=$(yay -Si "$pkg" 2>"$yay_error"); then
-      break
-    fi
-
-    if [ "$attempt" -eq 5 ]; then
-      echo "ERROR: unable to query AUR metadata for '$pkg' after $attempt attempts" >&2
-      cat "$yay_error" >&2
-      rm -f "$yay_error"
-      exit 1
-    fi
-
-    sleep 10
-  done
-  rm -f "$yay_error"
-
-  provides=$(printf '%s\n' "$yay_info" | awk '/^Provides/{$1=""; gsub(/[>=<][^ ]*/, ""); print}')
+  provides=$(yay -Si "$pkg" 2>/dev/null | awk '/^Provides/{$1=""; gsub(/[>=<][^ ]*/, ""); print}')
   for p in $provides; do
     [ -z "$p" ] && continue
     if echo "$OFFICIAL_PACKAGES" | grep -qxF "$p" && ! echo "$CONFLICT_EXCEPTIONS" | grep -qxF "$p"; then
