@@ -70,6 +70,10 @@
         dest: "{{ yay_build_dir.path }}/yay"
         depth: 1
         version: master
+      register: yay_clone_result
+      retries: 5
+      delay: 10
+      until: yay_clone_result is succeeded
 
     - name: Build yay package
       vars:
