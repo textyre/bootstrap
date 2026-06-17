@@ -1,5 +1,5 @@
 ---
-# Runtime hostname postconditions are verified by the role itself.
+# Runtime hostname and managed /etc/hosts postconditions are verified by the role.
 # Molecule keeps regression checks that sit outside the role's direct contract.
 
 - name: Verify
@@ -13,21 +13,6 @@
       ansible.builtin.slurp:
         src: /etc/hosts
       register: _hostname_verify_hosts_raw
-
-    - name: Assert exactly one 127.0.1.1 line in /etc/hosts
-      ansible.builtin.assert:
-        that:
-          - >-
-            _hostname_verify_hosts_text
-            | regex_findall('^127\.0\.1\.1', multiline=True)
-            | length == 1
-        fail_msg: >-
-          Expected exactly one '127.0.1.1' line in /etc/hosts, found:
-          {{ _hostname_verify_hosts_text
-             | regex_findall('^127\.0\.1\.1', multiline=True)
-             | length }}
-      vars:
-        _hostname_verify_hosts_text: "{{ _hostname_verify_hosts_raw.content | b64decode }}"
 
     - name: Assert localhost entry is preserved in /etc/hosts
       ansible.builtin.assert:
