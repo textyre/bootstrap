@@ -1,5 +1,0 @@
----
-# === Void Linux specifics ===
-# runit reads /etc/hostname directly
-
-_hostname_strategy: generic

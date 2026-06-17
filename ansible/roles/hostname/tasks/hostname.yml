@@ -1,0 +1,14 @@
+---
+# === System hostname phase ===
+
+- name: Configure system hostname
+  ansible.builtin.include_tasks: configure/hostname.yml
+  tags: ['hostname']
+
+- name: Verify system hostname
+  ansible.builtin.include_tasks: verify/hostname.yml
+  tags: ['hostname']
+
+- name: Report system hostname
+  ansible.builtin.include_tasks: report/hostname.yml
+  tags: ['hostname', 'report']

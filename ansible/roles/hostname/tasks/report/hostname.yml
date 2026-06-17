@@ -1,0 +1,12 @@
+---
+# === System hostname report ===
+
+- name: "Report: Hostname"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_hostname_phases"
+    common_rpt_phase: "Set hostname"
+    common_rpt_detail: "{{ hostname_name }}"
+  tags: ['hostname', 'report']
