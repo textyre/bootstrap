@@ -116,5 +116,5 @@ against the same `shared/converge.yml` and `shared/verify.yml`.
 
 **Edge cases tested:**
 - Invalid `hostname_name` (negative test: role rejects `-invalid-` via assert)
-- Role-level verify covers hostname, `/etc/hostname`, expected `/etc/hosts` entry, and duplicate `127.0.1.1` detection
+- Role-level verify covers hostname, `/etc/hostname`, and the expected `/etc/hosts` entry
 - Molecule verify only covers localhost preservation outside the role's direct postconditions
