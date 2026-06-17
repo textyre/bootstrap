@@ -110,11 +110,11 @@ against the same `shared/converge.yml` and `shared/verify.yml`.
 
 | Scenario | Platforms | What is tested |
 |----------|-----------|----------------|
-| default | localhost | Syntax check, converge + idempotence, verify — hostname + /etc/hosts with FQDN |
-| docker | Arch + Ubuntu (systemd) | Full cycle with Docker containers: hostname set, /etc/hosts managed, FQDN entry, no duplicates, localhost preserved |
+| default | localhost | Syntax check, converge, idempotence, and `/etc/hosts` regression checks |
+| docker | Arch + Ubuntu (systemd) | Full cycle with Docker containers: role runtime verify, idempotence, no duplicate `127.0.1.1`, localhost preserved |
 | vagrant | Arch + Ubuntu (KVM) | Full cycle on real VMs: same checks as docker but with kernel-level hostname operations |
 
 **Edge cases tested:**
 - Invalid `hostname_name` (negative test: role rejects `-invalid-` via assert)
-- Verify checks are data-driven via `extra-vars` (no hardcoded values in role verification)
-- Both with-domain and no-domain paths covered in verification logic
+- Role-level verify covers hostname, `/etc/hostname`, and expected `/etc/hosts` entry
+- Molecule verify only covers regression checks outside the role's direct postconditions
