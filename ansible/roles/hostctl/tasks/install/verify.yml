@@ -11,9 +11,7 @@
 - name: Assert pinned hostctl version is installed
   ansible.builtin.assert:
     that:
-      - hostctl_version == 'latest' or _hostctl_requested_version in _hostctl_verify_version.stdout
+      - hostctl_version == 'latest' or hostctl_version in _hostctl_verify_version.stdout
     fail_msg: "Expected hostctl {{ hostctl_version }}, got {{ _hostctl_verify_version.stdout }}"
     quiet: true
-  vars:
-    _hostctl_requested_version: "{{ hostctl_version | regex_replace('^v', '') }}"
   tags: ['hostctl', 'hostctl:install']
