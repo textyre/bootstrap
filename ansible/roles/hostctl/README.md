@@ -30,7 +30,7 @@ postconditions.
 | Variable | Default | Description |
 |---|---|---|
 | `hostctl_enabled` | `true` | Skips the role when `false` |
-| `hostctl_version` | `"latest"` | Version to install. `"latest"` accepts any installed version unless `hostctl_force_update` is `true`; pin to a GitHub tag such as `"v1.1.4"` for reproducibility |
+| `hostctl_version` | `"latest"` | Version to install. `"latest"` accepts any installed version unless `hostctl_force_update` is `true`; pin to a hostctl version such as `"1.1.4"` for reproducibility |
 | `hostctl_force_update` | `false` | Re-download when `hostctl_version: "latest"` is already installed |
 | `hostctl_install_dir` | `/usr/local/bin` | Directory where the binary is installed |
 | `hostctl_verify_checksum` | `true` | Require release checksum verification |

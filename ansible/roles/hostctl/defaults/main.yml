@@ -2,7 +2,7 @@
 # === hostctl — profile-based /etc/hosts management ===
 
 hostctl_enabled: true
-hostctl_version: "latest"       # "latest" = GitHub API, or pinned tag like "v1.1.4"
+hostctl_version: "latest"       # "latest" = GitHub API, or pinned version like "1.1.4"
 hostctl_force_update: false     # re-download even when "latest" binary already present
 hostctl_install_dir: /usr/local/bin
 hostctl_verify_checksum: true   # fail if no checksum file available in release

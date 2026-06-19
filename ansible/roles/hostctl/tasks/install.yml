@@ -12,13 +12,14 @@
 
 - name: Install hostctl from GitHub release when needed
   vars:
+    _hostctl_expected_version_output: "hostctl version {{ hostctl_version }}"
     _hostctl_install_required: >-
       {{
         hostctl_force_update | bool
         or _hostctl_installed_version.rc != 0
         or (
           hostctl_version != 'latest'
-          and hostctl_version not in (_hostctl_installed_version.stdout | default(''))
+          and _hostctl_expected_version_output not in (_hostctl_installed_version.stdout | default(''))
         )
       }}
   block:

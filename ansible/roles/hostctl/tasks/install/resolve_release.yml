@@ -9,4 +9,4 @@
       Accept: application/vnd.github+json
   register: hostctl_release
   vars:
-    _hostctl_release_path: "{{ 'latest' if hostctl_version == 'latest' else 'tags/' ~ hostctl_version }}"
+    _hostctl_release_path: "{{ 'latest' if hostctl_version == 'latest' else 'tags/v' ~ hostctl_version }}"

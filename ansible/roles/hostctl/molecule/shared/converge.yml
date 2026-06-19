@@ -7,7 +7,7 @@
   roles:
     - role: hostctl
       vars:
-        hostctl_version: "v1.1.4"
+        hostctl_version: "1.1.4"
         hostctl_verify_checksum: true
         hostctl_hosts_entries:
           - ip: "127.0.0.1"
@@ -30,7 +30,7 @@
           ansible.builtin.include_role:
             name: hostctl
           vars:
-            hostctl_version: "v1.1.4"
+            hostctl_version: "1.1.4"
             hostctl_hosts_entries:
               - ip: "127.0.0.1"
                 hosts: ["localhost"]
