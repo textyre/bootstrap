@@ -1,4 +1,10 @@
 ---
 # === Внутренние маппинги (не для пользователя) ===
-# Per-OS strategy is loaded from vars/{os_family}.yml via include_vars.
-# This file is kept for any shared internal variables.
+
+_hostname_strategy_by_os:
+  Archlinux: systemd
+  Debian: debian
+  RedHat: redhat
+  Void: generic
+  Gentoo: generic
+_hostname_strategy: "{{ _hostname_strategy_by_os[ansible_facts['os_family']] }}"

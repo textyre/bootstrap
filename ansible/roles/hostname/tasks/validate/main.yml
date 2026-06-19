@@ -1,0 +1,42 @@
+---
+# === Hostname validation ===
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _hostname_strategy_by_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _hostname_strategy_by_os.keys() | list | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['hostname']
+
+- name: Assert hostname_name is provided and valid
+  ansible.builtin.assert:
+    that:
+      - hostname_name is defined
+      - hostname_name | length > 0
+      - hostname_name == hostname_name | trim
+      - hostname_name is match(_hostname_name_regex)
+    fail_msg: >-
+      hostname_name is required and must be a valid hostname
+      (letters, digits, hyphens only; max 63 chars; no leading/trailing hyphen).
+      Set it in group_vars, host_vars, or playbook vars.
+    success_msg: "hostname_name = '{{ hostname_name }}'"
+  vars:
+    _hostname_name_regex: '^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+  tags: ['hostname']
+
+- name: Assert hostname_domain is valid when provided
+  ansible.builtin.assert:
+    that:
+      - hostname_domain == hostname_domain | trim
+      - hostname_domain is match(_hostname_domain_regex)
+      - hostname_domain | length == 0 or (hostname_name ~ '.' ~ hostname_domain) | length <= 253
+    fail_msg: >-
+      hostname_domain must be empty or a valid DNS domain suffix, and the
+      resulting FQDN must be 253 characters or shorter.
+    success_msg: "hostname_domain = '{{ hostname_domain }}'"
+  vars:
+    _hostname_domain_regex: '^$|^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'
+  tags: ['hostname']

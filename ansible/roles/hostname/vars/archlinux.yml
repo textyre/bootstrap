@@ -1,4 +1,0 @@
----
-# === Arch Linux specifics ===
-
-_hostname_strategy: systemd

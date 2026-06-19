@@ -1,5 +1,7 @@
 ---
-# Values come from extra-vars in each molecule.yml (ROLE-014: no hardcoded values)
+# Runtime hostname and managed /etc/hosts postconditions are verified by the role.
+# Molecule keeps regression checks that sit outside the role's direct contract.
+
 - name: Verify
   hosts: all
   become: true
@@ -7,106 +9,10 @@
 
   tasks:
 
-    # ---- hostname exact match ----
-    # No inetutils in arch-systemd image: use python3 socket instead of hostname command.
-
-    - name: Get current hostname via python3 socket
-      ansible.builtin.command:
-        cmd: python3 -c "import socket; print(socket.gethostname())"
-      register: _hostname_verify_current
-      changed_when: false
-
-    - name: Assert hostname matches expected value
-      ansible.builtin.assert:
-        that:
-          - _hostname_verify_current.stdout | trim == verify_hostname_name
-        fail_msg: >-
-          Hostname mismatch: got '{{ _hostname_verify_current.stdout | trim }}',
-          expected '{{ verify_hostname_name }}'
-
-    # ---- /etc/hostname file content ----
-
-    - name: Read /etc/hostname
-      ansible.builtin.slurp:
-        src: /etc/hostname
-      register: _hostname_verify_hostname_file
-
-    - name: Assert /etc/hostname was read successfully
-      ansible.builtin.assert:
-        that:
-          - "'content' in _hostname_verify_hostname_file"
-        fail_msg: "Failed to read /etc/hostname"
-
-    - name: Assert /etc/hostname contains expected hostname
-      ansible.builtin.assert:
-        that:
-          - _hostname_verify_hostname_file.content | b64decode | trim == verify_hostname_name
-        fail_msg: >-
-          /etc/hostname mismatch: got '{{ _hostname_verify_hostname_file.content | b64decode | trim }}',
-          expected '{{ verify_hostname_name }}'
-
-    # ---- /etc/hosts FQDN entry (when domain is set) ----
-
     - name: Read /etc/hosts
       ansible.builtin.slurp:
         src: /etc/hosts
       register: _hostname_verify_hosts_raw
-
-    - name: Assert /etc/hosts was read successfully
-      ansible.builtin.assert:
-        that:
-          - "'content' in _hostname_verify_hosts_raw"
-        fail_msg: "Failed to read /etc/hosts"
-
-    - name: Decode /etc/hosts content
-      ansible.builtin.set_fact:
-        _hostname_verify_hosts_text: "{{ _hostname_verify_hosts_raw.content | b64decode }}"
-
-    - name: Assert FQDN entry is present in /etc/hosts
-      ansible.builtin.assert:
-        that:
-          - "'127.0.1.1' in _hostname_verify_hosts_text"
-          - >-
-            verify_hostname_name ~ '.' ~ verify_hostname_domain
-            in _hostname_verify_hosts_text
-          - "verify_hostname_name in _hostname_verify_hosts_text"
-        fail_msg: >-
-          /etc/hosts is missing expected FQDN entry.
-          Expected line containing '127.0.1.1',
-          '{{ verify_hostname_name }}.{{ verify_hostname_domain }}',
-          and '{{ verify_hostname_name }}'.
-          Actual content:
-          {{ _hostname_verify_hosts_text }}
-      when: verify_hostname_domain | default('') | length > 0
-
-    - name: Assert short hostname entry is present in /etc/hosts (no domain)
-      ansible.builtin.assert:
-        that:
-          - "'127.0.1.1' in _hostname_verify_hosts_text"
-          - "verify_hostname_name in _hostname_verify_hosts_text"
-        fail_msg: >-
-          /etc/hosts is missing expected hostname entry.
-          Expected line containing '127.0.1.1' and '{{ verify_hostname_name }}'.
-          Actual content:
-          {{ _hostname_verify_hosts_text }}
-      when: verify_hostname_domain | default('') | length == 0
-
-    # ---- no duplicate 127.0.1.1 entries ----
-
-    - name: Assert exactly one 127.0.1.1 line in /etc/hosts
-      ansible.builtin.assert:
-        that:
-          - >-
-            _hostname_verify_hosts_text
-            | regex_findall('^127\.0\.1\.1', multiline=True)
-            | length == 1
-        fail_msg: >-
-          Expected exactly one '127.0.1.1' line in /etc/hosts, found:
-          {{ _hostname_verify_hosts_text
-             | regex_findall('^127\.0\.1\.1', multiline=True)
-             | length }}
-
-    # ---- 127.0.0.1 localhost entry preserved ----
 
     - name: Assert localhost entry is preserved in /etc/hosts
       ansible.builtin.assert:
@@ -117,17 +23,5 @@
           /etc/hosts is missing the 127.0.0.1 localhost entry.
           Actual content:
           {{ _hostname_verify_hosts_text }}
-
-    # ---- summary ----
-
-    - name: Show result
-      ansible.builtin.debug:
-        msg:
-          - "Hostname check passed!"
-          - "Hostname: {{ _hostname_verify_current.stdout | trim }}"
-          - "/etc/hostname: {{ _hostname_verify_hostname_file.content | b64decode | trim }}"
-          - >-
-            /etc/hosts: 127.0.1.1
-            {{ verify_hostname_name ~ '.' ~ verify_hostname_domain ~ ' ' ~ verify_hostname_name
-               if verify_hostname_domain | default('') | length > 0
-               else verify_hostname_name }}
+      vars:
+        _hostname_verify_hosts_text: "{{ _hostname_verify_hosts_raw.content | b64decode }}"

@@ -1,91 +1,19 @@
 ---
 # === Hostname + /etc/hosts ===
-# Имя машины, /etc/hosts
-# Каждый блок: Действие → Проверка → Логирование
+# validate -> hostname -> hosts -> final report
 
-# ---- Preflight: OS family check (ROLE-003) ----
-
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in _hostname_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _hostname_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+- name: Validate hostname role inputs
+  ansible.builtin.include_tasks: validate/main.yml
   tags: ['hostname']
 
-# ---- Load OS-specific vars (ROLE-001) ----
-
-- name: Include OS-specific variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+- name: Manage system hostname
+  ansible.builtin.include_tasks: hostname.yml
   tags: ['hostname']
 
-# ---- Input validation ----
-
-- name: Assert hostname_name is provided and valid
-  ansible.builtin.assert:
-    that:
-      - hostname_name is defined
-      - hostname_name | length > 0
-      - hostname_name is match('^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$')
-    fail_msg: >-
-      hostname_name is required and must be a valid hostname
-      (letters, digits, hyphens only; max 63 chars; no leading/trailing hyphen).
-      Set it in group_vars, host_vars, or playbook vars.
-  tags: ['hostname']
-
-# ======================================================================
-# ---- Hostname ----
-# ======================================================================
-
-- name: Set hostname
-  ansible.builtin.hostname:
-    name: "{{ hostname_name }}"
-    use: "{{ _hostname_strategy }}"
-  tags: ['hostname']
-
-# Логирование
-- name: "Report: Hostname"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_hostname_phases"
-    common_rpt_phase: "Set hostname"
-    common_rpt_detail: "{{ hostname_name }}"
-  tags: ['hostname', 'report']
-
-# ======================================================================
-# ---- /etc/hosts ----
-# ======================================================================
-
-- name: Configure /etc/hosts
+- name: Manage hostname hosts entry
   ansible.builtin.include_tasks: hosts.yml
   tags: ['hostname']
 
-# ======================================================================
-# ---- Verification (ROLE-005) ----
-# ======================================================================
-
-- name: Verify hostname
-  ansible.builtin.include_tasks: verify.yml
-  tags: ['hostname']
-
-# ======================================================================
-# ---- Итоговый отчёт ----
-# ======================================================================
-
-- name: "Hostname — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_hostname_phases"
-    common_rpt_title: "hostname"
-    common_rpt_footer_rows:
-      - >-
-        | {{ '%-26s' | format('OS') }}
-        | {{ '%-10s' | format(ansible_facts['os_family']) }}
-        | {{ '%-24s' | format(ansible_facts['distribution'] | default('unknown')) }} |
+- name: Render hostname execution report
+  ansible.builtin.include_tasks: report/final.yml
   tags: ['hostname', 'report']

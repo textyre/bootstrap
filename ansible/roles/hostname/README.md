@@ -6,6 +6,7 @@ Sets the system hostname and manages the `127.0.1.1` entry in `/etc/hosts`.
 
 - [x] Asserts OS family is supported (ROLE-003 preflight)
 - [x] Validates `hostname_name` (required, RFC-compliant regex check)
+- [x] Validates `hostname_domain` when provided
 - [x] Sets hostname via `ansible.builtin.hostname` with OS-appropriate strategy
 - [x] Manages `127.0.1.1` line in `/etc/hosts` (FQDN optional)
 - [x] Verifies hostname via python3 socket (cross-platform, ROLE-002)
@@ -13,12 +14,23 @@ Sets the system hostname and manages the `127.0.1.1` entry in `/etc/hosts`.
 - [x] Verifies `/etc/hosts` entry via ansible-native lineinfile check (ROLE-011)
 - [x] Reports each phase via the `common` role
 
+## Execution order
+
+```
+validate -> hostname -> hosts -> final report
+```
+
+`tasks/main.yml` is only the top-level phase router. `tasks/hostname.yml`
+and `tasks/hosts.yml` own their internal configure -> verify -> report flow.
+Public inputs live in `defaults/main.yml`; role-wide internal mappings live in
+`vars/main.yml`.
+
 ## Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `hostname_name` | `""` | **Required.** Static hostname. Must match `^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$` |
-| `hostname_domain` | `""` | Optional FQDN suffix. If set, inserts `127.0.1.1 host.domain\thost`; otherwise `127.0.1.1 host` |
+| `hostname_domain` | `""` | Optional DNS domain suffix. If set, inserts `127.0.1.1 host.domain host`; otherwise `127.0.1.1 host` |
 
 ## Supported platforms
 
@@ -54,7 +66,7 @@ Skip reporting in automated pipelines: `--skip-tags report`
 Resulting `/etc/hosts` entry:
 
 ```
-127.0.1.1	archbox.example.com	archbox
+127.0.1.1 archbox.example.com archbox
 ```
 
 Without `hostname_domain`:
@@ -64,7 +76,7 @@ hostname_name: "archbox"
 ```
 
 ```
-127.0.1.1	archbox
+127.0.1.1 archbox
 ```
 
 ## Testing
@@ -98,11 +110,11 @@ against the same `shared/converge.yml` and `shared/verify.yml`.
 
 | Scenario | Platforms | What is tested |
 |----------|-----------|----------------|
-| default | localhost | Syntax check, converge + idempotence, verify — hostname + /etc/hosts with FQDN |
-| docker | Arch + Ubuntu (systemd) | Full cycle with Docker containers: hostname set, /etc/hosts managed, FQDN entry, no duplicates, localhost preserved |
+| default | localhost | Syntax check, converge, idempotence, and localhost preservation check |
+| docker | Arch + Ubuntu (systemd) | Full cycle with Docker containers: role runtime verify, idempotence, localhost preserved |
 | vagrant | Arch + Ubuntu (KVM) | Full cycle on real VMs: same checks as docker but with kernel-level hostname operations |
 
 **Edge cases tested:**
 - Invalid `hostname_name` (negative test: role rejects `-invalid-` via assert)
-- Verify checks are data-driven via `extra-vars` (no hardcoded values in verify.yml)
-- Both with-domain and no-domain paths covered in verify.yml logic
+- Role-level verify covers hostname, `/etc/hostname`, and the expected `/etc/hosts` entry
+- Molecule verify only covers localhost preservation outside the role's direct postconditions

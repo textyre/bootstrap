@@ -1,0 +1,39 @@
+---
+# === System hostname verification ===
+
+- name: Verify runtime hostname
+  ansible.builtin.command:
+    cmd: python3 -c "import socket; print(socket.gethostname())"
+  register: _hostname_verify_runtime
+  changed_when: false
+  failed_when: _hostname_verify_runtime.rc != 0
+  tags: ['hostname']
+
+- name: Assert runtime hostname matches expected value
+  ansible.builtin.assert:
+    that:
+      - _hostname_verify_runtime.stdout | trim == hostname_name
+    fail_msg: >-
+      Hostname mismatch: got '{{ _hostname_verify_runtime.stdout | trim }}',
+      expected '{{ hostname_name }}'
+    success_msg: "Hostname '{{ hostname_name }}' verified"
+    quiet: true
+  tags: ['hostname']
+
+- name: Read /etc/hostname
+  ansible.builtin.slurp:
+    src: /etc/hostname
+  register: _hostname_etc_hostname
+  tags: ['hostname']
+
+- name: Assert /etc/hostname matches expected hostname
+  ansible.builtin.assert:
+    that:
+      - _hostname_etc_hostname.content | b64decode | trim == hostname_name
+    fail_msg: >-
+      /etc/hostname mismatch: got
+      '{{ _hostname_etc_hostname.content | b64decode | trim }}',
+      expected '{{ hostname_name }}'
+    success_msg: "/etc/hostname contains '{{ hostname_name }}'"
+    quiet: true
+  tags: ['hostname']

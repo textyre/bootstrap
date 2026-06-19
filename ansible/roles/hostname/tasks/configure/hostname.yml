@@ -1,0 +1,8 @@
+---
+# === System hostname configuration ===
+
+- name: Set system hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname_name }}"
+    use: "{{ _hostname_strategy }}"
+  tags: ['hostname']

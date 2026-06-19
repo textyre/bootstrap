@@ -35,5 +35,8 @@
         - name: Assert the failure message mentions hostname validation
           ansible.builtin.assert:
             that:
-              - ansible_failed_result.msg is defined or true
+              - ansible_failed_result is defined
+              - >-
+                'hostname_name is required and must be a valid hostname'
+                in (ansible_failed_result | to_json)
             success_msg: "Role correctly rejected invalid hostname"
