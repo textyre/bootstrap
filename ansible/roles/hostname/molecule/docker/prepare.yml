@@ -1,12 +1,11 @@
 ---
 # Docker bind-mounts /etc/hostname and /etc/hosts from Docker-managed host paths.
-# Atomic rename (used by systemd-hostnamed via hostnamectl and by Ansible's lineinfile)
-# fails across mount point boundaries with EXDEV. Unmounting restores them as regular
-# overlay files, so hostnamectl and lineinfile work without workarounds.
+# Atomic rename used by systemd-hostnamed via hostnamectl fails across mount
+# point boundaries with EXDEV. Unmounting restores /etc/hostname as a regular
+# overlay file so hostnamectl works inside the container scenario.
 #
 # Pattern A: hostname is set via molecule.yml platforms + prepare.yml writes /etc/hostname
-# so the Ansible hostname module sees no change needed. Tests /etc/hosts logic without
-# the kernel syscall that systemd refuses inside containers (EBUSY).
+# so the Ansible hostname module sees no change needed.
 - name: Prepare
   hosts: all
   become: true

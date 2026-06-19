@@ -1,0 +1,12 @@
+---
+# === hostctl release resolution ===
+
+- name: Query latest hostctl release from GitHub API
+  ansible.builtin.uri:
+    url: "{{ _hostctl_release_api_url }}/{{ _hostctl_release_path }}"
+    return_content: true
+    headers:
+      Accept: application/vnd.github+json
+  register: hostctl_release
+  vars:
+    _hostctl_release_path: "{{ 'latest' if hostctl_version == 'latest' else 'tags/v' ~ hostctl_version }}"

@@ -1,115 +1,87 @@
 # hostctl
 
-Installs the [hostctl](https://github.com/guumaster/hostctl) CLI tool and manages
-`/etc/hosts` profiles. hostctl enables multiple named profiles with enable/disable
-semantics without manual editing of `/etc/hosts`.
+Installs the [hostctl](https://github.com/guumaster/hostctl) CLI from GitHub
+releases and manages named `/etc/hosts` profiles.
 
-## Requirements
+## What this role does
 
-- Ansible 2.15+
-- `become: true` (root access required)
-- Outbound HTTPS access to `api.github.com` and `github.com` (for GitHub releases fallback)
+- [x] Validates supported OS family and CPU architecture before mutation
+- [x] Validates public role inputs and profile shape
+- [x] Installs `hostctl` into `hostctl_install_dir`
+- [x] Verifies the installed binary and pinned version when applicable
+- [x] Owns `/etc/hosts` from role variables
+- [x] Manages enabled hostctl profiles
+- [x] Verifies enabled profile status through `hostctl`
 
-## Supported distributions
+## Execution order
 
-Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
+```text
+validate -> install binary -> verify binary -> profiles
+```
 
-## Installation strategy
+`tasks/main.yml` is only the top-level phase router. The install phase owns
+the idempotency precheck and GitHub release installation method, while binary
+verification asserts the installed command contract. The profiles phase owns
+configure plus profile verification. Molecule tests do not repeat role
+postconditions.
 
-The role uses a three-tier fallback:
-
-1. **Package manager** (`ansible.builtin.package`) — for non-Arch systems. Fails
-   silently if no system package is available (no official apt/dnf repo exists upstream).
-2. **AUR** (`kewlfft.aur.aur: hostctl-bin`) — for Arch Linux via `yay`.
-3. **GitHub releases** — downloads the Linux tarball, optionally verifies SHA256
-   checksum, extracts binary to `hostctl_install_dir`. Used as fallback when tiers
-   1 and 2 produce nothing.
-
-On Ubuntu, tiers 1 and 2 are skipped (no apt repo, not Arch); tier 3 is the active path.
-On Arch, tier 2 runs first; tier 3 fires only if `yay` is absent or AUR install fails.
-
-## Role variables
+## Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `hostctl_enabled` | `true` | Guard — role is a no-op when `false` |
-| `hostctl_version` | `"latest"` | Version to install. `"latest"` resolves via GitHub API; pin to e.g. `"1.1.4"` for reproducibility |
-| `hostctl_install_dir` | `/usr/local/bin` | Directory the binary is placed into |
-| `hostctl_github_repo` | `"guumaster/hostctl"` | GitHub repository for release downloads |
-| `hostctl_github_api` | `"https://api.github.com"` | GitHub API base URL |
-| `hostctl_verify_checksum` | `true` | Verify SHA256 checksum of the downloaded tarball |
-| `hostctl_profiles` | `{}` | Map of profile name → list of `{ip, host}` entries |
+| `hostctl_enabled` | `true` | Skips the role when `false` |
+| `hostctl_version` | `"latest"` | Version to install. `"latest"` accepts any installed version unless `hostctl_force_update` is `true`; pin to a hostctl version such as `"1.1.4"` for reproducibility |
+| `hostctl_force_update` | `false` | Re-download when `hostctl_version: "latest"` is already installed |
+| `hostctl_install_dir` | `/usr/local/bin` | Directory where the binary is installed |
+| `hostctl_verify_checksum` | `true` | Require release checksum verification |
+| `hostctl_hosts_entries` | `[]` | Required base `/etc/hosts` rows managed before hostctl profile sections, including hostname rows such as `127.0.1.1` when needed |
+| `hostctl_profiles` | `{}` | Map of profile name to entries |
 
-### Profile format
+## Profile Format
 
 ```yaml
 hostctl_profiles:
   dev:
-    - { ip: "127.0.0.1", host: "app.local" }
-    - { ip: "127.0.0.1", host: "api.local" }
-  registry:
-    - { ip: "172.17.0.1", host: "registry.local" }
+    entries:
+      - { ip: "127.0.0.1", host: "app.local" }
+      - { ip: "127.0.0.1", host: "api.local" }
 ```
 
-Each profile is deployed as `/etc/hostctl/<name>.hosts` and applied to `/etc/hosts`
-via `hostctl add domains`. The handler re-applies profiles on every change: it runs
-`hostctl remove <profile>` first to ensure idempotency.
+Each profile is rendered as an enabled hostctl section in `/etc/hosts`.
 
-## Example playbook
+## Hosts Ownership
 
-```yaml
-- name: Configure /etc/hosts profiles
-  hosts: workstations
-  become: true
-  roles:
-    - role: hostctl
-      vars:
-        hostctl_version: "1.1.4"
-        hostctl_verify_checksum: true
-        hostctl_profiles:
-          dev:
-            - { ip: "127.0.0.1", host: "app.local" }
-            - { ip: "127.0.0.1", host: "api.local" }
-```
+The role renders `/etc/hosts` as a complete file. This is intentional: clean
+systems are configured from scratch, repeated runs are idempotent, and dirty
+systems are converged back to playbook variables instead of accumulating stale
+blocks.
 
-## Notes
+The rendered file contains:
 
-- **GitHub rate limits**: When `hostctl_version: "latest"`, the role queries the
-  GitHub API on every run. The unauthenticated limit is 60 req/hr per IP. Pin the
-  version in any environment that runs the role frequently or in CI.
-- **AUR path and binary location**: The `hostctl-bin` AUR package installs to
-  `/usr/bin/hostctl`, not `/usr/local/bin/hostctl`. If AUR succeeds, the GitHub
-  fallback is skipped and the binary lands outside `hostctl_install_dir`. The docker
-  molecule scenario tests the AUR path; the vagrant scenario skips AUR to keep
-  the binary path predictable.
-- **Idempotency**: The role checks for the installed version before attempting any
-  install. If the pinned version is already present, all install tasks are skipped.
+- `hostctl_hosts_entries`
+- enabled `hostctl_profiles` sections in hostctl's native marker format
+
+## Supported Platforms
+
+The role is scoped to the project OS families: Archlinux, Debian, RedHat, Void,
+and Gentoo. GitHub release assets are supported for `x86_64`, `aarch64`, and
+`armv7l`.
 
 ## Testing
 
-### Molecule scenarios
+Molecule scenarios run syntax, converge, idempotence, and verify. Role-level
+verify covers the binary and hostctl profile state.
+Molecule verify only checks that the base `127.0.0.1 localhost` entry is still
+preserved.
 
-| Scenario | Driver | Platforms | Notes |
-|---|---|---|---|
-| `default` | localhost | host system | Runs on local machine, no container/VM |
-| `docker` | Docker | Arch systemd container | Tests AUR path; custom image with systemd |
-| `vagrant` | Vagrant/KVM | Arch VM + Ubuntu Noble VM | Tests GitHub download fallback on both platforms |
-
-Run locally (requires molecule and the appropriate driver):
+| Scenario | Driver | Platforms |
+|---|---|---|
+| `default` | localhost | host system |
+| `docker` | Docker | Arch systemd and Ubuntu systemd containers |
+| `vagrant` | Vagrant/KVM | Arch VM and Ubuntu VM |
 
 ```bash
-cd ansible/roles/hostctl
-
-# Docker scenario (fast, Arch only, tests AUR path)
 molecule test -s docker
-
-# Vagrant scenario (cross-platform, requires libvirt)
 molecule test -s vagrant
-
-# Syntax check only
 molecule syntax -s vagrant
 ```
-
-## License
-
-MIT

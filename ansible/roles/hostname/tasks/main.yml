@@ -1,6 +1,6 @@
 ---
-# === Hostname + /etc/hosts ===
-# validate -> hostname -> hosts -> final report
+# === System hostname ===
+# validate -> hostname -> final report
 
 - name: Validate hostname role inputs
   ansible.builtin.include_tasks: validate/main.yml
@@ -8,10 +8,6 @@
 
 - name: Manage system hostname
   ansible.builtin.include_tasks: hostname.yml
-  tags: ['hostname']
-
-- name: Manage hostname hosts entry
-  ansible.builtin.include_tasks: hosts.yml
   tags: ['hostname']
 
 - name: Render hostname execution report

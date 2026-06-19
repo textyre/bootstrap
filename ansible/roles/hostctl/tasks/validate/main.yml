@@ -1,0 +1,107 @@
+---
+# === hostctl validation ===
+
+- name: Validate hostctl role is enabled
+  ansible.builtin.assert:
+    that:
+      - hostctl_enabled | bool
+    fail_msg: "hostctl_enabled is false - include this role only when hostctl is needed"
+    success_msg: "hostctl role is enabled"
+  tags: ['hostctl']
+
+- name: Validate hostctl operating system support
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _hostctl_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _hostctl_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['hostctl']
+
+- name: Validate hostctl architecture support
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] in _hostctl_arch_map
+    fail_msg: >-
+      Architecture '{{ ansible_facts['architecture'] }}' is not supported.
+      Supported: {{ _hostctl_arch_map.keys() | list | join(', ') }}
+    success_msg: "Architecture '{{ ansible_facts['architecture'] }}' is supported"
+  tags: ['hostctl']
+
+- name: Validate hostctl install path
+  ansible.builtin.assert:
+    that:
+      - hostctl_install_dir is match('^/')
+    fail_msg: "hostctl_install_dir must be an absolute path"
+    success_msg: "hostctl install path is valid"
+  tags: ['hostctl']
+
+- name: Validate hostctl profile inventory shape
+  ansible.builtin.assert:
+    that:
+      - hostctl_profiles is mapping
+    fail_msg: "hostctl_profiles must be a mapping"
+    success_msg: "hostctl profile inventory is valid"
+  tags: ['hostctl']
+
+- name: Validate hostctl hosts entries shape
+  ansible.builtin.assert:
+    that:
+      - hostctl_hosts_entries is sequence
+      - hostctl_hosts_entries is not string
+      - hostctl_hosts_entries | length > 0
+    fail_msg: "hostctl_hosts_entries must be a non-empty list"
+    success_msg: "hostctl hosts entries inventory is valid"
+  tags: ['hostctl']
+
+- name: Validate hostctl hosts entries
+  ansible.builtin.assert:
+    that:
+      - item.ip is defined
+      - item.hosts is defined
+      - item.ip | string | length > 0
+      - item.ip == item.ip | trim
+      - item.hosts is sequence
+      - item.hosts is not string
+      - item.hosts | select('string') | list | length == item.hosts | length
+      - item.hosts | map('trim') | list == item.hosts
+      - item.hosts | reject('equalto', '') | list | length == item.hosts | length
+    fail_msg: >-
+      hostctl_hosts_entries contains an invalid entry.
+      Each entry must define ip and a list of host names.
+  loop: "{{ hostctl_hosts_entries }}"
+  loop_control:
+    label: "{{ item.ip | default('missing-ip') }}"
+  tags: ['hostctl']
+
+- name: Validate managed hostctl profiles define entries
+  ansible.builtin.assert:
+    that:
+      - item.value.entries is defined
+      - item.value.entries is sequence
+      - item.value.entries is not string
+      - item.value.entries | length > 0
+    fail_msg: >-
+      hostctl profile '{{ item.key }}' must define one or more entries.
+  loop: "{{ hostctl_profiles | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  tags: ['hostctl']
+
+- name: Validate hostctl profile entries
+  ansible.builtin.assert:
+    that:
+      - item.1.ip is defined
+      - item.1.host is defined
+      - item.1.ip | string | length > 0
+      - item.1.host | string | length > 0
+      - item.1.ip == item.1.ip | trim
+      - item.1.host == item.1.host | trim
+    fail_msg: >-
+      hostctl profile '{{ item.0.key }}' contains an invalid entry.
+      Each entry must define non-empty ip and host values.
+  loop: "{{ hostctl_profiles | dict2items | subelements('value.entries', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.key }}"
+  tags: ['hostctl']

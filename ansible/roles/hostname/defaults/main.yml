@@ -1,5 +1,5 @@
 ---
-# === Hostname + /etc/hosts ===
+# === System hostname ===
 
 hostname_name: ""    # REQUIRED — role will assert this is set
-hostname_domain: ""  # Optional FQDN suffix: "example.com" → 127.0.1.1 host.example.com host
+hostname_domain: ""  # Optional DNS domain suffix used by the hostname role

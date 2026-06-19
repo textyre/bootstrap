@@ -1,0 +1,18 @@
+---
+# === hostctl release archive download ===
+
+- name: Download hostctl archive
+  vars:
+    _hostctl_archive_checksum: >-
+      sha256:{{
+        (_hostctl_checksums.content | default('')).splitlines()
+        | select('search', _hostctl_archive_asset.name)
+        | first
+        | split(' ')
+        | first
+      }}
+  ansible.builtin.get_url:
+    url: "{{ _hostctl_archive_asset.browser_download_url }}"
+    dest: "{{ _hostctl_archive_path }}"
+    checksum: "{{ _hostctl_archive_checksum if hostctl_verify_checksum | bool else omit }}"
+    mode: '0644'

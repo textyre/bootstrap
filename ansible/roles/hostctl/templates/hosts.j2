@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+{% for entry in hostctl_hosts_entries %}
+{% if entry.hosts | length > 0 %}
+{{ entry.ip }} {{ entry.hosts | join(' ') }}
+{% endif %}
+{% endfor %}
+
+##################################################################
+# Content under this line is handled by hostctl. DO NOT EDIT.
+##################################################################
+{% for profile in hostctl_profiles | dictsort %}
+
+# profile.on {{ profile.0 }}
+{% for entry in profile.1.entries %}
+{{ entry.ip }} {{ entry.host }}
+{% endfor %}
+# end
+{% endfor %}

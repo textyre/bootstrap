@@ -3,8 +3,8 @@ galaxy_info:
   role_name: hostname
   author: textyre
   description: >-
-    Set system hostname and configure the 127.0.1.1 entry in /etc/hosts.
-    Supports Arch Linux, Debian, Ubuntu, RedHat/EL, Void Linux, Gentoo.
+    Set system hostname. Supports Arch Linux, Debian, Ubuntu, RedHat/EL,
+    Void Linux, Gentoo.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -20,5 +20,5 @@ galaxy_info:
       versions: [all]
     - name: Gentoo
       versions: [all]
-  galaxy_tags: [system, hostname, hosts]
+  galaxy_tags: [system, hostname]
 dependencies: []

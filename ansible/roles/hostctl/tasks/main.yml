@@ -1,23 +1,19 @@
 ---
 # === hostctl — install binary + manage /etc/hosts profiles ===
-# Entry point: asserts → install → profiles
+# validate -> install binary -> verify binary -> profiles
 
-# ---- Guard ----
-
-- name: Assert hostctl_enabled is true
-  ansible.builtin.assert:
-    that: hostctl_enabled | bool
-    fail_msg: "hostctl_enabled is false — include this role only when hostctl is needed"
-
-# ---- Install ----
+- name: Validate hostctl role inputs
+  ansible.builtin.include_tasks: validate/main.yml
+  tags: ['hostctl']
 
 - name: Install hostctl binary
   ansible.builtin.include_tasks: install.yml
   tags: ['hostctl', 'hostctl:install']
 
-# ---- Profiles ----
+- name: Verify hostctl binary
+  ansible.builtin.include_tasks: install/verify.yml
+  tags: ['hostctl', 'hostctl:install']
 
-- name: Deploy hostctl profiles
+- name: Manage hostctl profiles
   ansible.builtin.include_tasks: profiles.yml
-  when: hostctl_profiles | length > 0
   tags: ['hostctl', 'hostctl:profiles']

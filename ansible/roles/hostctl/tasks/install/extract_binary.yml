@@ -1,0 +1,25 @@
+---
+# === hostctl binary extraction and copy ===
+
+- name: Ensure hostctl extraction directory exists
+  ansible.builtin.file:
+    path: "{{ _hostctl_extract_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Extract hostctl archive
+  ansible.builtin.unarchive:
+    src: "{{ _hostctl_archive_path }}"
+    dest: "{{ _hostctl_extract_dir }}"
+    remote_src: true
+
+- name: Install hostctl binary
+  ansible.builtin.copy:
+    src: "{{ _hostctl_extract_dir }}/hostctl"
+    dest: "{{ hostctl_install_dir }}/hostctl"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0755'

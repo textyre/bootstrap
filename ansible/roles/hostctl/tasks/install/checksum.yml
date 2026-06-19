@@ -1,0 +1,26 @@
+---
+# === hostctl release checksum validation ===
+
+- name: Validate hostctl archive checksum metadata
+  block:
+
+    # URL checksum-файла передан из install.yml вместе с выбранным archive asset.
+    # Если проверка включена, падаем до скачивания бинаря без checksum.
+    - name: Ensure release provides checksum file when verification is enabled
+      ansible.builtin.assert:
+        that:
+          - not hostctl_verify_checksum or _hostctl_checksum_download_url | length > 0
+        fail_msg: >-
+          hostctl_verify_checksum is true but no checksum file found in release assets.
+          Set hostctl_verify_checksum: false to skip verification.
+        quiet: true
+
+    # Содержимое checksum-файла позже используется download_archive.yml.
+    - name: Fetch checksum file content for selected hostctl archive
+      ansible.builtin.uri:
+        url: "{{ _hostctl_checksum_download_url }}"
+        return_content: true
+      register: _hostctl_checksums
+      when:
+        - hostctl_verify_checksum
+        - _hostctl_checksum_download_url | length > 0
