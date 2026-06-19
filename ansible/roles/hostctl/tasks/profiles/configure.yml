@@ -7,6 +7,10 @@
 # Обычные строки hosts берутся только из hostctl_hosts_entries.
 # hostctl-секции строятся только из hostctl_profiles в формате, который
 # читает сам hostctl. Роль не читает переменные других ролей.
+#
+# В Docker /etc/hosts является mounted file: содержимое можно менять, но
+# atomic rename поверх файла падает с EBUSY. Поэтому только в Docker включаем
+# Ansible fallback, который пишет в существующий файл без замены inode.
 - name: Configure hostctl managed hosts file
   ansible.builtin.template:
     src: hosts.j2
@@ -14,4 +18,5 @@
     owner: root
     group: root
     mode: '0644'
+    unsafe_writes: "{{ ansible_virtualization_type | default('') == 'docker' }}"
   tags: ['hostctl', 'hostctl:profiles']
