@@ -1,0 +1,11 @@
+---
+# === hostctl release asset validation ===
+
+- name: Validate hostctl release archive for current architecture
+  ansible.builtin.assert:
+    that:
+      - _hostctl_archive_asset.browser_download_url is defined
+      - _hostctl_archive_asset.name is defined
+    fail_msg: >-
+      No hostctl Linux tarball found for architecture
+      '{{ ansible_facts['architecture'] }}'.

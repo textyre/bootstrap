@@ -1,0 +1,17 @@
+---
+# === hostctl profile configuration ===
+
+# Роль владеет /etc/hosts целиком. Это важно для convergence:
+# чистая система получает полный файл, повторный запуск не меняет совпадающий
+# файл, грязная система перезаписывается в состояние из переменных роли.
+# Обычные строки hosts берутся только из hostctl_hosts_entries.
+# hostctl-секции строятся только из hostctl_profiles в формате, который
+# читает сам hostctl. Роль не читает переменные других ролей.
+- name: Configure hostctl managed hosts file
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['hostctl', 'hostctl:profiles']

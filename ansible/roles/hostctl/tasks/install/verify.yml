@@ -1,0 +1,17 @@
+---
+# === hostctl binary verification ===
+
+- name: Verify hostctl command runs
+  ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
+  register: _hostctl_verify_version
+  changed_when: false
+  failed_when: _hostctl_verify_version.rc != 0
+  tags: ['hostctl', 'hostctl:install']
+
+- name: Assert pinned hostctl version is installed
+  ansible.builtin.assert:
+    that:
+      - hostctl_version == 'latest' or hostctl_version in _hostctl_verify_version.stdout
+    fail_msg: "Expected hostctl {{ hostctl_version }}, got {{ _hostctl_verify_version.stdout }}"
+    quiet: true
+  tags: ['hostctl', 'hostctl:install']

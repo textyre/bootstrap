@@ -1,52 +1,75 @@
 ---
-# === hostctl — installation ===
+# === hostctl binary installation ===
 # Strategy: GitHub releases (sole install method).
 # Idempotent: skips re-download if pinned version already installed.
 
-# ---- Version idempotency check ----
-
-- name: Get installed hostctl version
-  ansible.builtin.command: hostctl --version
-  register: hostctl_installed_ver
+- name: Read installed hostctl version
+  ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
+  register: _hostctl_installed_version
   changed_when: false
   failed_when: false
+  tags: ['hostctl', 'hostctl:install']
 
-- name: Set skip flag for installation
-  ansible.builtin.set_fact:
-    hostctl_skip_install: >-
-      {{ hostctl_installed_ver.rc == 0 and (
-        (hostctl_version == 'latest' and not (hostctl_force_update | bool))
-        or
-        (hostctl_version != 'latest' and hostctl_version in (hostctl_installed_ver.stdout | default('')))
-      ) }}
+- name: Install hostctl from GitHub release when needed
+  vars:
+    _hostctl_install_required: >-
+      {{
+        hostctl_force_update | bool
+        or _hostctl_installed_version.rc != 0
+        or (
+          hostctl_version != 'latest'
+          and hostctl_version not in (_hostctl_installed_version.stdout | default(''))
+        )
+      }}
+  block:
 
-- name: "Report: hostctl already installed — skipping"
-  ansible.builtin.debug:
-    msg: >-
-      hostctl {{ (hostctl_version == 'latest') | ternary('(any version)', hostctl_version) }}
-      already installed — skipping
-      {{ (hostctl_version == 'latest') | ternary('(set hostctl_force_update: true to re-download)', '') }}
-  when: hostctl_skip_install | bool
+    - name: Resolve hostctl release
+      ansible.builtin.include_tasks: install/resolve_release.yml
 
-# ---- GitHub releases install ----
+    - name: Install selected hostctl release archive
+      vars:
+        _hostctl_release_arch: "{{ _hostctl_arch_map[ansible_facts['architecture']] }}"
+        _hostctl_archive_asset: >-
+          {{
+            hostctl_release.json.assets
+            | selectattr('name', 'match', '.*linux_' ~ _hostctl_release_arch ~ '\.tar\.gz$')
+            | first
+            | default({})
+          }}
+        _hostctl_checksum_download_url: >-
+          {{
+            hostctl_release.json.assets
+            | selectattr('name', 'match', '.*checksum.*')
+            | map(attribute='browser_download_url')
+            | first
+            | default('')
+            | trim
+          }}
+      block:
 
-- name: Install hostctl from GitHub releases
-  ansible.builtin.include_tasks: download.yml
+        - name: Validate hostctl release assets
+          ansible.builtin.include_tasks: install/validate_assets.yml
+
+        - name: Verify hostctl release checksum metadata
+          ansible.builtin.include_tasks: install/checksum.yml
+
+        - name: Download hostctl release archive
+          ansible.builtin.include_tasks: install/download_archive.yml
+
+        - name: Extract and install hostctl binary
+          ansible.builtin.include_tasks: install/extract_binary.yml
+
+  always:
+
+    - name: Remove downloaded hostctl archive
+      ansible.builtin.file:
+        path: "{{ _hostctl_archive_path }}"
+        state: absent
+
+    - name: Remove hostctl extraction directory
+      ansible.builtin.file:
+        path: "{{ _hostctl_extract_dir }}"
+        state: absent
   when:
-    - not (hostctl_skip_install | bool)
+    - _hostctl_install_required | bool
     - not ansible_check_mode
-
-- name: "Note: hostctl download skipped in check mode"
-  ansible.builtin.debug:
-    msg: "hostctl download skipped — running in check mode"
-  when:
-    - not (hostctl_skip_install | bool)
-    - ansible_check_mode
-
-# ---- Final verification ----
-
-- name: Verify hostctl is installed and working
-  ansible.builtin.command: "{{ hostctl_install_dir }}/hostctl --version"
-  register: hostctl_version_check
-  changed_when: false
-  failed_when: hostctl_version_check.rc != 0

@@ -7,17 +7,48 @@
   roles:
     - role: hostctl
       vars:
-        hostctl_version: "1.1.4"
+        hostctl_version: "v1.1.4"
         hostctl_verify_checksum: true
+        hostctl_hosts_entries:
+          - ip: "127.0.0.1"
+            hosts: ["localhost"]
         hostctl_profiles:
           dev:
-            state: present
             entries:
               - { ip: "127.0.0.1", host: "app.local" }
               - { ip: "127.0.0.1", host: "api.local" }
-          registry:
-            state: absent
-          staging:
-            state: disabled
-            entries:
-              - { ip: "10.0.0.1", host: "staging.local" }
+
+- name: Negative test — invalid hostctl profile entry
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Attempt role with invalid profile entry (should fail)
+      block:
+        - name: Run hostctl role with invalid profile entry
+          ansible.builtin.include_role:
+            name: hostctl
+          vars:
+            hostctl_version: "v1.1.4"
+            hostctl_hosts_entries:
+              - ip: "127.0.0.1"
+                hosts: ["localhost"]
+            hostctl_profiles:
+              bad_entry:
+                entries:
+                  - { ip: "", host: "" }
+
+        - name: Fail if role did not reject invalid profile entry
+          ansible.builtin.fail:
+            msg: "Role should have rejected an empty hostctl profile entry"
+
+      rescue:
+        - name: Assert the failure message mentions invalid hostctl entry
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result is defined
+              - >-
+                'contains an invalid entry'
+                in (ansible_failed_result | to_json)
+            success_msg: "Role correctly rejected invalid hostctl profile entry"

@@ -1,0 +1,47 @@
+---
+# === hostctl profile verification ===
+
+# Читает все managed-профили одним вызовом hostctl.
+# Аргументы после "list" ограничивают вывод только профилями из inventory,
+# поэтому обычные строки hostctl_hosts_entries сюда не попадают.
+- name: Read hostctl profile entries
+  ansible.builtin.command: >-
+    {{ hostctl_install_dir }}/hostctl list {{ hostctl_profiles.keys() | list | join(' ') }}
+    --out raw
+    --column profile,ip,domain
+  register: _hostctl_profiles_read
+  changed_when: false
+  failed_when: _hostctl_profiles_read.rc != 0
+  tags: ['hostctl', 'hostctl:profiles']
+
+# Сравнивает два списка строк в одном формате:
+# - _hostctl_list_lines: что вернул hostctl list
+# - _hostctl_inventory_lines: что задано в hostctl_profiles
+- name: Assert hostctl profile entries match inventory
+  ansible.builtin.assert:
+    that:
+      - _hostctl_list_lines == _hostctl_inventory_lines
+    fail_msg: >-
+      hostctl list output does not match hostctl_profiles.
+      Expected: {{ _hostctl_inventory_lines }}
+      Actual: {{ _hostctl_list_lines }}
+    quiet: true
+  vars:
+    _hostctl_list_lines: >-
+      {{
+        (_hostctl_profiles_read.stdout_lines | default([]))[1:]
+        | map('regex_replace', '\s+', ' ')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+        | sort
+      }}
+    _hostctl_inventory_lines: >-
+      {%- set lines = [] -%}
+      {%- for profile in hostctl_profiles | dict2items -%}
+      {%- for entry in profile.value.entries -%}
+      {%- set _ = lines.append(profile.key ~ ' ' ~ entry.ip ~ ' ' ~ entry.host) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ lines | sort }}
+  tags: ['hostctl', 'hostctl:profiles']

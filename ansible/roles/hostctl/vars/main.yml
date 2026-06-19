@@ -1,7 +1,18 @@
 ---
 # Internal mappings — not for users
 
-hostctl_arch_map:
+_hostctl_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+_hostctl_arch_map:
   x86_64: 64-bit
   aarch64: arm64
   armv7l: armv6
+
+_hostctl_release_api_url: "https://api.github.com/repos/guumaster/hostctl/releases"
+_hostctl_archive_path: /tmp/hostctl.tar.gz
+_hostctl_extract_dir: /tmp/hostctl-extract
