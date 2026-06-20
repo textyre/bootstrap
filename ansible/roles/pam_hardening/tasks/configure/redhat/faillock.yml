@@ -18,7 +18,8 @@
   changed_when: true
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
 
-- name: "CIS 5.4.2 | Apply authselect changes (RedHat)"
+- name: "CIS 5.4.2 | Apply authselect changes (RedHat)"  # noqa: no-handler
   ansible.builtin.command: authselect apply-changes
   when: _pam_hardening_authselect_enable.changed
+  changed_when: true
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']

@@ -43,4 +43,5 @@
   when: >-
     _pam_hardening_debian_preauth_profile.changed or
     _pam_hardening_debian_authfail_profile.changed
+  changed_when: true
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
