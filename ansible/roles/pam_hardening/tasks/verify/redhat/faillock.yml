@@ -1,0 +1,17 @@
+---
+- name: Check authselect current profile
+  ansible.builtin.command: authselect current
+  register: _pam_hardening_verify_authselect
+  changed_when: false
+  failed_when: false
+  tags: ['pam_hardening']
+
+- name: Assert authselect has with-faillock feature
+  ansible.builtin.assert:
+    that:
+      - "'with-faillock' in _pam_hardening_verify_authselect.stdout"
+    fail_msg: >-
+      authselect does not have with-faillock feature enabled.
+      Output: {{ _pam_hardening_verify_authselect.stdout }}
+    success_msg: "authselect with-faillock feature verified"
+  tags: ['pam_hardening']

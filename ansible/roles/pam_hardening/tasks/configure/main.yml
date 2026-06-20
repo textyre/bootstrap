@@ -1,0 +1,4 @@
+---
+- name: Configure PAM faillock
+  ansible.builtin.include_tasks: configure/faillock.yml
+  tags: ['pam_hardening', 'pam', 'security', 'faillock']

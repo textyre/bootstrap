@@ -125,7 +125,6 @@ Phase 13: User Dotfiles (1)                        ✅
 | Роль | Phase | Описание | Детали |
 |------|-------|----------|--------|
 | [[fail2ban]] | 2 | IPS для SSH и сервисов. Банит IP после N неудачных попыток | wiki/roles/ |
-| [[pam_hardening]] | 2 | Политики паролей (pwquality), session limits, password history | wiki/roles/ |
 | [[umask]] | 2 | Системный umask 027/077 через profile.d и login.defs | wiki/roles/ |
 | [[apparmor]] | 9 | Mandatory Access Control. Профили для sshd, docker, caddy | wiki/roles/ |
 | [[auditd]] | 9 | Аудит: изменения passwd/shadow/sudoers, execve, privilege escalation | wiki/roles/ |

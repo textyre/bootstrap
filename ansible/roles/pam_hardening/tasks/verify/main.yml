@@ -1,0 +1,10 @@
+---
+- name: Verify PAM stack after pam-auth-update
+  ansible.builtin.include_tasks: verify/debian/faillock.yml
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ['pam_hardening']
+
+- name: Verify PAM stack after authselect
+  ansible.builtin.include_tasks: verify/redhat/faillock.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags: ['pam_hardening']
