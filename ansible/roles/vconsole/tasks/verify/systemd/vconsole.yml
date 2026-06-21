@@ -1,0 +1,56 @@
+---
+# === Verify console keymap: systemd-vconsole ===
+
+- name: Slurp vconsole.conf (systemd)
+  ansible.builtin.slurp:
+    src: /etc/vconsole.conf
+  register: _vconsole_verify_conf
+  tags: ['vconsole']
+
+- name: Assert KEYMAP is set in vconsole.conf (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'KEYMAP=' + vconsole_value in (_vconsole_verify_conf.content | b64decode)"
+    fail_msg: >-
+      KEYMAP={{ vconsole_value }} not found in /etc/vconsole.conf.
+      Content: {{ _vconsole_verify_conf.content | b64decode }}
+    quiet: true
+  tags: ['vconsole']
+
+- name: Assert FONT is set in vconsole.conf (systemd)
+  ansible.builtin.assert:
+    that:
+      - "'FONT=' + vconsole_console_font in (_vconsole_verify_conf.content | b64decode)"
+    fail_msg: >-
+      FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf.
+      Content: {{ _vconsole_verify_conf.content | b64decode }}
+    quiet: true
+  when: vconsole_console_font | default('') | length > 0
+  tags: ['vconsole']
+
+- name: Check systemd-vconsole-setup.service exists  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl cat systemd-vconsole-setup.service
+  register: _vconsole_service_check
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Get current keymap from localectl
+  ansible.builtin.command: localectl status
+  register: _vconsole_localectl_output
+  changed_when: false
+  when: not _vconsole_has_custom_keymap
+  tags: ['vconsole']
+
+- name: Assert keymap was applied to running console
+  ansible.builtin.assert:
+    that:
+      - >-
+        _vconsole_localectl_output.stdout is search(
+          'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
+        )
+    fail_msg: >-
+      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl
+      status. Output: {{ _vconsole_localectl_output.stdout }}
+    quiet: true
+  when: not _vconsole_has_custom_keymap
+  tags: ['vconsole']

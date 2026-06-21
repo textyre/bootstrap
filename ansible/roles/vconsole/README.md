@@ -17,7 +17,8 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 
 | Init system | Keymap file | Status |
 |---|---|---|
-| systemd | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
+| systemd (Arch/Fedora/etc.) | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
+| systemd (Debian/Ubuntu) | `/etc/default/keyboard` (`XKBLAYOUT=`) | ✅ Full |
 | openrc | `/etc/conf.d/keymaps` | ✅ Full |
 | runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Full |
 | s6 | (stub) | ⚠️ Debug message only |
@@ -69,11 +70,14 @@ With a custom font (Arch Linux):
 
 - **GPM and headless VMs**: GPM requires `/dev/input/mice` which is absent in most VMs.
   Set `vconsole_gpm_enabled: false` for Vagrant/cloud targets.
-- **Ubuntu font packages**: Ubuntu does not ship `terminus-font`. Use `fonts-terminus` or
-  leave `vconsole_console_font` empty. The keymap configuration via `/etc/vconsole.conf`
-  works on Ubuntu (systemd reads it), but is non-standard compared to `console-setup`.
-- **Handler**: `apply vconsole` restarts `systemd-vconsole-setup.service` on systemd,
-  or runs `loadkeys`/`setfont` directly on openrc/runit.
+- **Ubuntu/Debian systemd**: Ubuntu and Debian use `keyboard-configuration` /
+  `console-setup`, so this role manages `/etc/default/keyboard` instead of
+  `/etc/vconsole.conf`. The `systemd-vconsole-setup.service` unit is not part
+  of the Ubuntu 24.04 test targets.
+- **Apply behavior**: systemd-vconsole targets restart
+  `systemd-vconsole-setup.service`; Debian-family systemd targets restart
+  `keyboard-setup.service` on a best-effort basis. OpenRC/runit targets run
+  `loadkeys`/`setfont` directly.
 
 ## Test Cases
 

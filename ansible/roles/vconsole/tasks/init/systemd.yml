@@ -1,57 +1,12 @@
 ---
-# === Console keymap: systemd ===
-# /etc/vconsole.conf — managed line-by-line to avoid overwriting other entries
+# === Console keymap: systemd backend router ===
 
-- name: Set KEYMAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^KEYMAP='
-    line: "KEYMAP={{ vconsole_value }}"
-    create: true
-    owner: root
-    group: root
-    mode: '0644'
-  register: _vconsole_keymap
+- name: Configure console keymap (systemd, Debian family)
+  ansible.builtin.include_tasks: systemd/debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
   tags: ['vconsole']
 
-- name: Set FONT in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT='
-    line: "FONT={{ vconsole_console_font }}"
-    create: true
-    owner: root
-    group: root
-    mode: '0644'
-  register: _vconsole_font
-  tags: ['vconsole']
-
-- name: Set FONT_MAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_MAP='
-    line: "FONT_MAP={{ vconsole_console_font_map }}"
-  register: _vconsole_font_map
-  when: _vconsole_has_font_map
-  tags: ['vconsole']
-
-- name: Set FONT_UNIMAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_UNIMAP='
-    line: "FONT_UNIMAP={{ vconsole_console_font_unimap }}"
-  register: _vconsole_font_unimap
-  when: _vconsole_has_font_unimap
-  tags: ['vconsole']
-
-- name: Apply vconsole settings (systemd)
-  ansible.builtin.systemd:
-    name: systemd-vconsole-setup.service
-    state: restarted
-  failed_when: false
-  when: >-
-    _vconsole_keymap.changed
-    or _vconsole_font.changed
-    or (_vconsole_font_map is defined and _vconsole_font_map.changed)
-    or (_vconsole_font_unimap is defined and _vconsole_font_unimap.changed)
+- name: Configure console keymap (systemd, vconsole.conf)
+  ansible.builtin.include_tasks: systemd/vconsole.yml
+  when: ansible_facts['os_family'] != 'Debian'
   tags: ['vconsole']
