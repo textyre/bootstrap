@@ -11,6 +11,7 @@
     owner: root
     group: root
     mode: '0644'
+  register: _vconsole_keymap
   tags: ['vconsole']
 
 - name: Set console font (runit)
@@ -22,14 +23,17 @@
     owner: root
     group: root
     mode: '0644'
+  register: _vconsole_font
   tags: ['vconsole']
 
 - name: Apply keymap (runit)
   ansible.builtin.command: "loadkeys {{ vconsole_value }}"
   changed_when: false
+  when: _vconsole_keymap.changed
   tags: ['vconsole']
 
 - name: Apply font (runit)
   ansible.builtin.command: "setfont {{ vconsole_console_font }}"
   changed_when: false
+  when: _vconsole_font.changed
   tags: ['vconsole']
