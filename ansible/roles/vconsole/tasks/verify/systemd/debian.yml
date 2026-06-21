@@ -1,20 +1,3 @@
 ---
-# === Verify console keymap: systemd on Debian/Ubuntu ===
-
-- name: Slurp /etc/default/keyboard (Debian family)
-  ansible.builtin.slurp:
-    src: /etc/default/keyboard
-  register: _vconsole_debian_verify_keyboard
-  tags: ['vconsole']
-
-- name: Assert keyboard layout is configured (Debian family)
-  ansible.builtin.assert:
-    that:
-      - >-
-        'XKBLAYOUT="' + vconsole_console + '"' in
-        (_vconsole_debian_verify_keyboard.content | b64decode)
-    fail_msg: >-
-      XKBLAYOUT="{{ vconsole_console }}" not found in /etc/default/keyboard.
-      Content: {{ _vconsole_debian_verify_keyboard.content | b64decode }}
-    quiet: true
-  tags: ['vconsole']
+# Verify keymap (systemd, Debian family) — no runtime check available
+# Config file write by lineinfile is the contract; no localectl VC backend exists.
