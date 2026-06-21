@@ -11,7 +11,6 @@
     owner: root
     group: root
     mode: '0644'
-  notify: apply vconsole
   tags: ['vconsole']
 
 - name: Set FONT in vconsole.conf (systemd)
@@ -23,7 +22,6 @@
     owner: root
     group: root
     mode: '0644'
-  notify: apply vconsole
   tags: ['vconsole']
 
 - name: Set FONT_MAP in vconsole.conf (systemd)
@@ -32,7 +30,6 @@
     regexp: '^FONT_MAP='
     line: "FONT_MAP={{ vconsole_console_font_map }}"
   when: _vconsole_has_font_map
-  notify: apply vconsole
   tags: ['vconsole']
 
 - name: Set FONT_UNIMAP in vconsole.conf (systemd)
@@ -41,5 +38,10 @@
     regexp: '^FONT_UNIMAP='
     line: "FONT_UNIMAP={{ vconsole_console_font_unimap }}"
   when: _vconsole_has_font_unimap
-  notify: apply vconsole
+  tags: ['vconsole']
+
+- name: Apply vconsole settings (systemd)
+  ansible.builtin.systemd:
+    name: systemd-vconsole-setup.service
+    state: restarted
   tags: ['vconsole']
