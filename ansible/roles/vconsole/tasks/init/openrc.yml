@@ -26,13 +26,13 @@
   register: _vconsole_font
   tags: ['vconsole']
 
-- name: Apply keymap (OpenRC)
+- name: Apply keymap (OpenRC)  # noqa: tasks-change-handlers
   ansible.builtin.command: "loadkeys {{ vconsole_value }}"
   changed_when: false
   when: _vconsole_keymap.changed
   tags: ['vconsole']
 
-- name: Apply font (OpenRC)
+- name: Apply font (OpenRC)  # noqa: tasks-change-handlers
   ansible.builtin.command: "setfont {{ vconsole_console_font }}"
   changed_when: false
   when: _vconsole_font.changed

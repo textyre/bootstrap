@@ -48,6 +48,7 @@
   ansible.builtin.systemd:
     name: systemd-vconsole-setup.service
     state: restarted
+  failed_when: false
   when: >-
     _vconsole_keymap.changed
     or _vconsole_font.changed
