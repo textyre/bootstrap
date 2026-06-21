@@ -1,0 +1,27 @@
+---
+# === Verify console keymap: systemd on Debian/Ubuntu ===
+
+- name: Check keyboard-setup.service exists  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl cat keyboard-setup.service
+  register: _vconsole_debian_service_check
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Get current keyboard layout from localectl
+  ansible.builtin.command: localectl status
+  register: _vconsole_debian_localectl_output
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Assert keyboard layout was applied (Debian family)
+  ansible.builtin.assert:
+    that:
+      - >-
+        _vconsole_debian_localectl_output.stdout is search(
+          'X11 Layout:\\s+' + vconsole_console + '(\\s|$)'
+        )
+    fail_msg: >-
+      Layout '{{ vconsole_console }}' not found as X11 Layout in localectl
+      status. Output: {{ _vconsole_debian_localectl_output.stdout }}
+    quiet: true
+  tags: ['vconsole']

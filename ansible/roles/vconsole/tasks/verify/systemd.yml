@@ -1,6 +1,11 @@
 ---
 # === Verify console keymap: systemd backend router ===
 
+- name: Verify console keymap (systemd, Debian family)
+  ansible.builtin.include_tasks: systemd/debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
+  tags: ['vconsole']
+
 - name: Verify console keymap (systemd, vconsole.conf)
   ansible.builtin.include_tasks: systemd/vconsole.yml
   when: ansible_facts['os_family'] != 'Debian'
