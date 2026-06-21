@@ -19,7 +19,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: Update PAM (Debian)
+  register: _pam_hardening_debian_preauth_profile
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
 
 - name: "CIS 5.4.2 | Deploy pam-auth-update faillock authfail profile (Debian)"
@@ -35,5 +35,13 @@
     owner: root
     group: root
     mode: '0644'
-  notify: Update PAM (Debian)
+  register: _pam_hardening_debian_authfail_profile
+  tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']
+
+- name: "CIS 5.4.2 | Apply pam-auth-update profiles (Debian)"
+  ansible.builtin.command: pam-auth-update --package
+  when: >-
+    _pam_hardening_debian_preauth_profile.changed or
+    _pam_hardening_debian_authfail_profile.changed
+  changed_when: true
   tags: ['pam_hardening', 'pam', 'security', 'faillock', 'cis_5.4.2']

@@ -1,0 +1,22 @@
+---
+- name: "Report: PAM hardening"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_pam_hardening_phases"
+    common_rpt_phase: "Configure PAM faillock"
+    common_rpt_detail: >-
+      deny={{ pam_hardening_faillock_deny }}
+      unlock={{ pam_hardening_faillock_unlock_time }}s
+      {{ ansible_facts['os_family'] }}
+  tags: ['pam_hardening', 'report']
+
+- name: "Pam_hardening — Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_pam_hardening_phases"
+    common_rpt_title: "pam_hardening"
+  tags: ['pam_hardening', 'report']

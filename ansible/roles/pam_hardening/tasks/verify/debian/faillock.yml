@@ -1,0 +1,5 @@
+---
+- name: Verify pam_faillock is active in common-auth
+  ansible.builtin.command: grep -q 'pam_faillock.so' /etc/pam.d/common-auth
+  changed_when: false
+  tags: ['pam_hardening']

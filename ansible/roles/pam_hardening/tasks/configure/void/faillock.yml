@@ -3,5 +3,7 @@
 # Uses shared system-auth configuration
 
 - name: Configure PAM stack (Void — system-auth)
-  ansible.builtin.include_tasks: faillock_systemauth.yml
+  ansible.builtin.include_tasks: configure/shared/systemauth.yml
+  vars:
+    _pam_hardening_systemauth_policy: "{{ _pam_hardening_faillock_pam[ansible_facts['os_family']] }}"
   tags: ['pam_hardening', 'pam', 'security', 'faillock']

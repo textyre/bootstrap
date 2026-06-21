@@ -14,5 +14,5 @@
 
 # Platform-specific PAM stack activation via os_family dispatch
 - name: "Configure PAM stack ({{ ansible_facts['os_family'] }})"
-  ansible.builtin.include_tasks: "faillock_{{ ansible_facts['os_family'] | lower }}.yml"
+  ansible.builtin.include_tasks: "configure/{{ ansible_facts['os_family'] | lower }}/faillock.yml"
   tags: ['pam_hardening', 'pam', 'security', 'faillock']

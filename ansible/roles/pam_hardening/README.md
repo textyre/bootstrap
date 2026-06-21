@@ -4,21 +4,14 @@ Protects user accounts from brute-force attacks via `pam_faillock` lockout polic
 
 ## Execution flow
 
-1. **Preflight assert** (`tasks/main.yml`) — checks `os_family` is in the supported list; fails immediately on unsupported OS
-2. **Deploy faillock.conf** (`tasks/faillock.yml`) — renders `/etc/security/faillock.conf` from Jinja2 template with all configured parameters (deny, unlock_time, root_unlock_time, audit, silent, etc.)
-3. **Activate PAM stack** (platform-specific dispatch via `faillock_<os_family>.yml`):
+1. **Validate** (`tasks/validate/main.yml`) — checks `os_family` is in the supported list; fails immediately on unsupported OS
+2. **Deploy faillock.conf** (`tasks/configure/faillock.yml`) — renders `/etc/security/faillock.conf` from Jinja2 template with all configured parameters (deny, unlock_time, root_unlock_time, audit, silent, etc.)
+3. **Activate PAM stack** (platform-specific dispatch via `tasks/configure/<os_family>/faillock.yml`):
    - *Arch/Void/Gentoo* — inserts `pam_faillock.so` lines into `/etc/pam.d/system-auth` (preauth, authfail, account)
-   - *Debian/Ubuntu* — deploys two `pam-auth-update` profile files, **triggers handler:** `pam-auth-update --package` reconfigures the PAM stack
-   - *Fedora/RHEL* — runs `authselect enable-feature with-faillock`, **triggers handler:** `authselect apply-changes`
-4. **Verify** (`tasks/verify.yml`) — slurps `faillock.conf` and asserts deny value matches; checks platform-specific PAM stack (system-auth / common-auth / authselect) to confirm faillock is active
-5. **Report** — writes execution report via `common/report_phase.yml` + `report_render.yml`
-
-### Handlers
-
-| Handler | Triggered by | What it does |
-|---------|-------------|-------------|
-| `Update PAM (Debian)` | Profile file change (step 3) | Runs `pam-auth-update --package` to reconfigure PAM stack. **Warning:** affects all PAM profiles, not just faillock — see [Troubleshooting](#troubleshooting) |
-| `Apply authselect (RedHat)` | authselect feature change (step 3) | Runs `authselect apply-changes` to regenerate PAM symlinks |
+   - *Debian/Ubuntu* — deploys two `pam-auth-update` profile files, then runs `pam-auth-update --package` when those profiles changed
+   - *Fedora/RHEL* — runs `authselect enable-feature with-faillock`, then runs `authselect apply-changes` when the feature was enabled
+4. **Verify** (`tasks/verify/main.yml`) — checks indirect PAM apply results for Debian (`common-auth`) and RedHat (`authselect`)
+5. **Report** (`tasks/report/main.yml`) — writes execution report via `common/report_phase.yml` + `report_render.yml`
 
 ## Variables
 
@@ -75,7 +68,7 @@ Follows guidance from: dev-sec Linux Baseline, Kicksecure hardening, VMware Phot
 |--------|---------------------|-----------------|---------------|
 | PAM method | `lineinfile` on system-auth | `pam-auth-update --package` | `authselect enable-feature` |
 | PAM config file | `/etc/pam.d/system-auth` | `/etc/pam.d/common-auth` | managed by authselect |
-| Activation check | `grep pam_faillock /etc/pam.d/system-auth` | `grep pam_faillock /etc/pam.d/common-auth` | `authselect current` |
+| Activation check | Direct file edits are handled by `lineinfile` | `grep pam_faillock /etc/pam.d/common-auth` | `authselect current` |
 
 All platforms share `/etc/security/faillock.conf` for faillock parameters.
 
@@ -102,36 +95,36 @@ All platforms share `/etc/security/faillock.conf` for faillock parameters.
 | Root account permanently locked | `even_deny_root=true` + `root_unlock_time=-1` | Boot into single-user/rescue mode, run `faillock --user root --reset` |
 | Screensaver locks account | X11 auth attempts counted against deny limit | Separate PAM service config for screensaver without pam_faillock |
 | LDAP users getting locked | Network timeouts counted as failures | Set `pam_hardening_faillock_local_users_only: true` |
-| `pam-auth-update --package` breaks other PAM modules | Handler reconfigures entire PAM stack, may affect LDAP/MFA modules | Check `/etc/pam.d/common-auth` after role run. Restore from backup if needed |
-| Role reports `ok` but faillock not active | PAM stack not configured (profile conflict on Debian, authselect issue on Fedora) | Run verify: `grep pam_faillock /etc/pam.d/system-auth` (Arch) or `authselect current` (Fedora) |
+| `pam-auth-update --package` breaks other PAM modules | Debian apply step reconfigures entire PAM stack, may affect LDAP/MFA modules | Check `/etc/pam.d/common-auth` after role run. Restore from backup if needed |
+| Role reports `ok` but faillock not active | PAM stack not configured (profile conflict on Debian, authselect issue on Fedora) | Run verify: `grep pam_faillock /etc/pam.d/common-auth` (Debian) or `authselect current` (Fedora) |
 | `authselect enable-feature` fails | No authselect profile selected on Fedora | Run `authselect select sssd --force` first, then re-run the role |
 
 ## Testing
 
-Both scenarios are required. Run Docker for fast feedback, Vagrant for full validation.
+Docker and Vagrant scenarios are required for role validation. The default
+scenario is a local development shortcut.
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Arch + Ubuntu + Fedora: config deploy, PAM stack, idempotence |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or PAM handlers | Real systemd, real packages, Arch + Ubuntu VMs |
+| Default (local) | `molecule test -s default` | Local smoke during development | Local converge and idempotence |
+| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Arch + Ubuntu + Fedora: converge, in-role verification, idempotence |
+| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or PAM apply steps | Real systemd, real packages, Arch + Ubuntu VMs |
 
 ### Success criteria
 
-- All steps complete: `syntax -> converge -> idempotence -> verify -> destroy`
+- Default steps complete: `syntax -> converge -> idempotence`
+- Docker/Vagrant steps complete: `syntax -> create -> prepare -> converge -> idempotence -> destroy`
 - Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass
+- Role-level verification runs during converge
 - Final line: no `failed` tasks
 
 ### What the tests verify
 
 | Category | Examples | Test requirement |
 |----------|----------|-----------------|
-| Config files | `/etc/security/faillock.conf` exists, root:root 0644, correct content | TEST-008 |
-| Boolean directives | silent, nodelay, local_users_only present/absent per defaults | TEST-008 |
-| PAM stack (Arch) | `pam_faillock.so` preauth + authfail + account in system-auth | TEST-008 |
-| PAM stack (Debian) | Profile files deployed, `pam_faillock.so` in common-auth | TEST-008 |
-| PAM stack (Fedora) | `authselect current` shows `with-faillock` | TEST-008 |
-| Permissions | faillock.conf mode 0644 owned by root | TEST-008 |
+| Role execution | Role converges without failed tasks | TEST-008 |
+| Idempotence | Second converge reports no changes | TEST-008 |
+| Indirect PAM apply | Debian `common-auth`, RedHat `authselect current` | Role-level verify |
 
 ### Common test failures
 
@@ -139,8 +132,8 @@ Both scenarios are required. Run Docker for fast feedback, Vagrant for full vali
 |-------|-------|-----|
 | `authselect` not found (Fedora) | Minimal Fedora container missing authselect | Check `prepare.yml` installs `authselect` package |
 | Idempotence failure on lineinfile | Duplicate `pam_faillock.so` lines in system-auth | Check system-auth doesn't already contain faillock lines from base image |
-| `pam-auth-update` not applied | Handler didn't fire (no change detected) | Run `molecule converge` then check `/etc/pam.d/common-auth` manually |
-| Assertion failed with no details | Missing `fail_msg` in verify.yml assert | Add `fail_msg` with expected + actual values |
+| `pam-auth-update` not applied | Debian profile files did not change or apply step failed | Run `molecule converge` then check `/etc/pam.d/common-auth` manually |
+| Assertion failed with no details | Missing `fail_msg` in verify task assert | Add `fail_msg` with expected + actual values |
 | Preflight assert fails | Running on unsupported OS family | Check `_pam_hardening_supported_os` in defaults |
 
 ## Tags
@@ -158,12 +151,18 @@ Both scenarios are required. Run Docker for fast feedback, Vagrant for full vali
 |------|---------|-------|
 | `defaults/main.yml` | All configurable settings + supported OS list | No — override via inventory |
 | `templates/faillock.conf.j2` | faillock.conf Jinja2 template | When changing config file format |
-| `tasks/main.yml` | Execution flow orchestrator (preflight, configure, verify, report) | When adding/removing steps |
-| `tasks/faillock.yml` | Config deploy + OS dispatch | When changing dispatch logic |
-| `tasks/faillock_archlinux.yml` | PAM stack setup for Arch/Void/Gentoo (lineinfile) | When changing lineinfile patterns |
-| `tasks/faillock_debian.yml` | PAM stack setup for Debian/Ubuntu (pam-auth-update) | When changing profile format |
-| `tasks/faillock_redhat.yml` | PAM stack setup for Fedora/RHEL (authselect) | When changing authselect usage |
-| `tasks/verify.yml` | In-role post-deploy verification | When adding verification checks |
-| `handlers/main.yml` | PAM update handlers (Debian + RedHat) | Rarely |
+| `tasks/main.yml` | Execution flow orchestrator (validate, configure, verify, report) | When adding/removing steps |
+| `tasks/validate/main.yml` | Role input validation | When changing supported assumptions |
+| `tasks/configure/faillock.yml` | Config deploy + OS dispatch | When changing dispatch logic |
+| `tasks/configure/archlinux/faillock.yml` | PAM stack setup for Arch Linux | When changing Arch-specific flow |
+| `tasks/configure/debian/faillock.yml` | PAM stack setup for Debian/Ubuntu (pam-auth-update) | When changing profile format or apply flow |
+| `tasks/configure/gentoo/faillock.yml` | PAM stack setup for Gentoo | When changing Gentoo-specific flow |
+| `tasks/configure/redhat/faillock.yml` | PAM stack setup for Fedora/RHEL (authselect) | When changing authselect usage |
+| `tasks/configure/void/faillock.yml` | PAM stack setup for Void Linux | When changing Void-specific flow |
+| `tasks/configure/shared/systemauth.yml` | Shared system-auth edits for Arch/Gentoo/Void | When changing lineinfile patterns |
+| `tasks/verify/main.yml` | In-role verification phase entrypoint | When adding/removing verify steps |
+| `tasks/verify/debian/faillock.yml` | Debian pam-auth-update result verification | When changing Debian apply flow |
+| `tasks/verify/redhat/faillock.yml` | RedHat authselect result verification | When changing authselect apply flow |
+| `tasks/report/main.yml` | Execution report rendering | When changing report output |
 | `meta/main.yml` | Galaxy metadata and platform list | When adding platform support |
 | `molecule/` | Test scenarios (docker, vagrant, default) | When changing test coverage |
