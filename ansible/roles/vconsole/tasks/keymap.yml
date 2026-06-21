@@ -1,13 +1,5 @@
 ---
-# === Custom keymap file support ===
-
-- name: Compute vconsole_value fact
-  ansible.builtin.set_fact:
-    vconsole_value: >-
-      {{ '/usr/local/share/kbd/keymaps/' + (vconsole_console_map_src | basename)
-         if vconsole_console_map_src | default('') | length > 0
-         else vconsole_console }}
-  tags: ['vconsole']
+# === Prepare: custom keymap file ===
 
 - name: Create custom keymap directory
   ansible.builtin.file:
@@ -16,7 +8,7 @@
     owner: root
     group: root
     mode: '0755'
-  when: vconsole_console_map_src | default('') | length > 0
+  when: _vconsole_has_custom_keymap
   tags: ['vconsole']
 
 - name: Copy custom keymap file
@@ -26,6 +18,6 @@
     owner: root
     group: root
     mode: '0644'
-  when: vconsole_console_map_src | default('') | length > 0
+  when: _vconsole_has_custom_keymap
   notify: apply vconsole
   tags: ['vconsole']

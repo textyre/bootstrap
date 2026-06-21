@@ -1,13 +1,3 @@
 ---
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
-
-- name: Prepare (role-specific)
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Ensure kbd package is present (provides loadkeys/setfont)
-      ansible.builtin.package:
-        name: kbd
-        state: present

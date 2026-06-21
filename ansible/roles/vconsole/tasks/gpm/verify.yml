@@ -1,0 +1,15 @@
+---
+# Verify GPM service state
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+  tags: ['vconsole']
+
+- name: Assert GPM service is running
+  ansible.builtin.assert:
+    that:
+      - "'gpm.service' in ansible_facts.services"
+      - "ansible_facts.services['gpm.service'].state == 'running'"
+    fail_msg: "GPM service is not running"
+    quiet: true
+  tags: ['vconsole']

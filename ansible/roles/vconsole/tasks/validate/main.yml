@@ -1,6 +1,26 @@
 ---
 # === Validate vconsole configuration ===
 
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _vconsole_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _vconsole_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+  tags: ['vconsole']
+
+- name: Assert supported init system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] in vconsole_supported_inits
+    fail_msg: >-
+      Init system '{{ ansible_facts['service_mgr'] }}' is not supported.
+      Supported: {{ vconsole_supported_inits | join(', ') }}
+    success_msg: "Init system '{{ ansible_facts['service_mgr'] }}' is supported"
+  tags: ['vconsole']
+
 - name: Assert vconsole_console is defined and non-empty
   ansible.builtin.assert:
     that:
@@ -11,20 +31,6 @@
       Current value: '{{ vconsole_console | default("") }}'
   tags: ['vconsole']
 
-- name: Assert font is set when font_map or font_unimap are used
-  ansible.builtin.assert:
-    that:
-      - vconsole_console_font | default('') | length > 0
-    fail_msg: >-
-      vconsole_console_font_map/font_unimap require vconsole_console_font to be set.
-      font_map: '{{ vconsole_console_font_map | default("") }}'
-      font_unimap: '{{ vconsole_console_font_unimap | default("") }}'
-      Current vconsole_console_font: '{{ vconsole_console_font | default("") }}'
-  when: >-
-    (vconsole_console_font_map | default('') | length > 0) or
-    (vconsole_console_font_unimap | default('') | length > 0)
-  tags: ['vconsole']
-
 - name: Assert vconsole_console_map_src file exists if provided
   ansible.builtin.assert:
     that:
@@ -32,5 +38,5 @@
     fail_msg: >-
       vconsole_console_map_src is set to '{{ vconsole_console_map_src }}' but the file does not exist.
       Provide a valid path to a .map file in your repository.
-  when: vconsole_console_map_src | default('') | length > 0
+  when: _vconsole_has_custom_keymap
   tags: ['vconsole']

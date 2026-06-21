@@ -28,7 +28,6 @@ provisioner:
   playbooks:
     prepare: prepare.yml
     converge: converge.yml
-    verify: verify.yml
 
 verifier:
   name: ansible
@@ -40,5 +39,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

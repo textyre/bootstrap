@@ -4,13 +4,5 @@
   become: true
   gather_facts: true
 
-  vars:
-    vconsole_console: "us"
-    vconsole_gpm_enabled: false
-    # Font config: Set font on Arch only (per-distro vars loads package name automatically)
-    vconsole_console_font: "{{ 'ter-v16n' if ansible_facts['os_family'] == 'Archlinux' else '' }}"
-    vconsole_console_font_map: "{{ '8859-2' if ansible_facts['os_family'] == 'Archlinux' else '' }}"
-    vconsole_console_font_unimap: ""
-
   roles:
     - role: vconsole

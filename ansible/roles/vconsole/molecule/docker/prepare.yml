@@ -15,15 +15,3 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_facts['os_family'] == 'Debian'
-
-    - name: Ensure kbd package is present (Arch -- provides loadkeys/setfont)
-      community.general.pacman:
-        name: kbd
-        state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Ensure kbd package is present (Ubuntu -- provides loadkeys/setfont)
-      ansible.builtin.apt:
-        name: kbd
-        state: present
-      when: ansible_facts['os_family'] == 'Debian'

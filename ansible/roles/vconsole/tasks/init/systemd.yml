@@ -19,7 +19,10 @@
     path: /etc/vconsole.conf
     regexp: '^FONT='
     line: "FONT={{ vconsole_console_font }}"
-  when: vconsole_console_font | default('') | length > 0
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
   notify: apply vconsole
   tags: ['vconsole']
 
@@ -28,7 +31,7 @@
     path: /etc/vconsole.conf
     regexp: '^FONT_MAP='
     line: "FONT_MAP={{ vconsole_console_font_map }}"
-  when: vconsole_console_font_map | default('') | length > 0
+  when: _vconsole_has_font_map
   notify: apply vconsole
   tags: ['vconsole']
 
@@ -37,30 +40,6 @@
     path: /etc/vconsole.conf
     regexp: '^FONT_UNIMAP='
     line: "FONT_UNIMAP={{ vconsole_console_font_unimap }}"
-  when: vconsole_console_font_unimap | default('') | length > 0
+  when: _vconsole_has_font_unimap
   notify: apply vconsole
-  tags: ['vconsole']
-
-- name: Remove FONT from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT='
-    state: absent
-  when: vconsole_console_font | default('') | length == 0
-  tags: ['vconsole']
-
-- name: Remove FONT_MAP from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_MAP='
-    state: absent
-  when: vconsole_console_font_map | default('') | length == 0
-  tags: ['vconsole']
-
-- name: Remove FONT_UNIMAP from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_UNIMAP='
-    state: absent
-  when: vconsole_console_font_unimap | default('') | length == 0
   tags: ['vconsole']

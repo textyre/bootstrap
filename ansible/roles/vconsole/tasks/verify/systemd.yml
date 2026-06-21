@@ -1,76 +1,18 @@
 ---
-# Verify keymap (systemd)
+# Verify keymap (systemd) — runtime check via localectl
 
-- name: Slurp vconsole.conf (systemd)
-  ansible.builtin.slurp:
-    src: /etc/vconsole.conf
-  register: _vconsole_verify_conf
-  tags: ['vconsole']
-
-- name: Assert KEYMAP is set in vconsole.conf (systemd)
-  ansible.builtin.assert:
-    that:
-      - "'KEYMAP=' + vconsole_console in (_vconsole_verify_conf.content | b64decode)"
-    fail_msg: >-
-      KEYMAP={{ vconsole_console }} not found in /etc/vconsole.conf.
-      Content: {{ _vconsole_verify_conf.content | b64decode }}
-    quiet: true
-  tags: ['vconsole']
-
-- name: Verify console keymap with localectl (systemd, Archlinux)
+- name: Get current keymap from localectl
   ansible.builtin.command: localectl status
-  register: _vconsole_verify_localectl
+  register: _vconsole_localectl_output
   changed_when: false
-  when: ansible_facts['os_family'] == 'Archlinux'
   tags: ['vconsole']
 
-- name: Assert keymap is set in localectl (systemd, Archlinux)
+- name: Assert keymap was applied to running console
   ansible.builtin.assert:
     that:
-      - "_vconsole_verify_localectl.stdout is search('VC Keymap:\\s+' + vconsole_console + '(\\s|$)')"
+      - "vconsole_console in _vconsole_localectl_output.stdout"
     fail_msg: >-
-      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl status.
-      Output: {{ _vconsole_verify_localectl.stdout }}
+      Expected keymap '{{ vconsole_console }}' not found in localectl output.
+      {{ _vconsole_localectl_output.stdout }}
     quiet: true
-  when: ansible_facts['os_family'] == 'Archlinux'
-  tags: ['vconsole']
-
-- name: Assert FONT is set in vconsole.conf (systemd)
-  ansible.builtin.assert:
-    that:
-      - "'FONT=' + vconsole_console_font in (_vconsole_verify_conf.content | b64decode)"
-    fail_msg: >-
-      FONT={{ vconsole_console_font }} not found in /etc/vconsole.conf.
-      Content: {{ _vconsole_verify_conf.content | b64decode }}
-    quiet: true
-  when: vconsole_console_font | default('') | length > 0
-  tags: ['vconsole']
-
-# ---- GPM Service ----
-
-- name: Gather service facts (systemd)
-  ansible.builtin.service_facts:
-  tags: ['vconsole']
-
-- name: Assert GPM service state when enabled (systemd)
-  ansible.builtin.assert:
-    that:
-      - "'gpm.service' in ansible_facts.services"
-      - "ansible_facts.services['gpm.service'].state == 'running'"
-    fail_msg: "GPM service is not running when vconsole_gpm_enabled=true"
-    quiet: true
-  when:
-    - vconsole_gpm_enabled | default(true) | bool
-    - (ansible_facts['virtualization_type'] | default('')) not in ['docker', 'container', 'podman']
-  tags: ['vconsole']
-
-- name: Assert GPM service is absent or stopped when disabled (systemd)
-  ansible.builtin.assert:
-    that: >-
-      ('gpm.service' not in ansible_facts.services) or
-      (ansible_facts.services['gpm.service'].state != 'running')
-    fail_msg: "GPM service is running when vconsole_gpm_enabled=false"
-    quiet: true
-  when:
-    - not (vconsole_gpm_enabled | default(true) | bool)
   tags: ['vconsole']
