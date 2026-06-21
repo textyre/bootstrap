@@ -1,3 +1,0 @@
----
-# Verify keymap (systemd, Debian family) — no runtime check available
-# Config file write by lineinfile is the contract; no localectl VC backend exists.
