@@ -26,14 +26,14 @@
   register: _vconsole_font
   tags: ['vconsole']
 
-- name: Apply keymap (runit)  # noqa: tasks-change-handlers
+- name: Apply keymap (runit)
   ansible.builtin.command: "loadkeys {{ vconsole_value }}"
   changed_when: false
-  when: _vconsole_keymap.changed
+  when: _vconsole_keymap.changed  # noqa: no-handler
   tags: ['vconsole']
 
-- name: Apply font (runit)  # noqa: tasks-change-handlers
+- name: Apply font (runit)
   ansible.builtin.command: "setfont {{ vconsole_console_font }}"
   changed_when: false
-  when: _vconsole_font.changed
+  when: _vconsole_font.changed  # noqa: no-handler
   tags: ['vconsole']
