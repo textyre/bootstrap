@@ -1,9 +1,6 @@
 ---
 # === Console keymap (TTY) ===
 
-# Включить/выключить всю роль целиком.
-vconsole_enabled: true
-
 vconsole_console: "us"
 vconsole_console_map_src: ""   # optional: local path to .map file in your repo
 

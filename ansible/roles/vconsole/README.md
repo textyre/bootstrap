@@ -19,8 +19,8 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 |---|---|---|
 | systemd (Arch/Fedora/etc.) | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
 | systemd (Debian/Ubuntu) | `/etc/default/keyboard` (`XKBLAYOUT=`), generated `/usr/share/keymaps/xkb/*.map` | ✅ Full |
-| openrc | `/etc/conf.d/keymaps` | ✅ Full |
-| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Full |
+| openrc | `/etc/conf.d/keymaps` | ✅ Config + apply, no runtime verify |
+| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Config + apply, no runtime verify |
 | s6 | (stub) | ⚠️ Debug message only |
 | dinit | (stub) | ⚠️ Debug message only |
 
@@ -90,8 +90,8 @@ With a custom font (Arch Linux):
 
 | Test Case | Keymap | Font | GPM | OS | Init |
 |---|---|---|---|---|---|
-| Arch font + keymap | us | ter-v16n | enabled | Arch | systemd |
-| Ubuntu keymap only | us | (none) | enabled | Ubuntu | systemd |
+| Arch font + keymap | us | ter-v16n | skipped in container | Arch | systemd |
+| Ubuntu keymap only | us | (none) | skipped in container | Ubuntu | systemd |
 
 ### Scenario: `vagrant`
 
@@ -126,7 +126,7 @@ molecule test -s docker --destroy=never
 
 - ✅ Keymap configuration (systemd)
 - ✅ Font installation and configuration (Arch only)
-- ✅ GPM service state verification (enabled)
+- ✅ GPM service state verification on non-container targets
 - ✅ Idempotency (converge runs twice without state changes)
 - ✅ Cross-platform consistency (Arch + Ubuntu)
 
