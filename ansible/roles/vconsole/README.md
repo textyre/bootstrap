@@ -37,7 +37,8 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 
 **Note:** Font package names are distro-specific (managed by `vars/DISTRO_FAMILY.yml`):
 - Arch: `terminus-font`, `gpm`
-- Debian/Ubuntu: `fonts-terminus`, `gpm`
+- Debian/Ubuntu: `fonts-terminus`, `gpm`, plus `console-setup-linux`,
+  `console-setup`, and `kbd` for the systemd console keymap backend
 - RedHat/Fedora: `terminus-fonts`, `gpm`
 - Void: `terminus-font`, `gpm`
 - Gentoo: `sys-fonts/terminus-font`, `sys-libs/gpm`
@@ -75,9 +76,9 @@ With a custom font (Arch Linux):
   `/etc/vconsole.conf`. The `systemd-vconsole-setup.service` unit is not part
   of the Ubuntu 24.04 test targets.
 - **Apply behavior**: systemd-vconsole targets restart
-  `systemd-vconsole-setup.service`; Debian-family systemd targets restart
-  `keyboard-setup.service` on a best-effort basis. OpenRC/runit targets run
-  `loadkeys`/`setfont` directly.
+  `systemd-vconsole-setup.service`; Debian-family systemd targets install the
+  `console-setup` backend and restart `keyboard-setup.service`. OpenRC/runit
+  targets run `loadkeys`/`setfont` directly.
 
 ## Test Cases
 

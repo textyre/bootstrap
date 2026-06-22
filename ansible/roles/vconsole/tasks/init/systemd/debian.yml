@@ -13,6 +13,13 @@
     quiet: true
   tags: ['vconsole']
 
+- name: Install Debian console keymap backend
+  ansible.builtin.package:
+    name: "{{ _vconsole_console_packages }}"
+    state: present
+  register: _vconsole_debian_console_backend
+  tags: ['vconsole']
+
 - name: Set keyboard model in /etc/default/keyboard
   ansible.builtin.lineinfile:
     path: /etc/default/keyboard
@@ -64,10 +71,11 @@
 - name: Apply keyboard configuration (Debian family)
   ansible.builtin.systemd:
     name: keyboard-setup.service
+    daemon_reload: true
     state: restarted
-  failed_when: false
   when: >-  # noqa: no-handler
-    _vconsole_debian_keyboard_model.changed
+    _vconsole_debian_console_backend.changed
+    or _vconsole_debian_keyboard_model.changed
     or _vconsole_debian_keyboard_layout.changed
     or _vconsole_debian_keyboard_variant.changed
     or _vconsole_debian_keyboard_options.changed

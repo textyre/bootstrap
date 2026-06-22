@@ -32,99 +32,12 @@ on:
         description: 'Role to test, or "all" for all CI-ready roles'
         required: false
         default: 'all'
-      runtime_tty_facts:
-        description: 'Collect TTY-related runtime facts for Arch/Ubuntu images'
-        required: false
-        default: 'false'
 
 concurrency:
   group: molecule-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  runtime-tty-facts:
-    name: Runtime TTY facts
-    if: github.event_name == 'workflow_dispatch' && inputs.runtime_tty_facts == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      packages: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: arch
-            image: ghcr.io/textyre/arch-base:latest
-            command: /usr/lib/systemd/systemd
-          - platform: ubuntu
-            image: ghcr.io/textyre/ubuntu-base:latest
-            command: /lib/systemd/systemd
-    steps:
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Start systemd runtime
-        run: |
-          docker run --detach --name "tty-facts-${{ matrix.platform }}" \
-            --privileged --cgroupns=host \
-            --volume /sys/fs/cgroup:/sys/fs/cgroup:rw \
-            --tmpfs /run --tmpfs /tmp \
-            "${{ matrix.image }}" "${{ matrix.command }}"
-          for _ in $(seq 1 30); do
-            if docker exec "tty-facts-${{ matrix.platform }}" systemctl is-system-running --wait >/tmp/system-running 2>&1; then
-              break
-            fi
-            if grep -Eq 'running|degraded' /tmp/system-running; then
-              break
-            fi
-            sleep 1
-          done
-          cat /tmp/system-running || true
-
-      - name: Collect TTY service surface
-        run: |
-          set +e
-          name="tty-facts-${{ matrix.platform }}"
-          echo "=== platform ==="
-          echo "${{ matrix.platform }}"
-          echo "=== image ==="
-          echo "${{ matrix.image }}"
-          echo "=== os-release ==="
-          docker exec "$name" sh -lc 'cat /etc/os-release'
-          echo "=== systemctl is-system-running ==="
-          docker exec "$name" sh -lc 'systemctl is-system-running || true'
-          echo "=== tty-related active units ==="
-          docker exec "$name" sh -lc 'systemctl list-units --all --no-pager --plain \
-            "*tty*" "*getty*" "*console*" "*vconsole*" "*keyboard*" "*localed*" "*udev*"'
-          echo "=== tty-related unit files ==="
-          docker exec "$name" sh -lc 'systemctl list-unit-files --no-pager --plain \
-            "*tty*" "*getty*" "*console*" "*vconsole*" "*keyboard*" "*localed*" "*udev*"'
-          echo "=== specific unit states ==="
-          docker exec "$name" sh -lc 'for unit in \
-            systemd-vconsole-setup.service keyboard-setup.service console-setup.service \
-            systemd-localed.service systemd-udevd.service getty@tty1.service getty@.service; do
-              echo "--- $unit ---"
-              systemctl show "$unit" -p LoadState -p ActiveState -p SubState -p FragmentPath -p UnitFileState 2>&1 || true
-              systemctl cat "$unit" 2>&1 || true
-            done'
-          echo "=== executable surface ==="
-          docker exec "$name" sh -lc 'for bin in localectl loadkeys dumpkeys setupcon kbd_mode udevadm; do
-            printf "%s: " "$bin"
-            command -v "$bin" || true
-          done'
-          echo "=== localectl status ==="
-          docker exec "$name" sh -lc 'localectl status 2>&1 || true'
-          echo "=== tty devices ==="
-          docker exec "$name" sh -lc 'ls -l /dev/console /dev/tty /dev/tty0 /dev/tty1 2>&1 || true'
-
-      - name: Stop runtime
-        if: always()
-        run: docker rm --force "tty-facts-${{ matrix.platform }}" || true
-
   detect:
     name: Detect changed roles
     runs-on: ubuntu-latest
@@ -149,14 +62,6 @@ jobs:
           # CI-ready roles = those with molecule/docker/molecule.yml
           ALL_ROLES=$(find ansible/roles -name molecule.yml -path "*/docker/molecule.yml" \
             | sed 's|ansible/roles/||;s|/molecule.*||' | sort -u)
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
-            && [ "${{ inputs.runtime_tty_facts }}" = "true" ]; then
-            MATRIX="[]"
-            echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-            echo "empty=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             FILTER="${{ inputs.role_filter }}"
