@@ -20,26 +20,16 @@
   register: _vconsole_debian_console_backend
   tags: ['vconsole']
 
-- name: Get current Debian console keymap from localectl  # noqa: command-instead-of-module
-  ansible.builtin.command: localectl status
-  register: _vconsole_debian_localectl_output
-  changed_when: false
-  tags: ['vconsole']
-
-- name: Set Debian console keymap with localectl  # noqa: command-instead-of-module
-  ansible.builtin.command:
-    argv:
-      - localectl
-      - set-keymap
-      - "{{ vconsole_console }}"
-  register: _vconsole_debian_localectl_keymap
-  changed_when: true
-  when: >-
-    not (
-      _vconsole_debian_localectl_output.stdout is search(
-        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
-      )
-    )
+- name: Set KEYMAP in vconsole.conf (Debian family)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^KEYMAP='
+    line: "KEYMAP={{ vconsole_console }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_vconsole_keymap
   tags: ['vconsole']
 
 - name: Set keyboard model in /etc/default/keyboard
@@ -97,7 +87,7 @@
     state: restarted
   when: >-  # noqa: no-handler
     _vconsole_debian_console_backend.changed
-    or (_vconsole_debian_localectl_keymap is defined and _vconsole_debian_localectl_keymap.changed)
+    or _vconsole_debian_vconsole_keymap.changed
     or _vconsole_debian_keyboard_model.changed
     or _vconsole_debian_keyboard_layout.changed
     or _vconsole_debian_keyboard_variant.changed
