@@ -35,12 +35,6 @@
     owner: root
     group: root
     mode: '0755'
-  when: >-
-    not (
-      _vconsole_debian_localectl_output.stdout is search(
-        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
-      )
-    )
   tags: ['vconsole']
 
 - name: Generate Debian console keymap from XKB  # noqa: command-instead-of-module
