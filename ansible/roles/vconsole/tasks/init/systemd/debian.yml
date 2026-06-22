@@ -20,18 +20,6 @@
   register: _vconsole_debian_console_backend
   tags: ['vconsole']
 
-- name: Set KEYMAP in vconsole.conf (Debian family)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^KEYMAP='
-    line: "KEYMAP={{ vconsole_console }}"
-    create: true
-    owner: root
-    group: root
-    mode: '0644'
-  register: _vconsole_debian_vconsole_keymap
-  tags: ['vconsole']
-
 - name: Set keyboard model in /etc/default/keyboard
   ansible.builtin.lineinfile:
     path: /etc/default/keyboard
@@ -87,7 +75,6 @@
     state: restarted
   when: >-  # noqa: no-handler
     _vconsole_debian_console_backend.changed
-    or _vconsole_debian_vconsole_keymap.changed
     or _vconsole_debian_keyboard_model.changed
     or _vconsole_debian_keyboard_layout.changed
     or _vconsole_debian_keyboard_variant.changed
