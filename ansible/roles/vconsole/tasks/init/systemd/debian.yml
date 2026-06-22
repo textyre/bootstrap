@@ -1,0 +1,146 @@
+---
+# === Console keymap: systemd on Debian/Ubuntu ===
+# Debian-family systems use keyboard-configuration/console-setup, not
+# systemd-vconsole-setup.service.
+
+- name: Assert custom keymap is unsupported on Debian-family systemd
+  ansible.builtin.assert:
+    that:
+      - not _vconsole_has_custom_keymap
+    fail_msg: >-
+      vconsole_console_map_src is not supported on Debian-family systemd
+      targets. Use a keymap name in vconsole_console instead.
+    quiet: true
+  tags: ['vconsole']
+
+- name: Install Debian console keymap backend
+  ansible.builtin.package:
+    name: "{{ _vconsole_console_packages }}"
+    state: present
+  register: _vconsole_debian_console_backend
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  tags: ['vconsole']
+
+- name: Get current Debian console keymap from localectl  # noqa: command-instead-of-module
+  ansible.builtin.command: localectl status
+  register: _vconsole_debian_localectl_output
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Ensure generated Debian keymap directory exists
+  ansible.builtin.file:
+    path: /usr/share/keymaps/xkb
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['vconsole']
+
+- name: Generate Debian console keymap from XKB  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - ckbcomp
+      - -model
+      - pc105
+      - -layout
+      - "{{ vconsole_console }}"
+  register: _vconsole_debian_generated_keymap
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Install generated Debian console keymap
+  ansible.builtin.copy:
+    dest: "/usr/share/keymaps/xkb/{{ vconsole_console }}.map"
+    content: "{{ _vconsole_debian_generated_keymap.stdout }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_generated_keymap_file
+  tags: ['vconsole']
+
+- name: Set Debian console keymap through systemd-localed  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - busctl
+      - call
+      - org.freedesktop.locale1
+      - /org/freedesktop/locale1
+      - org.freedesktop.locale1
+      - SetVConsoleKeyboard
+      - ssbb
+      - "{{ vconsole_console }}"
+      - ''
+      - 'false'
+      - 'false'
+  register: _vconsole_debian_localed_keymap
+  changed_when: true
+  when: >-
+    not (
+      _vconsole_debian_localectl_output.stdout is search(
+        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
+      )
+    )
+  tags: ['vconsole']
+
+- name: Set keyboard model in /etc/default/keyboard
+  ansible.builtin.lineinfile:
+    path: /etc/default/keyboard
+    regexp: '^XKBMODEL='
+    line: 'XKBMODEL="pc105"'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_keyboard_model
+  tags: ['vconsole']
+
+- name: Set keyboard layout in /etc/default/keyboard
+  ansible.builtin.lineinfile:
+    path: /etc/default/keyboard
+    regexp: '^XKBLAYOUT='
+    line: 'XKBLAYOUT="{{ vconsole_console }}"'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_keyboard_layout
+  tags: ['vconsole']
+
+- name: Set keyboard variant in /etc/default/keyboard
+  ansible.builtin.lineinfile:
+    path: /etc/default/keyboard
+    regexp: '^XKBVARIANT='
+    line: 'XKBVARIANT=""'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_keyboard_variant
+  tags: ['vconsole']
+
+- name: Set keyboard options in /etc/default/keyboard
+  ansible.builtin.lineinfile:
+    path: /etc/default/keyboard
+    regexp: '^XKBOPTIONS='
+    line: 'XKBOPTIONS=""'
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_keyboard_options
+  tags: ['vconsole']
+
+- name: Apply keyboard configuration (Debian family)
+  ansible.builtin.systemd:
+    name: keyboard-setup.service
+    daemon_reload: true
+    state: restarted
+  when: >-  # noqa: no-handler
+    _vconsole_debian_console_backend.changed
+    or (_vconsole_debian_localed_keymap is defined and _vconsole_debian_localed_keymap.changed)
+    or _vconsole_debian_keyboard_model.changed
+    or _vconsole_debian_keyboard_layout.changed
+    or _vconsole_debian_keyboard_variant.changed
+    or _vconsole_debian_keyboard_options.changed
+  tags: ['vconsole']

@@ -3,3 +3,7 @@
 
 _vconsole_font_package: "fonts-terminus"
 _vconsole_gpm_package: "gpm"
+_vconsole_console_packages:
+  - console-setup-linux
+  - console-setup
+  - kbd

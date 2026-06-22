@@ -4,8 +4,8 @@
 vconsole_console: "us"
 vconsole_console_map_src: ""   # optional: local path to .map file in your repo
 
-# Optional: console font (e.g. "ter-v16n", "lat2-16")
-vconsole_console_font: ""
+# Console font (e.g. "ter-v16n", "lat2-16")
+vconsole_console_font: "ter-v16n"
 
 # Optional: font map (e.g. "8859-2")
 vconsole_console_font_map: ""

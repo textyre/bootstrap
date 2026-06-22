@@ -1,0 +1,56 @@
+---
+# === Console keymap: systemd-vconsole ===
+# /etc/vconsole.conf is managed line-by-line to avoid overwriting other entries.
+
+- name: Set KEYMAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^KEYMAP='
+    line: "KEYMAP={{ vconsole_value }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_keymap
+  tags: ['vconsole']
+
+- name: Set FONT in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT='
+    line: "FONT={{ vconsole_console_font }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_font
+  tags: ['vconsole']
+
+- name: Set FONT_MAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT_MAP='
+    line: "FONT_MAP={{ vconsole_console_font_map }}"
+  register: _vconsole_font_map
+  when: _vconsole_has_font_map
+  tags: ['vconsole']
+
+- name: Set FONT_UNIMAP in vconsole.conf (systemd)
+  ansible.builtin.lineinfile:
+    path: /etc/vconsole.conf
+    regexp: '^FONT_UNIMAP='
+    line: "FONT_UNIMAP={{ vconsole_console_font_unimap }}"
+  register: _vconsole_font_unimap
+  when: _vconsole_has_font_unimap
+  tags: ['vconsole']
+
+- name: Apply vconsole settings (systemd)
+  ansible.builtin.systemd:
+    name: systemd-vconsole-setup.service
+    state: restarted
+  when: >-  # noqa: no-handler
+    _vconsole_keymap.changed
+    or _vconsole_font.changed
+    or (_vconsole_font_map is defined and _vconsole_font_map.changed)
+    or (_vconsole_font_unimap is defined and _vconsole_font_unimap.changed)
+  tags: ['vconsole']

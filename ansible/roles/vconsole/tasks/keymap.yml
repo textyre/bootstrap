@@ -1,0 +1,22 @@
+---
+# === Prepare: custom keymap file ===
+
+- name: Create custom keymap directory
+  ansible.builtin.file:
+    path: /usr/local/share/kbd/keymaps
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: _vconsole_has_custom_keymap
+  tags: ['vconsole']
+
+- name: Copy custom keymap file
+  ansible.builtin.copy:
+    src: "{{ vconsole_console_map_src }}"
+    dest: "/usr/local/share/kbd/keymaps/{{ vconsole_console_map_src | basename }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: _vconsole_has_custom_keymap
+  tags: ['vconsole']

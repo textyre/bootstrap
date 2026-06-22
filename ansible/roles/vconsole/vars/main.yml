@@ -1,4 +1,12 @@
 ---
+# Поддерживаемые дистрибутивы (ROLE-003)
+_vconsole_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
 # Supported init systems for vconsole (ROLE-002)
 # systemd, runit, openrc: fully implemented
 # s6, dinit: stub implementations with debug messages
@@ -8,3 +16,18 @@ vconsole_supported_inits:
   - runit
   - s6
   - dinit
+
+# Вычисляемое значение keymap для init-файлов.
+# Если задан custom .map файл — путь к нему, иначе имя keymap.
+vconsole_value: >-
+  {{ '/usr/local/share/kbd/keymaps/' + (vconsole_console_map_src | basename)
+     if vconsole_console_map_src | default('') | length > 0
+     else vconsole_console }}
+
+# Флаги применимости (используются в when)
+_vconsole_has_custom_keymap: "{{ vconsole_console_map_src | default('') | length > 0 }}"
+_vconsole_has_font_map: "{{ vconsole_console_font_map | default('') | length > 0 }}"
+_vconsole_has_font_unimap: "{{ vconsole_console_font_unimap | default('') | length > 0 }}"
+_vconsole_needs_font: >-
+  {{ _vconsole_has_font_map or _vconsole_has_font_unimap }}
+_vconsole_is_container: "{{ (ansible_facts['virtualization_type'] | default('')) in ['docker', 'container', 'podman'] }}"

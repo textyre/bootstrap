@@ -1,15 +1,13 @@
 # vconsole
 
 Configures console (TTY) keymap, optional console font, and optional GPM (mouse in TTY).
-Dispatches by init system — no conditional branches in tasks; uses `with_first_found` to
-select the correct init-specific task file.
+Dispatches by init system using `include_tasks` with init-specific task files.
 
 ## Requirements
 
 - Ansible 2.15+
 - `become: true` (root access required)
-- `kbd` package (provides `loadkeys`, `setfont`) — install via the `prepare.yml` in molecule
-  or as a role dependency on target systems
+- `kbd` package (provides `loadkeys`, `setfont`) — required for openrc/runit init systems
 
 ## Supported distributions
 
@@ -19,9 +17,10 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 
 | Init system | Keymap file | Status |
 |---|---|---|
-| systemd | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
-| openrc | `/etc/conf.d/keymaps` | ✅ Full |
-| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Full |
+| systemd (Arch/Fedora/etc.) | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
+| systemd (Debian/Ubuntu) | `/etc/default/keyboard` (`XKBLAYOUT=`), generated `/usr/share/keymaps/xkb/*.map` | ✅ Full |
+| openrc | `/etc/conf.d/keymaps` | ✅ Config + apply, no runtime verify |
+| runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Config + apply, no runtime verify |
 | s6 | (stub) | ⚠️ Debug message only |
 | dinit | (stub) | ⚠️ Debug message only |
 
@@ -31,14 +30,15 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 |---|---|---|
 | `vconsole_console` | `"us"` | Console keymap identifier (e.g. `us`, `ru`, `de`) |
 | `vconsole_console_map_src` | `""` | Optional: local path to a custom `.map` file in your repo |
-| `vconsole_console_font` | `""` | Console font name (e.g. `ter-v16n`, `lat2-16`). Empty = no font configured |
+| `vconsole_console_font` | `"ter-v16n"` | Console font name (e.g. `ter-v16n`, `lat2-16`) |
 | `vconsole_console_font_map` | `""` | Font map (e.g. `8859-2`) (systemd only) |
 | `vconsole_console_font_unimap` | `""` | Unicode map file (systemd only) |
-| `vconsole_gpm_enabled` | `true` | Install GPM package and enable/start service on non-container targets. In containerized Molecule environments, the role may skip service start while still installing the package (set `false` for headless/VM environments — GPM requires `/dev/input/mice`) |
+| `vconsole_gpm_enabled` | `true` | Install GPM package and enable/start service on non-container targets |
 
 **Note:** Font package names are distro-specific (managed by `vars/DISTRO_FAMILY.yml`):
 - Arch: `terminus-font`, `gpm`
-- Debian/Ubuntu: `fonts-terminus`, `gpm`
+- Debian/Ubuntu: `fonts-terminus`, `gpm`, plus `console-setup-linux`,
+  `console-setup`, and `kbd` for the systemd console keymap backend
 - RedHat/Fedora: `terminus-fonts`, `gpm`
 - Void: `terminus-font`, `gpm`
 - Gentoo: `sys-fonts/terminus-font`, `sys-libs/gpm`
@@ -64,7 +64,6 @@ With a custom font (Arch Linux):
       vars:
         vconsole_console: "us"
         vconsole_console_font: "ter-v16n"
-        vconsole_console_font_package: "terminus-font"
         vconsole_gpm_enabled: false
 ```
 
@@ -72,11 +71,15 @@ With a custom font (Arch Linux):
 
 - **GPM and headless VMs**: GPM requires `/dev/input/mice` which is absent in most VMs.
   Set `vconsole_gpm_enabled: false` for Vagrant/cloud targets.
-- **Ubuntu font packages**: Ubuntu does not ship `terminus-font`. Use `fonts-terminus` or
-  leave `vconsole_console_font` empty. The keymap configuration via `/etc/vconsole.conf`
-  works on Ubuntu (systemd reads it), but is non-standard compared to `console-setup`.
-- **Handler**: `apply vconsole` restarts `systemd-vconsole-setup.service` on systemd,
-  or runs `loadkeys`/`setfont` directly on openrc/runit.
+- **Ubuntu/Debian systemd**: Ubuntu and Debian use `keyboard-configuration` /
+  `console-setup`, so this role manages `/etc/default/keyboard` instead of
+  `/etc/vconsole.conf`. The `systemd-vconsole-setup.service` unit is not part
+  of the Ubuntu 24.04 test targets.
+- **Apply behavior**: systemd-vconsole targets restart
+  `systemd-vconsole-setup.service`; Debian-family systemd targets install the
+  `console-setup` backend, generate a kbd-compatible map with `ckbcomp`, set
+  `VC Keymap` through `systemd-localed`, and restart `keyboard-setup.service`.
+  OpenRC/runit targets run `loadkeys`/`setfont` directly.
 
 ## Test Cases
 
@@ -85,20 +88,20 @@ With a custom font (Arch Linux):
 **Driver:** Docker (via molecule)
 **Platforms:** Archlinux (systemd), Ubuntu (systemd)
 
-| Test Case | Keymap | Font | GPM | OS | Init | Verifies |
-|---|---|---|---|---|---|---|
-| Arch font + keymap | us | ter-v16n | disabled | Arch | systemd | vconsole.conf (KEYMAP, FONT, FONT_MAP) |
-| Ubuntu keymap only | us | (none) | disabled | Ubuntu | systemd | vconsole.conf (KEYMAP only) |
+| Test Case | Keymap | Font | GPM | OS | Init |
+|---|---|---|---|---|---|
+| Arch font + keymap | us | ter-v16n | skipped in container | Arch | systemd |
+| Ubuntu keymap only | us | (none) | skipped in container | Ubuntu | systemd |
 
 ### Scenario: `vagrant`
 
 **Driver:** Vagrant/KVM (libvirt)
 **Platforms:** Archlinux (runit), Ubuntu (systemd)
 
-| Test Case | Keymap | Font | GPM | OS | Init | Verifies |
-|---|---|---|---|---|---|---|
-| Arch (runit) | us | ter-v16n | disabled | Arch | runit | /etc/rc.conf, localectl |
-| Ubuntu (systemd) | us | (none) | disabled | Ubuntu | systemd | vconsole.conf, localectl |
+| Test Case | Keymap | Font | GPM | OS | Init |
+|---|---|---|---|---|---|
+| Arch (runit) | us | ter-v16n | enabled | Arch | runit |
+| Ubuntu (systemd) | us | (none) | enabled | Ubuntu | systemd |
 
 ### Running Tests
 
@@ -121,9 +124,9 @@ molecule test -s docker --destroy=never
 
 ### Test Coverage
 
-- ✅ Keymap configuration across init systems (systemd, openrc, runit)
-- ✅ Font installation and configuration (Arch only due to distro-specific packages)
-- ✅ GPM service state verification (enabled/disabled, container detection)
+- ✅ Keymap configuration (systemd)
+- ✅ Font installation and configuration (Arch only)
+- ✅ GPM service state verification on non-container targets
 - ✅ Idempotency (converge runs twice without state changes)
 - ✅ Cross-platform consistency (Arch + Ubuntu)
 

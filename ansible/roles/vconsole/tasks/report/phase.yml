@@ -1,0 +1,13 @@
+---
+# === vconsole: phase report helper ===
+
+- name: "Report: {{ _vconsole_report_phase }}"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vconsole_phases"
+    common_rpt_phase: "{{ _vconsole_report_phase }}"
+    common_rpt_detail: "{{ _vconsole_report_detail | default('') }}"
+    common_rpt_status: "{{ _vconsole_report_status | default('done') }}"
+  tags: ['vconsole', 'report']

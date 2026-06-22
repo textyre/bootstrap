@@ -1,9 +1,8 @@
 ---
-# === Console font package ===
+# === Prepare: console font package ===
 
 - name: Install console font package
   ansible.builtin.package:
     name: "{{ _vconsole_font_package }}"
     state: present
-  when: vconsole_console_font | default('') | length > 0
   tags: ['vconsole']

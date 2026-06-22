@@ -1,119 +1,64 @@
 ---
-# === Console keymap — диспетчер по init-системе ===
-# validate → Настройка → Проверка → Логирование
-# Диспатч через with_first_found (без when для выбора init)
+# === Console keymap — orchestrator ===
+# validate → keymap → font → configure → verify → report
 
-# ---- Load distro-specific variables ----
-
-- name: Include distro-specific package variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+- name: Vconsole role
   tags: ['vconsole']
+  block:
 
-# ---- Валидация ----
+    # ---- Validate ----
 
-- name: Validate vconsole configuration
-  ansible.builtin.include_tasks: validate/main.yml
-  tags: ['vconsole']
+    - name: Validate vconsole configuration
+      ansible.builtin.include_tasks: validate/main.yml
+      tags: ['vconsole']
 
-# ---- Custom keymap file ----
+    # ---- Load distro-specific variables ----
 
-- name: Prepare custom keymap file
-  ansible.builtin.include_tasks: map.yml
-  tags: ['vconsole']
+    - name: Include distro-specific package variables
+      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+      tags: ['vconsole']
 
-# ---- Font package ----
+    # ---- Prepare (custom keymap + font) ----
 
-- name: Install console font
-  ansible.builtin.include_tasks: font.yml
-  tags: ['vconsole']
+    - name: Prepare custom keymap
+      ansible.builtin.include_tasks: keymap.yml
+      tags: ['vconsole']
 
-- name: "Report: Console font"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vconsole_phases"
-    common_rpt_phase: "Console font"
-    common_rpt_status: "{{ 'done' if vconsole_console_font | default('') | length > 0 else 'skip' }}"
-    common_rpt_detail: "{{ vconsole_console_font | default('(not set)') }}"
-  tags: ['vconsole', 'report']
+    - name: Install console font
+      ansible.builtin.include_tasks: font.yml
+      tags: ['vconsole']
 
-# ---- Настройка keymap ----
+    # ---- Configure keymap (init-specific) ----
 
-- name: Configure console keymap ({{ ansible_facts['service_mgr'] }})
-  ansible.builtin.include_tasks: "{{ item }}"
-  with_first_found:
-    - files:
-        - "init/{{ ansible_facts['service_mgr'] }}.yml"
-      skip: true
-  tags: ['vconsole']
+    - name: "Configure console keymap ({{ ansible_facts['service_mgr'] }})"
+      ansible.builtin.include_tasks: "init/{{ ansible_facts['service_mgr'] }}.yml"
+      tags: ['vconsole']
 
-- name: Warn about unsupported init system for keymap
-  ansible.builtin.debug:
-    msg: >-
-      WARNING: Console keymap skipped — init system
-      '{{ ansible_facts['service_mgr'] }}' not supported.
-      Supported: {{ vconsole_supported_inits | join(', ') }}.
-  when: ansible_facts['service_mgr'] not in vconsole_supported_inits
-  tags: ['vconsole']
+    # ---- GPM (mouse in TTY) ----
 
-# ---- GPM ----
+    - name: Configure GPM
+      ansible.builtin.include_tasks: gpm/main.yml
+      when: not _vconsole_is_container
+      tags: ['vconsole']
 
-- name: Configure GPM (mouse in TTY)
-  ansible.builtin.include_tasks: gpm.yml
-  when: vconsole_gpm_enabled
-  tags: ['vconsole']
+    # ---- Verify ----
 
-- name: "Report: GPM daemon"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vconsole_phases"
-    common_rpt_phase: "GPM daemon"
-    common_rpt_status: "{{ 'done' if vconsole_gpm_enabled else 'skip' }}"
-    common_rpt_detail: "{{ 'enabled' if vconsole_gpm_enabled else 'disabled' }}"
-  tags: ['vconsole', 'report']
+    - name: "Verify keymap ({{ ansible_facts['service_mgr'] }})"
+      ansible.builtin.include_tasks: "verify/{{ ansible_facts['service_mgr'] }}.yml"
+      tags: ['vconsole']
 
-# ---- Проверка ----
+    - name: Verify GPM service
+      ansible.builtin.include_tasks: gpm/verify.yml
+      when: not _vconsole_is_container
+      tags: ['vconsole']
 
-- name: Verify console keymap
-  ansible.builtin.include_tasks: "{{ item }}"
-  with_first_found:
-    - files:
-        - "verify/{{ ansible_facts['service_mgr'] }}.yml"
-      skip: true
-  tags: ['vconsole']
+    # ---- Report ----
 
-- name: "Report: Vconsole verification"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vconsole_phases"
-    common_rpt_phase: "Vconsole verification"
-    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in vconsole_supported_inits else 'skip' }}"
-    common_rpt_detail: "Keymap: {{ vconsole_console | default('(not set)') }}, Font: {{ vconsole_console_font | default('(not set)') }}"
-  tags: ['vconsole', 'report']
-
-# ---- Логирование ----
-
-- name: "Report: Console keymap"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vconsole_phases"
-    common_rpt_phase: "Console keymap"
-    common_rpt_status: "{{ 'done' if ansible_facts['service_mgr'] in vconsole_supported_inits else 'skip' }}"
-    common_rpt_detail: "{{ vconsole_console }} ({{ ansible_facts['service_mgr'] }})"
-  tags: ['vconsole', 'report']
-
-- name: "Vconsole — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_vconsole_phases"
-    common_rpt_title: "vconsole"
-  tags: ['vconsole', 'report']
+    - name: "Vconsole — Execution Report"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_vconsole_phases"
+        common_rpt_title: "vconsole"
+      tags: ['vconsole', 'report']

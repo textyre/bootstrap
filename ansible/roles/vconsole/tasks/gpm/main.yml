@@ -1,0 +1,15 @@
+---
+# === GPM — General Purpose Mouse daemon (mouse in TTY) ===
+
+- name: Install GPM
+  ansible.builtin.package:
+    name: "{{ _vconsole_gpm_package }}"
+    state: present
+  tags: ['vconsole']
+
+- name: Enable and start GPM service
+  ansible.builtin.service:
+    name: gpm
+    enabled: true
+    state: started
+  tags: ['vconsole']

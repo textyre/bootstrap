@@ -1,0 +1,29 @@
+---
+# === Verify console keymap: systemd-vconsole ===
+
+- name: Check systemd-vconsole-setup.service exists  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl cat systemd-vconsole-setup.service
+  register: _vconsole_service_check
+  changed_when: false
+  tags: ['vconsole']
+
+- name: Get current keymap from localectl
+  ansible.builtin.command: localectl status
+  register: _vconsole_localectl_output
+  changed_when: false
+  when: not _vconsole_has_custom_keymap
+  tags: ['vconsole']
+
+- name: Assert keymap was applied to running console
+  ansible.builtin.assert:
+    that:
+      - >-
+        _vconsole_localectl_output.stdout is search(
+          'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
+        )
+    fail_msg: >-
+      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl
+      status. Output: {{ _vconsole_localectl_output.stdout }}
+    quiet: true
+  when: not _vconsole_has_custom_keymap
+  tags: ['vconsole']

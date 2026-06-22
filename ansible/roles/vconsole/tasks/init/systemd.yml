@@ -1,66 +1,12 @@
 ---
-# === Console keymap: systemd ===
-# /etc/vconsole.conf — managed line-by-line to avoid overwriting other entries
+# === Console keymap: systemd backend router ===
 
-- name: Set KEYMAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^KEYMAP='
-    line: "KEYMAP={{ vconsole_value }}"
-    create: true
-    owner: root
-    group: root
-    mode: '0644'
-  notify: apply vconsole
+- name: Configure console keymap (systemd, Debian family)
+  ansible.builtin.include_tasks: systemd/debian.yml
+  when: ansible_facts['os_family'] == 'Debian'
   tags: ['vconsole']
 
-- name: Set FONT in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT='
-    line: "FONT={{ vconsole_console_font }}"
-  when: vconsole_console_font | default('') | length > 0
-  notify: apply vconsole
-  tags: ['vconsole']
-
-- name: Set FONT_MAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_MAP='
-    line: "FONT_MAP={{ vconsole_console_font_map }}"
-  when: vconsole_console_font_map | default('') | length > 0
-  notify: apply vconsole
-  tags: ['vconsole']
-
-- name: Set FONT_UNIMAP in vconsole.conf (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_UNIMAP='
-    line: "FONT_UNIMAP={{ vconsole_console_font_unimap }}"
-  when: vconsole_console_font_unimap | default('') | length > 0
-  notify: apply vconsole
-  tags: ['vconsole']
-
-- name: Remove FONT from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT='
-    state: absent
-  when: vconsole_console_font | default('') | length == 0
-  tags: ['vconsole']
-
-- name: Remove FONT_MAP from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_MAP='
-    state: absent
-  when: vconsole_console_font_map | default('') | length == 0
-  tags: ['vconsole']
-
-- name: Remove FONT_UNIMAP from vconsole.conf when unset (systemd)
-  ansible.builtin.lineinfile:
-    path: /etc/vconsole.conf
-    regexp: '^FONT_UNIMAP='
-    state: absent
-  when: vconsole_console_font_unimap | default('') | length == 0
+- name: Configure console keymap (systemd, vconsole.conf)
+  ansible.builtin.include_tasks: systemd/vconsole.yml
+  when: ansible_facts['os_family'] != 'Debian'
   tags: ['vconsole']
