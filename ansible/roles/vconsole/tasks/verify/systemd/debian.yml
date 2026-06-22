@@ -6,9 +6,9 @@
   changed_when: false
   tags: ['vconsole']
 
-- name: Get current kernel console keymap
-  ansible.builtin.command: dumpkeys --keys-only --console=/dev/tty0
-  register: _vconsole_debian_dumpkeys_output
+- name: Get current keymap from localectl
+  ansible.builtin.command: localectl status
+  register: _vconsole_debian_localectl_output
   changed_when: false
   tags: ['vconsole']
 
@@ -16,20 +16,11 @@
   ansible.builtin.assert:
     that:
       - >-
-        _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+16\\s+=\\s+\\+?q\\s*$'
-        )
-      - >-
-        _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+30\\s+=\\s+\\+?a\\s*$'
-        )
-      - >-
-        _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+44\\s+=\\s+\\+?z\\s*$'
+        _vconsole_debian_localectl_output.stdout is search(
+          'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
         )
     fail_msg: >-
-      Keymap '{{ vconsole_console }}' was not found in the running kernel
-      console keymap. dumpkeys output: {{ _vconsole_debian_dumpkeys_output.stdout }}
+      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl
+      status. Output: {{ _vconsole_debian_localectl_output.stdout }}
     quiet: true
-  when: vconsole_console == 'us'
   tags: ['vconsole']
