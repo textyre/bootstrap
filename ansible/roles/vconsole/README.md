@@ -18,7 +18,7 @@ Arch Linux, Ubuntu, Fedora, Void Linux, Gentoo.
 | Init system | Keymap file | Status |
 |---|---|---|
 | systemd (Arch/Fedora/etc.) | `/etc/vconsole.conf` (`KEYMAP=`, `FONT=`, `FONT_MAP=`, `FONT_UNIMAP=`) | ✅ Full |
-| systemd (Debian/Ubuntu) | `/etc/default/keyboard` (`XKBLAYOUT=`) | ✅ Full |
+| systemd (Debian/Ubuntu) | `/etc/default/keyboard` (`XKBLAYOUT=`), generated `/usr/share/keymaps/xkb/*.map` | ✅ Full |
 | openrc | `/etc/conf.d/keymaps` | ✅ Full |
 | runit | `/etc/rc.conf` (`KEYMAP=`, `FONT=`) | ✅ Full |
 | s6 | (stub) | ⚠️ Debug message only |
@@ -77,8 +77,9 @@ With a custom font (Arch Linux):
   of the Ubuntu 24.04 test targets.
 - **Apply behavior**: systemd-vconsole targets restart
   `systemd-vconsole-setup.service`; Debian-family systemd targets install the
-  `console-setup` backend and restart `keyboard-setup.service`. OpenRC/runit
-  targets run `loadkeys`/`setfont` directly.
+  `console-setup` backend, generate a kbd-compatible map with `ckbcomp`, set
+  `VC Keymap` through `systemd-localed`, and restart `keyboard-setup.service`.
+  OpenRC/runit targets run `loadkeys`/`setfont` directly.
 
 ## Test Cases
 
