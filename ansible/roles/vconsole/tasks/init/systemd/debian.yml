@@ -18,6 +18,8 @@
     name: "{{ _vconsole_console_packages }}"
     state: present
   register: _vconsole_debian_console_backend
+  environment:
+    DEBIAN_FRONTEND: noninteractive
   tags: ['vconsole']
 
 - name: Get current Debian console keymap from localectl  # noqa: command-instead-of-module
