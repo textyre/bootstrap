@@ -47,12 +47,6 @@
       - "{{ vconsole_console }}"
   register: _vconsole_debian_generated_keymap
   changed_when: false
-  when: >-
-    not (
-      _vconsole_debian_localectl_output.stdout is search(
-        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
-      )
-    )
   tags: ['vconsole']
 
 - name: Install generated Debian console keymap
