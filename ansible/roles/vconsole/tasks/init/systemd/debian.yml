@@ -57,9 +57,6 @@
     group: root
     mode: '0644'
   register: _vconsole_debian_generated_keymap_file
-  when: >-
-    _vconsole_debian_generated_keymap is defined
-    and not (_vconsole_debian_generated_keymap.skipped | default(false))
   tags: ['vconsole']
 
 - name: Set Debian console keymap through systemd-localed  # noqa: command-instead-of-module
