@@ -28,6 +28,52 @@
   changed_when: false
   tags: ['vconsole']
 
+- name: Ensure generated Debian keymap directory exists
+  ansible.builtin.file:
+    path: /usr/share/keymaps/xkb
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: >-
+    not (
+      _vconsole_debian_localectl_output.stdout is search(
+        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
+      )
+    )
+  tags: ['vconsole']
+
+- name: Generate Debian console keymap from XKB  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - ckbcomp
+      - -model
+      - pc105
+      - -layout
+      - "{{ vconsole_console }}"
+  register: _vconsole_debian_generated_keymap
+  changed_when: false
+  when: >-
+    not (
+      _vconsole_debian_localectl_output.stdout is search(
+        'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
+      )
+    )
+  tags: ['vconsole']
+
+- name: Install generated Debian console keymap
+  ansible.builtin.copy:
+    dest: "/usr/share/keymaps/xkb/{{ vconsole_console }}.map"
+    content: "{{ _vconsole_debian_generated_keymap.stdout }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vconsole_debian_generated_keymap_file
+  when: >-
+    _vconsole_debian_generated_keymap is defined
+    and not (_vconsole_debian_generated_keymap.skipped | default(false))
+  tags: ['vconsole']
+
 - name: Set Debian console keymap through systemd-localed  # noqa: command-instead-of-module
   ansible.builtin.command:
     argv:
@@ -45,6 +91,9 @@
   register: _vconsole_debian_localed_keymap
   changed_when: true
   when: >-
+    _vconsole_debian_generated_keymap_file is defined
+    and not (_vconsole_debian_generated_keymap_file.skipped | default(false))
+    and
     not (
       _vconsole_debian_localectl_output.stdout is search(
         'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
