@@ -6,4 +6,5 @@ _vconsole_gpm_package: "gpm"
 _vconsole_console_packages:
   - console-setup-linux
   - console-setup
+  - console-data
   - kbd
