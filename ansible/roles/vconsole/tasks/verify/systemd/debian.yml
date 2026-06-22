@@ -17,15 +17,15 @@
     that:
       - >-
         _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+16\\s+=\\s+q(\\s|$)'
+          '(?m)^keycode\\s+16\\s+=\\s+\\+?q\\s*$'
         )
       - >-
         _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+30\\s+=\\s+a(\\s|$)'
+          '(?m)^keycode\\s+30\\s+=\\s+\\+?a\\s*$'
         )
       - >-
         _vconsole_debian_dumpkeys_output.stdout is search(
-          '(?m)^keycode\\s+44\\s+=\\s+z(\\s|$)'
+          '(?m)^keycode\\s+44\\s+=\\s+\\+?z\\s*$'
         )
     fail_msg: >-
       Keymap '{{ vconsole_console }}' was not found in the running kernel
