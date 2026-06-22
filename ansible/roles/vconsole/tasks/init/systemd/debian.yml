@@ -76,9 +76,6 @@
   register: _vconsole_debian_localed_keymap
   changed_when: true
   when: >-
-    _vconsole_debian_generated_keymap_file is defined
-    and not (_vconsole_debian_generated_keymap_file.skipped | default(false))
-    and
     not (
       _vconsole_debian_localectl_output.stdout is search(
         'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
