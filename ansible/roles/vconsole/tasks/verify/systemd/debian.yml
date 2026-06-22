@@ -17,10 +17,10 @@
     that:
       - >-
         _vconsole_debian_localectl_output.stdout is search(
-          'X11 Layout:\\s+' + vconsole_console + '(\\s|$)'
+          'VC Keymap:\\s+' + vconsole_console + '(\\s|$)'
         )
     fail_msg: >-
-      Keymap '{{ vconsole_console }}' not found as X11 Layout in localectl
+      Keymap '{{ vconsole_console }}' not found as VC Keymap in localectl
       status. Output: {{ _vconsole_debian_localectl_output.stdout }}
     quiet: true
   tags: ['vconsole']
