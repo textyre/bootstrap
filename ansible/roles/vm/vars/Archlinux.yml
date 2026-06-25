@@ -1,14 +1,26 @@
 ---
 # === Arch Linux specific variables ===
 
-# Service manager: systemd (always on Arch)
-vm_service_manager: systemd
-
 # Hyper-V package names (Arch uses 'hyperv' meta-package)
 vm_hyperv_packages: "{{ vm_packages_hyperv_guest }}"
+
+# Hyper-V service names from the Arch hyperv package follow the upstream daemon
+# names. If a package build omits one required unit, the Hyper-V service phase
+# must fail rather than silently degrade the role contract.
+vm_hyperv_fcopy_service_name: hv_fcopy_daemon.service
+vm_hyperv_kvp_service_name: hv_kvp_daemon.service
+vm_hyperv_vss_service_name: hv_vss_daemon.service
 
 # KVM package names
 vm_kvm_packages: "{{ vm_packages_kvm_guest }}"
 
+# Arch packages expose vmblock-fuse as a service unit.
+# Source: Arch VMware guest documentation.
+vm_vmware_vmblock_unit_name: vmware-vmblock-fuse.service
+
 # VirtualBox LTS kernel support available
 vm_vbox_lts_kernel_support: true
+
+# VirtualBox kernel headers: Archlinux uses linux-lts-headers for LTS kernels.
+vm_vbox_kernel_header_packages:
+  - "{{ 'linux-lts-headers' if '-lts' in ansible_kernel else 'linux-headers' }}"

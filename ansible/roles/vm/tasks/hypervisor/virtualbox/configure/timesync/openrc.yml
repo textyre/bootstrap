@@ -1,0 +1,7 @@
+---
+- name: "VirtualBox: Note - timesync disable is not implemented for openrc"
+  ansible.builtin.debug:
+    msg: >-
+      VirtualBox timesync disable is not implemented for openrc in this role.
+      Use the VirtualBox host-side guest property if timesync must be disabled.
+    verbosity: 0

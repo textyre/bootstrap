@@ -1,0 +1,25 @@
+---
+# =========================================================================
+# detect.yml — Virtualization detection phase
+# =========================================================================
+# Reports hypervisor type and role from ansible_facts.
+#
+# Expected variables:
+#   _vm_supported_hypervisors (list) - from vars/main.yml
+# =========================================================================
+
+- name: "Report: Detect virtualization"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    vm_detected_guest_supported: >-
+      {{
+        ansible_facts['virtualization_role'] == 'guest'
+        and (ansible_facts['virtualization_type'] | lower) in _vm_supported_hypervisors
+      }}
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Detect virtualization"
+    common_rpt_detail: >-
+      {{ ansible_facts['virtualization_type'] }}/{{ ansible_facts['virtualization_role'] }},
+      supported={{ vm_detected_guest_supported }}

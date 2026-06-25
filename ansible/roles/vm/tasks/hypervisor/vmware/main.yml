@@ -1,0 +1,51 @@
+---
+# === VMware Guest Tools (open-vm-tools) ===
+#
+# Services:
+#   vmtoolsd              - core VMware Tools daemon
+#   vgauthd               - guest authentication for vSphere operations
+#   vmblock-fuse          - FUSE filesystem required for desktop file transfer
+#
+# Kernel modules:
+#   vmw_balloon - dynamic memory management
+#   vmxnet3     - paravirtual network adapter, depends on VM NIC config
+#
+# Desktop integration:
+#   vmware-user-suid-wrapper is started by the XDG autostart entry during the
+#   graphical user session. It is separate from the system vmtoolsd service and
+#   works with vmblock-fuse for copy/paste and drag-and-drop.
+
+# ---- Phase 1: Install guest tools ----
+
+- name: "VMware: Install guest tools"
+  ansible.builtin.include_tasks:
+    file: hypervisor/vmware/install/packages.yml
+
+# ---- Phase 2: Configure guest integration ----
+
+- name: "VMware: Configure timesync"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/vmware/configure/timesync/{{ ansible_facts['service_mgr'] }}.yml"
+
+- name: "VMware: Configure desktop integration"
+  ansible.builtin.include_tasks:
+    file: hypervisor/vmware/configure/desktop-integration.yml
+
+# ---- Phase 3: Start guest services ----
+
+- name: "VMware: Start guest services"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/vmware/service/{{ ansible_facts['service_mgr'] }}.yml"
+
+# ---- Phase 4: Module verification ----
+
+- name: "VMware: Verify kernel modules"
+  ansible.builtin.include_tasks:
+    file: hypervisor/vmware/verify/modules.yml
+
+# ---- Phase 5: Version report ----
+
+- name: "VMware: Report version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/vmware/report/version.yml
+  when: vm_vmware_version_report

@@ -1,0 +1,5 @@
+---
+- name: "VMware: Install open-vm-tools packages"
+  ansible.builtin.package:
+    name: "{{ vm_packages_vmware_guest }}"
+    state: present

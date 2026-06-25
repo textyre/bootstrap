@@ -1,16 +1,28 @@
 ---
 # === Debian/Ubuntu specific variables ===
 
-# Service manager: systemd
-vm_service_manager: systemd
-
 # Hyper-V package names (Debian uses 'hyperv-daemons')
 vm_hyperv_packages:
   - hyperv-daemons
+
+# Debian packages the Hyper-V units under the hyperv-daemons.* namespace.
+# Source: Debian linux source package service files:
+# https://sources.debian.org/src/linux/5.10.13-1/debian/hyperv-daemons.hv-fcopy-daemon.service
+vm_hyperv_fcopy_service_name: hyperv-daemons.hv-fcopy-daemon.service
+vm_hyperv_kvp_service_name: hyperv-daemons.hv-kvp-daemon.service
+vm_hyperv_vss_service_name: hyperv-daemons.hv-vss-daemon.service
 
 # KVM package names
 vm_kvm_packages:
   - qemu-guest-agent
 
+# Debian/Ubuntu open-vm-tools-desktop exposes vmblock-fuse as a mount unit.
+# Source: Debian package file list for open-vm-tools-desktop.
+vm_vmware_vmblock_unit_name: 'run-vmblock\x2dfuse.mount'
+
 # VirtualBox LTS kernel support: not applicable (Debian has own kernel versioning)
 vm_vbox_lts_kernel_support: false
+
+# VirtualBox kernel headers: Debian packages headers per running kernel.
+vm_vbox_kernel_header_packages:
+  - "linux-headers-{{ ansible_kernel }}"

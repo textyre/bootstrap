@@ -1,0 +1,10 @@
+---
+# vm_vbox_kernel_header_packages is provided by vars/<OsFamily>.yml.
+- name: "VirtualBox: Install build dependencies"
+  ansible.builtin.package:
+    name: "{{ ['gcc', 'make', 'perl'] + vm_vbox_kernel_header_packages }}"
+    state: present
+  register: vm_vbox_build_deps
+  retries: 3
+  delay: 5
+  until: vm_vbox_build_deps is succeeded

@@ -1,14 +1,21 @@
 ---
 # === Void Linux specific variables ===
 
-# Service manager: runit (Void default)
-vm_service_manager: runit
-
 # Hyper-V: no native package on Void
 vm_hyperv_packages: "{{ vm_packages_hyperv_guest }}"
+
+# Void uses runit in this role and fails explicitly in the Hyper-V runit service
+# phase until Hyper-V daemon supervision is implemented.
+vm_hyperv_fcopy_service_name: hv_fcopy_daemon
+vm_hyperv_kvp_service_name: hv_kvp_daemon
+vm_hyperv_vss_service_name: hv_vss_daemon
 
 # KVM package names
 vm_kvm_packages: "{{ vm_packages_kvm_guest }}"
 
 # VirtualBox LTS kernel support: not applicable (Void uses own kernel packages)
 vm_vbox_lts_kernel_support: false
+
+# VirtualBox kernel headers: static for Void
+vm_vbox_kernel_header_packages:
+  - linux-headers

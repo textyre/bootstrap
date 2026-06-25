@@ -1,0 +1,16 @@
+---
+# These are read-only VMware platform integration checks. open-vm-tools provides
+# user-space services; these kernel modules come from the guest kernel and are
+# required for the VMware guest platform contract owned by this role.
+#
+# vmw_balloon provides VMware memory ballooning, allowing the hypervisor to
+# reclaim guest memory under pressure.
+- name: "VMware: Verify vmw_balloon module"
+  ansible.builtin.command: modinfo vmw_balloon
+  changed_when: false
+
+# vmxnet3 provides VMware's paravirtual network adapter support. The role treats
+# it as required so VMware guests are ready for the expected VMware NIC model.
+- name: "VMware: Verify vmxnet3 module"
+  ansible.builtin.command: modinfo vmxnet3
+  changed_when: false

@@ -2,26 +2,22 @@
 # === Virtualization guest tools (VirtualBox, VMware, Hyper-V, KVM) ===
 # Packages defined in group_vars/all/packages.yml
 
-# Supported OS families (ROLE-003: Five Distros Only)
-_vm_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# GA is always installed from ISO (never from the package manager).
-# This list is kept for the vm_state=absent removal path only.
-vm_packages_virtualbox_guest:
-  - virtualbox-guest-utils
+# VMware guest tools package. Distros that use the same name consume this
+# directly; distro-specific overrides live in vars/<OsFamily>.yml.
 vm_packages_vmware_guest:
   - open-vm-tools
+
+# Hyper-V integration package default for distros that use the generic role
+# contract directly. Distro-specific package names live in vars/<OsFamily>.yml.
 vm_packages_hyperv_guest:
   - hyperv
+
+# KVM/QEMU guest agent package default for distros that use the generic role
+# contract directly. Distro-specific package names live in vars/<OsFamily>.yml.
 vm_packages_kvm_guest:
   - qemu-guest-agent
 
-# VBox host version override — set to bypass dmesg/journalctl detection.
+# VBox host version override - set to bypass dmesg/journalctl detection.
 # Use when the kernel ring buffer was cleared on a long-running system.
 # Example: vm_vbox_host_version_override: "7.1.16"
 vm_vbox_host_version_override: ""
@@ -32,28 +28,8 @@ vm_vbox_version_check: true
 # VMware version reporting: show vmware-toolbox-cmd version
 vm_vmware_version_report: true
 
+# Hyper-V version reporting: show hv_vmbus kernel metadata when available
+vm_hyperv_version_report: true
+
 # KVM version reporting: show qemu-ga version
 vm_kvm_version_report: true
-
-# Role state: 'present' installs guest tools, 'absent' removes them
-vm_state: present
-
-# Internal: map virtualization_type fact value → task file
-vm_hypervisor_map:
-  virtualbox: virtualbox.yml
-  VMware: vmware.yml
-  hyperv: hyperv.yml
-  kvm: kvm.yml
-
-vm_supported_hypervisors:
-  - virtualbox
-  - VMware
-  - hyperv
-  - kvm
-
-# NTP daemons checked before disabling guest timesync (see tasks/_ntp_guard.yml)
-vm_ntp_daemon_services:
-  - chronyd.service
-  - ntpd.service
-  - openntpd.service
-  - systemd-timesyncd.service

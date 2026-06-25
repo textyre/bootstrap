@@ -1,0 +1,14 @@
+---
+# Hyper-V Enhanced Session for Linux desktops is commonly provided through xrdp.
+# This role does not install or configure xrdp; it reports whether that desktop
+# integration component is present.
+- name: "Hyper-V: Check xrdp executable"
+  ansible.builtin.stat:
+    path: /usr/bin/xrdp
+  register: vm_hyperv_xrdp
+
+- name: "Hyper-V: Report Enhanced Session support"
+  ansible.builtin.debug:
+    msg: >-
+      Hyper-V Enhanced Session xrdp:
+      {{ 'available' if vm_hyperv_xrdp.stat.exists else 'unavailable' }}

@@ -1,0 +1,20 @@
+---
+- name: "KVM: Check qemu-guest-agent virtio channel"
+  ansible.builtin.stat:
+    path: /dev/virtio-ports/org.qemu.guest_agent.0
+  register: vm_kvm_qga_channel
+
+- name: "KVM: Fail when qemu-guest-agent channel is absent"
+  ansible.builtin.fail:
+    msg: >-
+      /dev/virtio-ports/org.qemu.guest_agent.0 not found.
+      qemu-guest-agent requires this virtio-serial channel to communicate with
+      the host. Add the QEMU guest agent channel to the VM configuration, then
+      re-run the vm role.
+  when: not vm_kvm_qga_channel.stat.exists
+
+- name: "KVM: Start qemu-guest-agent service"
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: true
+    state: started

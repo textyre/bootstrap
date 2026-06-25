@@ -1,0 +1,15 @@
+---
+# qemu-ga is the QEMU Guest Agent CLI installed with qemu-guest-agent. This
+# report is informational and must not fail the role when version output is
+# unavailable.
+- name: "KVM: Get qemu guest agent version"
+  ansible.builtin.command: qemu-ga --version
+  register: vm_kvm_guest_agent_version
+  changed_when: false
+  failed_when: false
+
+- name: "KVM: Report qemu guest agent version"
+  ansible.builtin.debug:
+    msg: >-
+      KVM guest agent version:
+      {{ (vm_kvm_guest_agent_version.stdout | trim) if vm_kvm_guest_agent_version.rc == 0 else 'version unavailable' }}

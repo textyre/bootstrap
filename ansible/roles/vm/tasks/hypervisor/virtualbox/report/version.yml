@@ -1,0 +1,11 @@
+---
+- name: "VirtualBox: Report Guest Additions version"
+  vars:
+    vm_vbox_report_host_version: "{{ vm_vbox_host_version_detected.stdout | trim }}"
+    vm_vbox_report_guest_version: "{{ vm_vbox_guest_version_detected.stdout | trim }}"
+  ansible.builtin.debug:
+    msg: >-
+      VBox versions - Host:
+      {{ vm_vbox_report_host_version if vm_vbox_report_host_version | length > 0 else 'unknown' }},
+      Guest GA:
+      {{ vm_vbox_report_guest_version if vm_vbox_report_guest_version | length > 0 else 'none' }}

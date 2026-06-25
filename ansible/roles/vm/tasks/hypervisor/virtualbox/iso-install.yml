@@ -1,0 +1,43 @@
+---
+# VirtualBox Guest Additions ISO installation process.
+#
+# The version decision is made by version.yml. This file only enforces that
+# decision by preparing the system, replacing old ISO Guest Additions, running
+# the ISO installer, and cleaning temporary media.
+
+- name: "VirtualBox: Enforce version match via ISO"
+  block:
+    - name: "VirtualBox: Clean stale ISO installation artifacts"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/cleanup.yml
+
+    - name: "VirtualBox: Download VBoxGuestAdditions ISO"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/download.yml
+
+    - name: "VirtualBox: Install build dependencies"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/dependencies.yml
+
+    - name: "VirtualBox: Stop existing Guest Additions services"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/stop-services.yml
+
+    - name: "VirtualBox: Remove existing ISO Guest Additions"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/remove-existing.yml
+      when: vm_vbox_iso_dirs_pre.matched > 0
+
+    - name: "VirtualBox: Run ISO installer"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/run-installer.yml
+
+  rescue:
+    - name: "VirtualBox: Handle ISO installation failure"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/rescue.yml
+
+  always:
+    - name: "VirtualBox: Clean ISO installation artifacts"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install/cleanup.yml

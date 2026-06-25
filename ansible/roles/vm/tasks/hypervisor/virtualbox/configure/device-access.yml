@@ -1,0 +1,12 @@
+---
+# Keep this rule separate from the ISO installer's 60-vboxadd.rules so the role
+# owns only its override instead of rewriting installer-owned state.
+- name: "VirtualBox: Ensure /dev/vboxguest is accessible to vboxsf group"
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/99-vboxguest-access.rules
+    content: |
+      KERNEL=="vboxguest", GROUP="vboxsf", MODE="0660"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: "Reload vboxguest udev"

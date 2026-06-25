@@ -1,16 +1,27 @@
 ---
 # === Gentoo specific variables ===
 
-# Service manager: detect at runtime (may be OpenRC or systemd)
-vm_service_manager: "{{ ansible_facts['service_mgr'] | default('openrc') }}"
-
 # Hyper-V package names
 vm_hyperv_packages:
   - sys-apps/hv_kvp_daemon
+
+# Gentoo keeps the upstream Hyper-V daemon naming when systemd is used. OpenRC
+# guests fail explicitly in hypervisor/hyperv/service/openrc.yml until that
+# service contract is implemented.
+vm_hyperv_fcopy_service_name: hv_fcopy_daemon.service
+vm_hyperv_kvp_service_name: hv_kvp_daemon.service
+vm_hyperv_vss_service_name: hv_vss_daemon.service
 
 # KVM package names
 vm_kvm_packages:
   - app-emulation/qemu-guest-agent
 
+# For systemd Gentoo guests, use Broadcom's non-SuSE vmblock-fuse mount unit
+# naming. OpenRC guests are handled by hypervisor/vmware/service/openrc.yml.
+vm_vmware_vmblock_unit_name: 'run-vmblock\x2dfuse.mount'
+
 # VirtualBox LTS kernel support: not applicable (Gentoo has own kernel management)
 vm_vbox_lts_kernel_support: false
+
+# VirtualBox kernel headers: Gentoo — headers are part of kernel source
+vm_vbox_kernel_header_packages: []

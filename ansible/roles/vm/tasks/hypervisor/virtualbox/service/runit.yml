@@ -1,0 +1,4 @@
+---
+- name: "VirtualBox: Fail guest service start for runit"
+  ansible.builtin.fail:
+    msg: "VirtualBox guest service start is not implemented for runit in the vm role."

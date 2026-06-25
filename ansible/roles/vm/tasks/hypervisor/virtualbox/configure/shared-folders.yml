@@ -1,0 +1,14 @@
+---
+# vboxsf group membership is the user-facing contract for VirtualBox shared
+# folders. target_user is the workstation user defined by inventory.
+- name: "VirtualBox: Ensure vboxsf group exists"
+  ansible.builtin.group:
+    name: vboxsf
+    state: present
+
+- name: "VirtualBox: Add user to vboxsf group"
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    groups: vboxsf
+    append: true
+  notify: "Report VirtualBox vboxsf membership change"

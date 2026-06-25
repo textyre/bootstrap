@@ -1,0 +1,19 @@
+---
+- name: "VirtualBox: Gather service facts"
+  ansible.builtin.service_facts:
+
+- name: "VirtualBox: Stop vboxservice"
+  ansible.builtin.service:
+    name: vboxservice
+    state: stopped
+  when: >-
+    'vboxservice' in ansible_facts['services'] or
+    'vboxservice.service' in ansible_facts['services']
+
+- name: "VirtualBox: Stop vboxadd-service"
+  ansible.builtin.service:
+    name: vboxadd-service
+    state: stopped
+  when: >-
+    'vboxadd-service' in ansible_facts['services'] or
+    'vboxadd-service.service' in ansible_facts['services']

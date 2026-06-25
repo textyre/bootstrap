@@ -1,0 +1,64 @@
+---
+# =========================================================================
+# configure/main.yml — Configure hypervisor-specific guest integration
+# =========================================================================
+# Dispatches to the detected hypervisor pipeline. Each hypervisor owns its own
+# install/configure/service/verify/report phases.
+#
+# Expected variables (provided by tasks/main.yml):
+#   vm_detected_hypervisor (string) - Lowercase virtualization type
+#   vm_is_guest         (bool) - Whether running as guest
+#   vm_supported_guest  (bool) - Whether guest is in a supported hypervisor
+#   vm_is_container     (bool) - Whether running in container/WSL2
+# =========================================================================
+
+- name: Include hypervisor-specific tasks
+  ansible.builtin.include_tasks:
+    file: "hypervisor/{{ vm_detected_hypervisor }}/main.yml"
+  when: vm_supported_guest | bool
+
+- name: "Report: Configure guest integration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Configure guest integration"
+    common_rpt_detail: "{{ vm_detected_hypervisor }}"
+  when: vm_supported_guest | bool
+
+- name: "Report: Configure guest integration (skip - unsupported hypervisor)"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Configure guest integration"
+    common_rpt_status: "skip"
+    common_rpt_detail: >-
+      unsupported hypervisor ({{ vm_detected_hypervisor }})
+  when:
+    - vm_is_guest | bool
+    - not (vm_supported_guest | bool)
+
+- name: "Report: Configure guest integration (skip - not a guest)"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Configure guest integration"
+    common_rpt_status: "skip"
+    common_rpt_detail: "not a guest"
+  when: not (vm_is_guest | bool)
+
+- name: "Report: Environment check (container)"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Environment check"
+    common_rpt_status: "skip"
+    common_rpt_detail: "container/WSL2 ({{ vm_detected_hypervisor }})"
+  when: vm_is_container | bool

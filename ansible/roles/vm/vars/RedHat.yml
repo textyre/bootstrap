@@ -1,16 +1,28 @@
 ---
 # === RedHat/Fedora/CentOS specific variables ===
 
-# Service manager: systemd
-vm_service_manager: systemd
-
 # Hyper-V package names (Fedora/RHEL uses 'hyperv-daemons')
 vm_hyperv_packages:
   - hyperv-daemons
+
+# RedHat/Fedora-family packages expose Hyper-V daemons as hyperv* service names.
+# Source: Oracle Linux Hyper-V daemon package documentation:
+# https://docs.oracle.com/en/operating-systems/oracle-linux/6/relnotes6.8/section_dzn_tz2_kp.html
+vm_hyperv_fcopy_service_name: hypervfcopyd.service
+vm_hyperv_kvp_service_name: hypervkvpd.service
+vm_hyperv_vss_service_name: hypervvssd.service
 
 # KVM package names
 vm_kvm_packages:
   - qemu-guest-agent
 
+# RedHat/Fedora-family packages follow Broadcom's non-SuSE vmblock-fuse mount
+# unit naming.
+vm_vmware_vmblock_unit_name: 'run-vmblock\x2dfuse.mount'
+
 # VirtualBox LTS kernel support: not applicable
 vm_vbox_lts_kernel_support: false
+
+# VirtualBox kernel headers: static for RedHat
+vm_vbox_kernel_header_packages:
+  - kernel-devel

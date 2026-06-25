@@ -1,0 +1,41 @@
+---
+# Supported OS families (ROLE-003: Five Distros Only).
+_vm_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Supported init systems (ROLE-003: Five Init Systems Only).
+_vm_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit
+
+_vm_supported_hypervisors:
+  - virtualbox
+  - vmware
+  - hyperv
+  - kvm
+
+# Oracle/ISO Guest Additions expose the system service as vboxadd-service.
+# Legacy distro/package Guest Additions may expose vboxservice; the role only
+# stops that service during ISO replacement and never treats it as desired state.
+# Sources:
+# - Oracle VirtualBox docs, Linux Guest Additions:
+#   https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/guestadditions.html
+# - Oracle VirtualBox docs, vboxadd-service for timesync:
+#   https://docs.oracle.com/en/virtualization/virtualbox/7.0/user/AdvancedTopics.html
+vm_vbox_guest_service_name: vboxadd-service
+
+# Host/guest time must have a single authority. These are the system services
+# the role treats as an existing time-sync authority before disabling
+# hypervisor-provided time sync.
+vm_time_sync_service_names:
+  - chronyd.service
+  - ntpd.service
+  - openntpd.service
+  - systemd-timesyncd.service

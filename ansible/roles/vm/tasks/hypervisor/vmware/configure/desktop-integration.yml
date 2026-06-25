@@ -1,0 +1,31 @@
+---
+# VMware desktop integration is a user-session concern, separate from the
+# system vmtoolsd service. XDG-compliant desktop sessions read .desktop files
+# from /etc/xdg/autostart after graphical login; this starts the VMware user
+# agent wrapper for X11 session features such as copy/paste and drag-and-drop.
+# Sources:
+# - XDG Autostart specification:
+#   https://specifications.freedesktop.org/autostart/0.5
+# - open-vm-tools upstream autostart entry:
+#   https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/vmware-user-suid-wrapper/vmware-user.desktop.in
+- name: "VMware: Ensure XDG autostart directory exists"
+  ansible.builtin.file:
+    path: /etc/xdg/autostart
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "VMware: Configure VMware user agent autostart"
+  ansible.builtin.copy:
+    dest: /etc/xdg/autostart/vmware-user.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Exec=/usr/bin/vmware-user-suid-wrapper
+      Name=VMware User Agent
+      NoDisplay=true
+      X-KDE-autostart-phase=1
+    owner: root
+    group: root
+    mode: "0644"

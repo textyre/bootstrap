@@ -1,0 +1,33 @@
+---
+# X11 desktop integration is a user-session concern, separate from the
+# system vboxadd-service. XDG-compliant desktop sessions read .desktop files
+# from /etc/xdg/autostart after graphical login; this starts VBoxClient-all,
+# the Guest Additions client helper for clipboard, drag-and-drop, seamless
+# mode, and display integration in X11 sessions.
+# Sources:
+# - XDG Autostart specification:
+#   https://specifications.freedesktop.org/autostart/0.5
+# - VirtualBox Guest Additions features and X Window drag-and-drop support:
+#   https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/guestadditions.html
+# - VirtualBox Linux installer sets VBoxClient to start with the X session:
+#   https://github.com/sailfishos/virtualbox/blob/master/virtualbox/src/VBox/Additions/linux/installer/vboxadd-x11.sh
+- name: "VirtualBox: Ensure XDG autostart directory exists"
+  ansible.builtin.file:
+    path: /etc/xdg/autostart
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "VirtualBox: Configure VBoxClient autostart"
+  ansible.builtin.copy:
+    dest: /etc/xdg/autostart/vboxclient.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=VBoxClient
+      Exec=/usr/bin/VBoxClient-all
+      X-GNOME-Autostart-enabled=true
+    owner: root
+    group: root
+    mode: "0644"

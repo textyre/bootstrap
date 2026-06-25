@@ -1,0 +1,21 @@
+---
+# =========================================================================
+# load_vars.yml — Load OS-specific variables
+# =========================================================================
+# Loads vars/<OsFamily>.yml for the detected OS family.
+# OS family is guaranteed to be supported by validate.yml.
+#
+# Called from: main.yml (after validate phase)
+# =========================================================================
+
+- name: "Load OS-specific variables ({{ ansible_facts['os_family'] }})"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: "Report: Load OS variables"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Load OS variables"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"

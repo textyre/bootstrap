@@ -1,0 +1,35 @@
+---
+# Required Hyper-V platform integration check.
+#
+# VMBus is the Hyper-V synthetic device bus used by Linux guests for host/guest
+# integration. Storage, network, and utility devices appear through this bus.
+#
+# Do not use modinfo as the required contract here: Hyper-V drivers may be built
+# into the guest kernel instead of shipped as loadable .ko modules. The runtime
+# contract is that the kernel sees VMBus devices under /sys/bus/vmbus/devices.
+- name: "Hyper-V: Verify VMBus device directory exists"
+  ansible.builtin.stat:
+    path: /sys/bus/vmbus/devices
+  register: vm_hyperv_vmbus_bus
+
+- name: "Hyper-V: Fail when VMBus device directory is absent"
+  ansible.builtin.fail:
+    msg: >-
+      Hyper-V VMBus integration is not visible under /sys/bus/vmbus/devices.
+      The VM is expected to expose VMBus devices for Hyper-V guest integration.
+  when: not vm_hyperv_vmbus_bus.stat.exists or not vm_hyperv_vmbus_bus.stat.isdir
+
+- name: "Hyper-V: Find VMBus devices"
+  ansible.builtin.find:
+    paths: /sys/bus/vmbus/devices
+    patterns: "*"
+    file_type: any
+    recurse: false
+  register: vm_hyperv_vmbus_devices
+
+- name: "Hyper-V: Fail when VMBus has no devices"
+  ansible.builtin.fail:
+    msg: >-
+      Hyper-V VMBus has no visible devices under /sys/bus/vmbus/devices.
+      The VM is expected to expose Hyper-V synthetic devices to the guest.
+  when: vm_hyperv_vmbus_devices.matched == 0

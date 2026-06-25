@@ -1,0 +1,4 @@
+---
+- name: "VMware: Fail guest service start for dinit"
+  ansible.builtin.fail:
+    msg: "VMware guest service start is not implemented for dinit in the vm role."

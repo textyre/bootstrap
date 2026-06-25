@@ -1,0 +1,15 @@
+---
+# Remove the installed ISO Guest Additions before replacing them with the
+# host-matched version. Temporary media cleanup lives in cleanup.yml.
+# Missing uninstall.sh is a hard failure: deleting /opt directly can leave
+# files installed outside /opt behind.
+- name: "VirtualBox: Remove existing ISO Guest Additions"
+  ansible.builtin.command:
+    cmd: "{{ vm_vbox_iso_install.path }}/uninstall.sh"
+  args:
+    removes: "{{ vm_vbox_iso_install.path }}"
+  loop: "{{ vm_vbox_iso_dirs_pre.files }}"
+  loop_control:
+    loop_var: vm_vbox_iso_install
+    label: "{{ vm_vbox_iso_install.path }}"
+  changed_when: true

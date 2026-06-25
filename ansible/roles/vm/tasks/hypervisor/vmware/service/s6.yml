@@ -1,0 +1,4 @@
+---
+- name: "VMware: Fail guest service start for s6"
+  ansible.builtin.fail:
+    msg: "VMware guest service start is not implemented for s6 in the vm role."

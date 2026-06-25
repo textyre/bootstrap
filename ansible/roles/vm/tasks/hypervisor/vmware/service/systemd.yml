@@ -1,0 +1,26 @@
+---
+# vgauthd is a required open-vm-tools service; systemd should fail if its unit
+# is absent after package installation.
+- name: "VMware: Start vgauthd service"
+  ansible.builtin.systemd:
+    name: vgauthd
+    enabled: true
+    state: started
+
+# Broadcom documents vmblock-fuse as required for open-vm-tools
+# Drag-and-Drop and Copy-and-Paste on X11 desktop sessions. The exact systemd
+# unit name is distro-owned and comes from vars/<OsFamily>.yml.
+# Source:
+# - Broadcom KB 320995:
+#   https://knowledge.broadcom.com/external/article/320995/enabling-draganddrop-and-copyandpaste-fu.html
+- name: "VMware: Start vmblock-fuse unit"
+  ansible.builtin.systemd:
+    name: "{{ vm_vmware_vmblock_unit_name }}"
+    enabled: true
+    state: started
+
+- name: "VMware: Start vmtoolsd service"
+  ansible.builtin.systemd:
+    name: vmtoolsd
+    enabled: true
+    state: started

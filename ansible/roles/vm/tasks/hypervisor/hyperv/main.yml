@@ -1,0 +1,49 @@
+---
+# === Hyper-V Guest Integration Services ===
+#
+# Services:
+#   hv_fcopy_daemon -- file copy between host and guest
+#   hv_kvp_daemon   -- key-value pair exchange (network config, metadata)
+#   hv_vss_daemon   -- Volume Shadow Copy integration
+#
+# Kernel/runtime integration:
+#   VMBus is the Hyper-V guest communication bus. It carries synthetic storage,
+#   network, and utility devices exposed by the Hyper-V host.
+#
+# Timesync:
+#   Hyper-V time synchronization is controlled by the host integration service.
+#   The Linux guest exposes no stable guest-side config file for disabling that
+#   channel declaratively.
+
+# ---- Phase 1: Install guest integration tools ----
+
+- name: "Hyper-V: Install guest integration tools"
+  ansible.builtin.include_tasks:
+    file: hypervisor/hyperv/install/packages.yml
+
+# ---- Phase 2: Start guest integration services ----
+
+- name: "Hyper-V: Start guest integration services"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/hyperv/service/{{ ansible_facts['service_mgr'] }}.yml"
+
+# ---- Phase 3: Verify guest runtime integration ----
+
+- name: "Hyper-V: Verify VMBus integration"
+  ansible.builtin.include_tasks:
+    file: hypervisor/hyperv/verify/modules.yml
+
+# ---- Phase 4: Report guest integration state ----
+
+- name: "Hyper-V: Report version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/hyperv/report/version.yml
+  when: vm_hyperv_version_report
+
+- name: "Hyper-V: Report timesync control"
+  ansible.builtin.include_tasks:
+    file: hypervisor/hyperv/report/timesync.yml
+
+- name: "Hyper-V: Report Enhanced Session support"
+  ansible.builtin.include_tasks:
+    file: hypervisor/hyperv/report/xrdp.yml

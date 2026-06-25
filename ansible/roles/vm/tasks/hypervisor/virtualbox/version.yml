@@ -1,0 +1,16 @@
+---
+# Detect host/guest Guest Additions versions and enforce ISO alignment.
+# vm_vbox_host_version_override is input only; detected values are computed
+# from registered command output and are not written back into role variables.
+
+- name: "VirtualBox: Detect host version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/version/detect-host.yml
+
+- name: "VirtualBox: Detect guest version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/version/detect-guest.yml
+
+- name: "VirtualBox: Enforce Guest Additions ISO version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/version/enforce-iso.yml
