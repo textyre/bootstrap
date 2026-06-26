@@ -1,0 +1,131 @@
+---
+- name: "VirtualBox: Prepare Guest Additions payload patch workspace"
+  when: ansible_facts.kernel is version('7.0', '>=')
+  vars:
+    vm_vbox_ga_payload_archive: "{{ vm_vbox_ga_payload_archive_detected.stdout | trim }}"
+    vm_vbox_ga_vboxadd_init: "{{ vm_vbox_ga_payload_dir }}/init/vboxadd"
+    vm_vbox_ga_skip_patch: "{{ vm_vbox_ga_payload_dir }}/skip-vboxvideo-linux-7.patch"
+  block:
+    - name: "VirtualBox: Create Guest Additions payload workspace"
+      ansible.builtin.file:
+        path: "{{ vm_vbox_ga_payload_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: "VirtualBox: Extract Guest Additions architecture payload"
+      ansible.builtin.command:
+        cmd: "tar -xjf {{ vm_vbox_ga_payload_archive }} -C {{ vm_vbox_ga_payload_dir }}"
+      changed_when: true
+
+    - name: "VirtualBox: Detect bundled vboxvideo build step"
+      ansible.builtin.command:
+        cmd: >-
+          grep -q -- '--module-source $MODULE_SRC/vboxvideo'
+          {{ vm_vbox_ga_vboxadd_init }}
+      register: vm_vbox_bundled_vboxvideo_build_step
+      changed_when: false
+      failed_when: vm_vbox_bundled_vboxvideo_build_step.rc not in [0, 1]
+
+    - name: "VirtualBox: Detect existing bundled vboxvideo kernel guard"
+      ansible.builtin.command:
+        cmd: >-
+          grep -q -- 'Skipping the bundled graphics driver module'
+          {{ vm_vbox_ga_vboxadd_init }}
+      register: vm_vbox_bundled_vboxvideo_kernel_guard
+      changed_when: false
+      failed_when: vm_vbox_bundled_vboxvideo_kernel_guard.rc not in [0, 1]
+      when: vm_vbox_bundled_vboxvideo_build_step.rc == 0
+
+    - name: "VirtualBox: Copy bundled vboxvideo skip patch"
+      ansible.builtin.copy:
+        src: virtualbox/guest-additions/skip-vboxvideo-linux-7.patch
+        dest: "{{ vm_vbox_ga_skip_patch }}"
+        mode: '0644'
+      when:
+        - vm_vbox_bundled_vboxvideo_build_step.rc == 0
+        - vm_vbox_bundled_vboxvideo_kernel_guard.rc != 0
+
+    - name: "VirtualBox: Check bundled vboxvideo skip patch applies"
+      ansible.builtin.command:
+        cmd: >-
+          patch
+          --dry-run
+          --forward
+          -d {{ vm_vbox_ga_payload_dir }}
+          -p0
+          -i {{ vm_vbox_ga_skip_patch }}
+      register: vm_vbox_bundled_vboxvideo_patch_probe
+      changed_when: false
+      failed_when: vm_vbox_bundled_vboxvideo_patch_probe.rc not in [0, 1]
+      when:
+        - vm_vbox_bundled_vboxvideo_build_step.rc == 0
+        - vm_vbox_bundled_vboxvideo_kernel_guard.rc != 0
+
+    - name: "VirtualBox: Capture unknown bundled vboxvideo script context"
+      ansible.builtin.command:
+        cmd: >-
+          grep
+          -n
+          -B 8
+          -A 8
+          -- '--module-source $MODULE_SRC/vboxvideo'
+          {{ vm_vbox_ga_vboxadd_init }}
+      register: vm_vbox_bundled_vboxvideo_context
+      changed_when: false
+      failed_when: false
+      when:
+        - vm_vbox_bundled_vboxvideo_build_step.rc == 0
+        - vm_vbox_bundled_vboxvideo_kernel_guard.rc != 0
+        - vm_vbox_bundled_vboxvideo_patch_probe.rc != 0
+
+    - name: "VirtualBox: Assert bundled vboxvideo patch state is known"
+      ansible.builtin.assert:
+        that:
+          - >-
+            vm_vbox_bundled_vboxvideo_build_step.rc == 1
+            or (vm_vbox_bundled_vboxvideo_kernel_guard.rc | default(1)) == 0
+            or (vm_vbox_bundled_vboxvideo_patch_probe.rc | default(1)) == 0
+        fail_msg: >-
+          VirtualBox Guest Additions payload has an unknown bundled vboxvideo
+          build block for Linux kernel {{ ansible_facts.kernel }}.
+          archive={{ vm_vbox_ga_payload_archive }}
+          build_step_rc={{ vm_vbox_bundled_vboxvideo_build_step.rc }}
+          guard_rc={{ vm_vbox_bundled_vboxvideo_kernel_guard.rc | default('skipped') }}
+          patch_probe_rc={{ vm_vbox_bundled_vboxvideo_patch_probe.rc | default('skipped') }}
+          patch_probe_stdout={{ vm_vbox_bundled_vboxvideo_patch_probe.stdout | default('') }}
+          patch_probe_stderr={{ vm_vbox_bundled_vboxvideo_patch_probe.stderr | default('') }}
+          context={{ vm_vbox_bundled_vboxvideo_context.stdout | default('') }}
+        quiet: true
+
+    - name: "VirtualBox: Apply bundled vboxvideo skip patch"
+      ansible.builtin.command:
+        cmd: >-
+          patch
+          -d {{ vm_vbox_ga_payload_dir }}
+          -p0
+          -i {{ vm_vbox_ga_skip_patch }}
+      changed_when: true
+      when:
+        - vm_vbox_bundled_vboxvideo_build_step.rc == 0
+        - vm_vbox_bundled_vboxvideo_kernel_guard.rc != 0
+        - vm_vbox_bundled_vboxvideo_patch_probe.rc == 0
+
+    - name: "VirtualBox: Repack patched Guest Additions architecture payload"
+      ansible.builtin.command:
+        cmd: "tar -cjf {{ vm_vbox_ga_payload_archive }} -C {{ vm_vbox_ga_payload_dir }} ."
+      changed_when: true
+      when:
+        - vm_vbox_bundled_vboxvideo_build_step.rc == 0
+        - vm_vbox_bundled_vboxvideo_kernel_guard.rc != 0
+        - vm_vbox_bundled_vboxvideo_patch_probe.rc == 0
+
+    - name: "VirtualBox: Report bundled vboxvideo patch status"
+      ansible.builtin.debug:
+        msg: >-
+          Bundled vboxvideo build step {{
+          'not present; no patch needed'
+          if vm_vbox_bundled_vboxvideo_build_step.rc == 1
+          else 'already guarded; no patch needed'
+          if vm_vbox_bundled_vboxvideo_kernel_guard.rc == 0
+          else 'patched for Linux kernel ' ~ ansible_facts.kernel
+          }}.

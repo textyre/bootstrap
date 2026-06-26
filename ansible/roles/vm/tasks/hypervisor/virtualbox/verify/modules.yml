@@ -3,6 +3,10 @@
   ansible.builtin.command: modinfo vboxguest
   changed_when: false
 
+- name: "VirtualBox: Verify vboxguest module is loaded"
+  ansible.builtin.command: grep -q '^vboxguest ' /proc/modules
+  changed_when: false
+
 - name: "VirtualBox: Verify vboxsf module"
   ansible.builtin.command: modinfo vboxsf
   changed_when: false

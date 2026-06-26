@@ -1,0 +1,44 @@
+---
+- name: "VirtualBox: Remove stale extracted ISO installer"
+  ansible.builtin.file:
+    path: "{{ vm_vbox_ga_installer_dir }}"
+    state: absent
+
+- name: "VirtualBox: Remove stale ISO installer payload workspace"
+  ansible.builtin.file:
+    path: "{{ vm_vbox_ga_payload_dir }}"
+    state: absent
+
+- name: "VirtualBox: Create extracted ISO installer directory"
+  ansible.builtin.file:
+    path: "{{ vm_vbox_ga_installer_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "VirtualBox: Extract VBoxLinuxAdditions.run without executing"
+  ansible.builtin.command:
+    cmd: >-
+      /mnt/vbox_iso/VBoxLinuxAdditions.run
+      --target {{ vm_vbox_ga_installer_dir }}
+      --noexec
+      --nox11
+  changed_when: true
+
+- name: "VirtualBox: Select architecture payload archive"
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    case "$(uname -m)" in
+      x86_64|amd64) cpu="amd64" ;;
+      i[3456789]86|x86) cpu="x86" ;;
+      aarch64|arm64) cpu="arm64" ;;
+      *) cpu="unknown" ;;
+    esac
+
+    archive="{{ vm_vbox_ga_installer_dir }}/VBoxGuestAdditions-${cpu}.tar.bz2"
+    test -r "$archive"
+    printf '%s\n' "$archive"
+  args:
+    executable: /bin/bash
+  register: vm_vbox_ga_payload_archive_detected
+  changed_when: false

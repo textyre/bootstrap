@@ -1,0 +1,30 @@
+--- init/vboxadd
++++ init/vboxadd
+@@ -581,14 +581,20 @@ setup_modules()
+         info  "Look at $LOG to find out what went wrong"
+         return 0
+     fi
+-    log "Building the graphics driver module."
+-    if ! myerr=`$BUILDINTMP \
+-        --use-module-symvers /tmp/vboxguest-Module.symvers \
+-        --module-source $MODULE_SRC/vboxvideo \
+-        --no-print-directory install 2>&1`; then
+-        module_build_log "$myerr"
+-        info "Look at $LOG to find out what went wrong"
++
++    if [ "$(printf '%s\n%s\n' "7.0" "$KERN_VER" | sort -Vr | head -1)" = "$KERN_VER" ]; then
++        log "Skipping the bundled graphics driver module for kernel $KERN_VER."
++    else
++        log "Building the graphics driver module."
++        if ! myerr=`$BUILDINTMP \
++            --use-module-symvers /tmp/vboxguest-Module.symvers \
++            --module-source $MODULE_SRC/vboxvideo \
++            --no-print-directory install 2>&1`; then
++            module_build_log "$myerr"
++            info "Look at $LOG to find out what went wrong"
++        fi
+     fi
++
+     [ -d /etc/depmod.d ] || mkdir /etc/depmod.d
+     echo "override vboxguest * misc" > /etc/depmod.d/vboxvideo-upstream.conf
+     echo "override vboxsf * misc" >> /etc/depmod.d/vboxvideo-upstream.conf

@@ -1,0 +1,8 @@
+---
+- name: "VirtualBox: Run extracted VBoxLinuxAdditions installer"
+  ansible.builtin.shell:
+    cmd: timeout 300 ./install.sh /mnt/vbox_iso/VBoxLinuxAdditions.run </dev/null
+    chdir: "{{ vm_vbox_ga_installer_dir }}"
+  register: vm_vbox_iso_install_result
+  changed_when: true
+  failed_when: vm_vbox_iso_install_result.rc not in [0, 2]

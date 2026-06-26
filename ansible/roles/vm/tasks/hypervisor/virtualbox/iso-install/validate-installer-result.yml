@@ -1,0 +1,51 @@
+---
+- name: "VirtualBox: Read ISO installer log for rc=2"
+  ansible.builtin.command:
+    cmd: cat /var/log/vboxadd-install.log
+  register: vm_vbox_iso_install_log
+  changed_when: false
+  failed_when: false
+  when: vm_vbox_iso_install_result.rc == 2
+
+- name: "VirtualBox: Validate ISO installer rc=2 explanation"
+  ansible.builtin.assert:
+    that:
+      - >-
+        (
+          (
+            (vm_vbox_iso_install_result.stdout | default(''))
+            ~ '\n'
+            ~ (vm_vbox_iso_install_result.stderr | default(''))
+            ~ '\n'
+            ~ (vm_vbox_iso_install_log.stdout | default(''))
+          )
+          is regex('Running kernel modules will not be replaced|rcvboxadd reload|already running modules')
+        )
+    fail_msg: >-
+      VBoxLinuxAdditions installer returned rc=2 without the expected running
+      module replacement explanation. stdout={{ vm_vbox_iso_install_result.stdout | default('') }}
+      stderr={{ vm_vbox_iso_install_result.stderr | default('') }}
+      log={{ vm_vbox_iso_install_log.stdout | default('') }}
+    quiet: true
+  when: vm_vbox_iso_install_result.rc == 2
+
+- name: "VirtualBox: Read installed Guest Additions record"
+  ansible.builtin.shell: |
+    set -o pipefail
+    . /var/lib/VBoxGuestAdditions/config
+    printf '%s\n' "$INSTALL_VER"
+  args:
+    executable: /bin/bash
+  register: vm_vbox_installed_record_version
+  changed_when: false
+  failed_when: vm_vbox_installed_record_version.stdout | trim != vm_vbox_host_version
+
+- name: "VirtualBox: Verify VBoxControl reports host Guest Additions version"
+  ansible.builtin.shell: |
+    set -o pipefail
+    VBoxControl --version | sed 's/[^0-9.].*//'
+  args:
+    executable: /bin/bash
+  register: vm_vbox_installed_control_version
+  changed_when: false
+  failed_when: vm_vbox_installed_control_version.stdout | trim != vm_vbox_host_version

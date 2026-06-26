@@ -21,3 +21,13 @@
   ansible.builtin.file:
     path: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_version }}.iso"
     state: absent
+
+- name: "VirtualBox: Remove extracted ISO installer"
+  ansible.builtin.file:
+    path: "/tmp/vbox-ga-installer-{{ vm_vbox_host_version }}"
+    state: absent
+
+- name: "VirtualBox: Remove ISO installer payload workspace"
+  ansible.builtin.file:
+    path: "/tmp/vbox-ga-installer-{{ vm_vbox_host_version }}-payload"
+    state: absent
