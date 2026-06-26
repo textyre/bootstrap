@@ -1,0 +1,74 @@
+---
+# VBoxService runs a time-sync module by default that syncs guest clock to the
+# VirtualBox host clock. This conflicts with chronyd/ntpd which are the
+# authoritative time source. On systemd, disable VBoxService time sync with a
+# drop-in while keeping the rest of VBoxService running.
+# Sources:
+# - VirtualBox 7.2 User Guide, Guest Additions time synchronization:
+#   https://docs.oracle.com/en/virtualization/virtualbox/7.2/user/AdvancedTopics.html
+# - VBoxService(1), --disable-timesync:
+#   https://manpages.debian.org/unstable/virtualbox-guest-utils/VBoxService.1.en.html
+# - systemd.unit(5), clearing list-style settings in drop-ins:
+#   https://man7.org/linux/man-pages/man5/systemd.unit.5.html
+#
+# Guard: only disable if a system time-sync service is active. If none is running,
+# skipping the disable preserves the only time source available.
+- name: "VirtualBox: Gather service facts for time-sync guard"
+  ansible.builtin.service_facts:
+
+- name: "VirtualBox: Warn when no time-sync service is active"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  ansible.builtin.debug:
+    msg: >-
+      No active time-sync service found ({{ vm_time_sync_service_names | join(', ') }}).
+      VirtualBox time sync will NOT be disabled to avoid leaving the VM
+      without time synchronization.
+    verbosity: 0
+  when: vm_time_sync_active_services | length == 0
+
+- name: "Ensure VBoxService drop-in directory exists"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ vm_vbox_guest_service_name }}.service.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: vm_time_sync_active_services | length > 0
+
+- name: "Write drop-in to disable timesync"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ vm_vbox_guest_service_name }}.service.d/disable-timesync.conf"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/VBoxService -f --disable-timesync
+    owner: root
+    group: root
+    mode: "0644"
+  when: vm_time_sync_active_services | length > 0

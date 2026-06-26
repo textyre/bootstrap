@@ -1,0 +1,6 @@
+---
+- name: "VMware: Note - timesync disable is not implemented for dinit"
+  ansible.builtin.debug:
+    msg: >-
+      VMware Tools timesync disable is not implemented for dinit in the vm role.
+      Use VMware host-side time synchronization settings if timesync must be disabled.

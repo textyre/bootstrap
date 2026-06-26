@@ -1,0 +1,41 @@
+---
+# === QEMU/KVM Guest Agent ===
+#
+# Service:
+#   qemu-guest-agent -- QEMU Guest Agent (filesystem freeze, shutdown, exec)
+#
+# Kernel modules:
+#   virtio_balloon -- dynamic memory management
+#   virtio_net     -- paravirtual network adapter
+#   virtio_blk     -- paravirtual block device
+#   virtio_scsi    -- paravirtual SCSI controller
+#
+# Timesync:
+#   qemu-guest-agent exposes guest-set-time RPC but does not call it
+#   autonomously. Guest-side configuration is not required unless the host
+#   management layer enables time sync.
+
+# ---- Phase 1: Install guest agent ----
+
+- name: "KVM: Install guest agent"
+  ansible.builtin.include_tasks:
+    file: hypervisor/kvm/install/packages.yml
+
+# ---- Phase 2: Start guest agent service ----
+
+- name: "KVM: Start guest agent service"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/kvm/service/{{ ansible_facts['service_mgr'] }}.yml"
+
+# ---- Phase 3: Module verification ----
+
+- name: "KVM: Verify kernel modules"
+  ansible.builtin.include_tasks:
+    file: hypervisor/kvm/verify/modules.yml
+
+# ---- Phase 4: Version report ----
+
+- name: "KVM: Report version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/kvm/report/version.yml
+  when: vm_kvm_version_report

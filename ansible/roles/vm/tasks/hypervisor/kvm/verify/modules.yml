@@ -1,0 +1,42 @@
+---
+# Required KVM platform integration check.
+#
+# virtio is the QEMU/KVM paravirtual device layer. It covers the device classes
+# this role cares about: ballooning (virtio_balloon), networking (virtio_net),
+# block devices (virtio_blk), and SCSI devices (virtio_scsi).
+#
+# Do not use modinfo as the contract here: virtio drivers may be built into the
+# guest kernel instead of shipped as separate loadable .ko modules. The runtime
+# contract is that the kernel sees virtio devices under /sys/bus/virtio/devices.
+- name: "KVM: Verify virtio bus exists"
+  ansible.builtin.stat:
+    path: /sys/bus/virtio/devices
+  register: vm_kvm_virtio_bus
+
+- name: "KVM: Assert virtio bus exists"
+  ansible.builtin.assert:
+    that:
+      - vm_kvm_virtio_bus.stat.exists and vm_kvm_virtio_bus.stat.isdir
+    fail_msg: >-
+      KVM virtio integration is not visible under /sys/bus/virtio/devices.
+      The VM is expected to expose virtio devices for KVM paravirtual
+      integration.
+    success_msg: "KVM virtio bus is visible"
+
+- name: "KVM: Find virtio devices"
+  ansible.builtin.find:
+    paths: /sys/bus/virtio/devices
+    patterns: "virtio*"
+    file_type: any
+    recurse: false
+  register: vm_kvm_virtio_devices
+
+- name: "KVM: Verify virtio devices are visible"
+  ansible.builtin.assert:
+    that:
+      - vm_kvm_virtio_devices.matched > 0
+    fail_msg: >-
+      KVM virtio integration is not visible under /sys/bus/virtio/devices.
+      The VM is expected to expose virtio devices for KVM paravirtual
+      integration.
+    success_msg: "KVM virtio integration is visible"

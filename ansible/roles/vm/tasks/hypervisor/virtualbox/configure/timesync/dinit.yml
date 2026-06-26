@@ -1,0 +1,7 @@
+---
+- name: "VirtualBox: Note - timesync disable is not implemented for dinit"
+  ansible.builtin.debug:
+    msg: >-
+      VirtualBox timesync disable is not implemented for dinit in this role.
+      Use the VirtualBox host-side guest property if timesync must be disabled.
+    verbosity: 0

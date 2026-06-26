@@ -1,0 +1,5 @@
+---
+- name: "Hyper-V: Install guest integration packages"
+  ansible.builtin.package:
+    name: "{{ vm_hyperv_packages }}"
+    state: present

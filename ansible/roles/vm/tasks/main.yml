@@ -1,147 +1,40 @@
 ---
 # === Virtualization guest tools (VM role) ===
-# Detects hypervisor and dispatches to install or remove guest utilities.
+# Validates → loads vars → detects hypervisor → configures guest integration → reports.
 # Supported: VirtualBox, VMware, Hyper-V, KVM
 
-# ---- Prerequisites ----
-
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in _vm_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _vm_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+- name: Configure virtualization guest integration
   tags: ['vm']
+  block:
+    - name: Validate role prerequisites
+      ansible.builtin.include_tasks:
+        file: validate.yml
 
-- name: Validate role prerequisites
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['virtualization_type'] is defined
-      - ansible_facts['virtualization_role'] is defined
-    fail_msg: >-
-      Missing virtualization facts. Ensure 'gather_facts: true' is set
-      and the system supports virtualization detection.
-    success_msg: "Virtualization facts available"
-  tags: ['vm']
+    - name: Load OS-specific variables
+      ansible.builtin.include_tasks:
+        file: load_vars.yml
 
-- name: "Report: Validate prerequisites"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_phase: "Validate prerequisites"
-  tags: ['vm']
+    - name: Detect virtualization environment
+      ansible.builtin.include_tasks:
+        file: detect.yml
 
-# ---- Load OS-specific variables ----
+    - name: Configure guest integration
+      ansible.builtin.include_tasks:
+        file: configure/main.yml
+      vars:
+        vm_detected_hypervisor: "{{ ansible_facts['virtualization_type'] | lower }}"
+        vm_is_container: "{{ (ansible_facts['virtualization_type'] | lower) in ['container', 'wsl'] }}"
+        vm_is_guest: "{{ ansible_facts['virtualization_role'] == 'guest' }}"
+        vm_supported_guest: >-
+          {{
+            ansible_facts['virtualization_role'] == 'guest'
+            and (ansible_facts['virtualization_type'] | lower) in _vm_supported_hypervisors
+          }}
 
-- name: Load OS-specific variables
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - "{{ ansible_facts['os_family'] }}.yml"
-    - "default.yml"
-  tags: ['vm']
-
-- name: "Report: Load OS variables"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_phase: "Load OS variables"
-    common_rpt_detail: "{{ ansible_facts['os_family'] }}"
-  tags: ['vm']
-
-# ---- Detection ----
-
-- name: Detect virtualization environment
-  ansible.builtin.set_fact:
-    vm_virt_type: "{{ ansible_facts['virtualization_type'] | default('none') }}"
-    vm_virt_role: "{{ ansible_facts['virtualization_role'] | default('NA') }}"
-  tags: ['vm']
-
-- name: Check for container/WSL2 environment
-  ansible.builtin.set_fact:
-    vm_is_container: "{{ vm_virt_role == 'guest' and vm_virt_type in ['container', 'wsl'] }}"
-  tags: ['vm']
-
-- name: Determine if running as guest in supported hypervisor
-  ansible.builtin.set_fact:
-    vm_is_guest: "{{ vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors }}"
-    vm_hypervisor: "{{ vm_virt_type if (vm_virt_role == 'guest' and vm_virt_type in vm_supported_hypervisors) else 'none' }}"
-  tags: ['vm']
-
-- name: "Report: Detect virtualization"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_phase: "Detect virtualization"
-    common_rpt_detail: "{{ vm_virt_type }} / {{ vm_virt_role }}"
-  tags: ['vm']
-
-- name: "Report: Container/WSL2 check"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_phase: "Container/WSL2 check"
-    common_rpt_detail: "{{ 'container detected' if (vm_is_container | bool) else 'not a container' }}"
-  tags: ['vm']
-
-- name: "Report: Guest determination"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_phase: "Guest determination"
-    common_rpt_detail: "hypervisor={{ vm_hypervisor }}"
-  tags: ['vm']
-
-# ---- Initialize reboot flag ----
-
-- name: Initialize reboot required flag
-  ansible.builtin.set_fact:
-    vm_reboot_required: false
-  tags: ['vm']
-
-# ---- Dispatch ----
-
-- name: Install guest tools (state=present)
-  ansible.builtin.include_tasks:
-    file: _install_guest_tools.yml
-  when: vm_state == 'present'
-  tags: ['vm']
-
-- name: Remove guest tools (state=absent)
-  ansible.builtin.include_tasks:
-    file: _remove_guest_tools.yml
-  when:
-    - vm_state == 'absent'
-    - vm_is_guest | bool
-  tags: ['vm']
-
-# ---- Verify ----
-
-- name: Verify vm role state
-  ansible.builtin.include_tasks:
-    file: verify.yml
-  tags: ['vm', 'vm:verify']
-
-# ---- Execution report ----
-
-- name: "VM Role - Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_vm_phases"
-    common_rpt_title: "vm"
-    common_rpt_footer_rows:
-      - "| {{ '%-26s' | format('Reboot required') }} | {{ '%-10s' | format((vm_reboot_required | default(false)) | string) }} | {{ '%-24s' | format('') }} |"
-  tags: ['vm', 'vm:report']
+    - name: Render execution report
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_vm_phases"
+        common_rpt_title: "vm"

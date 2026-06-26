@@ -1,0 +1,7 @@
+---
+- name: "VirtualBox: Start guest service"
+  ansible.builtin.systemd:
+    name: "{{ vm_vbox_guest_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

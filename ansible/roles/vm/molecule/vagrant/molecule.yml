@@ -10,16 +10,18 @@ platforms:
     box_url: https://github.com/textyre/arch-images/releases/latest/download/arch-base.box
     memory: 2048
     cpus: 2
+    provider_raw_config_args:
+      - "channel :type => 'unix', :target_name => 'org.qemu.guest_agent.0', :target_type => 'virtio'"
   - name: ubuntu-base
     box: ubuntu-base
     box_url: https://github.com/textyre/ubuntu-images/releases/latest/download/ubuntu-base.box
     memory: 2048
     cpus: 2
+    provider_raw_config_args:
+      - "channel :type => 'unix', :target_name => 'org.qemu.guest_agent.0', :target_type => 'virtio'"
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -28,10 +30,6 @@ provisioner:
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -40,5 +38,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

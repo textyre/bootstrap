@@ -1,0 +1,23 @@
+---
+# vmware-toolbox-cmd is the VMware Tools CLI installed with open-vm-tools. This
+# report is informational: it exposes the guest tools version and VMware-reported
+# host platform without changing host state.
+- name: "VMware: Get open-vm-tools version"
+  ansible.builtin.command: vmware-toolbox-cmd -v
+  register: vm_vmware_tools_version
+  changed_when: false
+  failed_when: false
+
+- name: "VMware: Get host platform"
+  ansible.builtin.command: vmware-toolbox-cmd stat raw text vmprovider
+  register: vm_vmware_host_platform
+  changed_when: false
+  failed_when: false
+
+- name: "VMware: Report open-vm-tools version"
+  ansible.builtin.debug:
+    msg: >-
+      VMware guest tools version:
+      {{ (vm_vmware_tools_version.stdout | trim) if vm_vmware_tools_version.rc == 0 else 'version unavailable' }},
+      Host platform:
+      {{ (vm_vmware_host_platform.stdout | trim) if vm_vmware_host_platform.rc == 0 else 'version unavailable' }}

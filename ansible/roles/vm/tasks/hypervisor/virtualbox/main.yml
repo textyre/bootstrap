@@ -1,0 +1,72 @@
+---
+# === VirtualBox Guest Additions ===
+#
+# Service:
+#   vboxadd-service -- guest service installed by ISO (time sync, clipboard, seamless mode)
+#
+# Kernel modules:
+#   vboxguest  -- core guest integration module (REQUIRED)
+#   vboxsf     -- shared folders support (REQUIRED for shared folder functionality)
+#   vboxvideo  -- graphics driver (optional, may use VMSVGA instead)
+#
+# Version enforcement:
+#   Guest Additions version MUST match host VirtualBox version.
+#   Mismatch causes shared folders, clipboard, and display resize to break.
+#   Host version is detected from the kernel ring buffer (vboxguest module log)
+#   without requiring any packages. GA is always installed from ISO - never from
+#   the distro package manager, which tracks upstream VirtualBox release cadence
+#   independently of what version is installed on this host.
+
+# ---- Phase 1: Detect existing ISO installation ----
+
+- name: "VirtualBox: Detect existing ISO Guest Additions"
+  block:
+    - name: "VirtualBox: Check for existing ISO Guest Additions"
+      ansible.builtin.find:
+        paths: /opt
+        patterns: 'VBoxGuestAdditions-*'
+        file_type: directory
+      register: vm_vbox_iso_dirs_pre
+
+# ---- Phase 2: Version detection and ISO enforcement ----
+
+- name: "VirtualBox: Version detection and ISO enforcement"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/version.yml
+
+# ---- Phase 3: Configure guest access ----
+
+- name: "VirtualBox: Configure device access"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/configure/device-access.yml
+
+- name: "VirtualBox: Configure shared folders access"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/configure/shared-folders.yml
+
+- name: "VirtualBox: Configure desktop integration"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/configure/desktop-integration.yml
+
+- name: "VirtualBox: Configure timesync"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/virtualbox/configure/timesync/{{ ansible_facts['service_mgr'] }}.yml"
+
+# ---- Phase 4: Start guest service ----
+
+- name: "VirtualBox: Start guest service"
+  ansible.builtin.include_tasks:
+    file: "hypervisor/virtualbox/service/{{ ansible_facts['service_mgr'] }}.yml"
+
+# ---- Phase 5: Module verification ----
+
+- name: "VirtualBox: Verify kernel modules"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/verify/modules.yml
+
+# ---- Phase 6: Version report ----
+
+- name: "VirtualBox: Report version"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/report/version.yml
+  when: vm_vbox_version_check

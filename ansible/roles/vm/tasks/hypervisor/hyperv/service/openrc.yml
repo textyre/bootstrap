@@ -1,0 +1,4 @@
+---
+- name: "Hyper-V: Fail integration service start for openrc"
+  ansible.builtin.fail:
+    msg: "Hyper-V integration service start is not implemented for openrc in the vm role."

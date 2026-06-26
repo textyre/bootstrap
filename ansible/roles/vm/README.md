@@ -1,255 +1,281 @@
 # vm
 
-Detects the active hypervisor and installs matching guest tools (VirtualBox Guest Additions, open-vm-tools, Hyper-V Integration Services, QEMU Guest Agent).
+Configures a guest operating system for the hypervisor it is running under.
 
-## Execution flow
+The role detects the active virtualization environment from Ansible facts and
+applies the matching guest integration pipeline for VirtualBox, VMware, Hyper-V,
+or KVM. It does not manage a desired absent state.
 
-1. **Assert OS support** — fails immediately on unsupported OS families (not in Archlinux/Debian/RedHat/Void/Gentoo)
-2. **Validate prerequisites** — asserts virtualization facts are available; fails if `gather_facts: false`
-3. **Load OS variables** (`vars/<OsFamily>.yml`) — loads distro-specific package names and service manager
-4. **Detect virtualization** — sets `vm_virt_type`, `vm_virt_role`, `vm_is_guest`, `vm_is_container`, `vm_hypervisor` from Ansible facts
-5. **Install guest tools** (`tasks/_install_guest_tools.yml`) — dispatches to hypervisor-specific task file:
-   - **VirtualBox** (`tasks/virtualbox.yml`): checks VBoxControl, installs packages, runs version detection (`virtualbox_version.yml`), triggers ISO install (`virtualbox_iso_install.yml`) on mismatch, checks LTS kernel DKMS (`virtualbox_lts_kernel.yml`), manages vboxservice/vboxadd-service, verifies kernel modules, checks X11 autostart, sets reboot flag
-   - **VMware** (`tasks/vmware.yml`): installs open-vm-tools, manages vmtoolsd/vgauthd, verifies vmw_balloon module, checks X11 autostart, reports version
-   - **Hyper-V** (`tasks/hyperv.yml`): installs hyperv package, manages hv_*_daemon services, verifies hv_vmbus module, sets reboot flag
-   - **KVM** (`tasks/kvm.yml`): installs qemu-guest-agent, manages service with virtio device guard, reports version
-   - Skips gracefully for containers/WSL2 (no guest tools needed)
-6. **Persist facts** (`tasks/_set_facts.yml`) — writes `/etc/ansible/facts.d/vm_guest.fact` (JSON with hypervisor, is_guest, is_container)
-7. **Verify** (`tasks/verify.yml`) — asserts fact file content is correct; checks environment variable sanity
-8. **Execution report** — writes structured report via `common/report_render.yml` with reboot_required footer
+## Contract
 
-### Remove path (vm_state: absent)
+The role owns guest integration inside the VM:
 
-Steps 1–4 run normally, then `_remove_guest_tools.yml` removes packages and stops services for the detected hypervisor.
+| Hypervisor | Role-owned outcome |
+|------------|--------------------|
+| VirtualBox | Guest Additions from the host-matching ISO, shared folders, XDG/X11 desktop integration, guest service, required kernel modules |
+| VMware | `open-vm-tools`, VMware user desktop integration, `vmtoolsd`, `vgauthd`, `vmblock-fuse`, required runtime modules |
+| Hyper-V | Linux Integration Services packages, required guest daemons, VMBus runtime visibility, informational reports |
+| KVM | QEMU Guest Agent package and service, virtio runtime visibility, informational version report |
 
-### NTP guard and timesync disable
+The role requires:
 
-All hypervisors except Hyper-V run a time synchronization service that conflicts with NTP daemons. This role disables it to give exclusive authority to the ntp role.
+- `gather_facts: true`
+- OS family in `Archlinux`, `Debian`, `RedHat`, `Void`, `Gentoo`
+- init system fact in `systemd`, `runit`, `openrc`, `s6`, `dinit`
+- virtualization facts from Ansible
+- `target_user` when VirtualBox shared-folder membership is configured
 
-**NTP guard pattern** — before disabling timesync, the role checks if an NTP daemon (chronyd, ntpd, openntpd, or systemd-timesyncd) is active. If no NTP daemon is running, timesync disable is skipped to prevent losing the only time source. Deploy the ntp role first, then re-run vm.
+Containers and WSL are reported and skipped; they do not need guest tools.
 
-| Hypervisor | Timesync mechanism | Disable method | Guard enabled |
-|-----------|-------------------|----------------|--------------|
-| **VirtualBox** | `vboxservice` timesync module | systemd drop-in: `disable-timesync.conf` | Yes — NTP guard checks before writing drop-in |
-| **VMware** | `vmtoolsd` timesync channel | modprobe blacklist or `vmware-toolbox-cmd timesync disable` | Yes — NTP guard checks before disabling |
-| **KVM** | None (QEMU Guest Agent does not sync time) | N/A | N/A — no timesync to disable |
-| **Hyper-V** | `hv_utils` kernel module (hv_vmbus) | Not disableable from guest (requires host-side PowerShell) | N/A — role warns operator to disable on host |
+## Flow
 
-See `tasks/_ntp_guard.yml` for implementation.
+[tasks/main.yml](tasks/main.yml) is the orchestrator:
 
-### Handlers
+1. Validate role prerequisites.
+2. Load OS-specific variables from `vars/<OsFamily>.yml`.
+3. Report virtualization facts.
+4. Dispatch to `tasks/hypervisor/<hypervisor>/main.yml` when the host is a supported guest.
+5. Render the final execution report through `common/report_render.yml`.
 
-| Handler | Triggered by | What it does |
-|---------|-------------|-------------|
-| `Restart virtualbox services` | VBox package install/update | Restarts vboxservice or vboxadd-service |
-| `Reload systemd daemon` | ISO service unit file creation | Runs `systemctl daemon-reload` (systemd only) |
+Each hypervisor owns its own install/configure/service/verify/report phases
+inside its directory.
+
+## Hypervisors
+
+### VirtualBox
+
+VirtualBox uses Oracle Guest Additions from the versioned ISO, not distro Guest
+Additions packages.
+
+Flow:
+
+1. Detect existing ISO Guest Additions under `/opt`.
+2. Detect host version from `journalctl -k` / `dmesg`, or use `vm_vbox_host_version_override`.
+3. Detect guest version from `VBoxControl --version` or `/opt/VBoxGuestAdditions-*`.
+4. Install Guest Additions from ISO only when host and guest versions differ.
+5. Configure `/dev/vboxguest` access and `vboxsf` user membership.
+6. Configure XDG autostart for `VBoxClient-all`.
+7. Configure time-sync policy for the active init system.
+8. Start `vboxadd-service`.
+9. Verify `vboxguest` and `vboxsf`; report optional `vboxvideo`.
+10. Report version when `vm_vbox_version_check` is enabled.
+
+ISO install cleanup lives in the ISO install flow. If ISO install fails, rescue
+collects diagnostics and the role fails; there is no package-manager fallback.
+
+### VMware
+
+VMware installs `open-vm-tools`.
+
+Flow:
+
+1. Install VMware guest packages.
+2. Configure VMware Tools time-sync policy for the active init system.
+3. Configure XDG autostart for `vmware-user-suid-wrapper`.
+4. Start `vgauthd`, `vmblock-fuse`, and `vmtoolsd`.
+5. Verify required runtime modules.
+6. Report VMware Tools version when enabled.
+
+`vmblock-fuse` is required for X11 copy/paste and drag-and-drop support.
+
+### Hyper-V
+
+Hyper-V installs Linux Integration Services packages.
+
+Flow:
+
+1. Install Hyper-V integration packages.
+2. Start file copy, key-value pair, and volume shadow copy services.
+3. Verify VMBus runtime integration.
+4. Report version, time-sync control, and Enhanced Session notes.
+
+Hyper-V time synchronization is controlled by the host integration service; the
+role reports this instead of writing a guest-side config file.
+
+### KVM
+
+KVM installs and starts QEMU Guest Agent.
+
+Flow:
+
+1. Install `qemu-guest-agent`.
+2. Require `/dev/virtio-ports/org.qemu.guest_agent.0` before starting the agent.
+3. Start `qemu-guest-agent`.
+4. Verify virtio runtime devices under `/sys/bus/virtio/devices`.
+5. Report `qemu-ga` version when enabled.
+
+The virtio channel is a hypervisor-side VM setting. If it is absent, the role
+fails with an explicit message.
+
+## Init Systems
+
+The role validates all five project init systems and dispatches through
+`ansible_facts['service_mgr']`.
+
+Current service implementations are systemd-backed. Non-systemd service files
+exist for `runit`, `openrc`, `s6`, and `dinit` and fail explicitly until those
+service contracts are implemented for the corresponding hypervisor.
+
+Timesync configuration follows the same init-specific directory layout. For
+VirtualBox and VMware, systemd paths can disable hypervisor time sync when an
+existing guest time-sync service is active. Non-systemd paths currently report
+that guest-side disable is not implemented and point the operator to host-side
+controls.
+
+## Time Sync
+
+The role must not leave a guest without any time source.
+
+For VirtualBox and VMware, it gathers service facts and checks for one of:
+
+- `chronyd.service`
+- `ntpd.service`
+- `openntpd.service`
+- `systemd-timesyncd.service`
+
+If one is running, the role disables hypervisor-provided time sync. If none is
+running, it leaves hypervisor time sync enabled and reports why.
+
+| Hypervisor | Guest-side behavior |
+|------------|---------------------|
+| VirtualBox | systemd drop-in for `vboxadd-service` with `VBoxService -f --disable-timesync` |
+| VMware | `/etc/vmware-tools/tools.conf`, `[timeSync] disable-all=true` |
+| KVM | No autonomous guest time-sync service is configured by this role |
+| Hyper-V | Host-side control only; role reports operator guidance |
+
+## Desktop Integration
+
+Desktop integration is user-session integration, not a system service.
+
+| Hypervisor | File | Starts |
+|------------|------|--------|
+| VirtualBox | `/etc/xdg/autostart/vboxclient.desktop` | `/usr/bin/VBoxClient-all` |
+| VMware | `/etc/xdg/autostart/vmware-user.desktop` | `/usr/bin/vmware-user-suid-wrapper` |
+
+These files are for XDG-compliant graphical sessions. X11 is the current
+priority for clipboard and drag-and-drop behavior.
 
 ## Variables
 
-### Configurable (`defaults/main.yml`)
+### External Contract
 
-Override via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+Variables in `defaults/main.yml` are the supported external role contract.
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `vm_state` | `present` | safe | `present` installs guest tools, `absent` removes them |
-| `vm_packages_virtualbox_guest` | `['virtualbox-guest-utils']` | careful | VirtualBox guest packages. Change only to pin a specific version |
-| `vm_packages_vmware_guest` | `['open-vm-tools']` | careful | VMware guest packages |
-| `vm_packages_hyperv_guest` | `['hyperv']` | careful | Hyper-V packages (Arch: `hyperv`, Debian: `hyperv-daemons`) |
-| `vm_packages_kvm_guest` | `['qemu-guest-agent']` | careful | KVM/QEMU guest agent package |
-| `vm_vbox_version_check` | `true` | careful | When `true`, enforces host/guest VirtualBox version match. Triggers ISO install on mismatch. Set `false` to disable auto-upgrade |
-| `vm_vbox_lts_kernel_support` | OS-specific | careful | Set in `vars/<OsFamily>.yml`. When `true`, installs `virtualbox-guest-dkms` + `linux-lts-headers` for LTS kernels |
-| `vm_vmware_version_report` | `true` | safe | Display VMware Tools version in execution report |
-| `vm_kvm_version_report` | `true` | safe | Display QEMU Guest Agent version in execution report |
-| `vm_ntp_daemon_services` | `['chronyd.service', 'ntpd.service', 'openntpd.service', 'systemd-timesyncd.service']` | careful | List of NTP daemon service names to check before disabling hypervisor timesync. Guard prevents losing time sync if no NTP daemon is running |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `vm_packages_vmware_guest` | `['open-vm-tools']` | Default VMware guest package list |
+| `vm_packages_hyperv_guest` | `['hyperv']` | Default Hyper-V package list for distros that consume the generic value |
+| `vm_packages_kvm_guest` | `['qemu-guest-agent']` | Default KVM guest package list for distros that consume the generic value |
+| `vm_vbox_host_version_override` | `""` | Explicit VirtualBox host version when kernel log detection is unavailable |
+| `vm_vbox_version_check` | `true` | Detect and enforce VirtualBox host/guest Guest Additions version alignment |
+| `vm_vmware_version_report` | `true` | Report VMware Tools version |
+| `vm_hyperv_version_report` | `true` | Report Hyper-V VMBus kernel metadata |
+| `vm_kvm_version_report` | `true` | Report QEMU Guest Agent version |
 
-### Internal mappings (`vars/`)
+### Internal Data
 
-These files map OS families to distro-specific values. Edit only when adding distro support.
+`vars/main.yml` contains internal constants:
 
-| File | What it contains | When to edit |
-|------|-----------------|-------------|
-| `vars/Archlinux.yml` | Package names, `vm_vbox_lts_kernel_support: true`, `vm_service_manager: systemd` | Adding Arch-specific packages |
-| `vars/Debian.yml` | Package names for Ubuntu/Debian, `hyperv-daemons` instead of `hyperv` | Adding Debian-specific packages |
-| `vars/RedHat.yml` | Package names for Fedora/RHEL, `hyperv-daemons` | Adding RHEL-specific packages |
-| `vars/Void.yml` | Package names for Void Linux, `vm_service_manager: runit` | Adding Void-specific packages |
-| `vars/Gentoo.yml` | Package names for Gentoo (`app-emulation/qemu-guest-agent`), openrc default | Adding Gentoo-specific packages |
-| `vars/default.yml` | Fallback values if OS family file not found | Rarely |
+- `_vm_supported_os`
+- `_vm_supported_init_systems`
+- `_vm_supported_hypervisors`
+- `vm_vbox_guest_service_name`
+- `vm_time_sync_service_names`
 
-## Examples
+`vars/<OsFamily>.yml` contains distro-specific package names, service names, and
+VirtualBox kernel header package mappings.
 
-### Remove guest tools from a machine
+## Distro Mappings
 
-```yaml
-# In host_vars/<hostname>/vm.yml:
-vm_state: absent
-```
+| OS family | Hyper-V packages | KVM packages | VMware package | VirtualBox header packages |
+|-----------|------------------|--------------|----------------|----------------------------|
+| Archlinux | `vm_packages_hyperv_guest` (`hyperv`) | `vm_packages_kvm_guest` (`qemu-guest-agent`) | `open-vm-tools` | `linux-headers` or `linux-lts-headers` |
+| Debian | `hyperv-daemons` | `qemu-guest-agent` | `open-vm-tools` | `linux-headers-{{ ansible_kernel }}` |
+| RedHat | `hyperv-daemons` | `qemu-guest-agent` | `open-vm-tools` | `kernel-devel` |
+| Void | `vm_packages_hyperv_guest` (`hyperv`) | `vm_packages_kvm_guest` (`qemu-guest-agent`) | `open-vm-tools` | `linux-headers` |
+| Gentoo | `sys-apps/hv_kvp_daemon` | `app-emulation/qemu-guest-agent` | `open-vm-tools` | none; kernel sources provide headers |
 
-### Disable VirtualBox version enforcement
+## Reporting And Logs
 
-```yaml
-# In host_vars/<vbox-host>/vm.yml:
-vm_vbox_version_check: false
-```
+The role appends phase records through `common/report_phase.yml` and renders the
+final report with `common/report_render.yml`.
 
-This skips the host/guest version comparison and ISO download. Useful when the host VirtualBox version cannot be detected.
+The role does not create its own log files. Runtime logs are owned by the guest
+tools and init system.
 
-### Override VirtualBox packages
-
-```yaml
-# In group_vars/virtualbox_guests/vm.yml:
-vm_packages_virtualbox_guest:
-  - virtualbox-guest-utils
-  - virtualbox-guest-dkms
-```
-
-### Reboot if required after guest tools install
-
-```yaml
-# In your playbook:
-- hosts: all
-  become: true
-  gather_facts: true
-  roles:
-    - role: vm
-  post_tasks:
-    - name: Reboot if guest tools require it
-      ansible.builtin.reboot:
-      when: vm_reboot_required | default(false)
-```
-
-## Cross-platform details
-
-| Aspect | Arch Linux | Ubuntu/Debian | Fedora/RHEL | Void Linux | Gentoo |
-|--------|-----------|---------------|-------------|------------|--------|
-| Hyper-V package | `hyperv` | `hyperv-daemons` | `hyperv-daemons` | `hyperv` | `sys-apps/hv_kvp_daemon` |
-| KVM package | `qemu-guest-agent` | `qemu-guest-agent` | `qemu-guest-agent` | `qemu-guest-agent` | `app-emulation/qemu-guest-agent` |
-| VMware package | `open-vm-tools` | `open-vm-tools` | `open-vm-tools` | `open-vm-tools` | `open-vm-tools` |
-| VBox LTS DKMS | supported | not applicable | not applicable | not applicable | not applicable |
-| Default init | systemd | systemd | systemd | runit | openrc |
-| Fact file path | `/etc/ansible/facts.d/vm_guest.fact` | same | same | same | same |
-
-## Logs
-
-### Role output
-
-The role produces a structured execution report printed at the end of the run. Each phase is logged via `common/report_phase.yml`. To see only the report:
-
-```bash
-ansible-playbook playbook.yml --tags vm:report
-```
-
-### Runtime logs
-
-| Source | Command | Contents |
-|--------|---------|---------|
-| VBox service | `journalctl -u vboxservice` or `journalctl -u vboxadd-service` | Guest Additions events, shared folder mounts |
-| VMware tools | `journalctl -u vmtoolsd` | VM Tools status, time sync events |
-| KVM agent | `journalctl -u qemu-guest-agent` | Guest agent events |
-| Hyper-V | `journalctl -u hv_fcopy_daemon` | File copy service events |
-| ISO installer | `/var/log/vboxadd-install.log` | VBoxLinuxAdditions.run output (VBox ISO path only) |
-
-This role does not create its own log files; all output goes to the system journal.
-
-## Troubleshooting
-
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| Role fails at "Assert supported operating system" | OS family is not in the supported list | Check `ansible_facts['os_family']` — only Archlinux/Debian/RedHat/Void/Gentoo are supported |
-| Role fails at "Validate prerequisites" | `gather_facts: false` in the playbook | Set `gather_facts: true` — virtualization detection requires Ansible facts |
-| VirtualBox: no shared folders after install | `lsmod \| grep vboxsf` — is module loaded? | If missing: reboot (module requires it after first install). Check `vm_reboot_required` |
-| VirtualBox ISO download fails | Network or URL not accessible | Check outbound HTTPS to `download.virtualbox.org`. Set `vm_vbox_version_check: false` to skip |
-| VirtualBox ISO install fails, reverted to pacman | See "WARNING: ISO GA install failed" in output | Role auto-reverts; version mismatch persists. Check `/var/log/vboxadd-install.log` |
-| KVM: qemu-guest-agent installed but service not verified | No `/dev/virtio-ports/org.qemu.guest_agent.0` | Virtio serial channel not configured in hypervisor. Configure virtio-serial device in VM settings |
-| vm_guest.fact not created | Role did not detect `vm_is_guest=true` | Check `ansible_facts['virtualization_role']` — must be `guest`. Bare metal hosts are skipped |
-| systemd-timesyncd conflict warning | Hypervisor and systemd both manage time sync | Disable systemd-timesyncd: `systemctl disable --now systemd-timesyncd` |
+| Source | Typical command |
+|--------|-----------------|
+| VirtualBox service | `journalctl -u vboxadd-service` |
+| VMware tools | `journalctl -u vmtoolsd` |
+| KVM agent | `journalctl -u qemu-guest-agent` |
+| Hyper-V file copy | distro-specific Hyper-V service unit from `vars/<OsFamily>.yml` |
+| VirtualBox ISO installer | `/var/log/vboxadd-install.log` |
 
 ## Testing
 
-Both scenarios are required (TEST-002). Docker for fast feedback, Vagrant for full validation.
+Molecule tests do not duplicate role verification and do not define role-specific
+test variables. They only run the role and check that it converges and is
+idempotent.
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test` | After changing task logic, variables, or fact file writing | Container detection, fact file absent, idempotence |
-| Vagrant (KVM) | `molecule test -s vagrant` | After changing service management, OS-specific tasks, or detection logic | Real packages, real services with virtio guard, Arch + Ubuntu |
+| Scenario | Test sequence | Purpose |
+|----------|---------------|---------|
+| `default` | `syntax -> converge -> idempotence` | Fast delegated smoke on the current test VM |
+| `docker` | `syntax -> create -> prepare -> converge -> idempotence -> destroy` | Container smoke for package-cache preparation and container skip behavior |
+| `vagrant` | `syntax -> create -> prepare -> converge -> idempotence -> destroy` | Full VM smoke on real guest VMs |
 
-### Success criteria
+Prepare playbooks are test-environment setup only:
 
-- All steps complete: `syntax → converge → idempotence → verify → destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass with `success_msg` output
-- No `failed` tasks in final summary
+- `molecule/docker/prepare.yml` imports the shared Docker prepare playbook.
+- `molecule/vagrant/prepare.yml` imports the shared Vagrant prepare playbook.
 
-### What the tests verify
+Docker platform settings such as the systemd command, cgroup mounts, and
+privileged mode are Molecule driver configuration. They are not role input and
+are not part of the vm role contract.
 
-| Category | Examples | Test requirement |
-|----------|----------|-----------------|
-| Detection | `vm_is_guest`, `vm_is_container`, `vm_hypervisor` set correctly | TEST-008 |
-| Fact file | `/etc/ansible/facts.d/vm_guest.fact` exists with valid JSON | TEST-008 |
-| Packages | `qemu-guest-agent` installed on KVM guest | TEST-008 |
-| Services | `qemu-guest-agent` enabled + active (KVM with virtio channel) | TEST-008 |
-| Container path | No fact file created in Docker container | TEST-008 |
-| Permissions | `facts.d` directory mode `0755` | TEST-008 |
+There are no Molecule `verify.yml` playbooks for this role. Runtime contract
+checks live inside the role.
 
-### Common test failures
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `OS family 'X' is not supported` | Container OS family not in `_vm_supported_os` | Add the OS family to `_vm_supported_os` or use a supported image |
-| `vm_guest.fact should NOT exist in container` | Role incorrectly detected container as guest VM | Check `vm_virt_type` in container — should be `container` or `docker` |
-| `qemu-guest-agent package not installed on KVM guest` | Package install failed | Run `molecule converge` again; check package manager output |
-| Idempotence failure | First run writes fact file, second run re-writes it | Verify `_set_facts.yml` uses `when: vm_is_guest | bool` correctly |
-| `Missing virtualization facts` | `gather_facts: false` in `converge.yml` | Ensure `gather_facts: true` in converge |
+All project test execution must follow the repository Test VM Workflow. Do not
+run Ansible or Molecule locally outside that workflow.
 
 ## Tags
 
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `vm` | Entire role | Full apply |
-| `vm:install` | Package installation tasks only | Re-run package install without other steps |
-| `vm:service` | Service management tasks only | Restart/enable services |
-| `vm:verify` | Verification tasks (modules, X11, time sync, fact file) | Re-run verification |
-| `vm:report` | Debug output and status reports only | Re-generate execution report |
-| `vbox` | VirtualBox-specific tasks | VBox path only |
-| `vmware` | VMware-specific tasks | VMware path only |
-| `hyperv` | Hyper-V-specific tasks | Hyper-V path only |
-| `kvm` | KVM/QEMU-specific tasks | KVM path only |
+| Tag | What it runs |
+|-----|--------------|
+| `vm` | Entire role |
 
-Example:
+The role does not expose internal phase tags.
 
-```bash
-ansible-playbook playbook.yml --tags vm:verify
-```
+## Troubleshooting
 
-## File map
+| Symptom | Meaning | Action |
+|---------|---------|--------|
+| Unsupported OS failure | `ansible_facts['os_family']` is outside the role contract | Use Archlinux, Debian, RedHat, Void, or Gentoo |
+| Unsupported init failure | `ansible_facts['service_mgr']` is outside the role contract | Use systemd, runit, openrc, s6, or dinit |
+| Missing virtualization facts | Facts were not gathered | Run with `gather_facts: true` |
+| VirtualBox host version not detected | Kernel log has no `host-version` entry | Set `vm_vbox_host_version_override` |
+| VirtualBox ISO install deferred | Running kernel modules directory is missing after a kernel upgrade | Reboot and re-run the role |
+| VirtualBox ISO install failed | ISO installer failed and rescue diagnostics were printed | Check `/var/log/vboxadd-install.log` and the rescue output |
+| KVM virtio channel missing | VM lacks QEMU guest agent virtio serial channel | Add the channel in hypervisor VM settings and re-run |
+| Non-systemd service failure | The detected init system has an explicit fail path for that hypervisor | Implement that init-specific service contract before using that combination |
 
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable variables + supported OS list | No — override via inventory |
-| `vars/Archlinux.yml` | Arch Linux package names and service manager | Only when adding Arch-specific support |
-| `vars/Debian.yml` | Debian/Ubuntu package names | Only when adding Debian-specific support |
-| `vars/RedHat.yml` | Fedora/RHEL package names | Only when adding RHEL-specific support |
-| `vars/Void.yml` | Void Linux package names | Only when adding Void-specific support |
-| `vars/Gentoo.yml` | Gentoo package names | Only when adding Gentoo-specific support |
-| `vars/default.yml` | Fallback values | Rarely |
-| `tasks/main.yml` | Execution flow orchestrator | When adding/removing phases |
-| `tasks/verify.yml` | In-role self-verification | When changing verification logic |
-| `tasks/virtualbox.yml` | VirtualBox guest tools pipeline | VBox-specific changes |
-| `tasks/virtualbox_version.yml` | Host/guest version detection | Version enforcement logic |
-| `tasks/virtualbox_iso_install.yml` | ISO download, mount, install with recovery | ISO install path changes |
-| `tasks/virtualbox_lts_kernel.yml` | LTS kernel DKMS support | LTS kernel detection |
-| `tasks/vmware.yml` | VMware guest tools pipeline | VMware-specific changes |
-| `tasks/hyperv.yml` | Hyper-V pipeline | Hyper-V-specific changes |
-| `tasks/kvm.yml` | KVM pipeline | KVM-specific changes |
-| `tasks/_install_packages.yml` | Common package installation with error handling | Package install logic |
-| `tasks/_manage_services.yml` | Enable/start services with idempotent handlers | Service management |
-| `tasks/_verify_modules.yml` | Verify kernel modules are loaded | Module verification |
-| `tasks/_check_x11.yml` | Check/create X11 integration files (desktop autostart) | X11 integration logic |
-| `tasks/_version_report.yml` | Run version check commands and report | Version reporting |
-| `tasks/_ntp_guard.yml` | Check if NTP daemon is active before disabling timesync | NTP guard logic |
-| `tasks/_reboot_flag.yml` | Set reboot-required flag and create sentinel file | Reboot signaling |
-| `tasks/_remove_guest_tools.yml` | Remove packages and disable services | Guest tools removal |
-| `handlers/main.yml` | Service restart handlers | When adding new handlers |
-| `molecule/docker/` | Docker test scenario | When changing container test logic |
-| `molecule/vagrant/` | Vagrant/KVM test scenario | When changing guest VM test logic |
-| `molecule/shared/verify.yml` | Shared verification tasks | When changing verification coverage |
+## File Map
+
+| Path | Purpose |
+|------|---------|
+| `tasks/main.yml` | Role orchestrator |
+| `tasks/validate.yml` | Input and platform contract validation |
+| `tasks/load_vars.yml` | OS-specific variable loading |
+| `tasks/detect.yml` | Virtualization fact reporting |
+| `tasks/configure/main.yml` | Hypervisor dispatch |
+| `tasks/hypervisor/virtualbox/` | VirtualBox guest pipeline |
+| `tasks/hypervisor/vmware/` | VMware guest pipeline |
+| `tasks/hypervisor/hyperv/` | Hyper-V guest pipeline |
+| `tasks/hypervisor/kvm/` | KVM guest pipeline |
+| `defaults/main.yml` | External role variables |
+| `vars/main.yml` | Internal role constants |
+| `vars/<OsFamily>.yml` | Distro-specific package and service data |
+| `handlers/main.yml` | VirtualBox udev and membership notification handlers |
+| `molecule/default/` | Delegated smoke scenario |
+| `molecule/docker/` | Docker smoke scenario |
+| `molecule/vagrant/` | Vagrant smoke scenario |

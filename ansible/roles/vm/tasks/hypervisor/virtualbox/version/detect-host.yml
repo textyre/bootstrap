@@ -1,0 +1,22 @@
+---
+# Keep parsing close to the read-only probe so the enforcement step receives
+# a plain version string instead of kernel log text.
+- name: "VirtualBox: Detect host version from kernel log"
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    if [ -n {{ vm_vbox_host_version_override | quote }} ]; then
+      printf '%s\n' {{ vm_vbox_host_version_override | quote }}
+      exit 0
+    fi
+
+    {
+      if command -v journalctl >/dev/null 2>&1; then
+        journalctl -k --no-pager -q 2>/dev/null || true
+      fi
+      dmesg 2>/dev/null || true
+    } | sed -n 's/.*host-version:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' | tail -n 1
+  args:
+    executable: /bin/bash
+  register: vm_vbox_host_version_detected
+  changed_when: false

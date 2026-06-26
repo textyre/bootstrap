@@ -1,0 +1,4 @@
+---
+- name: "Hyper-V: Fail integration service start for s6"
+  ansible.builtin.fail:
+    msg: "Hyper-V integration service start is not implemented for s6 in the vm role."

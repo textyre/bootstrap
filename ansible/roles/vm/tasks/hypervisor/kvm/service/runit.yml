@@ -1,0 +1,4 @@
+---
+- name: "KVM: Fail guest agent service start for runit"
+  ansible.builtin.fail:
+    msg: "KVM guest agent service start is not implemented for runit in the vm role."

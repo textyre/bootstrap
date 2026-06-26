@@ -1,0 +1,24 @@
+---
+# modinfo is report-only here. Version metadata can be unavailable when the
+# driver is built into the kernel or the distro omits that field, so the role
+# reports "version unavailable" instead of failing after the required runtime
+# VMBus contract has already been verified.
+- name: "Hyper-V: Get VMBus module version"
+  ansible.builtin.command: modinfo -F version hv_vmbus
+  register: vm_hyperv_vmbus_version
+  changed_when: false
+  failed_when: false
+
+- name: "Hyper-V: Get VMBus kernel compatibility"
+  ansible.builtin.command: modinfo -F vermagic hv_vmbus
+  register: vm_hyperv_vmbus_vermagic
+  changed_when: false
+  failed_when: false
+
+- name: "Hyper-V: Report VMBus version"
+  ansible.builtin.debug:
+    msg: >-
+      Hyper-V VMBus version:
+      {{ (vm_hyperv_vmbus_version.stdout | trim) if vm_hyperv_vmbus_version.rc == 0 else 'version unavailable' }},
+      Kernel compatibility:
+      {{ (vm_hyperv_vmbus_vermagic.stdout | trim) if vm_hyperv_vmbus_vermagic.rc == 0 else 'version unavailable' }}

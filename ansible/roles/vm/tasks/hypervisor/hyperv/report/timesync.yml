@@ -1,0 +1,17 @@
+---
+# Hyper-V timesync is controlled by the host-side Time Synchronization
+# integration service. Linux hv_utils has no stable guest-side config file that
+# disables the channel declaratively.
+#
+# Source:
+# - Linux hv_utils implementation:
+#   https://github.com/torvalds/linux/blob/master/drivers/hv/hv_util.c
+# - Host-side control command:
+#   Disable-VMIntegrationService -VMName "<vm-name>" -Name "Time Synchronization"
+- name: "Hyper-V: Report timesync host-side control"
+  ansible.builtin.debug:
+    msg: >-
+      Hyper-V timesync is controlled by the Hyper-V host. To disable it, run on
+      the host: Disable-VMIntegrationService -VMName "<vm-name>" -Name
+      "Time Synchronization". The vm role does not manage host-side Hyper-V
+      integration services.

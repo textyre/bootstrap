@@ -1,0 +1,6 @@
+---
+- name: "VirtualBox: Download VBoxGuestAdditions ISO"
+  ansible.builtin.get_url:
+    url: "https://download.virtualbox.org/virtualbox/{{ vm_vbox_host_version }}/VBoxGuestAdditions_{{ vm_vbox_host_version }}.iso"
+    dest: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_version }}.iso"
+    mode: '0644'

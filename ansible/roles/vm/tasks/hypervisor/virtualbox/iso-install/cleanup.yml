@@ -1,0 +1,23 @@
+---
+- name: "VirtualBox: Check ISO mount state"
+  ansible.builtin.command:
+    cmd: findmnt -rn /mnt/vbox_iso
+  register: vm_vbox_iso_mount_check
+  changed_when: false
+  failed_when: vm_vbox_iso_mount_check.rc not in [0, 1]
+
+- name: "VirtualBox: Unmount ISO"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: umount /mnt/vbox_iso
+  changed_when: true
+  when: vm_vbox_iso_mount_check.rc == 0
+
+- name: "VirtualBox: Remove ISO mount point"
+  ansible.builtin.file:
+    path: /mnt/vbox_iso
+    state: absent
+
+- name: "VirtualBox: Remove downloaded ISO"
+  ansible.builtin.file:
+    path: "/tmp/VBoxGuestAdditions_{{ vm_vbox_host_version }}.iso"
+    state: absent

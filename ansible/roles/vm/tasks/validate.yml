@@ -1,0 +1,46 @@
+---
+# =========================================================================
+# validate.yml — Validate role prerequisites
+# =========================================================================
+# Checks OS support and required virtualization facts. Fails fast before any
+# mutation.
+#
+# Called from: main.yml
+# =========================================================================
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _vm_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _vm_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+
+- name: Assert virtualization facts are available
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['virtualization_type'] is defined
+      - ansible_facts['virtualization_role'] is defined
+    fail_msg: >-
+      Missing virtualization facts. Ensure gather_facts is enabled before
+      running the vm role.
+    success_msg: "Virtualization facts are available"
+
+- name: Assert supported init system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] is defined
+      - ansible_facts.get('service_mgr', '') in _vm_supported_init_systems
+    fail_msg: >-
+      Init system '{{ ansible_facts.get('service_mgr', 'undefined') }}' is not
+      supported. Supported: {{ _vm_supported_init_systems | join(', ') }}
+    success_msg: "Init system '{{ ansible_facts['service_mgr'] }}' is supported"
+
+- name: "Report: Validate prerequisites"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vm_phases"
+    common_rpt_phase: "Validate prerequisites"

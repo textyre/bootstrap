@@ -1,0 +1,5 @@
+---
+- name: "KVM: Install qemu guest agent packages"
+  ansible.builtin.package:
+    name: "{{ vm_kvm_packages }}"
+    state: present

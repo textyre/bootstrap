@@ -1,0 +1,53 @@
+---
+- name: "VirtualBox: Enforce Guest Additions ISO version"
+  vars:
+    vm_vbox_host_version: "{{ vm_vbox_host_version_detected.stdout | trim }}"
+    vm_vbox_guest_version: "{{ vm_vbox_guest_version_detected.stdout | trim }}"
+    vm_vbox_install_required: >-
+      {{
+        vm_vbox_host_version | length > 0
+        and vm_vbox_host_version != vm_vbox_guest_version
+      }}
+  block:
+    - name: "VirtualBox: Warn - host version not detected"
+      ansible.builtin.debug:
+        msg: >-
+          Could not detect VirtualBox host version from kernel log
+          (journalctl -k / dmesg). Guest Additions ISO installation will be
+          skipped. Set vm_vbox_host_version_override in host_vars, then re-run
+          the vm role.
+      when: vm_vbox_host_version | length == 0
+
+    - name: "VirtualBox: Fail when Guest Additions are absent and host version is unknown"
+      ansible.builtin.fail:
+        msg: >-
+          VirtualBox Guest Additions are not installed, and the host VirtualBox
+          version could not be detected from the guest kernel log. The role
+          cannot choose a version-specific Guest Additions ISO. Set
+          vm_vbox_host_version_override, then re-run the vm role.
+      when:
+        - vm_vbox_host_version | length == 0
+        - vm_vbox_guest_version | length == 0
+
+    - name: "VirtualBox: Check running kernel modules directory exists"
+      ansible.builtin.stat:
+        path: "/lib/modules/{{ ansible_kernel }}"
+      register: vm_vbox_kernel_modules_dir_state
+
+    - name: "VirtualBox: Warn - kernel upgrade pending, ISO install deferred"
+      ansible.builtin.debug:
+        msg: >-
+          Running kernel {{ ansible_kernel }} modules directory not found
+          (kernel was upgraded during this run). VBox GA installation
+          {{ vm_vbox_guest_version }} -> {{ vm_vbox_host_version }} deferred.
+          Reboot and re-run the playbook to complete the installation.
+      when:
+        - vm_vbox_install_required | bool
+        - not vm_vbox_kernel_modules_dir_state.stat.exists
+
+    - name: "VirtualBox: Install Guest Additions from ISO"
+      ansible.builtin.include_tasks:
+        file: hypervisor/virtualbox/iso-install.yml
+      when:
+        - vm_vbox_install_required | bool
+        - vm_vbox_kernel_modules_dir_state.stat.exists

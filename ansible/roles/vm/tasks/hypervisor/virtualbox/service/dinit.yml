@@ -1,0 +1,4 @@
+---
+- name: "VirtualBox: Fail guest service start for dinit"
+  ansible.builtin.fail:
+    msg: "VirtualBox guest service start is not implemented for dinit in the vm role."

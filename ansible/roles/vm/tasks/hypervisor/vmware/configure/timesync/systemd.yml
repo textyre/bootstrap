@@ -1,0 +1,70 @@
+---
+# vmtoolsd can synchronize the guest clock with the VMware host. The vm role
+# treats chronyd/ntpd/systemd-timesyncd as the guest time authority, so it only
+# disables VMware Tools timesync when one of those services is already active.
+# tools.conf is managed with ini_file because it is VMware Tools' native INI
+# configuration file. open-vm-tools documents that VMware Tools services reload
+# this file automatically, so no service restart is required here; if vmtoolsd is
+# not running yet, the service phase starts it after this configuration exists.
+# Source:
+# - open-vm-tools tools.conf, [timeSync] disable-all:
+#   https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/tools.conf
+- name: "VMware: Gather service facts for time-sync guard"
+  ansible.builtin.service_facts:
+
+- name: "VMware: Warn when no time-sync service is active"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  ansible.builtin.debug:
+    msg: >-
+      No active time-sync service found ({{ vm_time_sync_service_names | join(', ') }}).
+      VMware Tools time sync will NOT be disabled to avoid leaving the VM
+      without time synchronization.
+    verbosity: 0
+  when: vm_time_sync_active_services | length == 0
+
+- name: "VMware: Ensure /etc/vmware-tools directory exists"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  ansible.builtin.file:
+    path: /etc/vmware-tools
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: vm_time_sync_active_services | length > 0
+
+- name: "VMware: Disable all VMware timesync in tools.conf"
+  vars:
+    vm_time_sync_active_services: >-
+      {{
+        ansible_facts.services
+        | dict2items
+        | selectattr('key', 'in', vm_time_sync_service_names)
+        | selectattr('value.state', 'equalto', 'running')
+        | list
+      }}
+  community.general.ini_file:
+    path: /etc/vmware-tools/tools.conf
+    section: timeSync
+    option: disable-all
+    value: "true"
+    no_extra_spaces: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: vm_time_sync_active_services | length > 0

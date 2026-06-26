@@ -1,0 +1,37 @@
+---
+- name: "VirtualBox: Create ISO mount point"
+  ansible.builtin.file:
+    path: /mnt/vbox_iso
+    state: directory
+    mode: '0755'
+
+# A kernel upgraded earlier in the same playbook can leave the running kernel
+# without the iso9660 module available. Loading it explicitly gives a direct
+# failure before the mount step.
+- name: "VirtualBox: Ensure iso9660 filesystem module is loaded"
+  community.general.modprobe:
+    name: iso9660
+    state: present
+
+- name: "VirtualBox: Mount GA ISO"  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    cmd: "mount -o loop,ro /tmp/VBoxGuestAdditions_{{ vm_vbox_host_version }}.iso /mnt/vbox_iso"
+  changed_when: true
+
+- name: "VirtualBox: Run VBoxLinuxAdditions.run"
+  ansible.builtin.shell:
+    cmd: timeout 300 /mnt/vbox_iso/VBoxLinuxAdditions.run --nox11 </dev/null
+  register: vm_vbox_iso_install_result
+  changed_when: true
+
+- name: "VirtualBox: Show ISO installer output"
+  ansible.builtin.debug:
+    msg:
+      - "rc={{ vm_vbox_iso_install_result.rc }}"
+      - "{{ vm_vbox_iso_install_result.stdout_lines }}"
+      - "{{ vm_vbox_iso_install_result.stderr_lines }}"
+
+- name: "VirtualBox: Load vboxguest module"
+  community.general.modprobe:
+    name: vboxguest
+    state: present

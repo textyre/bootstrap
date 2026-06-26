@@ -1,0 +1,20 @@
+---
+- name: "VirtualBox: Collect failure diagnostics"
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "=== Kernel ===" && uname -r
+    echo "=== VBoxGuestAdditions ISOs ===" && ls -la /opt/VBoxGuestAdditions-* 2>/dev/null || echo 'No ISO GA found'
+    echo "=== Loaded vbox modules ===" && lsmod | grep vbox || echo 'No vbox modules'
+    echo "=== dmesg vboxguest ===" && dmesg 2>/dev/null | grep vboxguest | tail -5 || echo 'dmesg unavailable'
+  args:
+    executable: /bin/bash
+  register: vm_vbox_iso_diag
+  changed_when: false
+  failed_when: false
+
+- name: "VirtualBox: CRITICAL - ISO installation failed"
+  ansible.builtin.fail:
+    msg: >-
+      Failed to install VBoxGuestAdditions {{ vm_vbox_host_version }} from ISO.
+      If the kernel was just upgraded, reboot the VM first, then re-run the playbook.
+      Diagnostics: {{ vm_vbox_iso_diag.stdout }}

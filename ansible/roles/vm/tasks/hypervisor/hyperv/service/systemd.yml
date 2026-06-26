@@ -1,0 +1,21 @@
+---
+# These daemons are the user-space part of Hyper-V Linux Integration Services.
+# They are required for the Hyper-V guest contract owned by this role; systemd
+# should fail clearly if a unit is absent after package installation.
+- name: "Hyper-V: Start file copy service"
+  ansible.builtin.systemd:
+    name: "{{ vm_hyperv_fcopy_service_name }}"
+    enabled: true
+    state: started
+
+- name: "Hyper-V: Start key-value pair service"
+  ansible.builtin.systemd:
+    name: "{{ vm_hyperv_kvp_service_name }}"
+    enabled: true
+    state: started
+
+- name: "Hyper-V: Start volume shadow copy service"
+  ansible.builtin.systemd:
+    name: "{{ vm_hyperv_vss_service_name }}"
+    enabled: true
+    state: started

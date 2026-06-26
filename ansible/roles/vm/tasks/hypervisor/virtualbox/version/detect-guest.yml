@@ -1,0 +1,21 @@
+---
+- name: "VirtualBox: Get installed Guest Additions version"
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    if command -v VBoxControl >/dev/null 2>&1; then
+      version="$(VBoxControl --version 2>/dev/null | sed 's/[^0-9.].*//' || true)"
+      if [ -n "$version" ]; then
+        printf '%s\n' "$version"
+        exit 0
+      fi
+    fi
+
+    for path in /opt/VBoxGuestAdditions-*; do
+      [ -d "$path" ] || continue
+      basename "$path" | sed 's/^VBoxGuestAdditions-//'
+    done | sort -V | tail -n 1
+  args:
+    executable: /bin/bash
+  register: vm_vbox_guest_version_detected
+  changed_when: false
