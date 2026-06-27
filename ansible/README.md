@@ -39,7 +39,7 @@ task workstation # Применить все роли
 - **ntp_audit** — аудит NTP синхронизации
 - **package_manager** — pacman.conf, зеркала, yay binary
 - **pam_hardening** — PAM faillock, brute-force защита
-- **vm** — гостевые утилиты VirtualBox/VMware/Hyper-V
+- **vm** — гостевые утилиты VirtualBox/VMware/Hyper-V/KVM
 
 ### Phase 1.5: Hardware & Kernel
 - **gpu_drivers** — NVIDIA/AMD/Intel

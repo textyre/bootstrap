@@ -45,7 +45,9 @@ On virtual machines, hypervisors run their own time synchronization services tha
 
 The vm role uses an NTP guard pattern: it checks if an NTP daemon is running before disabling hypervisor timesync. If no NTP daemon is active, the guard skips the disable to prevent losing the only time source. This ensures you won't accidentally leave a system without time synchronization.
 
-See the vm role's `tasks/_ntp_guard.yml` for implementation.
+See the vm role README Time Sync section for the current contract. Guest-side
+implementations live under
+`ansible/roles/vm/tasks/hypervisor/<hypervisor>/configure/timesync/`.
 
 ## Default servers
 

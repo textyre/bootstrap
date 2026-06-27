@@ -36,7 +36,7 @@ scripts/setup-vault-pass.sh
 | `ntp_audit` | Аудит NTP синхронизации |
 | `package_manager` | pacman.conf, зеркала |
 | `pam_hardening` | PAM faillock — защита от brute-force |
-| `vm` | Гостевые утилиты VirtualBox/VMware/Hyper-V |
+| `vm` | Гостевые утилиты VirtualBox/VMware/Hyper-V/KVM |
 
 ### Phase 1.5: Hardware & Kernel
 

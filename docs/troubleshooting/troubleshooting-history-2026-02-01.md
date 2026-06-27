@@ -30,6 +30,34 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 
 - [x] **INI → YAML inventory** — создан `ansible/inventory/hosts.yml`, обновлены `ansible.cfg` (inventory path + yaml plugin) и `Taskfile.yml` (ANSIBLE_INVENTORY). Старый `hosts.ini` оставлен для справки.
 
+### Категория: VirtualBox Guest Additions / Guest Tools
+
+- [x] **Guest Additions version mismatch** — версия Guest Additions в гостевой системе не совпадала с версией VirtualBox на хосте: guest 7.2.6 из pacman против host 7.1.16. Решение для точного совпадения: установить Guest Additions из ISO нужной версии, а не из distro-пакета.
+
+- [x] **ISO Guest Additions конфликтуют с distro-пакетом** — после установки Guest Additions через ISO пакетный менеджер не мог поставить `virtualbox-guest-utils` из-за уже существующих файлов в `/usr/bin/`. Решение: сначала удалить ISO-установку через `/opt/VBoxGuestAdditions-*/uninstall.sh`, затем ставить distro-пакет.
+
+- [x] **VBoxLinuxAdditions.run не создаёт systemd unit на Arch** — ISO installer положил init-скрипты в `/opt/VBoxGuestAdditions-*/init/`, но не создал systemd unit. Решение: управлять запуском Guest Additions через явный unit для `VBoxService -f`, если выбран ISO-path.
+
+- [x] **ISO installer может вернуть non-zero на headless VM** — `VBoxLinuxAdditions.run` может завершиться с ненулевым кодом из-за необязательных X11/video частей, хотя kernel modules собраны. Решение: итог установки проверять по фактическим артефактам Guest Additions и загруженным модулям, а не только по exit code installer.
+
+- [x] **Pacman-path и ISO-path дают разные имена сервисов** — distro-пакет и ISO-установка могут создавать разные service units (`vboxservice` vs `vboxadd-service`). Решение: определять фактический способ установки и управлять соответствующим сервисом, не смешивая оба пути.
+
+- [x] **Autostart desktop integration отделён от system service** — перенос файлов с/в VM зависит не только от `VBoxService`, но и от пользовательского desktop-клиента `VBoxClient` в X11-сессии. Решение: system service запускать отдельно, а X11 desktop integration настраивать как autostart для user session.
+
+### Категория: Guest Tools / Idempotency
+
+- [x] **Transient reboot flag ломает идемпотентность fact-файла** — `reboot_required` менялся между первым и вторым запуском, потому что зависел от текущего run state, а не от стабильного состояния системы. Решение: не писать transient state в persistent fact-файл; хранить только стабильные свойства вроде hypervisor/is_guest/is_container.
+
+- [x] **Dangling service symlink после смены способа установки** — после перехода с distro-пакета на ISO-path мог остаться symlink на старый service unit. Решение: cleanup должен удалять артефакты предыдущего способа установки перед включением нового сервиса.
+
+- [x] **Build dependencies остаются после ISO install** — для сборки Guest Additions через ISO нужны headers/build tools, но после установки они могут остаться на минимальной VM. Решение: считать это осознанным trade-off для workstation/base-devel окружения или явно документировать cleanup policy.
+
+### Категория: VMware / Hyper-V Guest Tools
+
+- [x] **VMware version matching не эквивалентен VirtualBox ISO matching** — для open-vm-tools гостевая система обычно использует distro-provided package, а точную host version изнутри VM надежно сравнить нельзя. Решение: report должен выводить доступную guest tools version и host platform, но не падать из-за отсутствия host version.
+
+- [x] **Hyper-V guest tools version не определяется как отдельная userspace version** — Hyper-V integration в Linux в основном обеспечивается kernel modules и демонами, а не отдельным Guest Additions ISO. Решение: проверять наличие нужных модулей/демонов и в report явно писать, что version unavailable.
+
 ## Не решено
 
 ### Требуют верификации на VM
@@ -41,6 +69,14 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 - [ ] **Верификация pam_faillock** — нужно запустить `task run` на VM и проверить что `sudo` больше не показывает pam_faillock warnings.
 
 - [ ] **Удалить hosts.ini** — после проверки YAML inventory на VM можно удалить `ansible/inventory/hosts.ini`.
+
+### Известные ограничения VirtualBox / Guest Tools
+
+- [ ] **VBox 3D acceleration не работает в текущей VM** — `vmwgfx` проверяет VMware hypervisor type, а VirtualBox в этой конфигурации представляется как KVM через CPUID. Это upstream/kernel limitation, а не ошибка настройки Guest Additions.
+
+- [ ] **ConditionVirtualization для VirtualBox может отличаться между окружениями** — systemd condition в custom unit должен соответствовать тому, что фактически возвращает `systemd-detect-virt` в конкретной VM.
+
+- [ ] **Rollback ISO install path не покрыт отдельным тестом** — rescue-сценарий нужен для отката на distro-пакеты при падении ISO install, но сам failure path должен проверяться отдельно.
 
 ## Файлы изменённые в сессии
 
