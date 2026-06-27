@@ -1,0 +1,10 @@
+---
+# === gpu_drivers / service ===
+
+- name: "Manage NVIDIA suspend/resume services"
+  ansible.builtin.include_tasks:
+    file: "init/{{ ansible_facts['service_mgr'] }}/nvidia_services.yml"
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_nvidia_suspend

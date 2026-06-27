@@ -1,0 +1,4 @@
+---
+- name: Void initramfs integration not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Void Linux initramfs integration is not yet implemented."

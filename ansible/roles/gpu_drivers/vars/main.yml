@@ -1,0 +1,24 @@
+---
+# Internal immutable role details.
+
+_gpu_drivers_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit
+
+gpu_drivers_has_nvidia: >-
+  {{ gpu_drivers_vendor == 'nvidia'
+     or (gpu_drivers_vendor == 'auto'
+         and (gpu_drivers_lspci.stdout | default('')) is search('(?:VGA|Display|3D).*NVIDIA')) }}
+
+gpu_drivers_has_amd: >-
+  {{ gpu_drivers_vendor == 'amd'
+     or (gpu_drivers_vendor == 'auto'
+         and (gpu_drivers_lspci.stdout | default('')) is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)')) }}
+
+gpu_drivers_has_intel: >-
+  {{ gpu_drivers_vendor == 'intel'
+     or (gpu_drivers_vendor == 'auto'
+         and (gpu_drivers_lspci.stdout | default('')) is search('(?:VGA|Display|3D).*Intel')) }}

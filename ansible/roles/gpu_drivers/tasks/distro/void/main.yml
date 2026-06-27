@@ -1,0 +1,22 @@
+---
+# === gpu_drivers / Void driver stack ===
+
+- name: "Void: Install GPU drivers"
+  ansible.builtin.include_tasks:
+    file: distro/void/install.yml
+
+- name: "Void: Configure GPU driver files"
+  ansible.builtin.include_tasks:
+    file: distro/void/configure.yml
+
+- name: "Void: Manage initramfs"
+  ansible.builtin.include_tasks:
+    file: distro/void/initramfs.yml
+
+- name: "Void: Verify GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/void/verify.yml
+
+- name: "Void: Report GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/void/report.yml

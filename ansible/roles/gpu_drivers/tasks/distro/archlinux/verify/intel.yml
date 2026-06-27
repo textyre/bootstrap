@@ -1,0 +1,15 @@
+---
+# === gpu_drivers / verify / Intel ===
+
+- name: "Assert Intel packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_intel }}"
+
+- name: "Assert Intel multilib packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_intel_multilib }}"
+  when: gpu_drivers_multilib

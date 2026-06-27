@@ -18,17 +18,14 @@ provisioner:
       localhost:
         ansible_connection: local
   playbooks:
+    prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
     - syntax
+    - prepare
     - converge
     - idempotence
-    - verify

@@ -1,0 +1,20 @@
+---
+# === gpu_drivers / init/systemd/nvidia_services — NVIDIA suspend/resume services ===
+# Other init systems (runit, openrc, s6, dinit) do not use systemd service units;
+# NVIDIA suspend/resume on non-systemd is handled by the init system's power hooks.
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Enable NVIDIA suspend/resume systemd services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    daemon_reload: false
+  loop:
+    - nvidia-suspend.service
+    - nvidia-hibernate.service
+    - nvidia-resume.service
+  when:
+    - gpu_drivers_nvidia_suspend
+    - item in ansible_facts.services

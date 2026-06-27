@@ -1,0 +1,4 @@
+---
+- name: Void GPU driver configuration not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Void Linux configuration is not yet implemented."

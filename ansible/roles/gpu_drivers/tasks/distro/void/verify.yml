@@ -1,0 +1,4 @@
+---
+- name: Void package verification not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Void Linux package verification is not yet implemented."

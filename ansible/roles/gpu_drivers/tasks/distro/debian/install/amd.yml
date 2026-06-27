@@ -1,0 +1,15 @@
+---
+# === gpu_drivers / install / AMD ===
+
+- name: "Install AMD firmware and Mesa"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_amd }}"
+
+- name: "Install AMD VA-API driver"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_amd_vaapi }}"
+  when: gpu_drivers_vaapi

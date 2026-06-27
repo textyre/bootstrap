@@ -1,7 +1,47 @@
 ---
-# === gpu_drivers — Arch Linux internal variable mappings ===
-# These are internal vars (not user-facing; use defaults/main.yml for public API).
-# Loaded by tasks/main.yml via: include_vars: "vars/{{ ansible_facts['os_family'] | lower }}.yml"
+# === gpu_drivers — Arch Linux internal package mappings ===
+# These are role internals consumed by tasks/distro/archlinux/install/.
 
-# Arch Linux has no service name variation for GPU services — left as stub for ROLE-001 compliance.
-# Package lists for Arch are defined in defaults/main.yml as public API (user-overridable).
+_gpu_drivers_archlinux_nvidia_proprietary:
+  - nvidia
+  - nvidia-utils
+  - nvidia-settings
+
+_gpu_drivers_archlinux_nvidia_proprietary_multilib:
+  - lib32-nvidia-utils
+
+_gpu_drivers_archlinux_nvidia_open:
+  - nvidia-open
+  - nvidia-utils
+  - nvidia-settings
+
+_gpu_drivers_archlinux_nvidia_vaapi:
+  - nvidia-vaapi-driver
+
+_gpu_drivers_archlinux_amd:
+  - mesa
+  - vulkan-radeon
+  - libva-mesa-driver
+
+_gpu_drivers_archlinux_amd_multilib:
+  - lib32-mesa
+  - lib32-vulkan-radeon
+  - lib32-libva-mesa-driver
+
+_gpu_drivers_archlinux_intel:
+  - mesa
+  - vulkan-intel
+  - intel-media-driver
+
+_gpu_drivers_archlinux_intel_multilib:
+  - lib32-mesa
+  - lib32-vulkan-intel
+
+_gpu_drivers_archlinux_vulkan_common:
+  - vulkan-icd-loader
+
+_gpu_drivers_archlinux_vulkan_common_multilib:
+  - lib32-vulkan-icd-loader
+
+_gpu_drivers_archlinux_vulkan_tools:
+  - vulkan-tools

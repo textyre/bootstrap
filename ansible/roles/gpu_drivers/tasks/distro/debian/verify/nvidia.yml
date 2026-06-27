@@ -1,0 +1,16 @@
+---
+# === gpu_drivers / verify / NVIDIA ===
+
+- name: "Assert NVIDIA proprietary packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_nvidia_proprietary }}"
+  when: gpu_drivers_nvidia_variant == 'proprietary'
+
+- name: "Assert NVIDIA open kernel packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_nvidia_open }}"
+  when: gpu_drivers_nvidia_variant == 'open-kernel'

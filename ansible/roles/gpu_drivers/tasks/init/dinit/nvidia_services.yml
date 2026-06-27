@@ -1,0 +1,4 @@
+---
+- name: Fail when NVIDIA suspend services are unsupported on dinit
+  ansible.builtin.fail:
+    msg: "NVIDIA suspend/resume service management is implemented only for systemd; dinit is not supported by this role path."

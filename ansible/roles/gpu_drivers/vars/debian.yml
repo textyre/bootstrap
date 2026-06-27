@@ -1,7 +1,7 @@
 ---
 # === gpu_drivers — Debian/Ubuntu internal package mappings ===
 # These are internal vars (not user-facing; use defaults/main.yml for public API).
-# Loaded by tasks/main.yml via: include_vars: "vars/{{ ansible_facts['os_family'] | lower }}.yml"
+# Loaded by tasks/load_vars.yml.
 
 # ---- NVIDIA ----
 
@@ -9,17 +9,12 @@ _gpu_drivers_debian_nvidia_proprietary:
   - nvidia-driver
 
 _gpu_drivers_debian_nvidia_open:
-  - nvidia-open-kernel-dkms
-  - nvidia-driver
+  - nvidia-open
 
 # NOTE: nvidia-vaapi-driver available in Debian Trixie (stable) and via backports on Bookworm.
 # Requires non-free and contrib components in apt sources.
 _gpu_drivers_debian_nvidia_vaapi:
   - nvidia-vaapi-driver
-
-_gpu_drivers_debian_nvidia_nouveau:
-  - xserver-xorg-video-nouveau
-  - libgl1-mesa-dri
 
 # ---- AMD ----
 

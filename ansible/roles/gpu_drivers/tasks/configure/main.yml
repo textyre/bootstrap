@@ -1,0 +1,8 @@
+---
+# === gpu_drivers / configure — Distro-specific driver stack dispatcher ===
+# Dispatches to the selected OS family pipeline. Each distro owns its own
+# install/configure/service/initramfs/verify/report phases.
+
+- name: Run distro-specific GPU driver pipeline
+  ansible.builtin.include_tasks:
+    file: "distro/{{ ansible_facts['os_family'] | lower }}/main.yml"

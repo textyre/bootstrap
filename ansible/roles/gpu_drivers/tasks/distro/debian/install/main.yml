@@ -1,0 +1,27 @@
+---
+# === gpu_drivers / install ===
+
+- name: "Update apt cache"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: "Install NVIDIA packages"
+  ansible.builtin.include_tasks:
+    file: distro/debian/install/nvidia.yml
+  when: gpu_drivers_has_nvidia
+
+- name: "Install AMD packages"
+  ansible.builtin.include_tasks:
+    file: distro/debian/install/amd.yml
+  when: gpu_drivers_has_amd
+
+- name: "Install Intel packages"
+  ansible.builtin.include_tasks:
+    file: distro/debian/install/intel.yml
+  when: gpu_drivers_has_intel
+
+- name: "Install common GPU packages"
+  ansible.builtin.include_tasks:
+    file: distro/debian/install/common.yml
+  when: gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel

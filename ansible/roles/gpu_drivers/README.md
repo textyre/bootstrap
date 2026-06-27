@@ -1,49 +1,98 @@
 # gpu_drivers
 
-Automates GPU driver setup so the system is fully usable after provisioning: Wayland compositing works, hardware video decode works, and the GPU is stable across reboots.
+Installs and configures the GPU driver package stack owned by this role.
 
-Detects the installed GPU automatically via `lspci`, or accepts a manual override. Handles NVIDIA, AMD, and Intel across Arch Linux and Debian (stubs for RedHat, Void, Gentoo). For NVIDIA, also registers the driver in the initramfs and configures kernel module options — without this the proprietary driver either fails to load at boot or breaks suspend/resume.
+The role is intended for Linux hosts where the GPU vendor is either detected with `lspci` or selected explicitly with `gpu_drivers_vendor`. It manages NVIDIA, AMD, and Intel package stacks for the implemented Arch Linux and Debian-family pipelines. It does not configure a desktop environment, display manager, compositor, X11, Wayland, PRIME/offloading, VM guest tools, or GPU passthrough.
 
-## Execution flow
+## Contract
 
-1. **Package facts** (`tasks/preflight.yml`) — gathers installed package list so later assertions can check for `pciutils`
-2. **Preflight** (`tasks/preflight.yml`) — asserts supported OS family, valid variable values, and pciutils availability for auto-detection. Fails fast with a clear message on any violation.
-3. **Load OS vars** — includes `vars/archlinux.yml` or `vars/debian.yml` with distro-specific internal package name mappings
-4. **Detect GPU** (`tasks/detect.yml`) — runs `lspci -nn` (auto) or applies vendor override; sets `gpu_drivers_has_nvidia/amd/intel` facts. Warns if hybrid GPU detected.
-5. **Install drivers** (`tasks/install.yml` → `install-archlinux.yml` or `install-debian.yml`) — installs the correct driver stack, Vulkan loader, and VA-API packages for the detected vendor and variant
-6. **Configure** (`tasks/configure.yml`) — deploys `/etc/modprobe.d/nvidia.conf` (KMS options), `/etc/modprobe.d/nvidia-blacklist.conf`, and `/etc/environment.d/gpu.conf` (VA-API). Enables NVIDIA suspend systemd services. **Triggers handler:** if modprobe config changes, initramfs will be regenerated before verification.
-7. **Initramfs** (`tasks/initramfs.yml`) — detects initramfs tool (mkinitcpio/dracut/initramfs-tools), deploys NVIDIA drop-in, removes stale drop-ins when switching variants. **Triggers handler:** if drop-in changes.
-8. **Flush handlers** — runs pending initramfs regeneration (handler: `regenerate initramfs`) so verification reflects the new state
-9. **Verify** (`tasks/verify.yml`) — checks installed packages, config file existence and permissions, and pciutils availability. Fails with a clear message if any postcondition is not met.
-10. **Report** (`tasks/report.yml`) — emits structured execution report via `common/report_phase.yml` and `common/report_render.yml`
+The role owns:
 
-### Handlers
+- GPU vendor detection or explicit vendor selection.
+- Driver package installation for implemented distro pipelines.
+- NVIDIA module options and nouveau blacklist when NVIDIA is selected.
+- NVIDIA initramfs integration when enabled.
+- NVIDIA suspend/resume services for systemd when enabled.
+- VA-API package installation and `/etc/environment.d/gpu.conf` when VA-API is enabled.
+- Final role verify of the expected package stack.
 
-| Handler | Triggered by | What it does |
-|---------|-------------|-------------|
-| `regenerate initramfs` (mkinitcpio) | `configure.yml` modprobe change, `initramfs.yml` drop-in change | Runs `mkinitcpio -P` to regenerate all initramfs images |
-| `regenerate initramfs` (dracut) | Same | Runs `dracut --force` |
-| `regenerate initramfs` (initramfs-tools) | Same | Runs `update-initramfs -u -k all` |
+The role does not own:
 
-## Why these choices
+- VM guest display integration. That belongs to the `vm` role.
+- X11, Wayland, GNOME, KDE, Hyprland, display managers, or user sessions.
+- PRIME/offloading configuration for hybrid GPUs.
+- Runtime validation with `vainfo`, `vulkaninfo`, `nvidia-smi`, or compositor startup.
+- GPU passthrough setup.
+- Removal of previously managed files when a feature is no longer selected.
+- Audit logging. `gpu_drivers_audit_enabled` is currently a reserved external contract and has no implemented tasks.
 
-**mkinitcpio / dracut drop-in instead of editing base config** — drop-in files in `conf.d/` survive package upgrades and do not conflict with user or distro customizations.
+## Scenario Matrix
 
-**Separate modprobe.d files per concern** — `nvidia.conf` for module options, `nvidia-blacklist.conf` for blacklisting. Easier to audit and remove individually.
+| Scenario | Expected role behavior |
+|----------|------------------------|
+| Bare metal with NVIDIA/AMD/Intel | Install and configure the selected or detected vendor package stack. NVIDIA also gets module options, blacklist, initramfs, and systemd suspend services when enabled. |
+| VM with GPU passthrough | Treat as bare metal, because the guest sees the passed-through GPU. |
+| VM without GPU passthrough, X11 | No bare-metal GPU driver stack is required unless a supported physical GPU is exposed or forced. VM guest graphics are handled by the `vm` role. |
+| VM without GPU passthrough, Wayland | Same as VM X11. The role does not configure virtual GPU/Wayland guest integration. |
+| Headless VM | Use `gpu_drivers_vendor: none` when no GPU driver stack is required. |
+| Docker/container | Smoke/idempotence only. Containers are not kernel GPU driver environments. |
 
-**`nvidia-vaapi-driver` as a separate install step** — VA-API support for NVIDIA requires an independent bridge package; it is not included in the base driver. Without it, `LIBVA_DRIVER_NAME=nvidia` is set but the library is not present, causing VA-API-enabled apps to crash.
+## Execution Flow
 
-**`open-kernel` variant** — since NVIDIA open-sourced their kernel modules (2022), the `nvidia-open` package is the recommended path for Turing+ (RTX 2000 and newer). It is more compatible with future kernel changes. Older cards must use `proprietary`.
+1. `tasks/validate.yml` checks supported OS family, supported init system, valid role inputs, and `pciutils` availability when `gpu_drivers_vendor: auto`.
+2. `tasks/load_vars.yml` loads internal package mappings for the implemented distro pipeline.
+3. `tasks/detect.yml` runs `lspci -nn` only when `gpu_drivers_vendor: auto`; manual vendor selection skips `lspci`.
+4. `tasks/configure/main.yml` dispatches to `tasks/distro/<os>/main.yml`.
+5. `tasks/distro/<os>/main.yml` runs `install`, `configure`, `service`, `initramfs`, `verify`, and `report`.
+6. `tasks/main.yml` renders the final report with `common/report_render.yml`.
 
-## Supported platforms
+## Task Layout
 
-| OS family | Status | Package manager | NVIDIA | AMD | Intel |
-|-----------|--------|----------------|--------|-----|-------|
-| Arch Linux | ✅ Full | pacman | proprietary / open-kernel / nouveau | mesa + amdgpu | mesa + vulkan-intel |
-| Debian/Ubuntu | ✅ Full | apt | proprietary / nouveau | firmware-amd-graphics + mesa | intel-media-va-driver + mesa |
-| RedHat/Fedora | 🔧 Stub | dnf | — | — | — |
-| Void Linux | 🔧 Stub | xbps | — | — | — |
-| Gentoo | 🔧 Stub | portage | — | — | — |
+Common tasks:
+
+| Purpose | File |
+|---------|------|
+| Install a package stack | `tasks/common/install_packages.yml` |
+| Verify a package stack | `tasks/common/verify_packages.yml` |
+| Verify no supported GPU was selected | `tasks/common/verify_no_gpu.yml` |
+| Configure NVIDIA module files | `tasks/configure/nvidia.yml` |
+| Configure VA-API environment | `tasks/configure/vaapi.yml` |
+
+Distro pipelines:
+
+| Phase | File |
+|-------|------|
+| Pipeline | `tasks/distro/<os>/main.yml` |
+| Install decisions | `tasks/distro/<os>/install/main.yml` |
+| Configure decisions | `tasks/distro/<os>/configure/main.yml` |
+| Service decisions | `tasks/distro/<os>/service/main.yml` |
+| Initramfs | `tasks/distro/<os>/initramfs.yml` |
+| Verify decisions | `tasks/distro/<os>/verify.yml` |
+| Report | `tasks/distro/<os>/report.yml` |
+
+Distro files own distro-specific package lists, package-manager preparation, and initramfs implementation. Shared actions are kept in common task files.
+
+## Supported Platforms
+
+| OS family | Current state | Notes |
+|-----------|---------------|-------|
+| Arch Linux | Implemented | Pacman package stack, mkinitcpio initramfs integration. |
+| Debian/Ubuntu | Implemented | Apt package stack, dracut or initramfs-tools integration. |
+| RedHat/Fedora | Stub | Pipeline files exist, package stack is not implemented. |
+| Void Linux | Stub | Pipeline files exist, package stack is not implemented. |
+| Gentoo | Stub | Pipeline files exist, package stack is not implemented. |
+
+Supported init systems are `systemd`, `runit`, `openrc`, `s6`, and `dinit`. NVIDIA suspend/resume service management is implemented for `systemd`. The other supported init systems fail explicitly when NVIDIA service management applies.
+
+## NVIDIA Initramfs
+
+The initramfs phase rebuilds boot images directly and only when a managed NVIDIA boot file changed.
+
+| Platform | Changed input | Rebuild command |
+|----------|---------------|-----------------|
+| Arch Linux | `/etc/modprobe.d/nvidia.conf`, `/etc/modprobe.d/nvidia-blacklist.conf`, or `/etc/mkinitcpio.conf.d/nvidia.conf` | `mkinitcpio -P` |
+| Debian/Ubuntu with dracut | `/etc/modprobe.d/nvidia.conf`, `/etc/modprobe.d/nvidia-blacklist.conf`, or `/etc/dracut.conf.d/nvidia.conf` | `dracut --force` |
+| Debian/Ubuntu with initramfs-tools | `/etc/modprobe.d/nvidia.conf`, `/etc/modprobe.d/nvidia-blacklist.conf`, or `/etc/initramfs-tools/hooks/nvidia-ansible` | `update-initramfs -u -k all` |
 
 ## Variables
 
@@ -51,136 +100,78 @@ Detects the installed GPU automatically via `lspci`, or accepts a manual overrid
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `gpu_drivers_vendor` | `auto` | GPU vendor: `auto` (detect via lspci), `nvidia`, `amd`, `intel`, `none` |
+| `gpu_drivers_vendor` | `auto` | `auto`, `nvidia`, `amd`, `intel`, or `none`. `auto` requires `pciutils`. |
 
-### NVIDIA driver variant
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `gpu_drivers_nvidia_variant` | `proprietary` | `proprietary` — closed-source, best performance; `open-kernel` — open kernel modules, requires Turing+ (RTX 2000+); `nouveau` — open-source, limited performance, no Wayland KMS |
-
-### Kernel integration (NVIDIA only)
+### NVIDIA
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `gpu_drivers_nvidia_kms` | `true` | Enable DRM kernel mode setting (`nvidia-drm.modeset=1`). Required for Wayland. |
-| `gpu_drivers_nvidia_blacklist_nouveau` | `true` | Blacklist the `nouveau` driver. Required when using `proprietary` or `open-kernel`. |
-| `gpu_drivers_manage_initramfs` | `true` | Add NVIDIA modules to initramfs and regenerate it. Required for the driver to load at boot. |
-| `gpu_drivers_nvidia_suspend` | `true` | Enable `nvidia-suspend/hibernate/resume.service` for stable suspend. systemd only. |
-| `gpu_drivers_nvidia_preserve_video_memory` | `1` | `NVreg_PreserveVideoMemoryAllocations` value. Set `0` to disable on old cards. |
-| `gpu_drivers_nvidia_modprobe_overwrite` | `{}` | Dict of additional `options <module> <param>` entries merged into `nvidia.conf`. |
+| `gpu_drivers_nvidia_variant` | `proprietary` | `proprietary` or `open-kernel`. `open-kernel` requires supported NVIDIA hardware. |
+| `gpu_drivers_nvidia_kms` | `true` | Manage `nvidia-drm` KMS module option. |
+| `gpu_drivers_nvidia_blacklist_nouveau` | `true` | Manage nouveau blacklist for NVIDIA proprietary/open-kernel driver use. |
+| `gpu_drivers_manage_initramfs` | `true` | Manage NVIDIA initramfs integration and rebuild when managed boot files change. |
+| `gpu_drivers_nvidia_suspend` | `true` | Enable NVIDIA suspend/hibernate/resume services when systemd is used. |
+| `gpu_drivers_manage_security` | `true` | Manage NVIDIA KMS and nouveau blacklist unless another owner manages NVIDIA kernel module hardening. |
+| `gpu_drivers_nvidia_preserve_video_memory` | `1` | `NVreg_PreserveVideoMemoryAllocations` value in the NVIDIA module options. |
+| `gpu_drivers_nvidia_modprobe_overwrite` | `{}` | Extra module options merged into the managed NVIDIA modprobe file. |
 
-### Feature flags
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `gpu_drivers_multilib` | `false` (or `true` for `gaming` profile) | Install 32-bit driver libraries (required for Wine, Steam Proton). Profile-aware. |
-| `gpu_drivers_vulkan_tools` | `true` | Install `vulkan-tools` (`vulkaninfo`, `vkcube`) for verifying Vulkan works |
-| `gpu_drivers_vaapi` | `true` | Configure VA-API: install the VA-API bridge package and set `LIBVA_DRIVER_NAME` |
-| `gpu_drivers_cuda` | `false` | Reserved: CUDA compute packages (not yet implemented) |
-| `gpu_drivers_headless` | `false` | Reserved: skip display components for compute-only servers (not yet implemented) |
-
-### Audit
+### Feature Flags
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `gpu_drivers_audit_enabled` | `false` | Enable audit logging. See `wiki/roles/gpu_drivers.md` for event table. |
+| `gpu_drivers_multilib` | `true` for `gaming` profile, otherwise `false` | Install 32-bit driver libraries where the distro package stack supports them. |
+| `gpu_drivers_vulkan_tools` | `true` | Install Vulkan tools package where the distro package stack supports it. |
+| `gpu_drivers_vaapi` | `true` | Install VA-API package stack and manage `LIBVA_DRIVER_NAME`. |
+| `gpu_drivers_audit_enabled` | `false` | Reserved external contract. No audit tasks are implemented yet. |
 
-## Logs
+## Verify
 
-This role does not produce its own log files. Relevant logs are written by the system:
+Role verify checks the final package-stack contract for the selected vendor and distro. It does not check that Ansible modules wrote files correctly, and it does not run runtime GPU commands.
 
-| Source | Path | What to look for |
-|--------|------|-----------------|
-| Kernel (NVIDIA) | `journalctl -k \| grep -i nvidia` | Module load errors, DKMS failures |
-| Kernel (AMD) | `journalctl -k \| grep -i amdgpu` | Module load errors, firmware missing |
-| Kernel (Intel) | `journalctl -k \| grep -i i915` | Module load errors |
-| initramfs regeneration | `journalctl -u mkinitcpio` (Arch) | Errors during `mkinitcpio -P` |
-| Ansible execution | stdout | Structured report from `report_render.yml` |
+Runtime checks such as `nvidia-smi`, `vainfo`, `vulkaninfo`, compositor startup, and suspend/resume depend on hardware, VM passthrough, user session, display server, and reboot state. Those checks belong in scenario-specific VM or bare-metal validation, not in the generic role verify.
 
-Log rotation: not applicable (no role-owned log files).
+## Molecule
 
-## Troubleshooting
+Molecule scenarios do not set role-specific variables. They prepare prerequisites, run the role with defaults, and check idempotence. There is no separate Molecule verify playbook because the role already runs its own `verify` phase during `converge`.
 
-### Black screen after boot (NVIDIA)
+| Scenario | Driver | Platform | Purpose |
+|----------|--------|----------|---------|
+| `default` | default | Local execution VM or CI host | Fast syntax/converge/idempotence smoke. |
+| `docker` | Docker | Arch Linux and Ubuntu systemd containers | Container smoke/idempotence only. No kernel GPU driver validation. |
+| `vagrant` | Vagrant/libvirt | Arch Linux and Ubuntu VMs | VM smoke/idempotence without GPU passthrough. |
 
-**Symptom:** System boots but display stays black after login screen.
+What Molecule tests:
 
-**Diagnosis:**
-1. Boot with `nomodeset` kernel parameter (temporary)
-2. Check if nouveau is loaded: `lsmod | grep nouveau`
-3. Check initramfs: `lsinitcpio /boot/initramfs-linux.img | grep nvidia`
+- Syntax.
+- Convergence.
+- Idempotence.
 
-**Fix:**
-- If nouveau is loaded → `gpu_drivers_nvidia_blacklist_nouveau` was not applied. Re-run the role.
-- If NVIDIA modules missing from initramfs → `gpu_drivers_manage_initramfs: false` or initramfs regeneration failed. Run `mkinitcpio -P` manually, check output for errors.
+What Molecule does not test:
 
-### Wayland compositor fails (NVIDIA)
+- Real NVIDIA/AMD/Intel hardware driver loading.
+- Runtime VA-API or Vulkan behavior.
+- X11 or Wayland startup.
+- GPU passthrough.
+- Suspend/resume.
 
-**Symptom:** KDE/GNOME/Hyprland fails to start on Wayland; falls back to X11 or crashes.
+Run Molecule through the project VM/CI workflow. Do not run Molecule or Ansible directly from the local workstation.
 
-**Diagnosis:** Check `cat /proc/driver/nvidia/params | grep DRM` — should show `ModesettingEnabled: 1`.
-
-**Fix:** `gpu_drivers_nvidia_kms` must be `true`. Re-run the role, then reboot.
-
-### VA-API not working
-
-**Symptom:** `vainfo` returns errors; mpv/Firefox hardware decode not available.
-
-**Diagnosis:**
-1. `cat /etc/environment.d/gpu.conf` — must contain `LIBVA_DRIVER_NAME`
-2. `echo $LIBVA_DRIVER_NAME` — must be set in user session (requires re-login)
-3. `vainfo` — check for supported profiles
-
-**Fix:**
-- File missing: `gpu_drivers_vaapi: false` or no GPU detected. Check `gpu_drivers_vendor` and re-run.
-- Session not updated: log out and back in after first run (environment.d changes take effect on new login).
-- NVIDIA: ensure `nvidia-vaapi-driver` is installed: `pacman -Q nvidia-vaapi-driver` or `dpkg -l nvidia-vaapi-driver`.
-
-### pciutils missing (auto-detection fails)
-
-**Symptom:** Role fails at preflight with: `pciutils must be installed for GPU auto-detection`.
-
-**Fix:** Either install `pciutils` before running this role, or set `gpu_drivers_vendor: nvidia|amd|intel|none` to skip lspci detection.
-
-### Suspend/resume fails (NVIDIA)
-
-**Symptom:** System freezes or black screen after resume from suspend.
-
-**Diagnosis:** `cat /etc/modprobe.d/nvidia.conf | grep NVreg` — should show `NVreg_PreserveVideoMemoryAllocations=1`.
-
-**Fix:** Verify `gpu_drivers_nvidia_preserve_video_memory: 1` and `gpu_drivers_nvidia_suspend: true`. Re-run the role and regenerate initramfs.
-
-## Tags
-
-| Tag | Scope | Example usage |
-|-----|-------|---------------|
-| `gpu` | All tasks in the role | `--tags gpu` (run everything) |
-| `drivers` | Detection, install dispatch, environment config, report | `--tags drivers` |
-| `nvidia` | NVIDIA-specific tasks (driver install, modprobe.d, initramfs, blacklist) | `--tags nvidia` |
-| `amd` | AMD-specific tasks | `--tags amd` |
-| `intel` | Intel-specific tasks | `--tags intel` |
-| `vulkan` | Vulkan ICD loader and tools | `--tags vulkan` |
-| `report` | Structured execution report only | `--tags report` |
-
-## File map
-
-Files managed by this role. **Do not edit manually** — changes will be overwritten on next run.
+## Files Managed
 
 | File | Present when | Managed by |
-|------|-------------|------------|
-| `/etc/modprobe.d/nvidia.conf` | NVIDIA + KMS enabled | `tasks/configure.yml` via `templates/nvidia-modprobe.conf.j2` |
-| `/etc/modprobe.d/nvidia-blacklist.conf` | NVIDIA + blacklist enabled | `tasks/configure.yml` via `templates/nvidia-blacklist.conf.j2` |
-| `/etc/environment.d/gpu.conf` | VA-API enabled + GPU detected | `tasks/configure.yml` via `templates/gpu-environment.conf.j2` |
-| `/etc/mkinitcpio.conf.d/nvidia.conf` | NVIDIA + mkinitcpio | `tasks/initramfs.yml` via `templates/mkinitcpio-nvidia.conf.j2` |
-| `/etc/dracut.conf.d/nvidia.conf` | NVIDIA + dracut | `tasks/initramfs.yml` via `templates/dracut-nvidia.conf.j2` |
-| `/etc/initramfs-tools/hooks/nvidia-ansible` | NVIDIA + initramfs-tools (Debian) | `tasks/initramfs.yml` via `templates/initramfs-tools-nvidia-modules.j2` |
+|------|--------------|------------|
+| `/etc/modprobe.d/nvidia.conf` | NVIDIA + KMS enabled | `tasks/configure/nvidia.yml` |
+| `/etc/modprobe.d/nvidia-blacklist.conf` | NVIDIA + blacklist enabled | `tasks/configure/nvidia.yml` |
+| `/etc/environment.d/gpu.conf` | VA-API enabled + supported GPU selected | `tasks/configure/vaapi.yml` |
+| `/etc/mkinitcpio.conf.d/nvidia.conf` | NVIDIA + mkinitcpio | `tasks/distro/archlinux/initramfs.yml` |
+| `/etc/dracut.conf.d/nvidia.conf` | NVIDIA + dracut | `tasks/distro/debian/initramfs.yml` |
+| `/etc/initramfs-tools/hooks/nvidia-ansible` | NVIDIA + initramfs-tools | `tasks/distro/debian/initramfs.yml` |
 
-All files include an "Ansible-managed" header comment. Files are **removed** when their condition becomes false (e.g. switching from proprietary to nouveau removes `nvidia-blacklist.conf`).
+The role configures files when their condition applies. It does not remove previously managed files when a feature is no longer selected.
 
-## Example playbook
+## Examples
 
-### Desktop workstation (auto-detect, defaults)
+### Bare Metal Auto-Detect
 
 ```yaml
 - name: Configure GPU drivers
@@ -190,41 +181,35 @@ All files include an "Ansible-managed" header comment. Files are **removed** whe
     - role: gpu_drivers
 ```
 
-### NVIDIA RTX card with Wayland, Wine gaming (multilib)
+### NVIDIA RTX Bare Metal
 
 ```yaml
-- name: Configure GPU drivers
-  hosts: gaming_rigs
-  become: true
-  roles:
-    - role: gpu_drivers
-      vars:
-        gpu_drivers_nvidia_variant: open-kernel   # RTX 2000+
-        gpu_drivers_multilib: true                # Wine / Steam Proton
-        gpu_drivers_nvidia_kms: true
-        gpu_drivers_vaapi: true
+- role: gpu_drivers
+  vars:
+    gpu_drivers_nvidia_variant: open-kernel
+    gpu_drivers_multilib: true
+    gpu_drivers_nvidia_kms: true
+    gpu_drivers_vaapi: true
 ```
 
-### Legacy NVIDIA card (Maxwell / Pascal — no open-kernel support)
+### Legacy NVIDIA Bare Metal
 
 ```yaml
 - role: gpu_drivers
   vars:
     gpu_drivers_nvidia_variant: proprietary
-    gpu_drivers_multilib: false
 ```
 
-### AMD card only (skip detection overhead)
+### AMD Bare Metal
 
 ```yaml
 - role: gpu_drivers
   vars:
     gpu_drivers_vendor: amd
     gpu_drivers_vaapi: true
-    gpu_drivers_multilib: true
 ```
 
-### VM or container — no GPU
+### Headless VM Or VM Without GPU Passthrough
 
 ```yaml
 - role: gpu_drivers
@@ -232,48 +217,16 @@ All files include an "Ansible-managed" header comment. Files are **removed** whe
     gpu_drivers_vendor: none
 ```
 
-## Testing
-
-Three Molecule scenarios are provided:
-
-| Scenario | Driver | Platform | Purpose |
-|----------|--------|----------|---------|
-| `default` | localhost | Host machine | Fast local iteration |
-| `docker` | Docker | Arch Linux + Ubuntu (systemd containers) | CI — package install + config file assertions |
-| `vagrant` | Vagrant (libvirt) | Arch Linux + Ubuntu 24.04 | Cross-platform, real VMs |
-
-All scenarios use `gpu_drivers_vendor: intel` (Intel = pure Mesa, no DKMS, no kernel modules) to enable testing in GPU-less environments.
-
-**What is tested:**
-- Intel driver packages installed (`mesa`, `vulkan-intel`, `intel-media-driver` on Arch; `intel-media-va-driver`, `mesa-vulkan-drivers`, `libgl1-mesa-dri` on Ubuntu)
-- `vulkan-tools` installed
-- `/etc/environment.d/gpu.conf` exists with mode `0644`, contains `LIBVA_DRIVER_NAME=iHD`
-- NVIDIA-specific configs are absent (`/etc/modprobe.d/nvidia.conf`, `nvidia-blacklist.conf`, mkinitcpio/dracut drop-ins)
-- Idempotence (zero changed on second run)
-
-**NVIDIA driver packages cannot be tested in CI** — they require DKMS and kernel headers that are not present in containers or headless VMs.
-
-```bash
-# Run default scenario (localhost)
-molecule test -s default
-
-# Run Docker scenario
-molecule test -s docker
-
-# Run Vagrant scenario (requires libvirt)
-molecule test -s vagrant
-```
-
 ## Requirements
 
-- Ansible 2.15+
-- `become: true` (root — package install, modprobe.d, initramfs regeneration)
-- `pciutils` installed on the target host (required for `gpu_drivers_vendor: auto`). The role asserts this in preflight and fails with a clear message if missing.
-- NVIDIA `open-kernel` variant requires Turing or newer GPU (RTX 2000 / GTX 1600 series and up)
+- Ansible 2.15+.
+- `become: true`.
+- `pciutils` installed when `gpu_drivers_vendor: auto`.
+- NVIDIA `open-kernel` requires supported NVIDIA hardware.
 
 ## Dependencies
 
-- `common` role — provides `report_phase.yml` and `report_render.yml`
+- `common` role for `report_phase.yml` and `report_render.yml`.
 
 ## License
 

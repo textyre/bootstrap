@@ -1,0 +1,4 @@
+---
+- name: Gentoo package verification not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Gentoo package verification is not yet implemented."

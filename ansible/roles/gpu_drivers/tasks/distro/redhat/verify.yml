@@ -1,0 +1,4 @@
+---
+- name: RedHat package verification not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: RedHat/Fedora package verification is not yet implemented."

@@ -1,0 +1,53 @@
+---
+# === gpu_drivers / validate — Role prerequisite validation ===
+# Checks the input contract before any mutation.
+
+- name: Assert OS family is supported
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in gpu_drivers_supported_os
+    fail_msg: >-
+      Unsupported OS family: {{ ansible_facts['os_family'] }}.
+      Supported: {{ gpu_drivers_supported_os | join(', ') }}
+
+- name: Assert init system is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] is defined
+      - ansible_facts.get('service_mgr', '') in _gpu_drivers_supported_init_systems
+    fail_msg: >-
+      Unsupported init system: {{ ansible_facts.get('service_mgr', 'undefined') }}.
+      Supported: {{ _gpu_drivers_supported_init_systems | join(', ') }}
+
+- name: Assert gpu_drivers_vendor has a valid value
+  ansible.builtin.assert:
+    that: gpu_drivers_vendor in ['auto', 'nvidia', 'amd', 'intel', 'none']
+    fail_msg: >-
+      Invalid gpu_drivers_vendor: '{{ gpu_drivers_vendor }}'.
+      Valid values: auto, nvidia, amd, intel, none
+
+- name: Assert gpu_drivers_nvidia_variant has a valid value
+  ansible.builtin.assert:
+    that: gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    fail_msg: >-
+      Invalid gpu_drivers_nvidia_variant: '{{ gpu_drivers_nvidia_variant }}'.
+      Valid values: proprietary, open-kernel
+
+- name: Gather package facts for validation
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Assert pciutils is available for auto-detection
+  ansible.builtin.assert:
+    that: ansible_facts.packages is defined and 'pciutils' in ansible_facts.packages
+    fail_msg: >-
+      pciutils must be installed for GPU auto-detection.
+      Either install pciutils or set gpu_drivers_vendor: nvidia|amd|intel|none.
+  when: gpu_drivers_vendor == 'auto'
+
+- name: "Report: Validate prerequisites"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_gpu_drivers_phases"
+    common_rpt_phase: "Validate prerequisites"

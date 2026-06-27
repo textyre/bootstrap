@@ -1,0 +1,36 @@
+---
+# === gpu_drivers / initramfs / mkinitcpio ===
+
+- name: "Manage NVIDIA initramfs"
+  block:
+    - name: "Ensure mkinitcpio drop-in directory exists"
+      ansible.builtin.file:
+        path: /etc/mkinitcpio.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "Deploy mkinitcpio NVIDIA drop-in"
+      ansible.builtin.template:
+        src: mkinitcpio-nvidia.conf.j2
+        dest: /etc/mkinitcpio.conf.d/nvidia.conf
+        owner: root
+        group: root
+        mode: '0644'
+      register: _gpu_drivers_archlinux_mkinitcpio_dropin
+
+    - name: "Rebuild initramfs with mkinitcpio"
+      ansible.builtin.command: mkinitcpio -P
+      register: _gpu_drivers_archlinux_mkinitcpio_rebuild
+      changed_when: _gpu_drivers_archlinux_mkinitcpio_rebuild.rc == 0
+      when: >-
+        _gpu_drivers_archlinux_mkinitcpio_dropin.changed
+        or (_gpu_drivers_nvidia_modprobe is defined
+            and _gpu_drivers_nvidia_modprobe.changed)
+        or (_gpu_drivers_nvidia_blacklist is defined
+            and _gpu_drivers_nvidia_blacklist.changed)
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs

@@ -1,0 +1,5 @@
+---
+- name: "Install package stack"
+  ansible.builtin.package:
+    name: "{{ _gpu_drivers_package_stack }}"
+    state: present

@@ -1,40 +1,31 @@
 ---
-# === gpu_drivers — GPU detection and driver installation ===
-# SRP: main.yml — ТОЛЬКО оркестратор.
-# Каждый import_tasks = одна бизнес-функция роли.
+# === GPU driver stack (gpu_drivers role) ===
+# Validates -> loads vars -> detects GPU -> configures driver stack -> reports.
 
-- name: Gpu_drivers role
+- name: Configure GPU drivers
   tags: ['gpu', 'drivers']
   block:
 
-    - name: Preflight checks
-      ansible.builtin.import_tasks: preflight.yml
+    - name: Validate role prerequisites
+      ansible.builtin.include_tasks:
+        file: validate.yml
 
-    # Load OS-specific internal variable mappings (ROLE-001)
-    - name: Load OS-specific variable mappings
-      ansible.builtin.include_vars: "vars/{{ ansible_facts['os_family'] | lower }}.yml"
-      tags: ['gpu', 'drivers']
+    - name: Load OS-specific variables
+      ansible.builtin.include_tasks:
+        file: load_vars.yml
 
     - name: Detect GPU vendor
-      ansible.builtin.import_tasks: detect.yml
+      ansible.builtin.include_tasks:
+        file: detect.yml
 
-    - name: Install GPU drivers
-      ansible.builtin.import_tasks: install.yml
+    - name: Configure GPU driver stack
+      ansible.builtin.include_tasks:
+        file: configure/main.yml
 
-    - name: Configure kernel modules and environment
-      ansible.builtin.import_tasks: configure.yml
-
-    - name: Manage initramfs
-      ansible.builtin.import_tasks: initramfs.yml
-
-    # Flush handlers so initramfs is up to date before verification
-    - name: Flush handlers before verification
-      ansible.builtin.meta: flush_handlers
-      tags: ['gpu', 'drivers']
-
-    - name: Verify GPU driver configuration (ROLE-005)
-      ansible.builtin.include_tasks: verify.yml
-      tags: ['gpu', 'drivers']
-
-    - name: Report GPU configuration
-      ansible.builtin.import_tasks: report.yml
+    - name: Render execution report
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_gpu_drivers_phases"
+        common_rpt_title: "gpu_drivers"
