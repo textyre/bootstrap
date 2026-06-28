@@ -1,85 +1,66 @@
 # Роль: gpu_drivers
 
-**Phase**: 2 | **Направление**: Оборудование
+**Phase**: 1.5 | **Направление**: Hardware & Kernel
 
 ## Цель
 
-Автоматизирует установку и настройку GPU-драйверов: определяет видеокарту через `lspci`, устанавливает подходящий стек драйверов (NVIDIA/AMD/Intel), настраивает Vulkan, VA-API и параметры ядра. После выполнения роли: Wayland-компостинг работает, аппаратное декодирование видео работает, GPU стабилен после перезагрузки.
+`gpu_drivers` настраивает стек GPU-драйверов, которым владеет эта роль: определение или явный выбор GPU vendor, установка пакетов NVIDIA/AMD/Intel для реализованных дистрибутивных pipeline, NVIDIA module options, initramfs integration, systemd suspend/resume services и VA-API environment.
 
-## Ключевые переменные (defaults)
+Роль не настраивает X11, Wayland, GNOME, KDE, Hyprland, display manager, user session, PRIME/offloading, VM guest tools, virtual GPU integration или GPU passthrough. Эти контракты принадлежат другим ролям или отдельным сценарным проверкам.
 
-```yaml
-gpu_drivers_vendor: auto                    # auto|nvidia|amd|intel|none
-gpu_drivers_nvidia_variant: proprietary     # proprietary|open-kernel|nouveau
-gpu_drivers_nvidia_kms: true               # nvidia-drm.modeset=1 (для Wayland)
-gpu_drivers_nvidia_blacklist_nouveau: true  # блокировать nouveau при proprietary/open-kernel
-gpu_drivers_manage_initramfs: true         # регенерировать initramfs после установки
-gpu_drivers_nvidia_suspend: true           # nvidia-suspend/hibernate/resume (systemd)
-gpu_drivers_nvidia_preserve_video_memory: 1 # NVreg_PreserveVideoMemoryAllocations
-gpu_drivers_nvidia_modprobe_overwrite: {}  # пользовательские modprobe options (merge поверх)
-gpu_drivers_multilib: false                # 32-bit либы (Wine/Steam); true при profile: gaming
-gpu_drivers_vulkan_tools: true             # vulkan-tools (vulkaninfo, vkcube)
-gpu_drivers_vaapi: true                    # VA-API конфигурация (LIBVA_DRIVER_NAME)
-gpu_drivers_audit_enabled: false           # аудит-режим (логирование событий)
-```
+## Источник правды
 
-## Что настраивает
+Актуальный контракт, переменные, сценарии, pipeline, тесты и ограничения описаны в role README:
 
-- `/etc/modprobe.d/nvidia.conf` — DRM KMS и NVreg_PreserveVideoMemoryAllocations
-- `/etc/modprobe.d/nvidia-blacklist.conf` — блокировка nouveau
-- `/etc/mkinitcpio.conf.d/nvidia.conf` — NVIDIA модули в initramfs (Arch)
-- `/etc/dracut.conf.d/nvidia.conf` — NVIDIA модули в initramfs (dracut)
-- `/etc/initramfs-tools/hooks/nvidia-ansible` — NVIDIA hook (Debian initramfs-tools)
-- `/etc/environment.d/gpu.conf` — `LIBVA_DRIVER_NAME` для VA-API приложений
-- Systemd сервисы: `nvidia-suspend.service`, `nvidia-hibernate.service`, `nvidia-resume.service`
+- `ansible/roles/gpu_drivers/README.md`
 
-## Audit Events
+Эта wiki-страница служит навигационной страницей и не должна становиться второй независимой спецификацией роли.
 
-| Event | Source | Severity | Threshold |
-|-------|--------|----------|-----------|
-| NVIDIA driver not loaded at boot | `dmesg \| grep -i nvidia` | CRITICAL | отсутствует nvidia в lsmod |
-| nouveau не заблокирован (proprietary активен) | `lsmod \| grep nouveau` | HIGH | nouveau присутствует при proprietary/open-kernel |
-| VA-API недоступен | `vainfo 2>&1` | WARNING | ошибка при vainfo |
-| Vulkan ICD loader не найден | `vulkaninfo --summary 2>&1` | WARNING | ошибка при vulkaninfo |
-| initramfs не обновлён после установки | mtime nvidia.conf vs initramfs | WARNING | initramfs старше конфига |
-| Неверный NVreg_PreserveVideoMemoryAllocations | `cat /proc/driver/nvidia/params` | WARNING | значение != ожидаемому |
+## Контракт
 
-## Monitoring Integration
+Роль владеет:
 
-- **Метрики GPU**: `nvidia-smi dmon` (NVIDIA), `radeontop` (AMD), `intel_gpu_top` (Intel)
-- **Prometheus экспортер**: `dcgm-exporter` (NVIDIA DCGM) или `node_exporter` с textfile collector
-- **Проверка VA-API**: `vainfo` — наличие профилей декодирования/кодирования
-- **Журнал событий**: `journalctl -k | grep -E 'nvidia|amd|i915'` — ошибки ядра
+- GPU vendor detection через `lspci` или явным `gpu_drivers_vendor`.
+- Driver package stack для реализованных Arch Linux и Debian-family pipeline.
+- NVIDIA KMS/module options и nouveau blacklist, когда выбран NVIDIA proprietary/open-kernel stack.
+- NVIDIA initramfs integration, когда он включен.
+- NVIDIA suspend/hibernate/resume services для systemd, когда они включены.
+- VA-API package stack и `/etc/environment.d/gpu.conf`, когда VA-API включен.
+- Финальной verify-проверкой ожидаемого package stack.
 
-## Зависимости
+Роль не владеет:
 
-- `pciutils` (lspci) — для `gpu_drivers_vendor: auto`
-- Инструмент initramfs: `mkinitcpio` (Arch), `dracut`, или `initramfs-tools` (Debian)
-- NVIDIA: `community.general` Ansible collection (для модуля pacman — legacy; заменено на `ansible.builtin.package`)
+- VM guest display integration. Это контракт роли `vm`.
+- Display server, compositor и desktop session.
+- Runtime-проверками `nvidia-smi`, `vainfo`, `vulkaninfo`, compositor startup или suspend/resume.
+- Удалением ранее созданных файлов при смене feature flags.
+- Audit logging. `gpu_drivers_audit_enabled` зарезервирован как внешний контракт, но задачи аудита сейчас не реализованы.
+
+## Сценарии
+
+- Bare metal NVIDIA/AMD/Intel: роль ставит и настраивает выбранный или обнаруженный driver package stack.
+- VM с GPU passthrough: роль работает как на bare metal, потому что guest видит физическую GPU.
+- VM без GPU passthrough: bare-metal GPU stack обычно не нужен; guest graphics настраивает роль `vm`.
+- Headless VM: использовать `gpu_drivers_vendor: none`, если физический GPU stack не нужен.
+- Docker/container: только smoke/idempotence; контейнеры не являются средой проверки kernel GPU drivers.
+
+## Verify и тесты
+
+Role verify проверяет итоговый package-stack contract для выбранного vendor и distro. Он не повторяет работу Ansible-модулей и не запускает runtime GPU commands.
+
+Molecule сценарии проверяют syntax, converge и idempotence. Отдельный Molecule verify playbook не используется, потому что роль запускает собственную verify-фазу во время converge.
+
+Runtime и reboot-sensitive проверки должны выполняться отдельно в сценарных VM/bare-metal проверках, где реально доступны GPU, passthrough, user session, display server и состояние после reboot.
 
 ## Поддерживаемые платформы
 
-| OS family | Статус | Примечание |
-|-----------|--------|------------|
-| Arch Linux | ✅ Полный | pacman, mkinitcpio |
-| Debian/Ubuntu | ✅ Полный | apt, initramfs-tools/dracut |
-| RedHat/Fedora | 🔧 Stub | Нужен RPM Fusion; не реализовано |
-| Void Linux | 🔧 Stub | Нужен nonfree repo; не реализовано |
-| Gentoo | 🔧 Stub | USE flags; не реализовано |
+- Arch Linux: реализовано.
+- Debian/Ubuntu: реализовано.
+- RedHat/Fedora, Void Linux, Gentoo: pipeline stubs с явным fail для не реализованных частей.
 
-## Теги
-
-| Тег | Область |
-|-----|---------|
-| `gpu` | Все задачи роли |
-| `drivers` | Определение, установка, окружение, отчёт |
-| `nvidia` | NVIDIA-специфичные задачи |
-| `amd` | AMD-специфичные задачи |
-| `intel` | Intel-специфичные задачи |
-| `vulkan` | Vulkan ICD loader и инструменты |
-| `report` | Задачи структурированного отчёта |
+Поддерживаемые init systems: `systemd`, `runit`, `openrc`, `s6`, `dinit`. NVIDIA service management реализован для `systemd`; остальные init systems получают явный fail, когда применима NVIDIA service logic.
 
 ## Связанные роли
 
-- `common` — `report_phase.yml`, `report_render.yml`
-- `base_system` — базовые пакеты, в т.ч. pciutils
+- `common` — `report_phase.yml`, `report_render.yml`.
+- `vm` — guest integration для VirtualBox/VMware/Hyper-V/KVM.

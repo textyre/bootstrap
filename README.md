@@ -42,7 +42,7 @@ scripts/setup-vault-pass.sh
 
 | Роль | Описание |
 |------|----------|
-| `gpu_drivers` | Драйверы GPU (NVIDIA/AMD/Intel) |
+| `gpu_drivers` | Стек GPU-драйверов NVIDIA/AMD/Intel для поддержанных bare-metal и passthrough сценариев |
 | `sysctl` | Hardening ядра, сети, производительность |
 | `power_management` | TLP, управление питанием |
 

@@ -2,7 +2,7 @@
 
 Installs and configures the GPU driver package stack owned by this role.
 
-The role is intended for Linux hosts where the GPU vendor is either detected with `lspci` or selected explicitly with `gpu_drivers_vendor`. It manages NVIDIA, AMD, and Intel package stacks for the implemented Arch Linux and Debian-family pipelines. It does not configure a desktop environment, display manager, compositor, X11, Wayland, PRIME/offloading, VM guest tools, or GPU passthrough.
+The role is intended for Linux hosts where the GPU vendor is either detected with `lspci` or selected explicitly with `gpu_drivers_vendor`. It manages NVIDIA, AMD, and Intel package stacks for the implemented Arch Linux and Debian-family pipelines. It does not configure a desktop environment, display manager, compositor, X11, Wayland, PRIME/offloading, VM guest tools, virtual GPU guest integration, or GPU passthrough.
 
 ## Contract
 
@@ -26,15 +26,17 @@ The role does not own:
 - Removal of previously managed files when a feature is no longer selected.
 - Audit logging. `gpu_drivers_audit_enabled` is currently a reserved external contract and has no implemented tasks.
 
+The role is additive for files it owns: when a feature no longer applies, it stops managing that path in the current run instead of deleting previously written files.
+
 ## Scenario Matrix
 
 | Scenario | Expected role behavior |
 |----------|------------------------|
-| Bare metal with NVIDIA/AMD/Intel | Install and configure the selected or detected vendor package stack. NVIDIA also gets module options, blacklist, initramfs, and systemd suspend services when enabled. |
+| Bare metal with NVIDIA/AMD/Intel | Install and configure the selected or detected vendor package stack. NVIDIA also gets module options, nouveau blacklist, initramfs, and systemd suspend services when enabled. |
 | VM with GPU passthrough | Treat as bare metal, because the guest sees the passed-through GPU. |
 | VM without GPU passthrough, X11 | No bare-metal GPU driver stack is required unless a supported physical GPU is exposed or forced. VM guest graphics are handled by the `vm` role. |
 | VM without GPU passthrough, Wayland | Same as VM X11. The role does not configure virtual GPU/Wayland guest integration. |
-| Headless VM | Use `gpu_drivers_vendor: none` when no GPU driver stack is required. |
+| Headless VM | Use `gpu_drivers_vendor: none` when no physical GPU driver stack is required. |
 | Docker/container | Smoke/idempotence only. Containers are not kernel GPU driver environments. |
 
 ## Execution Flow
@@ -153,6 +155,8 @@ What Molecule does not test:
 - X11 or Wayland startup.
 - GPU passthrough.
 - Suspend/resume.
+
+Runtime and reboot-sensitive validation belongs to scenario-specific VM or bare-metal checks, because containers and ordinary VMs without GPU passthrough do not expose the kernel GPU environment this role configures.
 
 Run Molecule through the project VM/CI workflow. Do not run Molecule or Ansible directly from the local workstation.
 
