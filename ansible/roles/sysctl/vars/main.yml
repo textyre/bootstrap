@@ -1,7 +1,8 @@
 ---
 # === sysctl: internal variables ===
-# Bridge private (underscore-prefixed) vars used in task when-guards
-# to the public defaults, following project convention.
+# OS-specific package names are loaded from vars/<os_family>/main.yml.
+
+_sysctl_config_file: /etc/sysctl.d/99-z-ansible.conf
 
 _sysctl_supported_os:
   - Archlinux
@@ -10,10 +11,192 @@ _sysctl_supported_os:
   - Void
   - Gentoo
 
-# Package name mapping per OS family
-_sysctl_procps_package:
-  Archlinux: procps-ng
-  Debian: procps
-  RedHat: procps-ng
-  Void: procps-ng
-  Gentoo: procps
+_sysctl_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit
+
+_sysctl_base_parameters:
+  - name: vm.swappiness
+    value: "{{ sysctl_vm_swappiness }}"
+    label: "swap usage"
+  - name: vm.vfs_cache_pressure
+    value: "{{ sysctl_vm_vfs_cache_pressure }}"
+    label: "VFS cache pressure"
+  - name: vm.dirty_ratio
+    value: "{{ sysctl_vm_dirty_ratio }}"
+    label: "dirty page ratio"
+  - name: vm.dirty_background_ratio
+    value: "{{ sysctl_vm_dirty_background_ratio }}"
+    label: "dirty background ratio"
+  - name: fs.inotify.max_user_watches
+    value: "{{ sysctl_fs_inotify_max_user_watches }}"
+    label: "inotify watches"
+  - name: fs.inotify.max_user_instances
+    value: "{{ sysctl_fs_inotify_max_user_instances }}"
+    label: "inotify instances"
+  - name: fs.file-max
+    value: "{{ sysctl_fs_file_max }}"
+    label: "file descriptor ceiling"
+  - name: net.core.somaxconn
+    value: "{{ sysctl_net_core_somaxconn }}"
+    label: "socket backlog"
+  - name: net.ipv4.tcp_fastopen
+    value: "{{ sysctl_net_ipv4_tcp_fastopen }}"
+    label: "TCP Fast Open"
+  - name: net.ipv4.tcp_tw_reuse
+    value: "{{ sysctl_net_ipv4_tcp_tw_reuse }}"
+    label: "TIME_WAIT reuse"
+  - name: kernel.unprivileged_userns_clone
+    value: "{{ sysctl_kernel_unprivileged_userns_clone }}"
+    label: "unprivileged user namespaces"
+    optional: true
+
+_sysctl_kernel_hardening_parameters:
+  - name: kernel.randomize_va_space
+    value: "{{ sysctl_kernel_randomize_va_space }}"
+    label: "ASLR"
+  - name: kernel.kptr_restrict
+    value: "{{ sysctl_kernel_kptr_restrict }}"
+    label: "kernel pointer restriction"
+  - name: kernel.dmesg_restrict
+    value: "{{ sysctl_kernel_dmesg_restrict }}"
+    label: "dmesg restriction"
+  - name: kernel.yama.ptrace_scope
+    value: "{{ sysctl_kernel_yama_ptrace_scope }}"
+    label: "ptrace scope"
+  - name: kernel.perf_event_paranoid
+    value: "{{ sysctl_kernel_perf_event_paranoid }}"
+    label: "perf event access"
+  - name: kernel.unprivileged_bpf_disabled
+    value: "{{ sysctl_kernel_unprivileged_bpf_disabled }}"
+    label: "unprivileged BPF"
+    optional: true
+  - name: dev.tty.ldisc_autoload
+    value: "{{ sysctl_kernel_tty_ldisc_autoload }}"
+    label: "TTY line discipline autoload"
+    optional: true
+  - name: vm.unprivileged_userfaultfd
+    value: "{{ sysctl_vm_unprivileged_userfaultfd }}"
+    label: "unprivileged userfaultfd"
+    optional: true
+  - name: vm.mmap_min_addr
+    value: "{{ sysctl_vm_mmap_min_addr }}"
+    label: "minimum mmap address"
+
+_sysctl_network_hardening_parameters:
+  - name: net.core.bpf_jit_harden
+    value: "{{ sysctl_net_core_bpf_jit_harden }}"
+    label: "BPF JIT hardening"
+    optional: true
+  - name: net.ipv4.conf.all.rp_filter
+    value: "{{ sysctl_net_ipv4_rp_filter }}"
+    label: "IPv4 reverse path filter"
+  - name: net.ipv4.conf.default.rp_filter
+    value: "{{ sysctl_net_ipv4_rp_filter }}"
+    label: "default IPv4 reverse path filter"
+  - name: net.ipv4.tcp_syncookies
+    value: "{{ sysctl_net_ipv4_tcp_syncookies }}"
+    label: "SYN cookies"
+  - name: net.ipv4.tcp_rfc1337
+    value: "{{ sysctl_net_ipv4_tcp_rfc1337 }}"
+    label: "TIME_WAIT assassination protection"
+  - name: net.ipv4.conf.all.accept_redirects
+    value: "{{ sysctl_net_ipv4_accept_redirects }}"
+    label: "IPv4 redirect acceptance"
+  - name: net.ipv4.conf.default.accept_redirects
+    value: "{{ sysctl_net_ipv4_accept_redirects }}"
+    label: "default IPv4 redirect acceptance"
+  - name: net.ipv4.conf.all.send_redirects
+    value: "{{ sysctl_net_ipv4_send_redirects }}"
+    label: "IPv4 redirect sending"
+  - name: net.ipv4.conf.default.send_redirects
+    value: "{{ sysctl_net_ipv4_send_redirects }}"
+    label: "default IPv4 redirect sending"
+  - name: net.ipv4.conf.all.accept_source_route
+    value: "{{ sysctl_net_ipv4_accept_source_route }}"
+    label: "IPv4 source routing"
+  - name: net.ipv4.conf.default.accept_source_route
+    value: "{{ sysctl_net_ipv4_accept_source_route }}"
+    label: "default IPv4 source routing"
+  - name: net.ipv4.conf.all.log_martians
+    value: "{{ sysctl_net_ipv4_log_martians }}"
+    label: "martian packet logging"
+  - name: net.ipv4.conf.default.log_martians
+    value: "{{ sysctl_net_ipv4_log_martians }}"
+    label: "default martian packet logging"
+  - name: net.ipv4.icmp_echo_ignore_broadcasts
+    value: "{{ sysctl_net_ipv4_icmp_echo_ignore_broadcasts }}"
+    label: "broadcast ICMP echo ignore"
+  - name: net.ipv4.icmp_ignore_bogus_error_responses
+    value: "{{ sysctl_net_ipv4_icmp_ignore_bogus_error_responses }}"
+    label: "bogus ICMP error ignore"
+  - name: net.ipv4.tcp_timestamps
+    value: "{{ sysctl_net_ipv4_tcp_timestamps }}"
+    label: "TCP timestamps"
+  - name: net.ipv4.conf.all.arp_filter
+    value: "{{ sysctl_net_ipv4_arp_filter }}"
+    label: "ARP filter"
+  - name: net.ipv4.conf.all.arp_ignore
+    value: "{{ sysctl_net_ipv4_arp_ignore }}"
+    label: "ARP reply scope"
+  - name: net.ipv4.conf.all.drop_gratuitous_arp
+    value: "{{ sysctl_net_ipv4_drop_gratuitous_arp }}"
+    label: "gratuitous ARP handling"
+  - name: net.ipv6.conf.all.accept_redirects
+    value: "{{ sysctl_net_ipv6_accept_redirects }}"
+    label: "IPv6 redirect acceptance"
+    optional: true
+  - name: net.ipv6.conf.default.accept_redirects
+    value: "{{ sysctl_net_ipv6_accept_redirects }}"
+    label: "default IPv6 redirect acceptance"
+    optional: true
+  - name: net.ipv6.conf.all.accept_source_route
+    value: "{{ sysctl_net_ipv6_accept_source_route }}"
+    label: "IPv6 source routing"
+    optional: true
+  - name: net.ipv6.conf.default.accept_source_route
+    value: "{{ sysctl_net_ipv6_accept_source_route }}"
+    label: "default IPv6 source routing"
+    optional: true
+  - name: net.ipv6.conf.all.accept_ra
+    value: "{{ sysctl_net_ipv6_accept_ra }}"
+    label: "IPv6 router advertisements"
+    optional: true
+  - name: net.ipv6.conf.default.accept_ra
+    value: "{{ sysctl_net_ipv6_accept_ra }}"
+    label: "default IPv6 router advertisements"
+    optional: true
+
+_sysctl_ipv6_disable_parameters:
+  - name: net.ipv6.conf.all.disable_ipv6
+    value: 1
+    label: "disable IPv6 globally"
+    optional: true
+  - name: net.ipv6.conf.default.disable_ipv6
+    value: 1
+    label: "disable IPv6 by default"
+    optional: true
+  - name: net.ipv6.conf.lo.disable_ipv6
+    value: 1
+    label: "disable IPv6 on loopback"
+    optional: true
+
+_sysctl_filesystem_hardening_parameters:
+  - name: fs.protected_hardlinks
+    value: "{{ sysctl_fs_protected_hardlinks }}"
+    label: "hardlink protection"
+  - name: fs.protected_symlinks
+    value: "{{ sysctl_fs_protected_symlinks }}"
+    label: "symlink protection"
+  - name: fs.protected_fifos
+    value: "{{ sysctl_fs_protected_fifos }}"
+    label: "FIFO protection"
+  - name: fs.protected_regular
+    value: "{{ sysctl_fs_protected_regular }}"
+    label: "regular file protection"
+  - name: fs.suid_dumpable
+    value: "{{ sysctl_fs_suid_dumpable }}"
+    label: "SUID core dumps"

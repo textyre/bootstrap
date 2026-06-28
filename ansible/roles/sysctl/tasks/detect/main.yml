@@ -1,0 +1,18 @@
+---
+# === sysctl: detect runtime environment ===
+
+- name: Gather Debian service facts for conflict detection
+  ansible.builtin.service_facts:
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: "Report: Detect sysctl environment"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Detect environment"
+    common_rpt_detail: >-
+      virt={{ ansible_virtualization_type | default('none') }}
+      apport={{ 'present' if ('apport.service' in (ansible_facts.services | default({}))
+        or 'apport' in (ansible_facts.services | default({}))) else 'n/a' }}

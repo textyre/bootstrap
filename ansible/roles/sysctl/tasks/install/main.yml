@@ -1,0 +1,16 @@
+---
+# === sysctl: install phase ===
+
+- name: Ensure procps package is installed
+  ansible.builtin.package:
+    name: "{{ _sysctl_procps_package }}"
+    state: present
+
+- name: "Report: Install sysctl package"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Install package"
+    common_rpt_detail: "{{ _sysctl_procps_package }}"

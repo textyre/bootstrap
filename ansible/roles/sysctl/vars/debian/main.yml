@@ -1,0 +1,3 @@
+---
+# OS-specific variables for Debian family systems
+_sysctl_procps_package: procps
