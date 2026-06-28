@@ -1,0 +1,72 @@
+---
+# === gpu_drivers / initramfs / initramfs-tools or dracut ===
+
+- name: "Manage NVIDIA initramfs"
+  block:
+    - name: "Check if dracut is available"
+      ansible.builtin.find:
+        paths:
+          - /usr/bin
+          - /usr/sbin
+        patterns: dracut
+        file_type: any
+      register: gpu_drivers_dracut_check
+      changed_when: false
+
+    - name: "Manage NVIDIA initramfs with dracut"
+      block:
+        - name: Ensure /etc/dracut.conf.d directory exists
+          ansible.builtin.file:
+            path: /etc/dracut.conf.d
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+
+        - name: Deploy dracut NVIDIA drop-in
+          ansible.builtin.template:
+            src: dracut-nvidia.conf.j2
+            dest: /etc/dracut.conf.d/nvidia.conf
+            owner: root
+            group: root
+            mode: '0644'
+          register: _gpu_drivers_debian_dracut_dropin
+
+        - name: Rebuild initramfs with dracut
+          ansible.builtin.command: dracut --force
+          register: _gpu_drivers_debian_dracut_rebuild
+          changed_when: _gpu_drivers_debian_dracut_rebuild.rc == 0
+          when: >-
+            _gpu_drivers_debian_dracut_dropin.changed
+            or (_gpu_drivers_nvidia_modprobe is defined
+                and _gpu_drivers_nvidia_modprobe.changed)
+            or (_gpu_drivers_nvidia_blacklist is defined
+                and _gpu_drivers_nvidia_blacklist.changed)
+      when: gpu_drivers_dracut_check.matched > 0
+
+    - name: "Manage NVIDIA initramfs with initramfs-tools"
+      block:
+        - name: Deploy initramfs-tools NVIDIA hook
+          ansible.builtin.template:
+            src: initramfs-tools-nvidia-modules.j2
+            dest: /etc/initramfs-tools/hooks/nvidia-ansible
+            owner: root
+            group: root
+            mode: '0755'
+          register: _gpu_drivers_debian_initramfs_tools_hook
+
+        - name: Rebuild initramfs with initramfs-tools
+          ansible.builtin.command: update-initramfs -u -k all
+          register: _gpu_drivers_debian_initramfs_tools_rebuild
+          changed_when: _gpu_drivers_debian_initramfs_tools_rebuild.rc == 0
+          when: >-
+            _gpu_drivers_debian_initramfs_tools_hook.changed
+            or (_gpu_drivers_nvidia_modprobe is defined
+                and _gpu_drivers_nvidia_modprobe.changed)
+            or (_gpu_drivers_nvidia_blacklist is defined
+                and _gpu_drivers_nvidia_blacklist.changed)
+      when: gpu_drivers_dracut_check.matched == 0
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_manage_initramfs

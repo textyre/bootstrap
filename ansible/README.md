@@ -42,7 +42,7 @@ task workstation # Применить все роли
 - **vm** — гостевые утилиты VirtualBox/VMware/Hyper-V/KVM
 
 ### Phase 1.5: Hardware & Kernel
-- **gpu_drivers** — NVIDIA/AMD/Intel
+- **gpu_drivers** — стек GPU-драйверов NVIDIA/AMD/Intel для поддержанных bare-metal и passthrough сценариев
 - **sysctl** — hardening ядра, сети, производительность
 - **power_management** — TLP, питание
 

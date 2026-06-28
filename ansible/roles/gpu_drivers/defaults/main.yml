@@ -2,8 +2,7 @@
 # === gpu_drivers — GPU detection and driver installation ===
 # Auto-detect GPU via lspci, install appropriate drivers + Vulkan + VA-API
 
-# Supported OS families (all 5 project-standard distros — ROLE-003)
-# RedHat/Void/Gentoo use stub install tasks until fully implemented.
+# Supported OS families.
 gpu_drivers_supported_os:
   - Archlinux
   - Debian
@@ -22,24 +21,20 @@ gpu_drivers_vendor: auto
 # ---- NVIDIA driver variant ----
 # proprietary  — nvidia (closed-source, best performance, DX12 via Wine)
 # open-kernel  — nvidia-open (open kernel modules, requires Turing+ / RTX 2000+)
-# nouveau      — xf86-video-nouveau (open-source, limited perf, no Wayland KMS)
 gpu_drivers_nvidia_variant: proprietary
 
 # ---- Kernel integration (NVIDIA only) ----
 gpu_drivers_nvidia_kms: true              # nvidia-drm.modeset=1 (required for Wayland)
 gpu_drivers_nvidia_blacklist_nouveau: true # blacklist nouveau (proprietary/open-kernel)
-gpu_drivers_manage_initramfs: true        # regenerate initramfs after driver install
+gpu_drivers_manage_initramfs: true        # manage NVIDIA modules in initramfs
 gpu_drivers_nvidia_suspend: true          # enable nvidia-suspend/hibernate/resume.service (systemd only)
 
-# ---- Security management (ROLE-004) ----
-# Master toggle for security-hardening tasks: KMS modeset enforcement and nouveau blacklisting.
-# Tags: security, gpu_security_kms (KMS), gpu_security_blacklist (module blacklist).
-# CIS mapping: closest benchmark is kernel module restriction (analogous to CIS 3.5 series);
-# no direct GPU CIS/STIG control exists — these are workstation hardening best practices.
-# Set to false only in environments where NVIDIA proprietary drivers must coexist with nouveau.
+# ---- Security management ----
+# Master toggle for NVIDIA hardening tasks: KMS modeset enforcement and nouveau blacklisting.
+# Set to false only when another owner manages NVIDIA kernel module hardening.
 gpu_drivers_manage_security: true
 
-# ---- NVIDIA modprobe options (ROLE-010) ----
+# ---- NVIDIA modprobe options ----
 # NVreg_PreserveVideoMemoryAllocations=1 is required for stable suspend/resume with NVIDIA.
 # Set to 0 to disable if not using suspend or if causing issues with older cards.
 gpu_drivers_nvidia_preserve_video_memory: 1
@@ -51,71 +46,10 @@ gpu_drivers_nvidia_modprobe_overwrite: {}
 # ---- Feature flags ----
 # gpu_drivers_multilib: defaults to true for 'gaming' workstation profile,
 #   false otherwise. Override explicitly to force a specific value.
-#   ROLE-009: profile-aware default via workstation_profiles list.
 gpu_drivers_multilib: "{{ true if 'gaming' in (workstation_profiles | default([])) else false }}"
 gpu_drivers_vulkan_tools: true    # vulkan-tools (vulkaninfo, vkcube)
 gpu_drivers_vaapi: true           # VA-API hardware video decode/encode
-gpu_drivers_cuda: false           # reserved: CUDA compute packages (not yet implemented)
-gpu_drivers_headless: false       # reserved: skip display components (not yet implemented)
 
-# ---- Audit and monitoring (ROLE-007) ----
-# Enable audit logging toggle. When true, audit events are recorded.
-# See wiki/roles/gpu_drivers.md for audit event table and monitoring integration.
+# ---- Audit and monitoring ----
+# Reserved external contract. No audit tasks are implemented in this role yet.
 gpu_drivers_audit_enabled: false
-# Drift detection: not applicable for this role (driver config is static after deploy).
-# Monitoring: use kernel log parsing or gpu_top/nvtop exporters (documented in wiki).
-
-# ---- Package lists (Arch Linux) ----
-# These are public API: override in host/group vars to pin specific versions
-# or substitute alternative packages.
-
-gpu_drivers_nvidia_proprietary_packages:
-  - nvidia
-  - nvidia-utils
-  - nvidia-settings
-
-gpu_drivers_nvidia_proprietary_multilib:
-  - lib32-nvidia-utils
-
-gpu_drivers_nvidia_open_packages:
-  - nvidia-open
-  - nvidia-utils
-  - nvidia-settings
-
-gpu_drivers_nvidia_vaapi_packages:
-  - nvidia-vaapi-driver
-
-gpu_drivers_nvidia_nouveau_packages:
-  - mesa
-  - xf86-video-nouveau
-
-gpu_drivers_nvidia_nouveau_multilib:
-  - lib32-mesa
-
-gpu_drivers_amd_packages:
-  - mesa
-  - vulkan-radeon
-  - libva-mesa-driver
-
-gpu_drivers_amd_multilib:
-  - lib32-mesa
-  - lib32-vulkan-radeon
-  - lib32-libva-mesa-driver
-
-gpu_drivers_intel_packages:
-  - mesa
-  - vulkan-intel
-  - intel-media-driver
-
-gpu_drivers_intel_multilib:
-  - lib32-mesa
-  - lib32-vulkan-intel
-
-gpu_drivers_vulkan_common:
-  - vulkan-icd-loader
-
-gpu_drivers_vulkan_common_multilib:
-  - lib32-vulkan-icd-loader
-
-gpu_drivers_vulkan_tools_packages:
-  - vulkan-tools

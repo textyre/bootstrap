@@ -1,0 +1,22 @@
+---
+# === gpu_drivers / RedHat driver stack ===
+
+- name: "RedHat: Install GPU drivers"
+  ansible.builtin.include_tasks:
+    file: distro/redhat/install.yml
+
+- name: "RedHat: Configure GPU driver files"
+  ansible.builtin.include_tasks:
+    file: distro/redhat/configure.yml
+
+- name: "RedHat: Manage initramfs"
+  ansible.builtin.include_tasks:
+    file: distro/redhat/initramfs.yml
+
+- name: "RedHat: Verify GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/redhat/verify.yml
+
+- name: "RedHat: Report GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/redhat/report.yml

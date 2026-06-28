@@ -1,0 +1,26 @@
+---
+# === gpu_drivers / driver stack ===
+
+- name: "Install GPU drivers"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/install/main.yml
+
+- name: "Configure GPU driver files"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/configure/main.yml
+
+- name: "Manage GPU driver services"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/service/main.yml
+
+- name: "Manage initramfs"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/initramfs.yml
+
+- name: "Verify GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify.yml
+
+- name: "Report GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/report.yml

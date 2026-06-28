@@ -1,0 +1,22 @@
+---
+# === gpu_drivers / install ===
+
+- name: "Install NVIDIA packages"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/install/nvidia.yml
+  when: gpu_drivers_has_nvidia
+
+- name: "Install AMD packages"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/install/amd.yml
+  when: gpu_drivers_has_amd
+
+- name: "Install Intel packages"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/install/intel.yml
+  when: gpu_drivers_has_intel
+
+- name: "Install common GPU packages"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/install/common.yml
+  when: gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel

@@ -1,20 +1,10 @@
 ---
 # === gpu_drivers / detect — GPU vendor detection ===
-# SRP: only sets _gpu_drivers_has_* facts; never installs or configures.
+# SRP: only gathers GPU detection input; never installs or configures.
 # Supports manual override via gpu_drivers_vendor variable.
 #
 # lspci -nn line format: "<slot> <class> [<class_id>]: <vendor> <device> [<vendor_id>:<device_id>]"
 # Class label appears BEFORE vendor name, so regexes match class first, then vendor.
-
-# ---- Manual override (gpu_drivers_vendor != 'auto') ----
-
-- name: Apply manual vendor override
-  ansible.builtin.set_fact:
-    gpu_drivers_has_nvidia: "{{ gpu_drivers_vendor == 'nvidia' }}"
-    gpu_drivers_has_amd: "{{ gpu_drivers_vendor == 'amd' }}"
-    gpu_drivers_has_intel: "{{ gpu_drivers_vendor == 'intel' }}"
-  when: gpu_drivers_vendor != 'auto'
-  tags: ['gpu', 'drivers']
 
 # ---- Auto-detect via lspci ----
 
@@ -23,46 +13,19 @@
   register: gpu_drivers_lspci
   changed_when: false
   when: gpu_drivers_vendor == 'auto'
-  tags: ['gpu', 'drivers']
 
-- name: Detect NVIDIA GPU via lspci
-  ansible.builtin.set_fact:
-    gpu_drivers_has_nvidia: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*NVIDIA') }}"
-  when: gpu_drivers_vendor == 'auto'
-  tags: ['gpu', 'drivers']
-
-- name: Detect AMD GPU via lspci
-  ansible.builtin.set_fact:
-    gpu_drivers_has_amd: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*(?:AMD|ATI|Advanced Micro Devices)') }}"
-  when: gpu_drivers_vendor == 'auto'
-  tags: ['gpu', 'drivers']
-
-- name: Detect Intel GPU via lspci
-  ansible.builtin.set_fact:
-    gpu_drivers_has_intel: "{{ gpu_drivers_lspci.stdout is search('(?:VGA|Display|3D).*Intel') }}"
-  when: gpu_drivers_vendor == 'auto'
-  tags: ['gpu', 'drivers']
-
-# ---- Normalize: vendor 'none' — all false ----
-
-- name: Set no-GPU facts when vendor is 'none'
-  ansible.builtin.set_fact:
-    gpu_drivers_has_nvidia: false
-    gpu_drivers_has_amd: false
-    gpu_drivers_has_intel: false
-  when: gpu_drivers_vendor == 'none'
-  tags: ['gpu', 'drivers']
-
-# ---- Summary ----
-
-- name: Report detected GPU vendor
-  ansible.builtin.debug:
-    msg:
-      - "GPU detection: {{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }}"
-      - "NVIDIA:  {{ gpu_drivers_has_nvidia }}"
-      - "AMD:     {{ gpu_drivers_has_amd }}"
-      - "Intel:   {{ gpu_drivers_has_intel }}"
-  tags: ['gpu', 'drivers']
+- name: "Report: Detect GPU vendor"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_gpu_drivers_phases"
+    common_rpt_phase: "Detect GPU vendor"
+    common_rpt_detail: >-
+      source={{ 'manual override' if gpu_drivers_vendor != 'auto' else 'auto (lspci)' }},
+      nvidia={{ gpu_drivers_has_nvidia }},
+      amd={{ gpu_drivers_has_amd }},
+      intel={{ gpu_drivers_has_intel }}
 
 # ---- Hybrid GPU warning ----
 
@@ -77,4 +40,3 @@
     - gpu_drivers_has_nvidia
     - gpu_drivers_has_intel or gpu_drivers_has_amd
     - gpu_drivers_vendor == 'auto'
-  tags: ['gpu', 'drivers']

@@ -1,0 +1,22 @@
+---
+# === gpu_drivers / Gentoo driver stack ===
+
+- name: "Gentoo: Install GPU drivers"
+  ansible.builtin.include_tasks:
+    file: distro/gentoo/install.yml
+
+- name: "Gentoo: Configure GPU driver files"
+  ansible.builtin.include_tasks:
+    file: distro/gentoo/configure.yml
+
+- name: "Gentoo: Manage initramfs"
+  ansible.builtin.include_tasks:
+    file: distro/gentoo/initramfs.yml
+
+- name: "Gentoo: Verify GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/gentoo/verify.yml
+
+- name: "Gentoo: Report GPU driver configuration"
+  ansible.builtin.include_tasks:
+    file: distro/gentoo/report.yml

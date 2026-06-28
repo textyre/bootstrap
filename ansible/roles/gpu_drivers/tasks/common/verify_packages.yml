@@ -1,0 +1,9 @@
+---
+- name: "Assert package stack is installed"
+  ansible.builtin.assert:
+    that:
+      - "(_gpu_drivers_package_stack | difference(ansible_facts.packages.keys() | list)) | length == 0"
+    fail_msg: >-
+      Missing GPU packages:
+      {{ _gpu_drivers_package_stack | difference(ansible_facts.packages.keys() | list) }}
+    success_msg: "GPU package stack is installed"

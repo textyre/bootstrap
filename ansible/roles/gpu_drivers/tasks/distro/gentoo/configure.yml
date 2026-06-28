@@ -1,0 +1,4 @@
+---
+- name: Gentoo GPU driver configuration not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Gentoo configuration is not yet implemented."

@@ -1,0 +1,43 @@
+---
+# === gpu_drivers / install / NVIDIA ===
+
+- name: "Install NVIDIA proprietary drivers"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_nvidia_proprietary }}"
+  when: gpu_drivers_nvidia_variant == 'proprietary'
+
+- name: "Install NVIDIA proprietary multilib"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_nvidia_proprietary_multilib }}"
+  when:
+    - gpu_drivers_nvidia_variant == 'proprietary'
+    - gpu_drivers_multilib
+
+- name: "Install NVIDIA open kernel modules"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_nvidia_open }}"
+  when: gpu_drivers_nvidia_variant == 'open-kernel'
+
+- name: "Install NVIDIA open kernel multilib"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_nvidia_proprietary_multilib }}"
+  when:
+    - gpu_drivers_nvidia_variant == 'open-kernel'
+    - gpu_drivers_multilib
+
+- name: "Install NVIDIA VA-API driver"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_nvidia_vaapi }}"
+  when:
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+    - gpu_drivers_vaapi

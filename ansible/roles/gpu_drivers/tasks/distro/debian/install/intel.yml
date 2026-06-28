@@ -1,0 +1,8 @@
+---
+# === gpu_drivers / install / Intel ===
+
+- name: "Install Intel Mesa and VA-API"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_intel }}"

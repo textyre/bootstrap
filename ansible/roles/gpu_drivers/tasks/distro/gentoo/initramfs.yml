@@ -1,0 +1,4 @@
+---
+- name: Gentoo initramfs integration not yet implemented
+  ansible.builtin.debug:
+    msg: "gpu_drivers: Gentoo initramfs integration is not yet implemented."

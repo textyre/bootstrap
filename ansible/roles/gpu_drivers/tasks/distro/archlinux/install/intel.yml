@@ -1,0 +1,15 @@
+---
+# === gpu_drivers / install / Intel ===
+
+- name: "Install Intel drivers"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_intel }}"
+
+- name: "Install Intel multilib"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_intel_multilib }}"
+  when: gpu_drivers_multilib

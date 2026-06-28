@@ -1,0 +1,9 @@
+---
+# === gpu_drivers / install / common ===
+
+- name: "Install Vulkan tools"
+  ansible.builtin.include_tasks:
+    file: common/install_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_debian_vulkan_tools }}"
+  when: gpu_drivers_vulkan_tools

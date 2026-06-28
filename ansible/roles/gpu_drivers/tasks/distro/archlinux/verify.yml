@@ -1,0 +1,41 @@
+---
+# === gpu_drivers / verify ===
+
+- name: "Gather package facts for GPU driver verification"
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: "Verify common GPU package stack"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify/common.yml
+  when: gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
+
+- name: "Verify NVIDIA package stack"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify/nvidia.yml
+  when: gpu_drivers_has_nvidia
+
+- name: "Verify AMD package stack"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify/amd.yml
+  when: gpu_drivers_has_amd
+
+- name: "Verify Intel package stack"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify/intel.yml
+  when: gpu_drivers_has_intel
+
+- name: "Verify VA-API package stack"
+  ansible.builtin.include_tasks:
+    file: distro/archlinux/verify/vaapi.yml
+  when:
+    - gpu_drivers_vaapi
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel
+
+- name: "Verify no supported GPU was selected"
+  ansible.builtin.include_tasks:
+    file: common/verify_no_gpu.yml
+  when:
+    - not gpu_drivers_has_nvidia
+    - not gpu_drivers_has_amd
+    - not gpu_drivers_has_intel

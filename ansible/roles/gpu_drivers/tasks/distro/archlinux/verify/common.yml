@@ -1,0 +1,22 @@
+---
+# === gpu_drivers / verify / common ===
+
+- name: "Assert Vulkan loader packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_vulkan_common }}"
+
+- name: "Assert Vulkan loader multilib packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_vulkan_common_multilib }}"
+  when: gpu_drivers_multilib
+
+- name: "Assert Vulkan tools packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_vulkan_tools }}"
+  when: gpu_drivers_vulkan_tools

@@ -1,0 +1,15 @@
+---
+# === gpu_drivers / verify / AMD ===
+
+- name: "Assert AMD packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_amd }}"
+
+- name: "Assert AMD multilib packages are installed"
+  ansible.builtin.include_tasks:
+    file: common/verify_packages.yml
+  vars:
+    _gpu_drivers_package_stack: "{{ _gpu_drivers_archlinux_amd_multilib }}"
+  when: gpu_drivers_multilib

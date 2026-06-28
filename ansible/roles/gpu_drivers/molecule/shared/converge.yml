@@ -3,21 +3,6 @@
   hosts: all
   become: true
   gather_facts: true
-  pre_tasks:
-    - name: Gather package facts (required by preflight pciutils assertion)
-      ansible.builtin.package_facts:
-        manager: auto
-
-    - name: Ensure pciutils is installed
-      ansible.builtin.package:
-        name: pciutils
-        state: present
-
-    - name: Re-gather package facts after pciutils install
-      ansible.builtin.package_facts:
-        manager: auto
 
   roles:
-    # vars come from molecule.yml provisioner.inventory.host_vars per host (TEST-011/ROLE-014).
-    # Each platform defines gpu_drivers_vendor, gpu_drivers_vaapi, gpu_drivers_vulkan_tools.
     - role: gpu_drivers

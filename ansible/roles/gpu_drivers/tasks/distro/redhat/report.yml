@@ -1,0 +1,17 @@
+---
+- name: "Report: RedHat GPU driver configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_gpu_drivers_phases"
+    common_rpt_phase: "RedHat GPU drivers"
+    common_rpt_detail: >-
+      vendor={{ gpu_drivers_vendor }}
+      nvidia={{ gpu_drivers_has_nvidia }}
+      amd={{ gpu_drivers_has_amd }}
+      intel={{ gpu_drivers_has_intel }}
+      variant={{ gpu_drivers_nvidia_variant if gpu_drivers_has_nvidia else 'n/a' }}
+      multilib={{ gpu_drivers_multilib }}
+      vaapi={{ gpu_drivers_vaapi }}
+      manage_initramfs={{ gpu_drivers_manage_initramfs }}

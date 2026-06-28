@@ -1,0 +1,8 @@
+---
+- name: "Assert no vendor-specific GPU stack was selected"
+  ansible.builtin.assert:
+    that:
+      - not gpu_drivers_has_nvidia
+      - not gpu_drivers_has_amd
+      - not gpu_drivers_has_intel
+    success_msg: "No supported GPU selected; vendor-specific package stack was not required"

@@ -1,0 +1,16 @@
+---
+# === gpu_drivers / configure ===
+
+- name: "Configure NVIDIA driver files"
+  ansible.builtin.include_tasks:
+    file: configure/nvidia.yml
+  when:
+    - gpu_drivers_has_nvidia
+    - gpu_drivers_nvidia_variant in ['proprietary', 'open-kernel']
+
+- name: "Configure VA-API environment"
+  ansible.builtin.include_tasks:
+    file: configure/vaapi.yml
+  when:
+    - gpu_drivers_vaapi
+    - gpu_drivers_has_nvidia or gpu_drivers_has_amd or gpu_drivers_has_intel

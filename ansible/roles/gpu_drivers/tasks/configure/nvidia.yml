@@ -1,0 +1,24 @@
+---
+- name: "Enforce NVIDIA DRM KMS modeset"
+  ansible.builtin.template:
+    src: nvidia-modprobe.conf.j2
+    dest: /etc/modprobe.d/nvidia.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: _gpu_drivers_nvidia_modprobe
+  when:
+    - gpu_drivers_manage_security | bool
+    - gpu_drivers_nvidia_kms
+
+- name: "Blacklist nouveau kernel module"
+  ansible.builtin.template:
+    src: nvidia-blacklist.conf.j2
+    dest: /etc/modprobe.d/nvidia-blacklist.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: _gpu_drivers_nvidia_blacklist
+  when:
+    - gpu_drivers_manage_security | bool
+    - gpu_drivers_nvidia_blacklist_nouveau
