@@ -1,22 +1,68 @@
 # sysctl
 
-Configures Linux kernel parameters for exploit hardening, network attack surface reduction, and workstation performance tuning.
+Configures a workstation kernel policy through Linux sysctl parameters.
+
+This role is not a generic "write any sysctl file" helper. It owns one
+specific baseline: a Linux workstation should be harder than distro defaults
+against common local kernel-abuse and network-misrouting classes, while still
+remaining usable for development, desktop, gaming, VM, Docker-host, and normal
+IPv6 networks.
+
+The role therefore chooses compatibility-aware defaults instead of maximum
+hardening everywhere. Examples:
+
+- `ptrace_scope=1`, not `2` or `3`, so normal `gdb ./app` still works.
+- `arp_ignore=1`, not `2`, because stricter ARP behavior breaks Docker bridges,
+  Kubernetes VIPs, and multi-IP VM setups.
+- `drop_gratuitous_arp=0`, because `1` breaks keepalived/VRRP and legitimate
+  IP-move announcements.
+- `accept_ra=1`, because many workstation networks use SLAAC IPv6.
+- `tcp_timestamps=0` is paired with `tcp_tw_reuse=0` because reuse depends on
+  timestamps for safe connection distinction.
+
+## Runtime Model
+
+| Environment | What the role can guarantee | Why |
+|-------------|-----------------------------|-----|
+| Bare metal | Persistent sysctl policy applied by the distro sysctl loader on boot/reload | The OS owns the running kernel and `/proc/sys`, but this role does not force live apply |
+| VM guest | Persistent guest sysctl policy applied by the guest distro sysctl loader on boot/reload | A VM has its own guest kernel; the role does not affect the host or hypervisor |
+| Docker container | Template/render/idempotence behavior only; not host kernel hardening | A container shares the host kernel, and many sysctls are read-only, not namespaced, or blocked by the runtime |
+
+Docker is useful as a fast Molecule convergence/idempotence target. It is not a
+full security target for this role. A successful Docker run means the persistent
+policy renders cleanly and idempotently, not that the host kernel is hardened.
+
+## Policy Rationale
+
+| Policy area | User-facing purpose | Default posture | Rationale / source family |
+|-------------|---------------------|-----------------|---------------------------|
+| Kernel information exposure | Do not give ordinary users kernel pointers, dmesg contents, or broad perf/BPF introspection by default | Restrict by default, relax per profile only | Linux kernel sysctl docs, Yama LSM docs, KSPP-style hardening |
+| Debugging / ptrace | Keep normal development usable while blocking broad process attach | `ptrace_scope=1` | `0` is friendlier for Wine/Proton and attach debugging; `2`/`3` are stronger but break common dev workflows |
+| Filesystem race protections | Reduce `/tmp` and sticky-directory attack classes | Enable protected hardlinks/symlinks/FIFOs/regular files | Linux fs sysctl docs and `proc_sys_fs(5)` document these protections |
+| SUID crash dumps | Avoid writing memory from privileged programs into core dump files | `fs.suid_dumpable=0` | Security baseline prefers no SUID core dumps; Ubuntu apport conflicts with this and is handled explicitly |
+| Network routing trust | Do not accept redirects or source routes from the network | Disable redirects/source route | Linux IP sysctl docs and CIS-style workstation hardening |
+| Spoofing / ARP | Add anti-spoofing controls without breaking common VM/Docker networks | Moderate defaults, not maximum strictness | `rp_filter=1`, `arp_ignore=1`, `drop_gratuitous_arp=0` are compatibility-aware |
+| IPv6 | Keep normal workstation IPv6 working | Do not disable IPv6; accept RA | Disabling IPv6 or RA breaks SLAAC, DNS fallback, and common office/home networks |
+| Workstation capacity | Avoid low distro defaults that hurt IDEs, file watchers, and local dev servers | Raise inotify/file/backlog limits | Practical workstation baseline, not security hardening |
+
+The role comments, template, and documentation use these source families:
+
+- Linux kernel sysctl docs: <https://docs.kernel.org/admin-guide/sysctl/>
+- Yama LSM ptrace scope: <https://docs.kernel.org/admin-guide/LSM/Yama.html>
+- Linux fs sysctl/man pages: <https://docs.kernel.org/admin-guide/sysctl/fs.html>, <https://man7.org/linux/man-pages/man5/proc_sys_fs.5.html>
+- CIS/STIG/KSPP-aligned hardening controls where noted in comments.
 
 ## Execution flow
 
-1. **Assert OS support** -- fails immediately if `ansible_facts['os_family']` is not in the supported list (Archlinux, Debian, RedHat, Void, Gentoo)
-2. **Install packages** (`tasks/packages.yml`) -- installs `procps-ng` (Arch/Void/Gentoo) or `procps` (Debian/RedHat) via `ansible.builtin.package`
-3. **Manage services** (`tasks/services.yml`) -- disables `apport.service` on Debian/Ubuntu if `sysctl_fs_suid_dumpable != 2` (apport overwrites this value after boot). Logs outcome if service not found.
-4. **Deploy configuration** (`tasks/deploy.yml`) -- creates `/etc/sysctl.d/` directory, deploys `/etc/sysctl.d/99-z-ansible.conf` from template. **Triggers handler:** if config changed, `sysctl -e -p` reloads parameters.
-5. **Flush handlers** -- applies pending `reload sysctl` handler (from step 4) so verification runs against the new configuration
-6. **Verify parameters** (`tasks/verify.yml`) -- reads 14 key security parameters via `sysctl -n`, asserts each matches expected value. Fails if any parameter has a wrong value (rc=255 / kernel-unsupported parameters are skipped gracefully)
-7. **Report** (`tasks/report.yml`) -- writes structured execution report via `common/report_phase` + `report_render`
+`tasks/main.yml` is only the role orchestrator. Business logic lives in phase files.
 
-### Handlers
-
-| Handler | Triggered by | What it does |
-|---------|-------------|-------------|
-| `reload sysctl` | Config file change (step 4) | Runs `sysctl -e -p /etc/sysctl.d/99-z-ansible.conf`. Skipped in Docker (kernel params read-only). |
+1. **Validate** (`tasks/validate/main.yml`) -- fails before mutation on unsupported OS/init.
+2. **Load vars** (`tasks/load/main.yml`) -- loads distro-family package mapping from `vars/<os_family>/main.yml`.
+3. **Detect** (`tasks/detect/main.yml`) -- gathers Debian service facts when apport conflict handling is relevant.
+4. **Install** (`tasks/install/main.yml`) -- installs `procps-ng` (Arch/Void/RedHat) or `procps` (Debian/Gentoo) via `ansible.builtin.package`.
+5. **Service** (`tasks/service/main.yml`) -- disables `apport.service` on Debian/Ubuntu only when present and when it would override `fs.suid_dumpable` hardening.
+6. **Configure** (`tasks/configure/main.yml`) -- renders `/etc/sysctl.d/99-z-ansible.conf` from the policy template. The distro sysctl loader applies it on boot/reload; the role does not force live apply.
+7. **Report** (`tasks/main.yml`) -- renders the structured execution report accumulated during each phase.
 
 ## Variables
 
@@ -62,7 +108,7 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | `sysctl_kernel_tty_ldisc_autoload` | `0` | internal | Block TTY line discipline autoload. CVE-2017-2636 |
 | `sysctl_vm_unprivileged_userfaultfd` | `0` | internal | Restrict userfaultfd() to CAP_SYS_PTRACE |
 | `sysctl_vm_mmap_min_addr` | `65536` | internal | Minimum mmap address. Blocks null deref exploitation |
-| `sysctl_kernel_unprivileged_userns_clone` | `1` | careful | Arch linux-hardened kernel only. Ignored on other kernels |
+| `sysctl_kernel_unprivileged_userns_clone` | `1` | careful | Arch linux-hardened kernel only. Standard kernels may report it as unsupported when the distro sysctl loader runs |
 
 #### Security: Network
 
@@ -102,13 +148,21 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 |----------|---------|--------|-------------|
 | `sysctl_custom_params` | `[]` | safe | Additional parameters: `[{name: "kernel.param", value: "1"}]` |
 
+`sysctl_custom_params` is an escape hatch for environment-specific parameters
+that the role does not own directly, for example Docker bridge overrides on a
+Docker host. The semantic safety and structure of custom parameters belong to
+the inventory owner. If a custom parameter becomes common baseline policy, move
+it into `defaults/main.yml` and the internal parameter groups instead of keeping
+it as custom data forever.
+
 ### Internal mappings (`vars/`)
 
 These files contain cross-platform mappings. Do not override via inventory -- edit the files directly only when adding new platform support.
 
 | File | What it contains | When to edit |
 |------|-----------------|-------------|
-| `vars/main.yml` | `_sysctl_supported_os` list, `_sysctl_procps_package` per-OS package name | Adding support for a new distro |
+| `vars/main.yml` | Supported platforms, internal config path, and parameter groups used by the template | Changing managed parameter structure |
+| `vars/<os_family>/main.yml` | `_sysctl_procps_package` for each supported distro family | Adding or changing package mapping |
 
 ## Examples
 
@@ -151,66 +205,69 @@ sysctl_custom_params:
   - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
 ```
 
-## What this role actually does
+## Default Decisions
 
-### Kernel hardening
+### Kernel policy
 
-| Parameter | Effect |
-|---|---|
-| `kernel.randomize_va_space = 2` | Full ASLR -- stack, heap, mmap, VDSO randomized. KSPP, DISA STIG |
-| `kernel.kptr_restrict = 2` | Hide kernel addresses from `/proc/kallsyms`, `/proc/modules` |
-| `kernel.dmesg_restrict = 1` | Block unprivileged dmesg access |
-| `kernel.yama.ptrace_scope = 1` | ptrace restricted to child processes. `gdb ./app` works; `strace -p <pid>` on unrelated process does not |
-| `kernel.perf_event_paranoid = 3` | Block perf counters for unprivileged users. Spectre mitigation (DISA STIG V-258076) |
-| `kernel.unprivileged_bpf_disabled = 1` | Block `bpf()` without `CAP_BPF`. CVE-2021-3490, CVE-2022-23222 |
-| `dev.tty.ldisc_autoload = 0` | Block TTY line discipline autoload. CVE-2017-2636 |
-| `vm.unprivileged_userfaultfd = 0` | Restrict `userfaultfd()` to `CAP_SYS_PTRACE`. Heap spray mitigation |
-| `vm.mmap_min_addr = 65536` | Prohibit mapping below 64K. Blocks null pointer dereference exploitation |
+| Parameter | Default | Why this default exists | When to change |
+|---|---:|---|---|
+| `kernel.randomize_va_space` | `2` | Full ASLR is the baseline: userspace memory layout randomization should be on unless there is a legacy debugging reason. | Only for broken legacy software or controlled debugging. |
+| `kernel.kptr_restrict` | `2` | Kernel pointers are useful to exploit chains and rarely useful to normal users. `2` hides them even from users that would otherwise pass credential checks. | Lower only on dedicated kernel debugging hosts. |
+| `kernel.dmesg_restrict` | `1` | Kernel logs can expose addresses, device state, and failure details. Normal users do not need raw dmesg on a workstation baseline. | Lower for local debugging workflows that intentionally allow unprivileged dmesg. |
+| `kernel.yama.ptrace_scope` | `1` | This is the workstation compromise: `gdb ./app` works, but attaching to unrelated processes is restricted. | `0` for gaming/Wine/Proton or attach-heavy dev; `2` for security profile. |
+| `kernel.perf_event_paranoid` | `3` | Perf counters are useful for profiling but also expose side-channel surface. The baseline prefers safety over unprivileged profiling. | Lower on performance engineering hosts. |
+| `kernel.unprivileged_bpf_disabled` | `1` | Unprivileged BPF has had repeated privilege-escalation exposure. Workstations do not need unprivileged BPF by default. | Change only for workloads that explicitly require unprivileged BPF. |
+| `dev.tty.ldisc_autoload` | `0` | Automatic TTY line discipline loading is unnecessary on normal workstations and has been an exploit path. | Rare; only for specialized TTY/serial environments. |
+| `vm.unprivileged_userfaultfd` | `0` | Userfaultfd can help exploit reliability; normal users do not need unrestricted access by default. | Change for runtimes or debuggers that explicitly require it. |
+| `vm.mmap_min_addr` | `65536` | Blocks low-address mappings used in null-pointer-dereference exploitation patterns. `65536` is the common hardened floor. | Lower only for very old software requiring low mappings. |
+| `kernel.unprivileged_userns_clone` | `1` | Kept permissive because desktop/container tooling may depend on user namespaces. It is optional because it exists mainly on Arch linux-hardened. | Set `0` only if user namespaces are intentionally disallowed. |
 
-### Network hardening
+### Network policy
 
-| Parameter | Effect |
-|---|---|
-| `net.core.bpf_jit_harden = 2` | BPF JIT constant blinding for all users. JIT spray protection |
-| `net.ipv4.conf.all.rp_filter = 1` | Reverse path filtering on all + default interfaces. Prevents IP spoofing (CVE-2019-14899) |
-| `net.ipv4.tcp_syncookies = 1` | SYN cookie protection against SYN flood DDoS |
-| `net.ipv4.tcp_rfc1337 = 1` | Protect TIME_WAIT sockets against RST attacks (RFC 1337) |
-| `net.ipv4.conf.*.accept_redirects = 0` | Block ICMP redirects. Prevents traffic hijacking via MITM |
-| `net.ipv4.conf.*.send_redirects = 0` | Do not send ICMP redirects |
-| `net.ipv4.conf.*.accept_source_route = 0` | Block IPv4 source routing |
-| `net.ipv4.conf.all.log_martians = 1` | Log packets with impossible addresses (reconnaissance detection) |
-| `net.ipv4.icmp_echo_ignore_broadcasts = 1` | Ignore broadcast ICMP echo (Smurf DDoS mitigation) |
-| `net.ipv4.tcp_timestamps = 0` | Hide uptime from fingerprinting. CIS 3.3.10. **Requires `tcp_tw_reuse = 0`** |
-| `net.ipv4.conf.all.arp_filter = 1` | ARP: do not respond through the wrong interface |
-| `net.ipv4.conf.all.arp_ignore = 1` | ARP: respond only if target IP belongs to receiving interface. Value `2` is stricter but breaks Docker/K8s/multi-IP VMs |
-| `net.ipv4.conf.all.drop_gratuitous_arp = 0` | Do not drop gratuitous ARP (default). Value `1` blocks ARP cache poisoning but breaks keepalived/VRRP HA |
-| `net.ipv6.conf.all.accept_redirects = 0` | Block ICMPv6 redirects |
-| `net.ipv6.conf.all.accept_source_route = 0` | Block IPv6 source routing |
-| `net.ipv6.conf.all.accept_ra = 1` | Accept IPv6 Router Advertisements (kernel default). Required for SLAAC. Set `0` only with DHCPv6 stateful or static IPv6 |
+| Parameter | Default | Why this default exists | When to change |
+|---|---:|---|---|
+| `net.core.bpf_jit_harden` | `2` | Applies BPF JIT hardening to all users, not only unprivileged users. | Lower only if BPF performance is a measured bottleneck. |
+| `net.ipv4.conf.all.rp_filter` / `default` | `1` | Drops packets whose source does not match the reverse route, reducing simple spoofing exposure. | Use custom per-interface params for Docker/VPN/asymmetric routing. |
+| `net.ipv4.tcp_syncookies` | `1` | Keeps SYN flood mitigation enabled. | Normally do not disable. |
+| `net.ipv4.tcp_rfc1337` | `1` | Protects TIME_WAIT sockets from reset-based assassination behavior described by RFC 1337. | Normally do not disable. |
+| `net.ipv4.conf.*.accept_redirects` | `0` | Workstations should not let the network rewrite their route choice through ICMP redirects. | Rare; only on trusted legacy networks requiring redirects. |
+| `net.ipv4.conf.*.send_redirects` | `0` | A workstation is not a router and should not emit redirects. | Enable only on intentional router hosts owned by a network role. |
+| `net.ipv4.conf.*.accept_source_route` | `0` | Source route lets the sender influence packet path and is not appropriate for a workstation baseline. | Normally do not enable. |
+| `net.ipv4.conf.*.log_martians` | `1` | Logs impossible/spoofed-looking packets so network anomalies are visible. | Disable if logs are too noisy in a known noisy environment. |
+| `net.ipv4.icmp_echo_ignore_broadcasts` | `1` | Avoids participating in broadcast-ping amplification patterns. | Normally do not disable. |
+| `net.ipv4.icmp_ignore_bogus_error_responses` | `1` | Drops bogus ICMP errors that add noise and can confuse diagnostics. | Normally do not disable. |
+| `net.ipv4.tcp_timestamps` | `0` | Privacy choice: avoids exposing TCP timestamp behavior. Because timestamps are off, `tcp_tw_reuse` must remain `0`. | Set `1` only when performance/reuse behavior is more important than this privacy posture. |
+| `net.ipv4.tcp_tw_reuse` | `0` | Compatible with `tcp_timestamps=0`; avoids unsafe reuse assumptions. | Enable only together with timestamps and a measured need. |
+| `net.ipv4.conf.all.arp_filter` | `1` | Avoids answering ARP through the wrong interface on multi-interface hosts. | Disable if a specific multi-homing setup requires weaker ARP behavior. |
+| `net.ipv4.conf.all.arp_ignore` | `1` | Compatibility-aware ARP hardening. `2` is stricter but breaks Docker bridges, Kubernetes VIPs, and multi-IP VMs. | Use `2` only on simple bare-metal hosts without those patterns. |
+| `net.ipv4.conf.all.drop_gratuitous_arp` | `0` | Keeps legitimate IP movement working. `1` can break keepalived/VRRP and WireGuard/IP-change announcements. | Set `1` only where gratuitous ARP is forbidden and HA/IP-move is absent. |
+| `net.ipv6.conf.*.accept_redirects` | `0` | IPv6 redirects are not trusted in the baseline. | Rare; only on trusted networks requiring redirects. |
+| `net.ipv6.conf.*.accept_source_route` | `0` | IPv6 source routing is not appropriate for a workstation baseline. | Normally do not enable. |
+| `net.ipv6.conf.*.accept_ra` | `1` | Keeps SLAAC IPv6 working on normal workstation networks. | Set `0` only with static IPv6 or DHCPv6 stateful design. |
 
-### Filesystem hardening
+### Filesystem policy
 
-| Parameter | Effect |
-|---|---|
-| `fs.protected_hardlinks = 1` | Block hardlinks to files without read/write/ownership. TOCTOU mitigation |
-| `fs.protected_symlinks = 1` | Block following symlinks in world-writable sticky directories |
-| `fs.protected_fifos = 2` | Block writes to FIFOs in sticky directories without ownership |
-| `fs.protected_regular = 2` | Block writes to regular files in sticky directories without ownership |
-| `fs.suid_dumpable = 0` | Prohibit core dumps of SUID binaries. CIS 1.6.4, DISA STIG V-230462 |
+| Parameter | Default | Why this default exists | When to change |
+|---|---:|---|---|
+| `fs.protected_hardlinks` | `1` | Blocks hardlink tricks across privilege boundaries. | Normally do not disable. |
+| `fs.protected_symlinks` | `1` | Blocks symlink-following attacks in world-writable sticky directories. | Normally do not disable. |
+| `fs.protected_fifos` | `2` | Strict FIFO protection in sticky directories; reduces race/spoofing patterns. | Lower only for legacy software broken by strict sticky-dir protection. |
+| `fs.protected_regular` | `2` | Strict regular-file protection in sticky directories. | Lower only for legacy software broken by strict sticky-dir protection. |
+| `fs.suid_dumpable` | `0` | SUID program memory should not be written to core dumps. This is why Ubuntu apport is treated as a conflict when it forces `2`. | Set `2` only if crash reporting is explicitly more important than this hardening control. |
 
-### Performance
+### Workstation capacity policy
 
-| Parameter | Purpose |
-|---|---|
-| `vm.swappiness = 10` | Minimize swap usage |
-| `vm.vfs_cache_pressure = 50` | Reduce inode/dentry cache eviction |
-| `vm.dirty_ratio = 10` | Force flush when dirty pages reach 10% of RAM |
-| `vm.dirty_background_ratio = 5` | Start background flush at 5% dirty pages |
-| `fs.inotify.max_user_watches = 524288` | For IDEs (VSCode, JetBrains) and file watchers |
-| `fs.inotify.max_user_instances = 1024` | Max inotify instances per user |
-| `fs.file-max = 2097152` | System-wide open file descriptor limit |
-| `net.core.somaxconn = 4096` | TCP connection backlog |
-| `net.ipv4.tcp_fastopen = 3` | TCP Fast Open on client and server |
+| Parameter | Default | Why this default exists | When to change |
+|---|---:|---|---|
+| `vm.swappiness` | `10` | Workstations should avoid eager swap use without disabling swap completely. | Use `1` for sensitive/security profile, higher values for memory-pressure workloads. |
+| `vm.vfs_cache_pressure` | `50` | Keeps filesystem metadata cache longer, improving interactive desktop/dev workloads. | Raise if memory pressure matters more than cache retention. |
+| `vm.dirty_ratio` | `10` | Avoids large bursts of dirty memory before forced writeback. | Raise for media/file-server workloads that prefer throughput over latency. |
+| `vm.dirty_background_ratio` | `5` | Starts background writeback before the hard dirty limit. Validate requires it to be <= `dirty_ratio`. | Tune with `dirty_ratio`; do not set above it. |
+| `fs.inotify.max_user_watches` | `524288` | IDEs, language servers, and file watchers need more than conservative distro defaults. | Raise for very large monorepos. |
+| `fs.inotify.max_user_instances` | `1024` | Allows multiple watcher-heavy desktop/dev tools. | Raise if watcher tools hit instance limits. |
+| `fs.file-max` | `2097152` | Avoids low global file descriptor ceilings on dev workstations. | Tune lower/higher only for known capacity policy. |
+| `net.core.somaxconn` | `4096` | Gives local dev servers and containers a less restrictive listen backlog. | Tune per service in the owning service role if needed. |
+| `net.ipv4.tcp_fastopen` | `3` | Enables client and server TCP Fast Open for lower connection setup latency where supported. | Disable if a network middlebox or app has compatibility issues. |
 
 ## Cross-platform details
 
@@ -220,7 +277,7 @@ sysctl_custom_params:
 | Config path | `/etc/sysctl.d/99-z-ansible.conf` | `/etc/sysctl.d/99-z-ansible.conf` | `/etc/sysctl.d/99-z-ansible.conf` | `/etc/sysctl.d/99-z-ansible.conf` | `/etc/sysctl.d/99-z-ansible.conf` |
 | Apport service | n/a | disabled if `suid_dumpable != 2` | n/a | n/a | n/a |
 | `kernel.unprivileged_userns_clone` | linux-hardened only | absent | absent | absent | absent |
-| Boot loader | `systemd-sysctl.service` | `systemd-sysctl.service` | `systemd-sysctl.service` | `sysctl` service (runit) | `sysctl` service (openrc) |
+| Boot persistence | distro sysctl loader | distro sysctl loader | distro sysctl loader | distro sysctl loader | distro sysctl loader |
 
 ## Logs
 
@@ -231,86 +288,57 @@ This role does not create its own log files. Kernel messages and sysctl behavior
 | Source | How to read | Contents |
 |--------|------------|----------|
 | syslog / journald | `journalctl -k` | Kernel messages including martian packet logs (`log_martians=1`) |
-| Ansible output | `ansible-playbook` stdout | Role execution report (install, configure, verify phases) |
-| Verify output | Role verify task debug messages | OK / MISMATCH / NOT SUPPORTED / ERROR per parameter |
+| Ansible output | Taskfile/Ansible stdout | Role execution report (validate, load, detect, install, service, configure phases) |
 
 ### Reading the logs
 
 - Martian packet detection: `journalctl -k --grep="martian"` -- look for spoofed packets
-- Sysctl load errors at boot: `journalctl -u systemd-sysctl` -- check for parameter rejection
-- Role verify results: run with `--tags sysctl,verify` and check debug output
+- Sysctl load errors at boot: check the distro init logs for the sysctl loader and parameter rejection.
 
 ## Troubleshooting
 
 | Symptom | Diagnosis | Fix |
 |---------|-----------|-----|
 | Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` -- must be Archlinux, Debian, RedHat, Void, or Gentoo |
-| Verify shows MISMATCH for a parameter | Another sysctl.d file overrides our value after boot | Check `sysctl --system` output -- files are loaded alphabetically. Our `99-z-ansible.conf` should sort last. Remove conflicting files or rename them |
-| `kernel.unprivileged_userns_clone` shows NOT SUPPORTED | Parameter exists only in Arch `linux-hardened` kernel | Expected on standard kernels. The `-e` flag silently skips it. No action needed |
-| Docker containers cannot route traffic after role apply | `rp_filter=1` (strict) blocks Docker bridge | Add to `sysctl_custom_params`: `{name: "net.ipv4.conf.docker0.rp_filter", value: "2"}` |
-| `gdb --pid` or `strace -p` fails with EPERM | `ptrace_scope=1` restricts to child processes only | For debugging: temporarily `echo 0 > /proc/sys/kernel/yama/ptrace_scope`. Or set `sysctl_kernel_yama_ptrace_scope: 0` for gaming profile |
+| Runtime value differs after reboot/reload | Another sysctl.d file overrides our value or the kernel does not support the parameter | Check `sysctl --system` output. Files are loaded alphabetically; move the conflicting setting to its owning role or adjust ordering deliberately |
+| `kernel.unprivileged_userns_clone` is rejected by the distro sysctl loader | Parameter exists only in Arch `linux-hardened` kernel | Remove or override this parameter for hosts that do not support it |
+| Containers on a Docker host cannot route traffic after role apply | Host `rp_filter=1` blocks Docker bridge traffic | Add to the Docker host inventory: `sysctl_custom_params: [{name: "net.ipv4.conf.docker0.rp_filter", value: "2"}]` |
+| `gdb --pid` or `strace -p` fails with EPERM | `ptrace_scope=1` restricts to child processes only | Set `sysctl_kernel_yama_ptrace_scope: 0` through inventory for hosts that need attach-style debugging, then rerun the role |
 | IPv6 connectivity lost after role apply | `sysctl_security_ipv6_disable: true` or `accept_ra: 0` | Set `sysctl_security_ipv6_disable: false` and `sysctl_net_ipv6_accept_ra: 1` (defaults) |
-| apport keeps resetting `fs.suid_dumpable` to 2 | apport.service starts after systemd-sysctl | Role should disable apport automatically. Check `systemctl is-enabled apport` |
-| Handler skipped in Docker | Sysctl params are read-only in containers | Expected behavior. Config file is still deployed; params apply on real boot |
+| apport keeps resetting `fs.suid_dumpable` to 2 | apport.service starts after the distro sysctl loader | Role should disable apport automatically. Check the service manager state for `apport` |
+| Value did not change immediately after role run | The role renders persistent policy and does not force live apply | Reboot or run the distro sysctl loader through the owning operational workflow |
 
 ## Testing
 
-Both scenarios are required for every role (TEST-002). Run Docker for fast feedback, Vagrant for full validation.
+Molecule scenarios prepare prerequisites, run the role, and check idempotence. There is no separate Molecule verify playbook because this role's contract is the persistent policy render; live kernel state is not forced during converge.
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Config deployment, idempotence, file assertions (kernel params read-only in Docker) |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or security params | Real sysctl values, boot persistence, Arch + Ubuntu matrix |
+| Role task | `task test-sysctl` | Standard project entrypoint for sysctl role checks | Molecule scenario sequence for the role |
+| Docker (fast) | `task test-sysctl -- --scenario-name docker` | After changing variables, templates, or task logic | Syntax, convergence, idempotence of the persistent policy |
+| Vagrant (cross-platform) | `task test-sysctl -- --scenario-name vagrant` | After changing OS-specific logic or security params | Syntax, convergence, idempotence on VM filesystems/package managers |
 
 ### Success criteria
 
-- All steps complete: `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy`
+- All steps complete: `syntax -> create -> prepare -> converge -> idempotence -> destroy`
 - Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass with `success_msg` output
 - Final line: no `failed` tasks
-
-### What the tests verify
-
-| Category | Examples | Test requirement |
-|----------|----------|-----------------|
-| Packages | procps-ng/procps installed via `package_facts` | TEST-008 |
-| Config files | `/etc/sysctl.d/99-z-ansible.conf` exists, correct content, mode 0644, owned by root | TEST-008 |
-| Services | apport disabled on Debian (when applicable) | TEST-008 |
-| Runtime values | Live `sysctl -n` for 14 security + all performance params (Vagrant only) | TEST-008 |
-| Permissions | Config file mode 0644, owner root:root | TEST-008 |
-| Boot persistence | Reboot VM, re-verify all values survive systemd-sysctl reload (Vagrant only) | TEST-008 |
-| Cross-platform | `kernel.unprivileged_userns_clone` checked on Arch only; procps-ng vs procps | TEST-013 |
 
 ### Common test failures
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `procps-ng package not found` | Stale package cache in container | Rebuild: `molecule destroy && molecule test -s docker` |
-| Idempotence failure on config deploy | Template produces different output on second run | Check for dynamic expressions in template (timestamps, random values) |
-| `Assertion failed` on live value check | Parameter not applied (Docker) or another file overrides | Docker: expected (live checks skipped). Vagrant: check sysctl.d file ordering |
-| Vagrant: `Python not found` on Arch | prepare.yml didn't run or bootstrap failed | Check `prepare.yml` imports `prepare-vagrant.yml`. Run full `molecule test -s vagrant` |
-| `apport.service not found` assertion fails | Running on Arch where apport doesn't exist | Assertion is guarded by `os_family == Debian`. If failing, check `gather_facts: true` |
+| `procps-ng package not found` | Stale package cache in container | Rebuild through the project task: `task test-sysctl -- --scenario-name docker` |
+| Idempotence failure on config deploy | Template output differs on the second run | Check for dynamic expressions in the template |
+| Vagrant: `Python not found` on Arch | prepare.yml didn't run or bootstrap failed | Check `prepare.yml` imports `prepare-vagrant.yml`. Run full `task test-sysctl -- --scenario-name vagrant` |
 
 ## Tags
 
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `sysctl` | Entire role | Full apply |
-| `sysctl`, `packages` | Package installation only | Ensure procps is installed |
-| `sysctl`, `configure` | Deploy drop-in config only | Re-deploy config without verify |
-| `sysctl`, `verify` | Post-apply verification only | Check live values without deploying |
-| `sysctl`, `services` | Service management only | Disable apport |
-| `sysctl`, `report` | Execution report only | Re-generate execution report |
+The role exposes the top-level `sysctl` tag for full role execution. Internal phases are intentionally not treated as separate operator entrypoints.
 
 ```bash
 # Full apply
-ansible-playbook playbook.yml --tags sysctl
-
-# Deploy config and verify only
-ansible-playbook playbook.yml --tags sysctl,configure,verify
-
-# Verify current values without deploying
-ansible-playbook playbook.yml --tags sysctl,verify
+task workstation -- --tags sysctl
 ```
 
 ## File map
@@ -318,15 +346,16 @@ ansible-playbook playbook.yml --tags sysctl,verify
 | File | Purpose | Edit? |
 |------|---------|-------|
 | `defaults/main.yml` | All configurable settings with inline comments | No -- override via inventory |
-| `vars/main.yml` | Internal bridge vars, OS-family package mappings | Only when adding distro support |
-| `templates/sysctl.conf.j2` | Drop-in sysctl config template with KSPP/CIS/STIG references | When changing parameter structure |
+| `vars/main.yml` | Internal config path and template parameter groups | When changing managed parameter structure |
+| `vars/<os_family>/main.yml` | OS-family package mapping | Only when changing supported platform details |
+| `templates/sysctl.conf.j2` | Persistent sysctl policy file with operator-facing rationale comments | When changing parameter structure or generated file comments |
 | `tasks/main.yml` | Execution flow orchestrator | When adding/removing steps |
-| `tasks/packages.yml` | Package installation | Rarely |
-| `tasks/services.yml` | Apport disable + outcome logging | Rarely |
-| `tasks/deploy.yml` | Config file deployment | When changing deploy logic |
-| `tasks/verify.yml` | Post-deploy self-check (14 parameters) | When changing verification logic |
-| `tasks/report.yml` | Structured execution report | When changing report format |
-| `handlers/main.yml` | `reload sysctl` handler | Rarely |
+| `tasks/validate/main.yml` | Fail-fast platform validation | When changing role contract |
+| `tasks/load/main.yml` | OS-specific var loading | Rarely |
+| `tasks/detect/main.yml` | Runtime fact gathering for service conflicts | Rarely |
+| `tasks/install/main.yml` | Package installation | Rarely |
+| `tasks/service/main.yml` | Apport conflict management | Rarely |
+| `tasks/configure/main.yml` | Persistent policy render | When changing configure logic |
 | `meta/main.yml` | Galaxy metadata, platform list | When changing supported platforms |
 | `molecule/` | Test scenarios (docker, vagrant, default) | When changing test coverage |
 
@@ -342,7 +371,7 @@ ansible-playbook playbook.yml --tags sysctl,verify
 
 **`tcp_timestamps` and `tcp_tw_reuse` are linked.** `tcp_tw_reuse = 1` is unsafe when `tcp_timestamps = 0` -- the kernel uses timestamps to distinguish new connections from duplicate packets. Both are set conservatively: `tcp_timestamps = 0`, `tcp_tw_reuse = 0`.
 
-**`kernel.unprivileged_userns_clone`** exists only in the Arch `linux-hardened` kernel. On standard upstream kernels, it is absent. The `-e` flag in the handler ensures it is silently skipped.
+**`kernel.unprivileged_userns_clone`** exists only in the Arch `linux-hardened` kernel. On standard upstream kernels, it is absent. Keep it only if the target kernel policy expects this optional parameter; otherwise override or remove it for those hosts.
 
 **`arp_ignore` default is `1`** (reply only if target IP belongs to receiving interface). Value `2` is stricter but breaks Docker bridge networking, Kubernetes VIPs, and multi-IP VMs. Kicksecure rolled back from `2` to `1` ([PR #290](https://github.com/Kicksecure/security-misc/pull/290)).
 

@@ -1,37 +1,43 @@
 ---
 # === sysctl — kernel parameter tuning ===
-# Каждый import_tasks = одна бизнес-функция роли.
-# SRP: main.yml — только оркестратор.
+# validate -> load vars -> detect -> install -> service -> configure -> report
 
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in _sysctl_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _sysctl_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+- name: Sysctl role
   tags: ['sysctl']
+  block:
+    - name: Validate sysctl role inputs
+      ansible.builtin.include_tasks:
+        file: validate/main.yml
 
-- name: Install required packages
-  ansible.builtin.import_tasks: packages.yml
-  when: ansible_facts['os_family'] in _sysctl_supported_os
+    - name: Load sysctl platform variables
+      ansible.builtin.include_tasks:
+        file: load/main.yml
 
-- name: Manage services that conflict with sysctl hardening
-  ansible.builtin.import_tasks: services.yml
-  when: ansible_facts['os_family'] in _sysctl_supported_os
+    - name: Detect sysctl runtime environment
+      ansible.builtin.include_tasks:
+        file: detect/main.yml
 
-- name: Deploy kernel parameter configuration
-  ansible.builtin.import_tasks: deploy.yml
-  when: ansible_facts['os_family'] in _sysctl_supported_os
+    - name: Install sysctl package dependencies
+      ansible.builtin.include_tasks:
+        file: install/main.yml
 
-- name: Flush handlers to apply sysctl reload before verification
-  ansible.builtin.meta: flush_handlers
+    - name: Manage services that conflict with sysctl hardening
+      ansible.builtin.include_tasks:
+        file: service/main.yml
 
-- name: Verify applied parameters
-  ansible.builtin.import_tasks: verify.yml
-  when: ansible_facts['os_family'] in _sysctl_supported_os
+    - name: Configure kernel parameter drop-in
+      ansible.builtin.include_tasks:
+        file: configure/main.yml
 
-- name: Report configuration summary
-  ansible.builtin.import_tasks: report.yml
-  when: ansible_facts['os_family'] in _sysctl_supported_os
+    - name: Render sysctl execution report
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_sysctl_phases"
+        common_rpt_title: "sysctl"
+        common_rpt_footer_rows:
+          - >-
+            | {{ '%-26s' | format('Config file') }}
+            | {{ '%-10s' | format('+ done') }}
+            | {{ '%-24s' | format(_sysctl_config_file | truncate(24, True)) }} |

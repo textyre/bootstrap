@@ -63,6 +63,7 @@ tasks:
       - task: test-ntp
       - task: test-ntp-audit
       - task: test-vm
+      - task: test-sysctl
       - task: test-reflector
       - task: test-yay
       - task: test-bootloader
@@ -163,6 +164,16 @@ tasks:
     cmds:
       - 'echo "==> Testing vm role..."'
       - '{{.PREFIX}} molecule test'
+
+  test-sysctl:
+    desc: "Run molecule tests for sysctl"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/sysctl'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+    cmds:
+      - 'echo "==> Testing sysctl role..."'
+      - '{{.PREFIX}} molecule test {{.CLI_ARGS}}'
 
   test-reflector:
     desc: "Run molecule tests for reflector"

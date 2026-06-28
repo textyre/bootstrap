@@ -1,0 +1,3 @@
+---
+# OS-specific variables for Arch Linux
+_sysctl_procps_package: procps-ng

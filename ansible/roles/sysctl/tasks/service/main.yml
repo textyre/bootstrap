@@ -1,0 +1,34 @@
+---
+# === sysctl: service phase ===
+
+# Ubuntu apport writes fs.suid_dumpable=2 after the distro sysctl loader has
+# applied sysctl.d files. When the role owns suid_dumpable hardening, apport is
+# a conflicting service rather than part of the desired workstation state.
+- name: Stop and disable apport crash reporter when it conflicts with suid_dumpable hardening
+  ansible.builtin.service:
+    name: apport
+    state: stopped
+    enabled: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - sysctl_security_enabled | bool
+    - sysctl_security_filesystem_hardening | bool
+    - sysctl_fs_suid_dumpable | int != 2
+    - >-
+      'apport.service' in (ansible_facts.services | default({}))
+      or 'apport' in (ansible_facts.services | default({}))
+
+- name: "Report: Manage sysctl service conflicts"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Manage services"
+    common_rpt_detail: >-
+      apport={{ 'disabled' if (ansible_facts['os_family'] == 'Debian'
+        and sysctl_security_enabled | bool
+        and sysctl_security_filesystem_hardening | bool
+        and sysctl_fs_suid_dumpable | int != 2
+        and ('apport.service' in (ansible_facts.services | default({}))
+          or 'apport' in (ansible_facts.services | default({})))) else 'n/a' }}

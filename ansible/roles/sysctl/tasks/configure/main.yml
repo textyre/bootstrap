@@ -1,0 +1,27 @@
+---
+# === sysctl: configure phase ===
+
+- name: Ensure sysctl drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/sysctl.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Render sysctl policy drop-in
+  ansible.builtin.template:
+    src: sysctl.conf.j2
+    dest: "{{ _sysctl_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "Report: Configure sysctl drop-in"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_sysctl_phases"
+    common_rpt_phase: "Configure drop-in"
+    common_rpt_detail: "{{ _sysctl_config_file }}"
