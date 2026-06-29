@@ -138,8 +138,7 @@ power_management_tlp_bat1_charge_stop: ""
 # powersave: quiet/cool/low-power desktops.
 # Gaming workstations default to performance; others default to schedutil.
 power_management_cpu_governor: >-
-  {% if 'gaming' in (workstation_profiles | default([])) -%}performance
-  {%- else -%}schedutil{%- endif %}
+  {% if 'gaming' in (workstation_profiles | default([])) -%}performance{%- else -%}schedutil{%- endif %}
 # ---- systemd sleep ----
 # These settings are used only on systemd hosts.
 # The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen at
