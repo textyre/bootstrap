@@ -1,0 +1,37 @@
+---
+# === power_management / governor ===
+# CPU governor policy for desktops. The role persists the policy through udev;
+# it does not force the live runtime governor during the Ansible run.
+
+- name: Configure CPU governor
+  when:
+    - power_management_manage_governor | bool
+    - not (_power_management_is_laptop | bool)
+  block:
+    - name: Ensure udev rules directory exists
+      ansible.builtin.file:
+        path: /etc/udev/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy udev rule for governor persistence
+      ansible.builtin.template:
+        src: 50-cpu-governor.rules.j2
+        dest: /etc/udev/rules.d/50-cpu-governor.rules
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: "Report: Configure governor"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Configure governor"
+    common_rpt_status: "{{ 'done' if (power_management_manage_governor | bool and not (_power_management_is_laptop | bool)) else 'skip' }}"
+    common_rpt_detail: >-
+      governor={{ power_management_cpu_governor | trim }},
+      persistence=udev

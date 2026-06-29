@@ -1,0 +1,35 @@
+---
+# === power_management / configure — managed power stack ===
+
+- name: Install power management packages
+  ansible.builtin.include_tasks:
+    file: configure/install.yml
+
+- name: Configure TLP
+  ansible.builtin.include_tasks:
+    file: configure/tlp.yml
+
+- name: Configure CPU governor
+  ansible.builtin.include_tasks:
+    file: configure/governor.yml
+
+- name: Configure systemd sleep
+  ansible.builtin.include_tasks:
+    file: configure/sleep.yml
+
+- name: Configure logind power behaviour
+  ansible.builtin.include_tasks:
+    file: configure/logind.yml
+
+- name: "Report: Configure power management"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Configure power management"
+    common_rpt_detail: >-
+      tlp={{ power_management_manage_tlp | bool }},
+      governor={{ power_management_manage_governor | bool }},
+      sleep={{ power_management_manage_sleep | bool }},
+      logind={{ power_management_manage_logind | bool }}

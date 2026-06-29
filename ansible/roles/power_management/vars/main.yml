@@ -1,0 +1,42 @@
+---
+# === power_management: internal variables ===
+# Public operator decisions live in defaults/main.yml. This file keeps derived
+# state and implementation constants private to the role.
+
+# OS families accepted by validate.yml and mapped by vars/<os>/main.yml.
+_power_management_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Init systems accepted by validate.yml. Systemd-specific tasks still skip on
+# non-systemd hosts when their target files/services do not exist.
+_power_management_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit
+
+# DMI chassis_type values treated as laptop-like when device_type=auto.
+_power_management_laptop_chassis_types:
+  - "8"   # Portable
+  - "9"   # Laptop
+  - "10"  # Notebook
+  - "14"  # Sub Notebook
+  - "30"  # Tablet
+  - "31"  # Convertible
+  - "32"  # Detachable
+
+# Raw DMI chassis_type read by detect.yml from /sys/class/dmi/id/chassis_type.
+_power_management_chassis_type: >-
+  {{ (_power_management_chassis_raw.content | default('') | b64decode | trim)
+     if _power_management_chassis_raw is defined else '' }}
+
+# Effective laptop/desktop decision used by install/configure/service.
+_power_management_is_laptop: >-
+  {{ power_management_device_type == 'laptop'
+     or (power_management_device_type == 'auto'
+         and _power_management_chassis_type in _power_management_laptop_chassis_types) }}

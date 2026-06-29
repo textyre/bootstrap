@@ -1,173 +1,32 @@
 ---
 # === power_management — orchestrator ===
-# Each import_tasks has Single Responsibility
+# validate -> load vars -> detect -> configure -> report
 
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in power_management_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ power_management_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+- name: Configure power management
   when: power_management_enabled | bool
   tags: ['power']
+  block:
 
-- name: Detect hardware and init system
-  ansible.builtin.import_tasks: detect.yml
-  when: power_management_enabled | bool
+    - name: Validate role prerequisites
+      ansible.builtin.include_tasks:
+        file: validate.yml
 
-- name: Pre-flight safety checks
-  ansible.builtin.import_tasks: preflight.yml
-  when: power_management_enabled | bool
+    - name: Load platform variables
+      ansible.builtin.include_tasks:
+        file: load_vars.yml
 
-- name: Disable conflicting power services
-  ansible.builtin.import_tasks: conflicts.yml
-  when: power_management_enabled | bool
+    - name: Detect hardware environment
+      ansible.builtin.include_tasks:
+        file: detect.yml
 
-- name: Install packages
-  ansible.builtin.import_tasks: install.yml
-  when: power_management_enabled | bool
+    - name: Configure power management stack
+      ansible.builtin.include_tasks:
+        file: configure/main.yml
 
-- name: Configure TLP
-  ansible.builtin.import_tasks: tlp.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_manage_tlp | bool
-
-- name: Configure CPU governor
-  ansible.builtin.import_tasks: governor.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_manage_governor | bool
-
-- name: Configure systemd sleep
-  ansible.builtin.import_tasks: sleep.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_manage_sleep | bool
-    - ansible_facts['service_mgr'] == 'systemd'
-
-- name: Configure logind power behaviour
-  ansible.builtin.import_tasks: logind.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_manage_logind | bool
-    - ansible_facts['service_mgr'] == 'systemd'
-
-- name: Collect system power facts
-  ansible.builtin.import_tasks: collect_facts.yml
-  when: power_management_enabled | bool
-
-- name: Verify deploy effectiveness
-  ansible.builtin.import_tasks: verify.yml
-  when: power_management_enabled | bool
-
-- name: Detect configuration drift
-  ansible.builtin.import_tasks: drift_detection.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_drift_detection | bool
-
-- name: Deploy audit monitoring
-  ansible.builtin.import_tasks: audit.yml
-  when:
-    - power_management_enabled | bool
-    - power_management_manage_audit | bool
-    - power_management_audit_enabled | bool
-
-# ---- Structured execution report ----
-
-- name: "Report: Detect hardware"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Detect hardware"
-    common_rpt_detail: >-
-      {{ 'laptop' if power_management_is_laptop else 'desktop' }}
-      init={{ power_management_init }}
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Install packages"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Install packages"
-    common_rpt_detail: "{{ ansible_facts['os_family'] }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Configure TLP"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Configure TLP"
-    common_rpt_status: "{{ 'done' if (power_management_is_laptop and power_management_manage_tlp) else 'skip' }}"
-    common_rpt_detail: "{{ 'laptop profile' if power_management_is_laptop else 'N/A (desktop)' }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Configure governor"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Configure governor"
-    common_rpt_detail: "{{ power_management_cpu_governor }}"
-    common_rpt_status: "{{ 'done' if power_management_manage_governor else 'skip' }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Configure sleep"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Configure sleep"
-    common_rpt_status: "{{ 'done' if (ansible_facts['service_mgr'] == 'systemd' and power_management_manage_sleep) else 'skip' }}"
-    common_rpt_detail: "hibernate={{ power_management_hibernate_mode }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Configure logind"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Configure logind"
-    common_rpt_status: "{{ 'done' if (ansible_facts['service_mgr'] == 'systemd' and power_management_manage_logind) else 'skip' }}"
-    common_rpt_detail: "lid={{ power_management_lid_switch_action }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Report: Audit monitoring"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_phase: "Audit monitoring"
-    common_rpt_status: "{{ 'done' if (power_management_manage_audit and power_management_audit_enabled) else 'skip' }}"
-    common_rpt_detail: "schedule={{ power_management_audit_schedule }}"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
-
-- name: "Power management — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_power_management_phases"
-    common_rpt_title: "power_management"
-  when: power_management_enabled | bool
-  tags: ['power', 'report']
+    - name: Render power management execution report
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_power_management_phases"
+        common_rpt_title: "power_management"

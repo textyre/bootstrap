@@ -1,0 +1,7 @@
+---
+# === power_management / vars - Void Linux ===
+# NOTE: Stub; full implementation pending when Void testing is available
+
+# Packages required for laptop TLP management on Void.
+_power_management_packages_laptop:
+  - tlp

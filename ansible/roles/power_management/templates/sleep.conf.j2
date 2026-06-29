@@ -2,7 +2,9 @@
 # systemd sleep configuration — /etc/systemd/sleep.conf
 # See: man systemd.sleep.conf(5)
 [Sleep]
+{% if power_management_hibernate_mode %}
 HibernateMode={{ power_management_hibernate_mode }}
+{% endif %}
 {% if power_management_suspend_state %}
 SuspendState={{ power_management_suspend_state }}
 {% endif %}

@@ -1,0 +1,16 @@
+---
+# === power_management / load_vars - platform variable mappings ===
+# The OS family is validated before this phase.
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}/main.yml"
+
+- name: "Report: Load platform variables"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Load platform variables"
+    common_rpt_detail: >-
+      {{ ansible_facts['os_family'] | lower }}/main.yml

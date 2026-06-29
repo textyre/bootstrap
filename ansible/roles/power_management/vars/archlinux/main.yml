@@ -1,0 +1,7 @@
+---
+# === power_management / vars - Arch Linux ===
+
+# Packages required for laptop TLP management on Arch.
+_power_management_packages_laptop:
+  - tlp
+  - tlp-rdw

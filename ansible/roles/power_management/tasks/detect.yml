@@ -1,56 +1,33 @@
 ---
 # === power_management / detect ===
-# DMI chassis type, CPU vendor, init system detection
+# Detect the hardware signal needed to choose laptop or desktop mode.
 
 # ---- DMI chassis type ----
+
+- name: Check DMI chassis type path
+  ansible.builtin.stat:
+    path: /sys/class/dmi/id/chassis_type
+  register: _power_management_chassis_path
+  when: power_management_device_type == 'auto'
 
 - name: Read DMI chassis type
   ansible.builtin.slurp:
     src: /sys/class/dmi/id/chassis_type
-  register: power_management_chassis_raw
-  failed_when: false
-  tags: ['power', 'detect']
-
-- name: Set device type fact
-  ansible.builtin.set_fact:
-    power_management_is_laptop: >-
-      {{
-        (power_management_device_type == 'laptop') or
-        (power_management_device_type == 'auto' and
-         'content' in power_management_chassis_raw and
-         (power_management_chassis_raw.content | b64decode | trim) in power_management_laptop_chassis_types)
-      }}
-  tags: ['power', 'detect']
-
-# ---- Init system detection ----
-
-- name: Detect init system
-  ansible.builtin.set_fact:
-    power_management_init: "{{ ansible_facts['service_mgr'] | default('unknown') }}"
-  tags: ['power', 'detect']
-
-# ---- CPU vendor detection ----
-
-- name: Read CPU vendor from /proc/cpuinfo
-  ansible.builtin.slurp:
-    src: /proc/cpuinfo
-  register: power_management_cpuinfo_raw
-  failed_when: false
-  tags: ['power', 'detect']
-
-- name: Set CPU vendor facts
-  ansible.builtin.set_fact:
-    power_management_cpu_is_intel: "{{ 'GenuineIntel' in (power_management_cpuinfo_raw.content | b64decode | default('')) }}"
-    power_management_cpu_is_amd: "{{ 'AuthenticAMD' in (power_management_cpuinfo_raw.content | b64decode | default('')) }}"
-  tags: ['power', 'detect']
+  register: _power_management_chassis_raw
+  when:
+    - power_management_device_type == 'auto'
+    - _power_management_chassis_path.stat.exists | default(false)
 
 # ---- Report ----
 
-- name: Report detected hardware
-  ansible.builtin.debug:
-    msg: >-
-      Device: {{ 'laptop' if power_management_is_laptop else 'desktop' }}
-      (config: {{ power_management_device_type }}),
-      Init: {{ power_management_init }},
-      CPU: {{ 'Intel' if power_management_cpu_is_intel else ('AMD' if power_management_cpu_is_amd else 'other') }}
-  tags: ['power', 'detect']
+- name: "Report: Detect hardware"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Detect hardware"
+    common_rpt_detail: >-
+      {{ 'laptop' if _power_management_is_laptop | bool else 'desktop' }}
+      (config={{ power_management_device_type }}),
+      init={{ ansible_facts['service_mgr'] | default('unknown') }}
