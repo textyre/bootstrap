@@ -1,0 +1,25 @@
+---
+# === power_management / sleep ===
+# systemd sleep.conf configuration
+
+- name: Deploy systemd sleep.conf
+  ansible.builtin.template:
+    src: sleep.conf.j2
+    dest: /etc/systemd/sleep.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: _power_management_sleep_config
+  when:
+    - power_management_manage_sleep | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+
+- name: "Report: Configure sleep"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Configure sleep"
+    common_rpt_status: "{{ 'done' if (power_management_manage_sleep | bool and ansible_facts['service_mgr'] == 'systemd') else 'skip' }}"
+    common_rpt_detail: "hibernate={{ power_management_hibernate_mode | default('') | ternary(power_management_hibernate_mode, 'default') }}"

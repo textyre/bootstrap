@@ -1,0 +1,7 @@
+---
+# === power_management / vars - Gentoo ===
+# NOTE: Stub; full implementation pending when Gentoo testing is available
+
+# Packages required for laptop TLP management on Gentoo.
+_power_management_packages_laptop:
+  - app-laptop/tlp

@@ -5,21 +5,20 @@
 # ---- Deploy TLP config with rollback ----
 
 - name: Deploy TLP configuration
-  when: power_management_is_laptop
-  tags: ['power', 'tlp']
+  when:
+    - power_management_manage_tlp | bool
+    - _power_management_is_laptop | bool
   block:
     - name: Check if existing TLP config exists
       ansible.builtin.stat:
         path: /etc/tlp.conf
-      register: power_management_tlp_existing
-      tags: ['power', 'tlp']
+      register: _power_management_tlp_existing
 
     - name: Read existing TLP config to check if already Ansible-managed
       ansible.builtin.slurp:
         src: /etc/tlp.conf
-      register: power_management_tlp_existing_content
-      when: power_management_tlp_existing.stat.exists
-      tags: ['power', 'tlp']
+      register: _power_management_tlp_existing_content
+      when: _power_management_tlp_existing.stat.exists
 
     - name: Backup existing TLP config (skip if already Ansible-managed)
       ansible.builtin.copy:
@@ -27,12 +26,12 @@
         dest: "/etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}"
         remote_src: true
         mode: '0644'
-      register: power_management_tlp_backup
+      register: _power_management_tlp_backup
       when:
-        - power_management_tlp_existing.stat.exists
-        - not ('content' in power_management_tlp_existing_content and
-               'Managed by Ansible' in (power_management_tlp_existing_content.content | b64decode))
-      tags: ['power', 'tlp']
+        - _power_management_tlp_existing.stat.exists
+        - _power_management_tlp_existing_content is defined
+        - not ('content' in _power_management_tlp_existing_content and
+               'Managed by Ansible' in (_power_management_tlp_existing_content.content | b64decode))
 
     - name: Deploy TLP configuration
       ansible.builtin.template:
@@ -41,17 +40,22 @@
         owner: root
         group: root
         mode: '0644'
-      notify: "restart tlp"
-      tags: ['power', 'tlp']
+      register: _power_management_tlp_config
 
     # NOTE: tlp-stat -c displays config but does NOT validate values strictly.
     # TLP silently ignores unknown/invalid keys. This check only verifies
     # the file is readable and TLP binary works — not semantic correctness.
-    - name: Verify TLP binary can read config
+    - name: Check TLP binary can read config
       ansible.builtin.command: tlp-stat -c
       changed_when: false
-      register: power_management_tlp_config_check
-      tags: ['power', 'tlp']
+      failed_when: _power_management_tlp_config_check.rc != 0
+      register: _power_management_tlp_config_check
+
+    - name: Ensure TLP service is enabled and running
+      ansible.builtin.service:
+        name: tlp
+        enabled: true
+        state: started
 
   rescue:
     - name: Restore TLP backup on failure
@@ -60,28 +64,25 @@
         dest: /etc/tlp.conf
         remote_src: true
         mode: '0644'
-      when: power_management_tlp_backup is defined and power_management_tlp_backup.changed | default(false)
-      failed_when: false
-      tags: ['power', 'tlp']
+      when: _power_management_tlp_backup is defined and _power_management_tlp_backup.changed | default(false)
 
     - name: Fail with TLP deploy context
       ansible.builtin.fail:
         msg: >-
           TLP configuration deployment failed.
-          {% if power_management_tlp_backup is defined and power_management_tlp_backup.changed | default(false) %}
+          {% if _power_management_tlp_backup is defined and _power_management_tlp_backup.changed | default(false) %}
           Previous config restored from /etc/tlp.conf.ansible-backup-{{ ansible_date_time.epoch }}.
           {% else %}
           No previous config existed (first run) — nothing to restore.
           {% endif %}
           Check template syntax and run 'tlp-stat -c' manually.
-      tags: ['power', 'tlp']
 
-# ---- Enable TLP service ----
-
-- name: Enable and start TLP service
-  ansible.builtin.service:
-    name: tlp
-    enabled: true
-    state: started
-  when: power_management_is_laptop
-  tags: ['power', 'tlp']
+- name: "Report: Configure TLP"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Configure TLP"
+    common_rpt_status: "{{ 'done' if (power_management_manage_tlp | bool and _power_management_is_laptop | bool) else 'skip' }}"
+    common_rpt_detail: "{{ 'laptop profile' if _power_management_is_laptop | bool else 'N/A (desktop)' }}"

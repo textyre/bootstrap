@@ -1,0 +1,7 @@
+---
+# === power_management / vars - Debian/Ubuntu ===
+
+# Packages required for laptop TLP management on Debian/Ubuntu.
+_power_management_packages_laptop:
+  - tlp
+  - tlp-rdw

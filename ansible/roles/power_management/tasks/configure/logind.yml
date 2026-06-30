@@ -1,0 +1,37 @@
+---
+# === power_management / logind ===
+# systemd-logind power button and lid switch behaviour
+
+# ---- Deploy logind.conf ----
+
+- name: Deploy logind.conf
+  ansible.builtin.template:
+    src: logind.conf.j2
+    dest: /etc/systemd/logind.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: _power_management_logind_config
+  when:
+    - power_management_manage_logind | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+
+- name: Reload systemd-logind after logind configuration change
+  ansible.builtin.systemd:
+    name: systemd-logind.service
+    state: reloaded
+  when:
+    - power_management_manage_logind | bool
+    - ansible_facts['service_mgr'] == 'systemd'
+    - _power_management_logind_config.changed | default(false)
+    - "'systemd-logind.service' in (ansible_facts.services | default({}))"
+
+- name: "Report: Configure logind"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Configure logind"
+    common_rpt_status: "{{ 'done' if (power_management_manage_logind | bool and ansible_facts['service_mgr'] == 'systemd') else 'skip' }}"
+    common_rpt_detail: "lid={{ power_management_lid_switch_action }}"

@@ -8,12 +8,6 @@ CPU_BOOST_ON_AC={{ '1' if power_management_tlp_cpu_boost_ac else '0' }}
 CPU_BOOST_ON_BAT={{ '1' if power_management_tlp_cpu_boost_bat else '0' }}
 CPU_ENERGY_PERF_POLICY_ON_AC={{ power_management_tlp_cpu_epp_ac }}
 CPU_ENERGY_PERF_POLICY_ON_BAT={{ power_management_tlp_cpu_epp_bat }}
-{% if power_management_tlp_cpu_min_freq_ac %}
-CPU_SCALING_MIN_FREQ_ON_AC={{ power_management_tlp_cpu_min_freq_ac }}
-{% endif %}
-{% if power_management_tlp_cpu_max_freq_bat %}
-CPU_SCALING_MAX_FREQ_ON_BAT={{ power_management_tlp_cpu_max_freq_bat }}
-{% endif %}
 
 # ---- Disk ----
 {% if power_management_tlp_disk_devices %}
@@ -43,7 +37,7 @@ WIFI_PWR_ON_AC={{ power_management_tlp_wifi_pwr_ac }}
 WIFI_PWR_ON_BAT={{ power_management_tlp_wifi_pwr_bat }}
 
 # ---- Sound ----
-SOUND_POWER_SAVE_ON_BAT={{ '1' if power_management_tlp_sound_powersave_bat else '0' }}
+SOUND_POWER_SAVE_ON_BAT={{ power_management_tlp_sound_powersave_bat }}
 SOUND_POWER_SAVE_CONTROLLER={{ 'Y' if power_management_tlp_sound_powersave_controller else 'N' }}
 
 # ---- Runtime Power Management ----
@@ -51,15 +45,11 @@ RUNTIME_PM_ON_AC={{ power_management_tlp_runtime_pm_ac }}
 RUNTIME_PM_ON_BAT={{ power_management_tlp_runtime_pm_bat }}
 
 # ---- Battery Charge Thresholds (ThinkPad / supported hardware) ----
-{% if power_management_tlp_bat0_charge_start %}
+{% if power_management_tlp_bat0_charge_start and power_management_tlp_bat0_charge_stop %}
 START_CHARGE_THRESH_BAT0={{ power_management_tlp_bat0_charge_start }}
-{% endif %}
-{% if power_management_tlp_bat0_charge_stop %}
 STOP_CHARGE_THRESH_BAT0={{ power_management_tlp_bat0_charge_stop }}
 {% endif %}
-{% if power_management_tlp_bat1_charge_start %}
+{% if power_management_tlp_bat1_charge_start and power_management_tlp_bat1_charge_stop %}
 START_CHARGE_THRESH_BAT1={{ power_management_tlp_bat1_charge_start }}
-{% endif %}
-{% if power_management_tlp_bat1_charge_stop %}
 STOP_CHARGE_THRESH_BAT1={{ power_management_tlp_bat1_charge_stop }}
 {% endif %}

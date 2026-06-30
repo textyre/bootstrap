@@ -1,130 +1,187 @@
 ---
 # ============================================================
-# power_management — полная спецификация переменных
+# power_management variable reference
 # ============================================================
 
 # ---- Global ----
+# Master switch for the entire role. false skips all role tasks.
 power_management_enabled: true
 
 # ---- Per-subsystem toggles ----
-# Each subsystem can be disabled independently without affecting others.
+# Manage laptop TLP packages, config, and service.
 power_management_manage_tlp: true
+
+# Manage desktop CPU governor persistence.
 power_management_manage_governor: true
+
+# Manage systemd sleep.conf on systemd hosts.
 power_management_manage_sleep: true
+
+# Manage systemd-logind.conf on systemd hosts.
 power_management_manage_logind: true
-power_management_manage_audit: true
-
-# ---- Internal ----
-power_management_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-power_management_laptop_chassis_types:
-  - "8"   # Portable
-  - "9"   # Laptop
-  - "10"  # Notebook
-  - "14"  # Sub Notebook
-  - "30"  # Tablet
-  - "31"  # Convertible
-  - "32"  # Detachable
-
-# ---- Internal facts (overridden by detect.yml) ----
-# Explicit defaults ensure safe behaviour when power_management_enabled: false
-power_management_is_laptop: false
-power_management_init: "unknown"
-power_management_cpu_is_intel: false
-power_management_cpu_is_amd: false
 
 # ---- Device detection ----
-# auto = detect via DMI chassis_type
-# laptop / desktop = force specific mode
+# auto: detect laptop/desktop via DMI chassis_type.
+# laptop: force the TLP path even if DMI is missing or wrong.
+# desktop: force the desktop CPU governor path and skip TLP.
 power_management_device_type: auto
 
 # ---- TLP (laptop only) ----
-# CPU
-power_management_tlp_cpu_governor_ac: performance
-power_management_tlp_cpu_governor_bat: powersave
+# TLP is the laptop power profile owner. AC values apply while plugged in;
+# BAT values apply on battery.
+# CPU governor while on AC power. schedutil keeps performance responsive
+# without pinning the CPU to a maximum-performance policy.
+power_management_tlp_cpu_governor_ac: schedutil
+
+# CPU governor while on battery. schedutil stays balanced; battery saving is
+# handled by EPP, boost policy, runtime PM, and device power saving below.
+power_management_tlp_cpu_governor_bat: schedutil
+
+# Allow CPU turbo/boost while on AC power.
 power_management_tlp_cpu_boost_ac: true
+
+# Disable CPU turbo/boost while on battery to reduce power draw and heat.
 power_management_tlp_cpu_boost_bat: false
-power_management_tlp_cpu_epp_ac: performance
-power_management_tlp_cpu_epp_bat: power
-power_management_tlp_cpu_min_freq_ac: ""
-power_management_tlp_cpu_max_freq_bat: ""
+
+# Energy/performance preference while on AC for Intel HWP / AMD EPP.
+power_management_tlp_cpu_epp_ac: balance_performance
+
+# Energy/performance preference while on battery.
+power_management_tlp_cpu_epp_bat: balance_power
 
 # Disk
+# Disk device list for TLP. Empty string lets TLP auto-detect disks.
 power_management_tlp_disk_devices: ""
+
+# Disk scheduler configured by TLP where supported.
 power_management_tlp_disk_iosched: mq-deadline
+
+# Disk APM level on AC; higher values favor performance.
 power_management_tlp_disk_apm_ac: 254
-power_management_tlp_disk_apm_bat: 128
+
+# Disk APM level on battery. 254 avoids aggressive head parking on HDDs while
+# still leaving other battery-saving policies active.
+power_management_tlp_disk_apm_bat: 254
+
+# SATA link power policy on AC.
 power_management_tlp_sata_linkpwr_ac: max_performance
-power_management_tlp_sata_linkpwr_bat: min_power
+
+# SATA link power policy on battery. med_power_with_dipm is a balanced policy;
+# min_power is more aggressive and can cause latency or device quirks.
+power_management_tlp_sata_linkpwr_bat: med_power_with_dipm
 
 # USB
+# Enable USB autosuspend through TLP.
 power_management_tlp_usb_autosuspend: true
+
+# USB device IDs excluded from autosuspend, for devices that must stay awake.
 power_management_tlp_usb_allowlist: []
+
+# USB device IDs forced into autosuspend.
 power_management_tlp_usb_denylist: []
 
 # PCIe
+# PCIe ASPM policy on AC.
 power_management_tlp_pcie_aspm_ac: default
-power_management_tlp_pcie_aspm_bat: powersupersave
+
+# PCIe ASPM policy on battery. default lets kernel/firmware choose a safe
+# policy instead of forcing the most aggressive power saving.
+power_management_tlp_pcie_aspm_bat: default
 
 # WiFi
+# WiFi power saving on AC.
 power_management_tlp_wifi_pwr_ac: "off"
+
+# WiFi power saving on battery.
 power_management_tlp_wifi_pwr_bat: "on"
 
 # Sound
-power_management_tlp_sound_powersave_bat: true
+# HDA audio idle timeout on battery in seconds. 1 enables quick power saving;
+# 0 disables audio power saving.
+power_management_tlp_sound_powersave_bat: 1
+
+# Enable power saving for the sound controller itself.
 power_management_tlp_sound_powersave_controller: true
 
 # Runtime PM
+# Runtime power management policy for PCI devices on AC.
 power_management_tlp_runtime_pm_ac: "on"
+
+# Runtime power management policy for PCI devices on battery.
 power_management_tlp_runtime_pm_bat: auto
 
-# Battery charge thresholds (ThinkPad/Dell — empty string = don't configure)
+# Battery charge thresholds for hardware that exposes charge_control_* sysfs
+# files, commonly ThinkPad/Dell. Empty string means "do not configure".
+# Typical battery-health profile: start=40, stop=80.
+# Start should be lower than stop because start is the lower resume-charging
+# point and stop is the upper stop-charging point.
+# BAT0 lower threshold: start charging when capacity drops below this value.
+# Configure together with power_management_tlp_bat0_charge_stop.
 power_management_tlp_bat0_charge_start: ""
+
+# BAT0 upper threshold: stop charging when capacity reaches this value.
+# Configure together with power_management_tlp_bat0_charge_start.
 power_management_tlp_bat0_charge_stop: ""
+
+# BAT1 lower threshold for dual-battery laptops.
+# Configure together with power_management_tlp_bat1_charge_stop.
 power_management_tlp_bat1_charge_start: ""
+
+# BAT1 upper threshold for dual-battery laptops.
+# Configure together with power_management_tlp_bat1_charge_start.
 power_management_tlp_bat1_charge_stop: ""
 
 # ---- CPU governor (desktop) ----
-power_management_cpu_governor: schedutil
-# persist method: udev (init-agnostic, recommended) | service (systemd only) | oneshot (no reboot survival)
-power_management_governor_persist: udev
-
+# Desktop CPU governor:
+# schedutil: default balanced kernel-driven scaling for most desktops.
+# performance: gaming, low-latency, or always-high-performance machines.
+# powersave: quiet/cool/low-power desktops.
+# Gaming workstations default to performance; others default to schedutil.
+power_management_cpu_governor: >-
+  {% if 'gaming' in (workstation_profiles | default([])) -%}performance{%- else -%}schedutil{%- endif %}
 # ---- systemd sleep ----
-# NOTE: The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen at
+# These settings are used only on systemd hosts.
+# The sleep MODE (suspend / hibernate / hybrid-sleep) is chosen at
 # runtime via logind.conf actions (HandleLidSwitch, IdleAction) or manually
 # with 'systemctl suspend|hibernate|hybrid-sleep'. The settings below control
-# HOW each mode is implemented by the kernel — see systemd.sleep.conf(5).
-power_management_hibernate_mode: platform
+# HOW each mode is implemented by the kernel; see systemd.sleep.conf(5).
+# Hibernate needs working swap/resume configuration on the host; this role does
+# not create swap.
+# Optional kernel hibernate mode override. Empty string leaves system default.
+power_management_hibernate_mode: ""
+
+# Optional kernel suspend state override. Empty string leaves system default.
 power_management_suspend_state: ""
+
+# Optional suspend-then-hibernate delay. Empty string disables the override.
 power_management_hibernate_delay_sec: ""
 
 # ---- logind (systemd only) ----
+# Common actions:
+# ignore: do nothing; useful for docked laptops, servers, or remote hosts.
+# suspend: default laptop behavior.
+# hibernate/hybrid-sleep/suspend-then-hibernate: require working hibernate.
+# poweroff/reboot/halt/kexec: hard power/session actions.
+# Action when laptop lid closes.
 power_management_lid_switch_action: suspend
+
+# Action when laptop lid closes while on AC.
 power_management_lid_switch_ac_action: suspend
+
+# Action when laptop lid closes while docked.
 power_management_lid_switch_docked_action: ignore
+
+# Action when power key is pressed.
 power_management_power_key_action: poweroff
+
+# Action when suspend key is pressed.
 power_management_suspend_key_action: suspend
+
+# Action when hibernate key is pressed.
 power_management_hibernate_key_action: ignore
+
+# Action after IdleActionSec expires. ignore is safest for remote hosts.
 power_management_idle_action: ignore
+
+# Idle timeout consumed by systemd-logind when idle action is enabled.
 power_management_idle_action_sec: "30min"
-
-# ---- Audit & Monitoring ----
-power_management_audit_enabled: true
-power_management_audit_schedule: "daily"
-power_management_audit_battery: true
-power_management_audit_battery_wear_threshold: 20
-
-power_management_drift_detection: true
-power_management_drift_state_dir: /var/lib/ansible-power-management
-
-# Cron schedule for non-systemd systems (ignored when systemd is available)
-power_management_audit_cron_hour: "0"
-power_management_audit_cron_minute: "0"
-
-# ---- Assertions ----
-power_management_assert_strict: true

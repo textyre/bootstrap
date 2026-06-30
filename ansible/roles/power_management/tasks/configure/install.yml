@@ -1,0 +1,20 @@
+---
+# === power_management / install ===
+# Install packages via ansible.builtin.package.
+
+- name: Install TLP packages
+  ansible.builtin.package:
+    name: "{{ _power_management_packages_laptop }}"
+    state: present
+  when:
+    - power_management_manage_tlp | bool
+    - _power_management_is_laptop | bool
+
+- name: "Report: Install packages"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_power_management_phases"
+    common_rpt_phase: "Install packages"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"
