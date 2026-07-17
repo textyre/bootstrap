@@ -11,7 +11,6 @@ provisioner:
   name: ansible
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
       callbacks_enabled: profile_tasks
   inventory:
     host_vars:
@@ -22,9 +21,6 @@ provisioner:
     verify: ../shared/verify.yml
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:

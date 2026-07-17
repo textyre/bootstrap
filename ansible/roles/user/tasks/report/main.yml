@@ -1,0 +1,23 @@
+---
+# === user: final report ===
+
+- name: "User -- Execution Report"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_user_phases"
+    common_rpt_title: "user"
+    common_rpt_footer_rows:
+      - >-
+        | {{ '%-26s' | format('Owner') }}
+        | {{ '%-10s' | format('+ done') }}
+        | {{ '%-24s' | format(user_owner.name | truncate(24, True)) }} |
+      - >-
+        | {{ '%-26s' | format('Additional accounts') }}
+        | {{ '%-10s' | format('+ done' if user_additional_users | length > 0 else '- skip') }}
+        | {{ '%-24s' | format((user_additional_users | length | string) | truncate(24, True)) }} |
+      - >-
+        | {{ '%-26s' | format('Sudo group') }}
+        | {{ '%-10s' | format('+ done') }}
+        | {{ '%-24s' | format(_user_sudo_group | truncate(24, True)) }} |

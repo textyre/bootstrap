@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-%{{ user_sudo_group }} ALL=(ALL:ALL) ALL
+%{{ _user_sudo_group }} ALL=(ALL:ALL) ALL
 Defaults timestamp_timeout={{ user_sudo_timestamp_timeout }}
 {% if user_sudo_use_pty %}
 Defaults use_pty

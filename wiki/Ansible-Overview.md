@@ -36,7 +36,7 @@ task workstation # Применить все 14 ролей
 - **packages** — установка всех пакетов
 
 ### User & Access
-- **user** — пользователь, sudo, группы
+- **user** — локальные пользователи, sudo, password aging, umask
 - **ssh** — SSH ключи, hardening sshd
 
 ### Development Tools

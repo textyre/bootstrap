@@ -1,30 +1,30 @@
 ---
 # === user role — defaults ===
 
-# --- ROLE-003: Supported operating systems ---
-user_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
 # --- Primary owner (always one, admin of the machine) ---
 user_owner:
-  name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+  # Primary local administrator account. Defaults to the project target user when set.
+  name: "{{ user_name | default(ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id'])) }}"
+  # Login shell for the owner account. The shell role owns shell package/config setup.
   shell: "{{ user_shell | default('/bin/bash') }}"
-  groups:
-    - "{{ user_sudo_group }}"
-  password_hash: ""             # Empty = account locked (shadow '!'). To enable: set pre-hashed sha512 via vault.
-  update_password: on_create    # Don't re-hash on every run (idempotent)
-  umask: "027"                  # CIS 5.4.2: restrictive default umask
-  password_max_age: 365         # CIS 5.5.1: days before password must change
-  password_min_age: 1           # CIS 5.5.2: days before password can change
-  password_warn_age: 7          # Days before expiry to warn (applied via chage -W, not via ansible.builtin.user which requires ansible-core >= 2.17)
+  # Supplementary groups. Defaults to the platform sudo group.
+  groups: "{{ user_groups | default([_user_sudo_group]) }}"
+  # Empty hash means no direct password login until a vaulted password hash is supplied.
+  password_hash: ""
+  # Keep password idempotent when a hash is supplied.
+  update_password: on_create
+  # CIS 5.4.2: restrictive default umask for the owner login shell.
+  umask: "027"
+  # CIS 5.5.1: maximum password age in days.
+  password_max_age: 365
+  # CIS 5.5.2: minimum password age in days.
+  password_min_age: 1
+  # Password expiry warning age in days.
+  password_warn_age: 7
 
 # --- Additional users (family, guests, etc.) ---
 # Each entry supports the same fields as user_owner, plus:
-#   sudo: true/false  — whether to add to user_sudo_group
+#   sudo: true/false  — whether to add to the platform sudo group
 user_additional_users: []
 # Example:
 # user_additional_users:
@@ -40,28 +40,24 @@ user_additional_users: []
 #     password_warn_age: 7
 
 # --- Feature toggles ---
-user_manage_password_aging: true  # Set password_expire_max/min
-user_manage_umask: true           # Deploy /etc/profile.d/umask for each user
-user_verify_root_lock: true       # CIS 5.4.3: assert root has no direct password login
-
-# --- Global sudo policy ---
-# sudo group name: wheel on Arch, sudo on Debian/Ubuntu
-user_sudo_group: "{{ 'sudo' if ansible_facts['os_family'] == 'Debian' else 'wheel' }}"
+user_manage_password_aging: true  # Set password max/min/warn ages.
+user_manage_umask: true           # Deploy login-shell umask profiles for managed users.
+user_manage_root_lock: true       # CIS 5.4.3: lock direct root password login.
 
 # timestamp_timeout: profile-aware
-# developer profile → 15 min (comfortable for development)
-# security profile  → 0 min (re-enter password every time)
-# default           → 5 min (CIS 5.3.4: must be <= 5)
+# developer profile -> 15 min (comfortable for local workstation development)
+# security profile  -> 0 min (re-enter password every time)
+# default           -> 5 min (CIS 5.3.4 baseline)
 user_sudo_timestamp_timeout: >-
   {{ 0 if 'security' in (workstation_profiles | default([]))
      else 15 if 'developer' in (workstation_profiles | default([]))
      else 5 }}
 
-user_sudo_use_pty: true                # CIS 5.3.5: prevent PTY injection
-user_sudo_logfile: "/var/log/sudo.log" # CIS 5.3.7: audit trail
-user_sudo_log_input: false             # Record stdin of sudo sessions
-user_sudo_log_output: false            # Record stdout/stderr of sudo sessions
-user_sudo_passwd_timeout: 1            # Minutes to enter password
+user_sudo_use_pty: true                # CIS 5.3.5: allocate a PTY for sudo sessions.
+user_sudo_logfile: "/var/log/sudo.log" # CIS 5.3.7: audit trail for sudo commands.
+user_sudo_log_input: false             # Record stdin of sudo sessions; can capture sensitive input.
+user_sudo_log_output: false            # Record stdout/stderr of sudo sessions; can grow quickly.
+user_sudo_passwd_timeout: 1            # Minutes allowed to enter a sudo password prompt.
 
 # --- ROLE-010: User-provided sudo config overrides ---
 # Additional sudoers directives merged into the template.
@@ -70,6 +66,6 @@ user_sudo_passwd_timeout: 1            # Minutes to enter password
 user_sudo_config_overwrite: {}
 
 # Logrotate for sudo.log
-user_sudo_logrotate_enabled: true
+user_sudo_logrotate_enabled: true      # Deploy sudo.log rotation policy.
 user_sudo_logrotate_frequency: "weekly"
-user_sudo_logrotate_rotate: 13         # 13 weeks ≈ 90 days (CIS minimum retention)
+user_sudo_logrotate_rotate: 13         # 13 weeks is roughly 90 days of weekly sudo logs.

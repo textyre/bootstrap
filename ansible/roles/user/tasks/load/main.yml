@@ -1,0 +1,14 @@
+---
+# === user: load platform variables ===
+
+- name: Include OS-specific user variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
+
+- name: "Report: Load user variables"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Load variables"
+    common_rpt_detail: "{{ ansible_facts['os_family'] | lower }}.yml"

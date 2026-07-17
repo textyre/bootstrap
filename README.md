@@ -56,7 +56,7 @@ scripts/setup-vault-pass.sh
 
 | Роль | Описание |
 |------|----------|
-| `user` | Пользователь, sudo, группы, SSH ключи, пароли |
+| `user` | Локальные пользователи, sudo, password aging, umask |
 | `ssh_keys` | Генерация и деплой SSH ключей |
 | `ssh` | sshd hardening, moduli, баннеры |
 | `teleport` | Teleport agent (zero-trust access) |
