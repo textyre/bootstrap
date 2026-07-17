@@ -1,129 +1,79 @@
 # user role
 
-Manages user accounts on workstations: primary owner user, optional additional users,
-sudo hardening, password aging, and umask configuration.
+Configures local workstation accounts, their sudo access, password aging,
+login-shell umask, root password lock, and sudo-log rotation policy.
 
-## Variables
+The complete variable reference, examples, troubleshooting, and test failure
+guide live in [`ansible/roles/user/README.md`](../../ansible/roles/user/README.md).
 
-### Owner user
+## Contract
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `user_owner.name` | `SUDO_USER` or current user | Primary admin user |
-| `user_owner.shell` | `/bin/bash` | Login shell |
-| `user_owner.groups` | `[user_sudo_group]` | Supplementary groups |
-| `user_owner.password_hash` | `""` (account locked) | Pre-hashed sha512 from vault |
-| `user_owner.update_password` | `on_create` | `always` or `on_create` |
-| `user_owner.umask` | `"027"` | CIS 5.4.2 login umask |
-| `user_owner.password_max_age` | `365` | CIS 5.5.1 -- days before must change |
-| `user_owner.password_min_age` | `1` | CIS 5.5.2 -- days before can change |
-| `user_owner.password_warn_age` | `7` | Days before expiry to warn |
+The role creates and maintains one owner account and optional additional local
+accounts. It adds requested supplementary groups, grants sudo access, deploys a
+validated sudoers policy, configures password aging and login umask, locks the
+root password, and deploys the sudo-log rotation policy.
 
-### Feature toggles
+The role does not remove accounts or group memberships. It also does not own
+package installation, arbitrary application groups, shell installation, SSH,
+PAM/faillock, dotfiles, or desktop sessions. `sudo`, `visudo`, configured shell
+executables, and non-sudo supplementary groups must already exist.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `user_manage_password_aging` | `true` | Apply `password_expire_max/min` |
-| `user_manage_umask` | `true` | Deploy `/etc/profile.d/umask-<user>.sh` |
-| `user_verify_root_lock` | `true` | Assert root has locked/empty password |
+## Pipeline
 
-### Sudo policy
+`validate -> load vars -> owner -> additional users -> sudo -> security -> report`
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `user_sudo_group` | `wheel` (non-Debian) / `sudo` (Debian) | Group with sudo access |
-| `user_sudo_timestamp_timeout` | `5` (default), `15` (developer), `0` (security) | Minutes sudo caches credentials |
-| `user_sudo_use_pty` | `true` | CIS 5.3.5 |
-| `user_sudo_logfile` | `/var/log/sudo.log` | CIS 5.3.7 |
-| `user_sudo_passwd_timeout` | `1` | CIS 5.3.6: minutes to enter password |
-| `user_sudo_log_input` | `false` | Record stdin of sudo sessions |
-| `user_sudo_log_output` | `false` | Record stdout/stderr of sudo sessions |
-| `user_sudo_logrotate_enabled` | `true` | Deploy logrotate for sudo.log |
-| `user_sudo_logrotate_frequency` | `"weekly"` | Rotation frequency |
-| `user_sudo_logrotate_rotate` | `13` | Number of rotations (~90 days) |
+| Phase | Result |
+|-------|--------|
+| Validate | Reject unsupported OS families before mutation |
+| Load vars | Load the platform sudo group and sudo-log group |
+| Owner | Configure the primary account, aging, and login umask |
+| Additional users | Configure optional accounts and add requested groups |
+| Sudo | Deploy validated sudoers and sudo-log rotation policies |
+| Security | Lock the root password when enabled |
+| Report | Render the informational execution report |
 
-## Profile Behavior
+There is no verification phase inside the role. Molecule performs behavioral
+verification after convergence and idempotence.
 
-| Profile | `user_sudo_timestamp_timeout` |
-|---------|-------------------------------|
-| (none) | 5 minutes |
-| `developer` | 15 minutes (exceeds CIS 5.3.4 by design) |
-| `security` | 0 minutes (always re-enter) |
+## Important Variable Behavior
 
-Profile priority: `security` overrides `developer` when both are set.
+| Setting | Actual behavior |
+|---------|-----------------|
+| Empty `password_hash` | The role does not change the password |
+| `update_password: on_create` | A supplied hash is applied only while creating the account |
+| `groups` | Listed groups are added; existing memberships are retained |
+| `sudo: true` | Adds the platform sudo group |
+| `sudo: false` | Does not add sudo access and does not revoke existing access |
+| `user_manage_password_aging: false` | Preserves existing password-aging values |
+| `user_manage_umask: false` | Skips deployment and does not remove an existing profile |
+| `user_manage_root_lock: false` | Skips locking and does not unlock root |
 
-## Vault Integration
+Platform sudo groups are `sudo` on Debian/Ubuntu and `wheel` on Arch,
+Fedora/RedHat, Void, and Gentoo. Automated scenarios currently cover Arch and
+Ubuntu only.
 
-Store the password hash in vault:
+## Runtime Environments
 
-```yaml
-# inventory/group_vars/all/vault.yml (ansible-vault encrypted)
-vault_owner_password_hash: "$6$rounds=656000$..."
-```
+| Environment | Behavior |
+|-------------|----------|
+| Bare metal | Applies the complete account and sudo contract to the workstation |
+| VM guest | Applies the same contract inside the guest OS without affecting host users |
+| Docker | Exercises account state, sudo policy, aging, root lock, and login-shell umask; graphical login and PAM are outside the scenario |
 
-Reference in inventory:
+## Testing
 
-```yaml
-# inventory/host_vars/mymachine.yml
-user_owner:
-  name: textyre
-  password_hash: "{{ vault_owner_password_hash }}"
-```
+| Scenario | Sequence | Coverage |
+|----------|----------|----------|
+| Default | `syntax -> converge -> idempotence -> verify` | Prepared disposable Arch test host |
+| Docker | `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy` | Arch and Ubuntu containers |
+| Vagrant/libvirt | `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy` | Arch and Ubuntu VMs |
 
-Generate hash:
-```bash
-python3 -c "import crypt; print(crypt.crypt('mypassword', crypt.mksalt(crypt.METHOD_SHA512)))"
-```
+The shared behavioral verify checks:
 
-## Additional Users Example
+1. The administrative test account is authorized by sudo policy.
+2. The regular test account is denied by sudo policy.
+3. Login shells apply owner umask `0027` and additional-account umask `0077`.
 
-```yaml
-user_additional_users:
-  - name: alice
-    shell: /bin/bash
-    groups: [video, audio]
-    sudo: false
-    password_hash: "{{ vault_alice_password }}"
-    umask: "077"
-    password_max_age: 90
-  - name: bob
-    shell: /bin/bash
-    groups: [video, audio]
-    sudo: true
-    password_hash: "{{ vault_bob_password }}"
-```
-
-## CIS Controls
-
-| CIS ID | Control | Default |
-|--------|---------|---------|
-| 5.3.4 | sudo timestamp_timeout <= 5 min | 5 (dev: 15, security: 0) |
-| 5.3.5 | sudo use_pty | `true` |
-| 5.3.7 | sudo logfile | `/var/log/sudo.log` |
-| 5.4.2 | umask 027 for users | 027 (owner), 077 (additional) |
-| 5.4.3 | root account locked | assert only (no change) |
-| 5.5.1 | password_expire_max | 365 days |
-| 5.5.2 | password_expire_min | 1 day |
-
-## Dependencies
-
-Requires the `common` role for execution reporting (`report_phase.yml`, `report_render.yml`).
-`ansible.posix` collection required (listed in `ansible/requirements.yml`).
-
-## Tags
-
-| Tag | What it runs |
-|-----|-------------|
-| `user` | Everything |
-| `sudo` | sudo install + policy deployment |
-| `security` | CIS security checks |
-| `install` | Package installation only |
-| `report` | Reporting tasks only |
-| `cis_5.3.4` | sudo timeout task |
-| `cis_5.3.5` | sudo use_pty task |
-| `cis_5.3.7` | sudo logfile task |
-| `cis_5.4.1` | password warn age |
-| `cis_5.4.2` | umask tasks |
-| `cis_5.4.3` | root lock verification |
-| `cis_5.5.1` | password_expire_max |
-| `cis_5.5.2` | password_expire_min |
+Tests deliberately do not repeat account, file, mode, shadow-field, or template
+checks already owned by Ansible modules. All execution uses the approved remote
+VM or CI workflow; it is not run locally.

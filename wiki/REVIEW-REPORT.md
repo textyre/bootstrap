@@ -798,7 +798,7 @@ Over multiple runs with different variable values, orphaned directives are not c
 
 ### AQ-04: Should all security features follow a consistent toggle pattern? [P1]
 
-Current toggles: sysctl has one global toggle; Docker has per-feature but insecure defaults; faillock has no toggle; sudo hardening is tied to `user_create_sudo_rule`; SSH rate limit is tied to `firewall_allow_ssh`.
+Current toggles: sysctl has one global toggle; Docker has per-feature but insecure defaults; faillock has no toggle; sudo hardening is now an unconditional part of the `user` role contract; SSH rate limit is tied to `firewall_allow_ssh`.
 
 **Decision needed:** Standardize on `<role>_<feature>_enabled: true` with individual parameter variables?
 

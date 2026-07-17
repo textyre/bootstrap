@@ -53,7 +53,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 | 3 | `reflector` | Оптимизация зеркал pacman |
 | 4 | `yay` | Сборка AUR helper из исходников |
 | 5 | `packages` | Установка всех пакетов (pacman + AUR) |
-| 6 | `user` | Пользователь, sudo, группы |
+| 6 | `user` | Локальные пользователи, sudo, password aging, umask |
 | 7 | `ssh` | SSH ключи, hardening sshd |
 | 8 | `git` | Глобальная конфигурация git |
 | 9 | `shell` | Bash/Zsh конфигурация, алиасы |

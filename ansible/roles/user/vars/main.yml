@@ -1,0 +1,9 @@
+---
+# === user: internal variables ===
+
+_user_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo

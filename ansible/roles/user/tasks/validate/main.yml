@@ -1,0 +1,20 @@
+---
+# === user: validate phase ===
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _user_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _user_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+
+- name: "Report: Validate user role"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Validate inputs"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"

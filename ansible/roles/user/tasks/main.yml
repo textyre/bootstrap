@@ -1,141 +1,34 @@
 ---
-# === user role — main orchestration ===
+# === user — local accounts and sudo policy ===
+# validate -> load vars -> owner -> additional users -> sudo -> security -> report
 
-# ROLE-003: Preflight — fail fast on unsupported OS
-- name: "Assert supported operating system"
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in user_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ user_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-  tags: [user]
+- name: Configure local accounts and sudo policy
+  tags: ['user']
+  block:
+    - name: Validate user role prerequisites
+      ansible.builtin.include_tasks:
+        file: validate/main.yml
 
-# ROLE-001: Load OS-specific variables
-- name: Include OS-specific variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: [user]
+    - name: Load user platform variables
+      ansible.builtin.include_tasks:
+        file: load/main.yml
 
-# Install sudo
-- name: Install sudo
-  ansible.builtin.include_tasks: install.yml
-  tags: [user, sudo, install]
+    - name: Configure owner account
+      ansible.builtin.include_tasks:
+        file: owner.yml
 
-# ROLE-008: Report install phase
-- name: "Report: sudo install"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_phase: "Install"
-    common_rpt_detail: "sudo installed via {{ ansible_facts['os_family'] | lower }}"
-  tags: [user, report]
+    - name: Configure additional accounts
+      ansible.builtin.include_tasks:
+        file: additional_users.yml
 
-# Remove absent users (zero-trust: revoked users cleaned up)
-- name: "Remove absent users"
-  ansible.builtin.user:
-    name: "{{ item.name }}"
-    state: absent
-    remove: true
-  loop: >-
-    {{ (accounts | default([]))
-       | selectattr('state', 'defined')
-       | selectattr('state', 'equalto', 'absent')
-       | list }}
-  loop_control:
-    label: "{{ item.name }}"
-  tags: [user, security]
+    - name: Configure sudo policy
+      ansible.builtin.include_tasks:
+        file: sudo.yml
 
-- name: "Report: removed users"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_phase: "Remove absent"
-    common_rpt_detail: >-
-      count={{ (accounts | default([]))
-               | selectattr('state', 'defined')
-               | selectattr('state', 'equalto', 'absent')
-               | list | length }}
-    common_rpt_status: "{{ 'done' if ((accounts | default([]))
-                     | selectattr('state', 'defined')
-                     | selectattr('state', 'equalto', 'absent')
-                     | list | length > 0) else 'skip' }}"
-  tags: [user, report]
+    - name: Configure account security state
+      ansible.builtin.include_tasks:
+        file: security.yml
 
-# Create and configure owner
-- name: Configure owner user
-  ansible.builtin.include_tasks: owner.yml
-  tags: [user]
-
-# ROLE-008: Report owner phase
-- name: "Report: owner configuration"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_phase: "Owner"
-    common_rpt_detail: >-
-      user={{ user_owner.name }}
-      shell={{ user_owner.shell | default('/bin/bash') }}
-  tags: [user, report]
-
-# Create additional users (when list is non-empty)
-- name: Configure additional users
-  ansible.builtin.include_tasks: additional_users.yml
-  when: user_additional_users | length > 0
-  tags: [user]
-
-# ROLE-008: Report additional users phase
-- name: "Report: additional users"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_phase: "Additional users"
-    common_rpt_detail: "count={{ user_additional_users | length }}"
-  tags: [user, report]
-
-# Deploy sudo policy
-- name: Deploy sudo policy
-  ansible.builtin.include_tasks: sudo.yml
-  tags: [user, sudo]
-
-# ROLE-008: Report sudo phase
-- name: "Report: sudo policy"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_phase: "Sudo policy"
-    common_rpt_detail: >-
-      group={{ user_sudo_group }}
-      timeout={{ user_sudo_timestamp_timeout }}
-  tags: [user, report]
-
-# CIS security checks
-- name: Security verification
-  ansible.builtin.include_tasks: security.yml
-  when: user_verify_root_lock | bool
-  tags: [user, security]
-
-# ROLE-005: In-role verification
-- name: Verify user configuration
-  ansible.builtin.include_tasks: verify.yml
-  tags: [user]
-
-# ROLE-008: Final report render
-- name: "User -- Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_user_phases"
-    common_rpt_title: "user"
-  tags: [user, report]
+    - name: Render user execution report
+      ansible.builtin.include_tasks:
+        file: report/main.yml

@@ -10,7 +10,7 @@
       name: testuser_owner
       shell: /bin/bash
       groups:
-        - "{{ user_sudo_group }}"
+        - "{{ _user_sudo_group }}"
       password_hash: ""
       update_password: on_create
       umask: "027"
@@ -36,13 +36,9 @@
         password_hash: ""
         update_password: on_create
         umask: "077"
-    # Users to remove (zero-trust cleanup)
-    accounts:
-      - name: testuser_toberemoved
-        state: absent
-    user_manage_password_aging: false   # may not work in containers; Vagrant overrides in its converge.yml
+    user_manage_password_aging: true
     user_manage_umask: true
-    user_verify_root_lock: false        # root may not be locked in test environments
+    user_manage_root_lock: true
     user_sudo_logrotate_enabled: true
     user_sudo_log_input: false
     user_sudo_log_output: false

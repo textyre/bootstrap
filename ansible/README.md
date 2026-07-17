@@ -50,7 +50,7 @@ task workstation # Применить все роли
 - **packages** — установка всех пакетов (official repos + AUR)
 
 ### Phase 3: User & Access
-- **user** — пользователь, sudo, группы, SSH ключи, пароли
+- **user** — локальные пользователи, sudo, password aging, umask
 - **ssh_keys** — генерация и деплой SSH ключей
 - **ssh** — sshd hardening, moduli, баннеры
 - **teleport** — zero-trust access (опционально)

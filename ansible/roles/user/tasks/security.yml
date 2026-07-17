@@ -1,29 +1,19 @@
 ---
-# === Security enforcement + checks — CIS 5.4.3: root account ===
+# === user: security phase ===
 
 - name: "CIS 5.4.3 | Lock root password (enforce no direct root login)"
   ansible.builtin.user:
     name: root
     password_lock: true
-  when: user_verify_root_lock | bool
+  when: user_manage_root_lock | bool
   tags: [user, security, cis_5.4.3]
 
-- name: "CIS 5.4.3 | Get root shadow entry"
-  ansible.builtin.getent:
-    database: shadow
-    key: root
-  register: user_root_shadow
-  changed_when: false
-  no_log: true
-  tags: [user, security, cis_5.4.3]
-
-- name: "CIS 5.4.3 | Assert root password is locked"
-  ansible.builtin.assert:
-    that:
-      - user_root_shadow.ansible_facts.getent_shadow['root'][0] is regex('^[!*]')
-    fail_msg: >-
-      CIS 5.4.3 FAIL: root account has a usable password.
-      Direct root login must be disabled. Use sudo for privilege escalation.
-    success_msg: "CIS 5.4.3 PASS: root account is locked"
-  when: user_verify_root_lock | bool
-  tags: [user, security, cis_5.4.3]
+- name: "Report: Configure account security"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Account security"
+    common_rpt_detail: "root_lock={{ user_manage_root_lock | bool }}"
+    common_rpt_status: "{{ 'done' if user_manage_root_lock | bool else 'skip' }}"

@@ -63,7 +63,6 @@ user_name: "{{ target_user }}"
 user_shell: /usr/bin/zsh
 user_groups:
   - wheel
-user_create_sudo_rule: true
 
 # ============================================================
 #  ssh — роль roles/ssh

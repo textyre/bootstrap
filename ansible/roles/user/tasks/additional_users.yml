@@ -1,75 +1,45 @@
 ---
-# === Create and configure additional (non-owner) users ===
+# === Configure additional users ===
 
-- name: "Ensure additional users exist"
+- name: Configure additional user accounts
   ansible.builtin.user:
     name: "{{ item.name }}"
     shell: "{{ item.shell | default('/bin/bash') }}"
     groups: "{{ item.groups | default([]) }}"
     append: true
     create_home: true
-    password: "{{ (item.password_hash | length > 0) | ternary(item.password_hash, omit) }}"
+    password: "{{ item.password_hash if item.password_hash | default('') | length > 0 else omit }}"
     update_password: "{{ item.update_password | default('on_create') }}"
-    password_expire_max: >-
-      {{ item.password_max_age | default(omit)
-         if user_manage_password_aging | bool else omit }}
-    password_expire_min: >-
-      {{ item.password_min_age | default(omit)
-         if user_manage_password_aging | bool else omit }}
-  loop: "{{ user_additional_users }}"
-  no_log: true
-  when: user_additional_users | length > 0
-  tags: [user, cis_5.5.1, cis_5.5.2]
-
-- name: "CIS 5.4.1 | Read current password warn age for additional users"
-  ansible.builtin.command:
-    cmd: "chage -l {{ item.name }}"
-  register: _user_additional_chage_info
-  changed_when: false
-  failed_when: _user_additional_chage_info.rc != 0
   loop: "{{ user_additional_users }}"
   loop_control:
     label: "{{ item.name }}"
-  when:
-    - user_manage_password_aging | bool
-    - user_additional_users | length > 0
-  tags: [user, cis_5.4.1]
+  no_log: true
+  tags: [user]
 
-- name: "CIS 5.4.1 | Set password warn age for additional users (chage -W)"
-  ansible.builtin.command:
-    cmd: "chage -W {{ item.0.password_warn_age | default(7) }} {{ item.0.name }}"
-  changed_when: true
-  failed_when: _user_additional_chage_set.rc != 0
-  register: _user_additional_chage_set
-  loop: "{{ user_additional_users | zip(_user_additional_chage_info.results | default([])) | list }}"
-  loop_control:
-    label: "{{ item.0.name }}"
-  when:
-    - user_manage_password_aging | bool
-    - user_additional_users | length > 0
-    - item.1 is not skipped
-    - >-
-      item.1.stdout_lines
-      | select('search', 'warning')
-      | map('regex_replace', '^.*:\s*', '')
-      | map('trim')
-      | first
-      | default('-1')
-      | int != (item.0.password_warn_age | default(7)) | int
-  tags: [user, cis_5.4.1]
-
-- name: "Add additional users to sudo group when sudo: true"
+- name: Grant administrative access to additional users
   ansible.builtin.user:
     name: "{{ item.name }}"
-    groups: "{{ user_sudo_group }}"
+    groups: "{{ _user_sudo_group }}"
     append: true
   loop: "{{ user_additional_users }}"
-  when:
-    - user_additional_users | length > 0
-    - item.sudo | default(false) | bool
-  tags: [user, sudo]
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.sudo | default(false) | bool
+  tags: [user]
 
-- name: "CIS 5.4.2 | Deploy umask profile for additional users"
+- name: Configure additional user password expiration
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    password_expire_max: "{{ item.password_max_age | default(omit) }}"
+    password_expire_min: "{{ item.password_min_age | default(omit) }}"
+    password_expire_warn: "{{ item.password_warn_age | default(7) }}"
+  loop: "{{ user_additional_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: user_manage_password_aging | bool
+  tags: [user, cis_5.4.1, cis_5.5.1, cis_5.5.2]
+
+- name: Configure additional user umask
   ansible.builtin.template:
     src: user_umask.sh.j2
     dest: "/etc/profile.d/umask-{{ item.name }}.sh"
@@ -80,7 +50,17 @@
     umask_user: "{{ item.name }}"
     umask_value: "{{ item.umask | default('077') }}"
   loop: "{{ user_additional_users }}"
-  when:
-    - user_manage_umask | bool
-    - user_additional_users | length > 0
+  loop_control:
+    label: "{{ item.name }}"
+  when: user_manage_umask | bool
   tags: [user, cis_5.4.2]
+
+- name: "Report: Configure additional users"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_user_phases"
+    common_rpt_phase: "Additional users"
+    common_rpt_detail: "count={{ user_additional_users | length }}"
+    common_rpt_status: "{{ 'done' if user_additional_users | length > 0 else 'skip' }}"

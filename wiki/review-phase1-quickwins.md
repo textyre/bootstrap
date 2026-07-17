@@ -387,7 +387,7 @@ This violates the principle of optional security features and deviates from the 
 
 | Variable | Described in QW | Status |
 |----------|----------------|--------|
-| `sudo_hardening_enabled` | QW-6 | MISSING -- sudo hardening has no toggle, always applies when `user_create_sudo_rule` is true |
+| `sudo_hardening_enabled` | QW-6 | RESOLVED BY CONTRACT -- sudo hardening is an unconditional responsibility of the `user` role |
 | `sudo_timestamp_timeout` | QW-6 | MISSING -- hardcoded as `5` in task content |
 | `sudo_use_pty` | QW-6 | MISSING -- hardcoded as `use_pty` in task content |
 | `sudo_logfile` | QW-6 | MISSING -- hardcoded as `/var/log/sudo.log` in task content |
@@ -887,7 +887,7 @@ The SSH role (`AllowGroups wheel`) and user role (`user_groups: [wheel]`) are in
 
 ### ARCH-03: Global vs per-parameter security toggles
 
-The sysctl role has one toggle (`sysctl_security_enabled`) for all security parameters. The Docker role has per-feature toggles but insecure defaults. The faillock configuration has no toggle at all. The sudo hardening has no toggle (tied to `user_create_sudo_rule`). The SSH rate limit has no toggle (tied to `firewall_allow_ssh`).
+The sysctl role has one toggle (`sysctl_security_enabled`) for all security parameters. The Docker role has per-feature toggles but insecure defaults. The faillock configuration has no toggle at all. Sudo hardening intentionally has no disable toggle because it is part of the `user` role contract. The SSH rate limit has no toggle (tied to `firewall_allow_ssh`).
 
 **Question:** Should all security features follow a consistent pattern (e.g., `<role>_<feature>_enabled: true` with individual parameter variables)?
 

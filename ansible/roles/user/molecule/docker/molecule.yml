@@ -33,21 +33,10 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
-dependency:
-  name: galaxy
-  options:
-    ignore-errors: true
-  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
-  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
-  # ignore-errors: true prevents galaxy from aborting when common is not found.
-
 provisioner:
   name: ansible
   options:
     skip-tags: report
-    # extra-vars have highest Ansible precedence — override vars_files defaults for verify.yml
-    # shared/converge.yml already sets these via vars: block; this covers verify.yml too.
-    extra-vars: "user_manage_password_aging=false"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -57,9 +46,6 @@ provisioner:
     prepare: prepare.yml
     converge: ../shared/converge.yml
     verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
