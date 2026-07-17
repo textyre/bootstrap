@@ -2,12 +2,5 @@
 - name: Bootstrap Docker hosts
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
 
-- name: Prepare user role Docker scenario
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Ensure video group exists (required by testuser_extra)
-      ansible.builtin.group:
-        name: video
-        state: present
+- name: Prepare user role test prerequisites
+  ansible.builtin.import_playbook: ../shared/prepare.yml

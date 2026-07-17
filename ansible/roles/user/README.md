@@ -250,10 +250,11 @@ All scenarios use `molecule/shared/converge.yml`. It configures:
 - `testuser_extra` as a regular account in `video` with umask `077`;
 - `testuser_with_sudo` as an administrative account with umask `077`.
 
-Docker and Vagrant preparation create the test-only `video` group. Arch
-Vagrant preparation also keeps passwordless sudo for the `vagrant` automation
-account so the role's password-requiring `wheel` policy does not interrupt
-later role tasks or the idempotence run.
+Docker and Vagrant use `molecule/shared/prepare.yml` to install the external
+`logrotate` prerequisite and create the test-only `video` group. Arch Vagrant
+preparation also keeps passwordless sudo for the `vagrant` automation account
+so the role's password-requiring `wheel` policy does not interrupt later role
+tasks or the idempotence run.
 
 ### Behavioral Verification
 
@@ -331,6 +332,7 @@ alone is not a supported partial workflow.
 | `templates/sudo_logrotate.j2` | Managed sudo event-log rotation | When retention policy changes |
 | `templates/user_umask.sh.j2` | Per-user login-shell umask | When shell application logic changes |
 | `meta/main.yml` | Galaxy metadata and supported platforms | When role metadata changes |
+| `molecule/shared/prepare.yml` | Shared external prerequisites for isolated scenarios | When the test environment contract changes |
 | `molecule/shared/converge.yml` | Shared representative test configuration | When the tested contract changes |
 | `molecule/shared/verify.yml` | Shared behavioral checks | When observable role behavior changes |
 | `molecule/default/molecule.yml` | Prepared remote-host scenario | When the default execution path changes |

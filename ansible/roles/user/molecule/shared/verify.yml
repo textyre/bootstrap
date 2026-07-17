@@ -37,7 +37,7 @@
       ansible.builtin.command:
         argv:
           - /usr/bin/su
-          - -
+          - "-"
           - "{{ item.name }}"
           - -c
           - umask

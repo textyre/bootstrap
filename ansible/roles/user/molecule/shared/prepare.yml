@@ -1,0 +1,16 @@
+---
+- name: Prepare user role test prerequisites
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install logrotate test prerequisite
+      ansible.builtin.package:
+        name: logrotate
+        state: present
+
+    - name: Create video group required by test accounts
+      ansible.builtin.group:
+        name: video
+        state: present
