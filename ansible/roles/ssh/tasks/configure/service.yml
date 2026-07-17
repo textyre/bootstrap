@@ -1,0 +1,16 @@
+---
+# === ssh: service state ===
+
+- name: Apply init-specific sshd service policy
+  ansible.builtin.include_tasks:
+    file: "init/{{ ansible_facts['service_mgr'] }}/service.yml"
+
+- name: "Report: sshd service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "Service"
+    common_rpt_detail: "svc={{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+  tags: ['report']

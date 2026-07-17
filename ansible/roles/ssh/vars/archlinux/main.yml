@@ -1,6 +1,9 @@
 ---
+# === ssh: Arch Linux internals ===
+
 ssh_packages:
   - openssh
+
 ssh_service_name:
   systemd: sshd
   runit: sshd

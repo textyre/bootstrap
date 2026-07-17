@@ -54,7 +54,7 @@ git clone <repo-url> bootstrap && cd bootstrap
 | 4 | `yay` | Сборка AUR helper из исходников |
 | 5 | `packages` | Установка всех пакетов (pacman + AUR) |
 | 6 | `user` | Локальные пользователи, sudo, password aging, umask |
-| 7 | `ssh` | SSH ключи, hardening sshd |
+| 7 | `ssh` | Hardened OpenSSH server configuration, host keys, banner |
 | 8 | `git` | Глобальная конфигурация git |
 | 9 | `shell` | Bash/Zsh конфигурация, алиасы |
 | 10 | `docker` | Docker daemon, сервис, группа |

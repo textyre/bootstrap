@@ -1,0 +1,11 @@
+---
+# === ssh: runtime directories required before sshd config validation ===
+
+- name: Ensure ssh runtime directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ ssh_runtime_directories | default([]) }}"

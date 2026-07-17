@@ -1,0 +1,16 @@
+---
+# === ssh: internal role constants ===
+
+_ssh_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+_ssh_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit

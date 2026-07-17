@@ -4,189 +4,114 @@
 
 ## Цель
 
-Развёртывание и hardening OpenSSH-сервера в соответствии с dev-sec.io, CIS Benchmark L1 Workstation, DISA STIG и Mozilla Modern SSH. Обеспечивает безопасную удалённую аутентификацию только по публичному ключу с современной криптографией (ChaCha20-Poly1305, Curve25519, ETM MACs). Поддерживает все 5 init-систем проекта.
+Роль настраивает hardened OpenSSH-сервер для безопасного удаленного доступа.
 
-## Ключевые переменные (defaults)
+Контракт роли:
+
+- установить OpenSSH server/client packages для поддержанного дистрибутива;
+- развернуть валидный `/etc/ssh/sshd_config`;
+- настроить современную криптографию OpenSSH;
+- запретить небезопасные способы аутентификации по умолчанию;
+- обеспечить ed25519/RSA host keys;
+- включить и запустить SSH service для поддержанного init system;
+- развернуть SSH banner;
+- отразить SFTP chroot и Teleport CA trust в `sshd_config`, если эти возможности включены.
+
+Роль не управляет firewall, пользователями, SSH public keys, DNS, Teleport deployment,
+fail2ban или мониторингом. Это контракты соседних ролей.
+
+## Pipeline
+
+```text
+validate -> load vars -> configure -> report
+```
+
+- `tasks/main.yml` — только оркестратор.
+- `tasks/validate.yml` — проверка поддержанного OS family и init system.
+- `tasks/load_vars.yml` — загрузка `vars/<os_family>/main.yml`.
+- `tasks/configure/main.yml` — установка, проверка access-control для целевого пользователя, host keys, `sshd_config`, banner, service state.
+- `report` — финальный execution report через `common`.
+
+## Основные переменные
 
 ```yaml
-ssh_harden_sshd: true                    # Master switch для hardening
-ssh_port: 22                             # Порт SSH-сервера
-ssh_address_family: "inet"               # inet (IPv4), inet6, any
+ssh_port: 22
+ssh_address_family: "inet"
 
-# Криптография (Mozilla Modern)
-ssh_kex_algorithms:                      # KEX: curve25519, DH group16/18
-ssh_ciphers:                             # AEAD only: chacha20, aes-gcm
-ssh_macs:                                # ETM only: hmac-sha2-512/256-etm, umac-128-etm
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_authentication_methods: "publickey"
+ssh_max_auth_tries: 3
 
-# Аутентификация
-ssh_permit_root_login: "no"              # CIS 5.2.10
-ssh_password_authentication: "no"        # Только ключи
-ssh_max_auth_tries: 3                    # CIS 5.2.7
-ssh_authentication_methods: "publickey"  # Только publickey
+ssh_allow_groups: ["wheel"]
+ssh_allow_users: []
+ssh_deny_groups: []
+ssh_deny_users: []
+ssh_user: "{{ target_user | default(ansible_user_id) }}"
 
-# Контроль доступа
-ssh_allow_groups: ["wheel"]              # Whitelist групп
-ssh_allow_users: []                      # Whitelist пользователей
-
-# Forwarding (всё отключено по умолчанию)
 ssh_x11_forwarding: "no"
 ssh_allow_tcp_forwarding: "no"
+ssh_allow_stream_local_forwarding: "no"
 ssh_allow_agent_forwarding: "no"
 
-# Логирование
-ssh_log_level: "VERBOSE"                 # CIS 4.2.3 — fingerprint при каждом входе
-ssh_syslog_facility: "AUTH"              # Стандартный журнал безопасности
+ssh_log_level: "VERBOSE"
+ssh_max_startups: "10:30:60"
 
-# DoS-защита
-ssh_max_startups: "10:30:60"             # CIS/Mozilla
-
-# Опциональные функции
-ssh_banner_enabled: false                # Pre-auth баннер
-ssh_moduli_cleanup: false                # Удаление слабых DH модулей
-ssh_host_key_cleanup: true               # Удаление DSA/ECDSA ключей
-ssh_sftp_enabled: true                   # SFTP подсистема
-ssh_sftp_chroot_enabled: false           # Chroot для SFTP
-ssh_teleport_integration: false          # Teleport SSH CA
+ssh_sftp_enabled: true
+ssh_sftp_chroot_enabled: false
+ssh_teleport_integration: "{{ teleport_ca_deployed | default(false) }}"
 ```
+
+Полный внешний контракт описан в `ansible/roles/ssh/defaults/main.yml` и README роли.
+
+## Поддержанные платформы
+
+| OS family | Packages | Service |
+|-----------|----------|---------|
+| Archlinux | `openssh` | `sshd` |
+| Debian / Ubuntu | `openssh-server`, `openssh-client` | `ssh` |
+| RedHat / Fedora | `openssh-server`, `openssh-clients` | `sshd` |
+| Void | `openssh` | `sshd` |
+| Gentoo | `net-misc/openssh` | `sshd` |
+
+Поддержанные init systems: `systemd`, `runit`, `openrc`, `s6`, `dinit`.
 
 ## Что настраивает
 
-- Конфигурационные файлы:
-  - `/etc/ssh/sshd_config` — hardened конфигурация из Jinja2 шаблона (mode 0600)
-  - `/etc/issue.net` — pre-auth баннер (опционально, `ssh_banner_enabled: true`)
-  - `/etc/ssh/moduli` — фильтрация слабых DH-параметров (опционально, `ssh_moduli_cleanup: true`)
-- Host-ключи:
-  - `/etc/ssh/ssh_host_ed25519_key` — генерация если отсутствует
-  - `/etc/ssh/ssh_host_rsa_key` — генерация если RSA в `ssh_host_key_algorithms`
-  - Удаление DSA/ECDSA ключей (`ssh_host_key_cleanup: true`)
-- Сервис: `sshd` (Arch/RedHat/Gentoo/Void) или `ssh` (Debian) — enabled + started
-- Логи: syslog через AUTH facility, `LogLevel VERBOSE`
+- `/etc/ssh/sshd_config` из `templates/sshd_config.j2`;
+- `/etc/issue.net`;
+- `/etc/ssh/ssh_host_ed25519_key`;
+- `/etc/ssh/ssh_host_rsa_key`, если RSA используется в `ssh_host_key_algorithms`;
+- Arch/systemd: отключает `sshdgenkeys.service`, чтобы host keys управлялись этой ролью;
+- SSH service enabled + started.
 
-**Все платформы:**
-- Arch Linux: пакет `openssh`, сервис `sshd`
-- Debian/Ubuntu: пакеты `openssh-server` + `openssh-client`, сервис `ssh`
-- RedHat/Fedora: пакеты `openssh-server` + `openssh-clients`, сервис `sshd`
-- Void Linux: пакет `openssh`, сервис `sshd`
-- Gentoo: пакет `net-misc/openssh`, сервис `sshd`
+## Проверки и тесты
 
-## Audit Events
+В роли нет отдельного `tasks/verify.yml`: итоговый контракт проверяется Molecule.
 
-| События | Источник | Формат | Значение |
-|---------|----------|--------|----------|
-| **Успешная аутентификация** | sshd via AUTH | syslog | `Accepted publickey for <user> from <IP> port <port> ssh2: ED25519 SHA256:<fingerprint>` |
-| **Неудачная аутентификация** | sshd via AUTH | syslog | `Failed publickey for <user> from <IP>`, `Connection closed by authenticating user` |
-| **Достижение MaxAuthTries** | sshd via AUTH | syslog | `Disconnecting authenticating user <user>: Too many authentication failures` |
-| **Root login attempt** | sshd via AUTH | syslog | `Failed none for root from <IP>` (при `PermitRootLogin no`) |
-| **Brute-force (MaxStartups)** | sshd via AUTH | syslog | `refused connect from <IP>`, `Connection dropped` |
-| **Invalid user** | sshd via AUTH | syslog | `Invalid user <name> from <IP>` |
-| **Config change** | sshd restart | syslog | `Server listening on <addr> port <port>`, `sshd[pid]: Received SIGHUP; restarting` |
-| **Host key mismatch** | client-side | stderr | `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED` (при смене ключей) |
-| **Session open/close** | sshd via AUTH | syslog | `pam_unix(sshd:session): session opened/closed for user <user>` |
-| **Forwarding denied** | sshd via AUTH | syslog | `Refused tcp forwarding`, `Refused agent forwarding` |
+Molecule verify проверяет:
 
-## Мониторинг (Prometheus + Alloy)
+- `sshd -t` проходит;
+- `sshd -T` строит effective OpenSSH config.
 
-### Метрики SSH
-
-SSH не экспортирует метрики нативно. Мониторинг через:
-
-1. **node_exporter textfile collector** — количество активных сессий, неудачных попыток
-2. **Loki/Alloy** — парсинг syslog AUTH записей
-
-```bash
-# Количество активных SSH-сессий
-ss -tnp | grep ':22' | grep ESTAB | wc -l
-
-# Неудачные попытки за последний час
-journalctl -u sshd --since "1 hour ago" | grep -c "Failed"
-
-# Текущие подключения с деталями
-who -u
-```
-
-### Alloy pipeline (Log Relay)
-
-```alloy
-// Парсинг sshd auth логов
-loki.source.journal "sshd" {
-  matches = {"_SYSTEMD_UNIT" = "sshd.service"}
-  labels  = {job = "sshd", component = "auth"}
-}
-
-loki.process "sshd_metrics" {
-  // Извлечение метрик из логов
-  stage.regex {
-    expression = "(?P<action>Accepted|Failed|Invalid user|Disconnecting|refused connect)"
-  }
-  stage.metrics {
-    counter {
-      name   = "ssh_auth_events_total"
-      source = "action"
-      action = "inc"
-    }
-  }
-}
-```
-
-### Prometheus rules (alert rules)
-
-```yaml
-groups:
-  - name: ssh_monitoring
-    interval: 60s
-    rules:
-      # Массовые неудачные попытки (brute-force)
-      - alert: SSHBruteForceDetected
-        expr: rate(ssh_auth_events_total{action="Failed"}[5m]) > 10
-        for: 2m
-        annotations:
-          summary: "SSH brute-force detected ({{ $value }} failures/sec on {{ $labels.instance }})"
-          runbook: "wiki/runbooks/ssh-brute-force.md"
-
-      # Вход root (должен быть запрещён)
-      - alert: SSHRootLoginAttempt
-        expr: increase(ssh_auth_events_total{action="Failed",user="root"}[5m]) > 0
-        for: 0m
-        annotations:
-          summary: "Root SSH login attempt detected on {{ $labels.instance }}"
-
-      # Сервис не запущен
-      - alert: SSHServiceDown
-        expr: node_systemd_unit_state{name=~"sshd?.service", state="active"} != 1
-        for: 1m
-        annotations:
-          summary: "SSH service down on {{ $labels.instance }}"
-
-      # Нет активных SSH-сессий на production (canary)
-      - alert: SSHNoSessions
-        expr: ssh_active_sessions == 0
-        for: 30m
-        labels:
-          severity: info
-        annotations:
-          summary: "No SSH sessions for 30m on {{ $labels.instance }}"
-```
-
-### Grafana dashboard
-
-Рекомендуемые панели:
-- **Auth Events**: счётчик Accepted/Failed/Invalid за период
-- **Active Sessions**: gauge текущих SSH-сессий
-- **Failed Auth Rate**: rate неудачных попыток (alert threshold)
-- **Top Source IPs**: таблица IP с наибольшим числом подключений
-- **User Logins**: таблица последних входов (user, IP, key fingerprint)
+Docker scenario проверяет systemd Arch/Ubuntu containers.
+Vagrant scenario проверяет реальные Arch/Ubuntu VM.
 
 ## Зависимости
 
-- `common` — report_phase.yml, report_render.yml (execution report)
-- `firewall` (опционально) — открытие порта SSH
-- `fail2ban` (рекомендуется) — автоматическая блокировка brute-force IP
+- `common` — execution report.
+- `firewall` — открытие SSH-порта, если порт должен быть доступен извне.
+- `ssh_keys` / `user` — пользователи, группы и authorized keys.
+- `fail2ban` — brute-force защита, если она нужна.
+- `teleport` — deployment Teleport CA, если включена `ssh_teleport_integration`.
 
-**Рекомендуется размещение:** Phase 1 (SSH критичен для удалённого управления; применять до ролей, зависящих от SSH-доступа)
+## Ограничения
 
-## Tags
-
-- `ssh`, `security`, `install`, `service`, `banner`, `moduli`, `report`
+- Изменение `ssh_port` не открывает firewall port.
+- `ssh_password_authentication: "no"` требует заранее настроенных SSH keys.
+- `ssh_allow_groups: ["wheel"]` требует, чтобы существующий `ssh_user` был в разрешенной группе.
+- SFTP chroot требует корректной ownership-модели каталогов; роль только пишет SSH config.
+- Monitoring/alerting на SSH logs настраивается отдельными observability ролями.
 
 ---
 

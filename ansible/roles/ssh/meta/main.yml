@@ -2,7 +2,7 @@
 galaxy_info:
   role_name: ssh
   author: textyre
-  description: Полный hardening SSH (генерация ключей, sshd_config, модули, баннер)
+  description: Hardened OpenSSH server configuration
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -12,6 +12,7 @@ galaxy_info:
       versions: [all]
     - name: Ubuntu
       versions: [all]
-
   galaxy_tags: [ssh, security, hardening, sshd, crypto]
 dependencies: []
+# Collection dependencies declared in ansible/requirements.yml:
+#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair for host keys)

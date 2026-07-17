@@ -37,7 +37,7 @@ task workstation # Применить все 14 ролей
 
 ### User & Access
 - **user** — локальные пользователи, sudo, password aging, umask
-- **ssh** — SSH ключи, hardening sshd
+- **ssh** — hardened OpenSSH server configuration, host keys, banner
 
 ### Development Tools
 - **git** — глобальная конфигурация git

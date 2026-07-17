@@ -52,7 +52,7 @@ task workstation # Применить все роли
 ### Phase 3: User & Access
 - **user** — локальные пользователи, sudo, password aging, umask
 - **ssh_keys** — генерация и деплой SSH ключей
-- **ssh** — sshd hardening, moduli, баннеры
+- **ssh** — hardened OpenSSH server configuration, host keys, banner
 - **teleport** — zero-trust access (опционально)
 - **fail2ban** — SSH brute-force jail
 

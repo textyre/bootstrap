@@ -1,0 +1,17 @@
+---
+# === ssh: Debian/Ubuntu internals ===
+
+ssh_packages:
+  - openssh-server
+  - openssh-client
+
+# Debian/Ubuntu sshd validates configuration only when this runtime directory exists.
+ssh_runtime_directories:
+  - /run/sshd
+
+ssh_service_name:
+  systemd: ssh
+  runit: ssh
+  openrc: ssh
+  s6: ssh
+  dinit: ssh

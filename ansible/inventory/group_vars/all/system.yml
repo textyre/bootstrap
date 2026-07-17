@@ -69,9 +69,6 @@ user_groups:
 # ============================================================
 
 ssh_user: "{{ target_user }}"
-ssh_generate_key: true
-ssh_key_type: ed25519
-ssh_harden_sshd: true
 ssh_permit_root_login: "no"
 ssh_password_authentication: "no"
 

@@ -1,103 +1,27 @@
 ---
-# === ssh role — hardened sshd configuration ===
+# === ssh — hardened OpenSSH server ===
+# validate -> load vars -> configure -> report
 
-# ROLE-003: Validate supported OS
-- name: "Assert supported operating system"
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in ssh_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ ssh_supported_os | join(', ') }}
-  tags: [ssh]
+- name: SSH role
+  tags: ['ssh']
+  block:
+    - name: Validate ssh role inputs
+      ansible.builtin.include_tasks:
+        file: validate.yml
 
-# ROLE-001: OS-specific variables
-- name: "Include OS-specific variables"
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: [ssh]
+    - name: Load ssh platform variables
+      ansible.builtin.include_tasks:
+        file: load_vars.yml
 
-# Install openssh (package names from vars/<os_family>.yml)
-- name: "Install openssh"
-  ansible.builtin.include_tasks: install.yml
-  tags: [ssh, install]
+    - name: Configure ssh server
+      ansible.builtin.include_tasks:
+        file: configure/main.yml
 
-# ROLE-008: Report install phase
-- name: "Report: sshd install"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_ssh_phases"
-    common_rpt_phase: "Install"
-    common_rpt_detail: "packages={{ ssh_packages | join(',') }}"
-  tags: [ssh, report]
-
-# Pre-flight: lockout protection
-- name: "Pre-flight lockout protection"
-  ansible.builtin.include_tasks: preflight.yml
-  when: ssh_harden_sshd
-  tags: [ssh, security]
-
-# Hardening sshd
-- name: "Harden sshd configuration"
-  ansible.builtin.include_tasks: harden.yml
-  when: ssh_harden_sshd
-  tags: [ssh, security]
-
-# ROLE-008: Report harden phase
-- name: "Report: sshd hardening"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_ssh_phases"
-    common_rpt_phase: "Harden"
-    common_rpt_detail: >-
-      port={{ ssh_port }}
-      root_login={{ ssh_permit_root_login }}
-      password_auth={{ ssh_password_authentication }}
-    common_rpt_status: "{{ 'done' if ssh_harden_sshd else 'skip' }}"
-  tags: [ssh, report]
-
-# DH moduli cleanup (optional)
-- name: "Clean up weak DH moduli"
-  ansible.builtin.include_tasks: moduli.yml
-  when: ssh_moduli_cleanup
-  tags: [ssh, security, moduli]
-
-# SSH banner (optional)
-- name: "Deploy SSH banner"
-  ansible.builtin.include_tasks: banner.yml
-  when: ssh_banner_enabled
-  tags: [ssh, banner]
-
-# Service management
-- name: "Manage sshd service"
-  ansible.builtin.include_tasks: service.yml
-  tags: [ssh, service]
-
-# ROLE-008: Report service phase
-- name: "Report: sshd service"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_ssh_phases"
-    common_rpt_phase: "Service"
-    common_rpt_detail: "svc={{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
-  tags: [ssh, report]
-
-# ROLE-005: In-role verification
-- name: "Verify sshd configuration"
-  ansible.builtin.include_tasks: verify.yml
-  tags: [ssh]
-
-# ROLE-008: Final report render
-- name: "Ssh — Execution Report"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_render.yml
-  vars:
-    common_rpt_fact: "_ssh_phases"
-    common_rpt_title: "ssh"
-  tags: [ssh, report]
+    - name: Render ssh execution report
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: report_render.yml
+      vars:
+        common_rpt_fact: "_ssh_phases"
+        common_rpt_title: "ssh"
+      tags: ['report']

@@ -1,6 +1,9 @@
 ---
+# === ssh: Gentoo internals ===
+
 ssh_packages:
   - net-misc/openssh
+
 ssh_service_name:
   systemd: sshd
   openrc: sshd
