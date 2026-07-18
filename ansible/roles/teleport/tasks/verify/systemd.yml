@@ -1,0 +1,11 @@
+---
+# === teleport: verify systemd service contract ===
+
+- name: Verify Teleport service remains active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - --quiet
+      - "{{ _teleport_service_name }}"
+  changed_when: false

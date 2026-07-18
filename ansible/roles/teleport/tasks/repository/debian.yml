@@ -1,0 +1,25 @@
+---
+# === teleport: Debian repository installation ===
+
+- name: Deploy Teleport repository signing key
+  ansible.builtin.get_url:
+    url: https://apt.releases.teleport.dev/gpg
+    dest: /usr/share/keyrings/teleport-archive-keyring.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure Teleport package repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by=/usr/share/keyrings/teleport-archive-keyring.asc]
+      https://apt.releases.teleport.dev/{{ ansible_facts['distribution'] | lower }}
+      {{ ansible_facts['distribution_release'] }} stable/v{{ _teleport_major_version }}
+    state: present
+
+- name: Install Teleport package
+  ansible.builtin.apt:
+    name: teleport
+    state: present
+    update_cache: true
+  register: _teleport_package_install

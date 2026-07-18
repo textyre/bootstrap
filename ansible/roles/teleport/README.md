@@ -1,230 +1,153 @@
 # teleport
 
-Installs and configures a Teleport node agent for zero-trust SSH access with certificate authority integration.
+Installs Teleport and configures the machine either as a complete single-node
+cluster or as an SSH agent of an existing cluster.
 
-## Execution flow
+## Execution Flow
 
-1. **Assert OS** — fails immediately if `ansible_facts['os_family']` is not in the supported list (Archlinux, Debian, RedHat, Void, Gentoo)
-2. **Load OS variables** — includes `vars/<os_family>.yml` (package names, service names)
-3. **Assert auth server** — fails if `teleport_auth_server` is empty
-4. **Validate join config** (`tasks/join.yml`) — validates join token configuration
-5. **Install** (`tasks/install.yml`, when `teleport_manage_install: true`) — installs Teleport via package manager (Arch), official APT/YUM repo (Debian/RedHat), or binary CDN download (Void/Gentoo). Binary path: version-checks existing install, downloads only if needed, deploys systemd unit file if `service_mgr == systemd`. **Triggers handler:** daemon-reload if unit file changes.
-6. **Configure** (`tasks/configure.yml`, when `teleport_manage_config: true`) — creates `/var/lib/teleport` (0750), deploys `/etc/teleport.yaml` (0600, no_log). **Triggers handler:** "Restart teleport" if config changes.
-7. **CA export** (`tasks/ca_export.yml`, when `teleport_export_ca_key: true`) — reads Teleport user CA from auth server via `tctl auth export`, writes to `teleport_ca_keys_file`, sets `ssh_teleport_integration: true` fact for the `ssh` role.
-8. **Service** (when `teleport_manage_service: true`) — enables and starts `teleport` service via `ansible.builtin.service` (init-system agnostic).
-9. **Verify** (`tasks/verify.yml`) — checks binary responds to `teleport version`, config file exists with mode 0600, reports service status (does not assert running state — requires live cluster).
-10. **Report** — writes execution summary via `common/report_phase.yml` and `common/report_render.yml`.
+1. **Validate** (`tasks/validate.yml`) -- accepts the five project OS families, the `standalone` or `agent` mode, a compatible installation method, and systemd when the role owns the service. Agent mode must have an auth server and join token.
+2. **Load vars** (`tasks/load_vars.yml`) -- loads the package mapping for the detected OS family.
+3. **Install** (`tasks/install.yml`) -- uses configured packages, the official Debian/RedHat repository, or a checksum-verified Teleport archive. Binary installation deploys only the published Teleport executables; temporary files are removed in the same block.
+4. **Configure** (`tasks/configure.yml`) -- creates `/var/lib/teleport` and renders `/etc/teleport.yaml`. Existing cluster data is never removed.
+5. **Service** (`tasks/service/systemd.yml`) -- deploys the binary-install unit, reloads systemd when needed, enables Teleport, starts it, and restarts it immediately when the binary, unit, or configuration changed. The role has no handlers.
+6. **Verify** (`tasks/verify.yml`) -- runs the installed binary, asks Teleport to parse the rendered configuration, and verifies that a managed service remains active.
+7. **CA export** (`tasks/ca_export.yml`) -- optionally exports the running cluster's user CA after service startup, removes the `cert-authority` marker from `tctl` output as required by `TrustedUserCAKeys`, and writes the resulting public key for OpenSSH.
+8. **Report** (`tasks/report.yml`) -- renders the final execution report without calculating role state.
 
-### Handlers
+## Operating Modes
 
-| Handler | Triggered by | What it does |
-|---------|-------------|--------------|
-| `restart teleport` | Config file change (step 6) | Restarts teleport service via `ansible.builtin.service`. |
+| Mode | Services on this machine | Required input | User-visible result |
+|------|--------------------------|----------------|---------------------|
+| `standalone` | Auth, Proxy, and SSH | None | The machine is a complete Teleport cluster. Users connect to its proxy and the same machine is available as an SSH node |
+| `agent` | SSH, plus optional Proxy | `teleport_auth_server`, `teleport_join_token` | The machine joins an existing Teleport cluster and becomes an SSH resource in that cluster |
+
+Teleport and OpenSSH are separate access services. Teleport can provide its own
+SSH endpoint without `sshd`. When CA export is enabled, the later `ssh` role also
+configures OpenSSH to accept certificates issued by the Teleport user CA.
 
 ## Variables
 
-### Configurable (`defaults/main.yml`)
+Override these through inventory. Values in `vars/` are internal implementation
+details.
 
-Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `teleport_mode` | `standalone` | Selects a complete local cluster or an agent joining an existing cluster |
+| `teleport_install_method` | `repo` on Debian, otherwise `binary` | Selects official repository, configured distro package, or checksum-verified archive installation. RHEL can explicitly select its official repository; Fedora uses binary because Teleport does not publish a Fedora YUM path |
+| `teleport_manage_install` | `true` | `false` leaves an externally installed Teleport untouched; the binary must still exist for verification and service use |
+| `teleport_manage_config` | `true` | `false` preserves an externally managed `/etc/teleport.yaml`; that file must still be valid |
+| `teleport_manage_service` | `true` | `false` leaves service lifecycle external and skips the active-service check |
+| `teleport_version` | `17.7.23` | Pins the current supported v17 binary patch and selects repository channel `v17`; repositories may provide a newer patch from that channel |
+| `teleport_auth_server` | `""` | Existing Auth/Proxy endpoint used only in agent mode, for example `teleport.example.com:443` |
+| `teleport_join_token` | `""` | Token used by an agent for its first cluster registration; treat it as a secret |
+| `teleport_node_name` | `{{ ansible_hostname }}` | Node name displayed to Teleport users and used by `tsh ssh` |
+| `teleport_labels` | `{}` | Static node labels used by Teleport RBAC and resource selection |
+| `teleport_auth_listen_addr` | `0.0.0.0:3025` | Standalone Auth API listener used by Teleport services |
+| `teleport_proxy_listen_addr` | `0.0.0.0:3080` | Standalone HTTPS proxy and Web UI listener |
+| `teleport_proxy_public_addr` | `{{ ansible_hostname }}:3080` | Address advertised to clients; set a resolvable DNS name for remote use |
+| `teleport_ssh_enabled` | `true` | Enables Teleport's SSH node service |
+| `teleport_proxy_mode` | `false` | Also enables Proxy service in agent mode; it does not affect standalone, where Proxy is required |
+| `teleport_session_recording` | `node` | Recording location: `node`, `node-sync`, `proxy`, `proxy-sync`, or `off` |
+| `teleport_enhanced_recording` | `false` | Enables Teleport's Linux enhanced session recording under `ssh_service`; it needs a compatible kernel, BPF, and cgroup v2 environment |
+| `teleport_export_ca_key` | `false` | Exports the user CA with local administrative `tctl` access after Teleport is running |
+| `teleport_ca_keys_file` | `/etc/ssh/teleport_user_ca.pub` | Destination read by OpenSSH `TrustedUserCAKeys` when playbook integration is enabled |
+| `teleport_config_overwrite` | `{}` | Recursively overrides generated `teleport.yaml` keys; invalid combinations are rejected by Teleport's config parser |
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `teleport_enabled` | `true` | safe | Set `false` to skip the entire role |
-| `teleport_manage_install` | `true` | safe | Set `false` to skip installation (useful if Teleport is pre-installed) |
-| `teleport_manage_config` | `true` | safe | Set `false` to skip config deployment (manage config separately) |
-| `teleport_manage_service` | `true` | safe | Set `false` to skip service enable/start |
-| `teleport_version` | `"17.4.10"` | careful | Full semver string. Used for binary downloads and major version for package repos. Must match an available release. |
-| `teleport_auth_server` | `""` | careful | **Required.** Auth/proxy server address, e.g. `auth.example.com:443`. Role fails if empty. |
-| `teleport_join_token` | `""` | careful | **Required.** Join token for cluster registration. |
-| `teleport_node_name` | `{{ ansible_hostname }}` | safe | Node name shown in the Teleport UI |
-| `teleport_labels` | `{}` | safe | Key-value map of node labels for RBAC role assignment |
-| `teleport_ssh_enabled` | `true` | careful | Enable the SSH service on this node. Set `false` for proxy-only nodes. |
-| `teleport_proxy_mode` | `false` | careful | Run as a proxy node. Changes the role of this node in the cluster. |
-| `teleport_session_recording` | `"node"` | careful | Session recording location: `node`, `proxy`, or `off`. Affects where session data is stored. |
-| `teleport_enhanced_recording` | `false` | internal | BPF-based enhanced session recording. Requires Linux kernel ≥ 5.8 with BTF enabled. Breaking change if kernel doesn't support it. |
-| `teleport_export_ca_key` | `true` | safe | Export Teleport user CA and configure `ssh` role integration |
-| `teleport_ca_keys_file` | `/etc/ssh/teleport_user_ca.pub` | careful | Destination path for the exported CA public key. Must match `TrustedUserCAKeys` in `sshd_config`. |
-| `teleport_config_overwrite` | `{}` | careful | Dict merged on top of the rendered `teleport.yaml`. Allows injecting arbitrary keys without modifying the template. |
-
-### Internal mappings (`vars/`)
-
-These files contain cross-platform mappings. Do not override via inventory — edit directly only when adding new platform support.
-
-| File | What it contains | When to edit |
-|------|-----------------|-------------|
-| `vars/main.yml` | Service name map per init system (`teleport` for all) | Adding a new init system |
-| `vars/archlinux.yml` | Package list: `teleport-bin` (AUR) | Changing the AUR package name |
-| `vars/debian.yml` | Package list: empty (repo method installs directly) | If Debian switches to a package-based install |
-| `vars/redhat.yml` | Package list: mirrors Debian pattern | Same as Debian |
-| `vars/void.yml` | Package list: empty (binary method) | If Void gets an official package |
-| `vars/gentoo.yml` | Package list: empty (binary method) | If Gentoo gets an official package |
+The defaults follow Teleport 17's documented single-node behavior, service
+ports, node enrollment, session-recording modes, and enhanced-recording schema:
+[CLI reference](https://goteleport.com/docs/ver/17.x/reference/cli/teleport/),
+[configuration reference](https://goteleport.com/docs/ver/17.x/reference/config/),
+and [Linux installation](https://goteleport.com/docs/installation/linux/).
+The previous `17.5.1` default is not retained because
+[Teleport identifies `17.5.2` as the first v17 patch for CVE-2025-49825](https://support.goteleport.com/hc/en-us/articles/42280478593043-CVE-2025-49825-for-Cloud-Customers).
 
 ## Examples
 
-### Minimal required configuration
+The default deployment is a standalone cluster:
 
 ```yaml
-# In host_vars/<hostname>/teleport.yml:
-teleport_auth_server: "auth.example.com:443"
-teleport_join_token: "{{ vault_teleport_join_token }}"
+- role: teleport
 ```
 
-### With labels and proxy-mode recording
+Configure a workstation as an agent of an existing cluster:
 
 ```yaml
-# In group_vars/workstations/teleport.yml:
-teleport_auth_server: "auth.example.com:443"
+teleport_mode: agent
+teleport_auth_server: teleport.example.com:443
 teleport_join_token: "{{ vault_teleport_join_token }}"
 teleport_labels:
-  env: production
-  role: workstation
-teleport_session_recording: "proxy"
-teleport_enhanced_recording: true
+  environment: home
+  type: workstation
 ```
 
-- `teleport_session_recording: "proxy"` — session data stored at the proxy instead of the node. Reduces node disk usage.
-- `teleport_enhanced_recording: true` — BPF-based recording. Requires kernel ≥ 5.8 with BTF. Do not enable on older kernels.
-
-### Disabling the role on a specific host
+Export the standalone cluster user CA for the project OpenSSH role:
 
 ```yaml
-# In host_vars/<hostname>/teleport.yml:
-teleport_enabled: false
+teleport_export_ca_key: true
 ```
 
-### Injecting extra teleport.yaml keys without modifying the template
+`workstation.yml` runs `teleport` before `ssh`. When export is enabled and
+succeeds, it passes the CA path explicitly to `ssh`; no cross-role fact is used.
 
-```yaml
-# In host_vars/<hostname>/teleport.yml:
-teleport_config_overwrite:
-  teleport:
-    diag_addr: "0.0.0.0:3000"
-```
+## Contract And Environments
 
-### Skip CA export (when not using the ssh role)
+The role owns Teleport installation, `/etc/teleport.yaml`,
+`/var/lib/teleport` directory metadata, the binary-install systemd unit,
+Teleport service state, and optional user-CA export. It does not remove cluster
+state, create Teleport users or roles, issue join tokens, configure firewall or
+DNS, or replace OpenSSH policy.
 
-```yaml
-# In group_vars/all/teleport.yml:
-teleport_export_ca_key: false
-```
+| Environment | Behavior |
+|-------------|----------|
+| Bare metal | Runs the complete standalone or agent contract under systemd |
+| VM guest | Same behavior as bare metal; virtualization does not change Teleport's access model |
+| Docker test container | Supported only by the role's privileged systemd test image; an ordinary application container has no systemd service contract |
 
-## Cross-platform details
+The role recognizes Archlinux, Debian, RedHat, Void, and Gentoo. Service
+management is currently implemented only for systemd; other init systems fail
+explicitly when `teleport_manage_service` is true. Automated coverage is Arch
+Linux and Ubuntu.
 
-| Aspect | Arch Linux | Ubuntu / Debian | Fedora / RHEL | Void Linux | Gentoo |
-|--------|-----------|-----------------|---------------|------------|--------|
-| Install method | `package` (AUR) | `repo` (APT) | `repo` (YUM) | `binary` (CDN) | `binary` (CDN) |
-| Package name | `teleport-bin` | `teleport` | `teleport` | — | — |
-| Binary path (binary method) | — | — | — | `/usr/local/bin/teleport` | `/usr/local/bin/teleport` |
-| Config path | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` |
-| Data directory | `/var/lib/teleport` | `/var/lib/teleport` | `/var/lib/teleport` | `/var/lib/teleport` | `/var/lib/teleport` |
-| Service name | `teleport` | `teleport` | `teleport` | `teleport` | `teleport` |
-| Systemd unit | package-provided | package-provided | package-provided | deployed by role | deployed by role |
-
-## Logs
-
-### Log sources
-
-| Source | How to access | Contents |
-|--------|--------------|---------- |
-| Service output | `journalctl -u teleport -f` | Cluster join attempts, SSH session events, auth failures, config errors |
-| Session recordings | `/var/lib/teleport/log/` | BPF or PTY session recording data (local node recording only) |
-| Diagnostics endpoint | `http://localhost:3000/metrics` | Prometheus metrics (when `teleport_config_overwrite.teleport.diag_addr` is set) |
-
-Teleport does not write standalone log files by default — all output goes to the system journal. There is no built-in log rotation configuration; journal rotation applies.
-
-### Reading the logs
-
-- **Failed to join cluster:** `journalctl -u teleport -n 100 | grep -i "error\|failed\|join"` — look for TLS errors, token expiry, or unreachable auth server.
-- **Service won't start:** `journalctl -u teleport -n 50` — usually a config syntax error or missing `auth_server`.
-- **Check config parsed correctly:** `teleport configure check --config /etc/teleport.yaml`
-
-## Troubleshooting
-
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| Role fails at "Assert auth server is configured" | `teleport_auth_server` is empty or not set | Set `teleport_auth_server: "auth.example.com:443"` in inventory |
-| `teleport.service` fails to start | `journalctl -u teleport -n 50` | Usually wrong `auth_server` address or expired `join_token`. Verify cluster is reachable: `curl -k https://<auth_server>/webapi/ping` |
-| Service starts but immediately exits | `journalctl -u teleport -n 100 \| grep error` | TLS certificate errors: clock skew > 5 min causes TLS rejection. Run `chronyc tracking`. Also check firewall allows outbound to auth server port. |
-| `/etc/teleport.yaml` has wrong permissions | `stat /etc/teleport.yaml` | Role sets 0600 on deploy. If permissions changed externally: re-run with `--tags teleport` |
-| CA export fails | `journalctl -u teleport -n 30` | CA export requires a running auth server with `tctl` access. Set `teleport_export_ca_key: false` for nodes without cluster access. |
-| AUR package install fails on Arch | Check `ansible output` for pacman errors | `teleport-bin` is an AUR package — requires an AUR helper. Install via binary method: `teleport_install_method: binary` in host_vars. |
-| Idempotence failure on config deploy | `molecule converge` runs twice and shows `changed` | A Jinja2 expression in `templates/teleport.yaml.j2` produces non-deterministic output. Check for filters that change on each run. |
+| OS family | Default installation | Notes |
+|-----------|----------------------|-------|
+| Archlinux | Verified binary archive | `teleport-bin` is available only when an operator deliberately selects `package` and provides it through a configured package source |
+| Debian/Ubuntu | Official APT repository | Repository channel follows the major component of `teleport_version` |
+| RedHat/Fedora | Verified binary archive | RHEL may explicitly select `repo`; Fedora is not listed in Teleport's supported YUM repository matrix |
+| Void | Verified binary archive | systemd service management is unavailable on a normal Void installation |
+| Gentoo | Verified binary archive | systemd is required when the role owns the service |
 
 ## Testing
 
-Two scenarios are required for every role. Run Docker for fast feedback, Vagrant for full validation.
+All Ansible and Molecule execution uses the project remote VM or CI path, never
+the local workstation.
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| `default` (localhost) | `molecule test -s default` | Smoke test: after changing templates or variables | Syntax, variable loading, config rendered with correct content and 0600 permissions |
-| `docker` | `molecule test -s docker` | After changing task logic, service management, or install paths | Package install, service enabled, idempotence, Arch + Ubuntu matrix |
-| `vagrant` | `molecule test -s vagrant` | After changing OS-specific logic or before releasing | Real systemd, real packages, Arch + Ubuntu multi-distro validation |
+| Scenario | Coverage |
+|----------|----------|
+| Default | Standalone binary installation, service convergence, idempotence, HTTPS Proxy API, local cluster status, and user-CA export |
+| Docker | Arch standalone behavior through binary installation plus Ubuntu agent configuration through the official APT repository, without a fake external cluster |
+| Vagrant/libvirt | The same matrix in real Arch and Ubuntu systemd VMs |
 
-### Success criteria
+The Ubuntu agent test sets `teleport_manage_service: false` because no external
+Teleport cluster exists in the isolated scenario. The role still installs the
+real binary and Teleport itself parses the generated agent configuration.
+Molecule does not repeat template ownership, mode, or unit-file assertions that
+are already guaranteed by Ansible modules.
 
-- All steps complete: `syntax → converge → idempotence → verify → destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all `ansible.builtin.assert` tasks pass
-- Final line: no `failed` tasks
+Success requires convergence, a zero-change idempotence pass, and behavioral
+verification. Use the project's changed-role CI workflow or remote Taskfile
+entrypoint.
 
-### What the tests verify
+## Troubleshooting
 
-| Category | Examples | Test requirement |
-|----------|----------|-----------------|
-| Binary | `teleport` in PATH, `teleport version` exits 0 | TEST-008 |
-| Config file | `/etc/teleport.yaml` exists, mode 0600, owned root | TEST-008 |
-| Config content | schema `v3`, correct node name, auth server, session recording mode | TEST-008 |
-| Data directory | `/var/lib/teleport` exists, mode 0750 | TEST-008 |
-| Systemd unit | `teleport.service` present, mode 0644, enabled (systemd only) | TEST-008 |
-| Skip path | `teleport_enabled: false` runs without error and installs nothing | TEST-011 |
-
-### Common test failures
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `which: no teleport in PATH` | Binary install failed silently | Check `teleport_install_method` for the platform; check CDN URL is reachable in Docker |
-| Idempotence failure: `/etc/teleport.yaml` changed | Non-deterministic template output | Check `teleport.yaml.j2` for filters that change on each run; `no_log: true` on task hides diff |
-| `Assert /etc/teleport.yaml exists` fails | `teleport_manage_config: false` was set in converge | Remove the override or check converge vars match what verify expects |
-| `Assert teleport.service unit file exists` fails | Non-systemd container, or binary not deployed | Unit file section is guarded by `service_mgr == systemd`; check if container actually uses systemd |
-| Vagrant: `Python not found` | `prepare.yml` platform dispatch failed | Check `prepare_archlinux.yml` and `prepare_debian.yml` exist and `ansible_facts['os_family']` resolves |
-
-## Tags
-
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `teleport` | Entire role | Full apply: `ansible-playbook workstation.yml --tags teleport` |
-| `teleport,install` | Installation only | Upgrade Teleport binary without touching config: `ansible-playbook workstation.yml --tags teleport,install` |
-| `teleport,security` | Join token validation + CA export | Re-export CA after cluster rotation: `ansible-playbook workstation.yml --tags teleport,security` |
-| `teleport,service` | Service enable/start only | Restart service without re-deploying config: `ansible-playbook workstation.yml --tags teleport,service` |
-| `teleport,report` | Execution report only | Re-generate report in CI: `ansible-playbook workstation.yml --tags teleport,report` |
-
-## File map
-
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable settings | No — override via inventory |
-| `vars/main.yml` | Service name map per init system | Only when adding init system support |
-| `vars/<os_family>.yml` | Package names per distro family | Only when adding distro support |
-| `templates/teleport.yaml.j2` | Teleport config template (v3 format) | When changing config structure |
-| `tasks/main.yml` | Execution flow orchestrator | When adding/removing phases |
-| `tasks/install.yml` | Install Teleport (package/repo/binary) | When changing install logic |
-| `tasks/configure.yml` | Deploy `/etc/teleport.yaml` | When changing config deploy logic |
-| `tasks/ca_export.yml` | Export CA key + set ssh integration fact | When changing CA export behavior |
-| `tasks/join.yml` | Validate join token configuration | When changing join validation |
-| `tasks/verify.yml` | Post-deploy self-check | When changing verification logic |
-| `handlers/main.yml` | Service restart handler | Rarely |
-| `molecule/default/` | Localhost smoke test scenario | When changing smoke test coverage |
-| `molecule/docker/` | Docker containerized test scenario | When changing Docker test coverage |
-| `molecule/vagrant/` | Full VM test scenario | When changing multi-distro coverage |
-| `molecule/shared/converge.yml` | Shared converge playbook (all scenarios) | When changing test variables or adding edge cases |
-| `molecule/shared/verify.yml` | Shared verify playbook (all scenarios) | When adding verification assertions |
-| `requirements.yml` | Role dependency declaration (common role) | When adding role dependencies |
-| `meta/main.yml` | Role metadata | Rarely |
+| Symptom | What it means | Action |
+|---------|---------------|--------|
+| Agent validation requires auth server and token | Agent mode cannot enroll without an existing cluster and join credential | Set both values from the target cluster; do not invent a local placeholder in production |
+| Configuration validation fails | Teleport rejected `/etc/teleport.yaml`, including any `teleport_config_overwrite` content | Run `teleport configure --test /etc/teleport.yaml` and correct the reported field |
+| Service does not remain active | Teleport parsed the file but failed during runtime initialization | Inspect `journalctl -u teleport -n 100` for bind, data, certificate, or cluster-connectivity errors |
+| Standalone UI is unreachable | Proxy is not reachable at the advertised/listen address | Check service logs, firewall port 3080, DNS, and `teleport_proxy_public_addr` |
+| CA export fails | Local `tctl` lacks administrative access to a running Auth service | Enable export only on a suitable Auth node or provide a valid administrative identity |
+| Binary checksum fails | The archive does not match Teleport's published SHA-256 file | Treat it as an integrity failure; do not bypass checksum validation |
 
 ## License
 
 MIT
-
-## Author
-
-Part of the bootstrap infrastructure automation project.

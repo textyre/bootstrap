@@ -1,0 +1,5 @@
+---
+# === teleport: load platform variables ===
+
+- name: Include Teleport OS-specific variables
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"

@@ -80,11 +80,15 @@
     - role: ssh_keys
       tags: [ssh_keys, security]
 
-    - role: ssh
-      tags: [ssh, security]
-
     - role: teleport
       tags: [teleport, security]
+
+    - role: ssh
+      tags: [ssh, security]
+      vars:
+        ssh_teleport_integration: "{{ teleport_export_ca_key | default(false) | bool }}"
+        ssh_teleport_ca_keys_file: >-
+          {{ teleport_ca_keys_file | default('/etc/ssh/teleport_user_ca.pub') }}
 
     - role: fail2ban
       tags: [fail2ban, security]

@@ -1,8 +1,6 @@
 ---
-# NOTE (TEST-013): This scenario runs on localhost only — it is an offline smoke
-# test designed for syntax checking, variable loading, and config rendering.
-# Cross-platform coverage (Arch + Ubuntu) is provided by the docker and vagrant
-# scenarios which run real containers/VMs with actual package installs.
+# The default scenario runs on the disposable remote test host. It exercises the
+# complete standalone contract; Docker and Vagrant provide the platform matrix.
 driver:
   name: default
   options:
@@ -23,6 +21,8 @@ provisioner:
     host_vars:
       Localhost:
         ansible_connection: local
+        teleport_install_method: binary
+        teleport_export_ca_key: true
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 

@@ -1,0 +1,27 @@
+---
+# === teleport: systemd service phase ===
+
+- name: Deploy Teleport systemd unit for binary installation
+  ansible.builtin.template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: _teleport_systemd_unit
+  when:
+    - teleport_install_method == 'binary'
+    - teleport_manage_install | bool
+
+- name: Enable and apply Teleport service state
+  ansible.builtin.systemd_service:
+    name: "{{ _teleport_service_name }}"
+    enabled: true
+    daemon_reload: "{{ _teleport_systemd_unit is defined and _teleport_systemd_unit is changed }}"
+    state: >-
+      {{ 'restarted'
+         if (_teleport_package_install is defined and _teleport_package_install is changed)
+           or (_teleport_binary_install is defined and _teleport_binary_install is changed)
+           or (_teleport_systemd_unit is defined and _teleport_systemd_unit is changed)
+           or (_teleport_configuration is defined and _teleport_configuration is changed)
+         else 'started' }}

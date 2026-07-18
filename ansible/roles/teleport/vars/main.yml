@@ -1,11 +1,43 @@
 ---
-# === Internal mappings (not user-facing) ===
+# === Internal role details ===
 
-# Service name per init system
-# Teleport uses the same service name across all init systems
-teleport_service_name:
-  systemd: teleport
-  runit: teleport
-  openrc: teleport
-  s6: teleport
-  dinit: teleport
+_teleport_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+_teleport_supported_install_methods:
+  - package
+  - repo
+  - binary
+
+_teleport_supported_modes:
+  - standalone
+  - agent
+
+_teleport_supported_recording_modes:
+  - node
+  - node-sync
+  - proxy
+  - proxy-sync
+  - 'off'
+
+_teleport_service_name: teleport
+_teleport_major_version: "{{ teleport_version.split('.')[0] }}"
+_teleport_architecture_map:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: arm
+  i686: '386'
+_teleport_architecture: "{{ _teleport_architecture_map[ansible_facts['architecture']] }}"
+_teleport_archive_url: >-
+  https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ _teleport_architecture }}-bin.tar.gz
+_teleport_binary_names:
+  - teleport
+  - tctl
+  - tsh
+  - tbot
+  - fdpass-teleport
+  - teleport-update

@@ -1,0 +1,18 @@
+---
+# === teleport: RedHat repository installation ===
+
+- name: Configure Teleport package repository
+  ansible.builtin.get_url:
+    url: >-
+      https://yum.releases.teleport.dev/rhel/{{ ansible_facts['distribution_major_version']
+      }}/Teleport/{{ ansible_facts['architecture'] }}/stable/v{{ _teleport_major_version }}/teleport.repo
+    dest: /etc/yum.repos.d/teleport.repo
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Teleport package
+  ansible.builtin.package:
+    name: teleport
+    state: present
+  register: _teleport_package_install
