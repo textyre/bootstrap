@@ -1,0 +1,27 @@
+---
+- name: Prepare ssh_keys test user
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Create test user
+      ansible.builtin.user:
+        name: testuser
+        state: present
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create .ssh directory for test user
+      ansible.builtin.file:
+        path: /home/testuser/.ssh
+        state: directory
+        owner: testuser
+        mode: "0700"
+
+    - name: Plant old authorized_keys content
+      ansible.builtin.copy:
+        content: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOldKey oldkey@shouldberemoved\n"
+        dest: /home/testuser/.ssh/authorized_keys
+        owner: testuser
+        mode: "0600"

@@ -3,7 +3,7 @@
 galaxy_info:
   role_name: ssh_keys
   author: textyre
-  description: SSH authorized_keys and key generation management
+  description: SSH authorized_keys and target-local user keypair management
   license: MIT
   min_ansible_version: "2.15"
   platforms:
@@ -11,11 +11,11 @@ galaxy_info:
       versions: [all]
     - name: Debian
       versions: [all]
-    - name: Ubuntu
-      versions: [all]
     - name: Fedora
       versions: [all]
-    - name: GenericLinux
+    - name: Void Linux
+      versions: [all]
+    - name: Gentoo
       versions: [all]
   galaxy_tags:
     - ssh
@@ -23,7 +23,8 @@ galaxy_info:
     - authorizedkeys
     - keys
 
-dependencies: []
+dependencies:
+  - role: common
 # Collection dependencies (declared in ansible/requirements.yml):
-#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair in keygen.yml)
-#   - ansible.posix >=1.5.0     (ansible.posix.authorized_key in authorized_keys.yml)
+#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair)
+#   - ansible.posix >=1.5.0     (ansible.posix.authorized_key)

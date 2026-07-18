@@ -1,190 +1,117 @@
 # ssh_keys
 
-Manages SSH authorized_keys deployment and optional keypair generation for user accounts.
+Manages SSH key files for one existing user.
 
-## Execution flow
+The role owns only the user's SSH key state:
 
-1. **Assert supported OS** (`tasks/main.yml`) — validates `ansible_facts['os_family']` is in the supported list. Fails if OS is not Arch, Debian, RedHat, Void, or Gentoo.
-2. **Load OS-specific variables** (`tasks/main.yml`) — includes `vars/<os_family>.yml` for per-distro settings (currently stubs for future extensions).
-3. **Compute user lists** (`tasks/main.yml`) — pre-filters `ssh_keys_users` into present, present-with-keys, and absent user lists. Used by all subsequent steps.
-3. **Ensure .ssh directories** (`tasks/main.yml`) — creates `~/.ssh` with mode `0700` for all present users that have SSH keys defined. Shared by authorized_keys and keygen steps.
-4. **Deploy authorized_keys** (`tasks/authorized_keys.yml`) — adds SSH public keys from `accounts[].ssh_keys` via `ansible.posix.authorized_key`. Removes `authorized_keys` for absent users. Skipped when `ssh_keys_manage_authorized_keys: false`.
-5. **Generate keypairs** (`tasks/keygen.yml`) — generates SSH keypairs (ed25519 by default) on target machines via `community.crypto.openssh_keypair`. Skipped when `ssh_keys_generate_user_keys: false` (default).
-6. **Verify** (`tasks/verify.yml`) — checks `.ssh` directory permissions (0700), `authorized_keys` existence, and generated keypair existence (when keygen enabled). Fails if any check does not pass.
-7. **Report** (`tasks/main.yml`) — writes execution report via `common/report_phase.yml` and `common/report_render.yml`. Separate phases for authorized_keys and keygen.
+- ensures `~/.ssh` exists for `ssh_keys_user`;
+- optionally writes inbound SSH public keys to `~/.ssh/authorized_keys`;
+- generates the user's target-local SSH keypair.
 
-### Handlers
+It does not create users, remove users, configure `sshd`, install packages, restart SSH services, or manage firewall rules. The `user` role must create `ssh_keys_user` before this role runs.
 
-This role does not define handlers. SSH service restart is handled by the `ssh` role.
+## Execution Flow
+
+1. **Validate prerequisites** (`tasks/validate.yml`) -- checks supported OS family.
+2. **Detect account home** (`tasks/detect.yml`) -- reads the passwd database for the existing user home.
+3. **Configure SSH key state** (`tasks/configure/main.yml`) -- creates `.ssh`, manages `authorized_keys` when keys are declared, and generates the user keypair when enabled.
+4. **Report** (`tasks/main.yml`) -- renders the final Ansible execution report.
+
+There is no separate assertion phase for this role. Successful converge and idempotence are the test signal.
 
 ## Variables
 
-### Configurable (`defaults/main.yml`)
+Concrete values should live in inventory. `defaults/main.yml` declares the external contract.
 
-Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ssh_keys_user` | `{{ target_user }}` | Existing user whose SSH files are managed. |
+| `ssh_keys_authorized_keys` | `[]` | Public keys allowed to log in as `ssh_keys_user`. Empty means `authorized_keys` is not managed. |
+| `ssh_keys_exclusive` | `false` | When `true`, `authorized_keys` contains only keys from `ssh_keys_authorized_keys`. |
+| `ssh_keys_generate_user_key` | `true` | Generate `ssh_keys_user` keypair on the target host. |
+| `ssh_keys_user_key_type` | `ed25519` | Key type passed to `community.crypto.openssh_keypair`. Common values: `ed25519`, `rsa`, `ecdsa`. |
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `ssh_keys_manage_authorized_keys` | `true` | safe | Deploy `authorized_keys` from the `accounts` data source |
-| `ssh_keys_generate_user_keys` | `false` | safe | Generate SSH keypairs on target machines |
-| `ssh_keys_key_type` | `ed25519` | safe | Key type for generation: `ed25519`, `rsa`, or `ecdsa` |
-| `ssh_keys_exclusive` | `false` | careful | Remove keys not listed in `accounts[].ssh_keys` from `authorized_keys`. When `true`, any manually added keys will be deleted |
-| `_ssh_keys_supported_os` | 5 OS families | internal | List of supported `os_family` values (underscore prefix = internal, not user-configurable) |
+Internal variables live in `vars/main.yml`.
 
-### Internal variables
+| Variable | Description |
+|----------|-------------|
+| `_ssh_keys_supported_os` | OS families accepted by `validate.yml`. |
 
-| Variable | Set by | Description |
-|----------|--------|-------------|
-| `_ssh_keys_present_users` | `set_fact` in main.yml | Users with `state: present`, pre-filtered |
-| `_ssh_keys_present_users_with_keys` | `set_fact` in main.yml | Present users that have `ssh_keys` defined |
-| `_ssh_keys_absent_users` | `set_fact` in main.yml | Users with `state: absent`, pre-filtered |
-
-### Data source
-
-The role reads user and key data from the shared `accounts` variable (same source used by the `user` role). When `accounts` is not defined, falls back to `user_owner` + `user_additional_users` for backward compatibility.
-
-## Examples
-
-### Deploying SSH keys for users
+## Inventory Example
 
 ```yaml
-# In group_vars/all/accounts.yml:
-accounts:
-  - name: alice
-    state: present
-    ssh_keys:
-      - "ssh-ed25519 AAAA... alice@laptop"
-      - "ssh-ed25519 AAAA... alice@phone"
-  - name: bob
-    state: absent   # authorized_keys will be removed
+ssh_keys_user: "{{ target_user }}"
+ssh_keys_authorized_keys:
+  - "ssh-ed25519 AAAA... alice@laptop"
+ssh_keys_exclusive: false
+ssh_keys_generate_user_key: true
+ssh_keys_user_key_type: ed25519
 ```
 
-### Generating keypairs on target machines
+`ssh_keys_authorized_keys` are public keys. They allow holders of the matching private keys to log in as `ssh_keys_user`.
 
-```yaml
-# In group_vars/all/ssh.yml:
-ssh_keys_generate_user_keys: true
-ssh_keys_key_type: ed25519
-```
+The generated keypair is different: it is created on the target host as `~/.ssh/id_<type>` and `~/.ssh/id_<type>.pub`. It is for outbound identity from that machine, for example adding the public key to GitHub or GitLab.
 
-This creates `~/.ssh/id_ed25519` and `~/.ssh/id_ed25519.pub` for each present user.
+## Platform Behavior
 
-### Using exclusive mode (remove unlisted keys)
+The role behaves the same on all supported OS families: Archlinux, Debian, RedHat, Void, and Gentoo.
 
-```yaml
-# In group_vars/all/ssh.yml:
-ssh_keys_exclusive: true
-```
+| Item | State |
+|------|-------|
+| `.ssh` directory | `~/.ssh`, owner=user, mode `0700` |
+| `authorized_keys` | Managed by `ansible.posix.authorized_key` only when `ssh_keys_authorized_keys` is not empty |
+| Generated private key | `~/.ssh/id_<ssh_keys_user_key_type>`, owner=user, mode `0600` |
+| Generated public key | `~/.ssh/id_<ssh_keys_user_key_type>.pub`, owner=user |
 
-Any keys in `authorized_keys` that are not in `accounts[].ssh_keys` will be removed. Use with caution — this can lock out users who added keys manually.
+## Dependencies
 
-### Disabling authorized_keys management
+The role assumes:
 
-```yaml
-# In host_vars/<hostname>/ssh.yml:
-ssh_keys_manage_authorized_keys: false
-```
+- `ssh_keys_user` already exists;
+- `ssh-keygen` exists on the target when `ssh_keys_generate_user_key: true`;
+- project collections from `ansible/requirements.yml` are installed.
 
-## Cross-platform details
+Collections:
 
-| Aspect | All platforms |
-|--------|--------------|
-| `.ssh` directory path | `~/.ssh` (home dir from `getent passwd`) |
-| `.ssh` directory mode | `0700` |
-| `authorized_keys` path | `~/.ssh/authorized_keys` |
-| `authorized_keys` mode | `0600` (set by `ansible.posix.authorized_key`) |
-| Generated key path | `~/.ssh/id_<key_type>` |
+- `ansible.posix` for `ansible.posix.authorized_key`;
+- `community.crypto` for `community.crypto.openssh_keypair`.
 
-This role does not install packages or manage services, so there are no OS-specific package names, service names, or config paths. The role works identically across all five supported OS families.
+Role dependency:
 
-## Logs
-
-### Role output
-
-This role does not write log files to the filesystem. All output is via Ansible execution report (`common/report_phase.yml`).
-
-| Output | Where | Contents |
-|--------|-------|----------|
-| Execution report | Ansible stdout | Phase summary: users count, keygen status, exclusive mode status |
-| `authorized_key` changes | Ansible stdout | Added/removed keys per user (suppressed by `no_log: true` for security) |
-
-### Audit trail
-
-SSH key changes are visible via:
-- `stat` on `~/.ssh/authorized_keys` — modification timestamp shows when keys last changed
-- `git log` on inventory files — tracks who changed `accounts[].ssh_keys` and when
-
-## Troubleshooting
-
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| Role fails at "Assert supported operating system" | OS family not in supported list | Check `ansible_facts['os_family']` matches one of: Archlinux, Debian, RedHat, Void, Gentoo |
-| "user not found" error in keygen | User does not exist on target | Ensure `user` role runs before `ssh_keys` in the playbook |
-| Keys deployed but SSH login fails | Check `sshd_config` allows pubkey auth | Verify `PubkeyAuthentication yes` in `/etc/ssh/sshd_config` and `AuthorizedKeysFile` path matches |
-| Exclusive mode removed manually-added keys | `ssh_keys_exclusive: true` removes all keys not in `accounts[].ssh_keys` | Add all required keys to the `accounts` data source before enabling exclusive mode |
-| authorized_keys not removed for absent user | User home directory does not exist | The role removes the file if the home dir exists. If home was already deleted, the file is gone too |
-| Idempotence failure on keygen | `community.crypto.openssh_keypair` regenerates keys when comment changes | Ensure `ansible_hostname` is stable between runs |
-| "collection not found: ansible.posix" | Collection dependencies not installed | Run `ansible-galaxy collection install -r ansible/requirements.yml` |
+- `common` for execution reporting.
 
 ## Testing
 
-Both scenarios are required for every role (TEST-002). Run Docker for fast feedback, Vagrant for full validation.
+The Molecule scenarios run syntax, prepare, converge, and idempotence. The shared converge play applies:
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| Default (fast) | `molecule test` | After changing task logic or variables | Syntax, idempotence, basic verification on localhost |
-| Docker (CI) | `molecule test -s docker` | After changing any role files | Arch + Ubuntu containers, full verification |
-| Vagrant (full) | `molecule test -s vagrant` | After changing OS-specific logic | Real VMs with Arch + Ubuntu, full system validation |
+- `authorized_keys` deployment;
+- exclusive replacement of old undeclared keys;
+- generated private and public keypair.
 
-### Success criteria
+They do not use a separate Ansible assertion playbook for module-level results.
 
-- All steps complete: `syntax -> converge -> idempotence -> verify -> destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass with `success_msg` output
-- Final line: no `failed` tasks
+Per project rules, run Ansible/Molecule through the remote VM or CI, not directly on the local machine.
 
-### What the tests verify
+## Troubleshooting
 
-| Category | What is checked | Requirement |
-|----------|----------------|-------------|
-| Permissions | `.ssh` directory exists, mode 0700, correct owner | TEST-008 |
-| Config files | `authorized_keys` exists, mode 0600, correct owner, correct key content | TEST-008 |
-| Exclusive mode | Second key removed after exclusive=true converge | TEST-008 |
-| Absent user cleanup | `authorized_keys` removed for `state: absent` user | TEST-008 |
-| Keygen | `id_ed25519` private key exists, mode 0600; public key exists | TEST-008 |
+| Symptom | Meaning | Fix |
+|---------|---------|-----|
+| User lookup fails | `ssh_keys_user` does not exist on the target. | Run the `user` role first or set `ssh_keys_user` to an existing user. |
+| `ssh-keygen` missing | Key generation is enabled but OpenSSH client tools are not installed. | Install the OS OpenSSH client package before enabling keygen. |
+| Manually added keys disappeared | `ssh_keys_exclusive: true` makes `ssh_keys_authorized_keys` the complete source of truth. | Add required public keys to `ssh_keys_authorized_keys` or disable exclusive mode. |
+| SSH login still fails | Key files are managed, but sshd policy is outside this role. | Check the `ssh` role and sshd settings such as `PubkeyAuthentication`. |
 
-### Common test failures
+## File Map
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `user testuser does not exist` | prepare.yml did not run | Run full sequence: `molecule test`, not just `molecule converge` |
-| `No module named 'community.crypto'` | Collection not installed | `ansible-galaxy collection install -r ansible/requirements.yml` |
-| Idempotence failure on authorized_keys | `exclusive: true` with changing key list | Ensure converge vars are stable between plays |
-| `authorized_keys for absent_user should have been removed` | prepare.yml did not plant the test file | Run `molecule destroy && molecule test` to reset |
-| Vagrant: `Python not found` | Arch VM needs bootstrap | Check `prepare.yml` imports `prepare-vagrant.yml` |
-
-## Tags
-
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `ssh_keys` | Entire role | Full apply: `ansible-playbook playbook.yml --tags ssh_keys` |
-| `ssh_keys,security` | Authorized keys deployment only | Re-deploy keys without keygen: `ansible-playbook playbook.yml --tags ssh_keys,security` |
-| `ssh_keys,report` | Execution report only | Re-generate report: `ansible-playbook playbook.yml --tags ssh_keys,report` |
-
-## File map
-
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable settings | No -- override via inventory |
-| `vars/*.yml` | Per-OS-family variables (stubs) | When adding OS-specific config |
-| `requirements.yml` | Role dependencies for molecule | When adding role dependencies |
-| `tasks/main.yml` | Execution flow orchestrator, user list computation | When adding/removing steps |
-| `tasks/authorized_keys.yml` | authorized_keys deployment and cleanup | When changing key deployment logic |
-| `tasks/keygen.yml` | SSH keypair generation | When changing keygen logic |
-| `tasks/verify.yml` | Post-deploy self-checks | When changing verification logic |
-| `handlers/main.yml` | Empty -- sshd restart handled by ssh role | Rarely |
-| `meta/main.yml` | Galaxy metadata and collection dependency docs | When changing role metadata |
-| `molecule/shared/` | Shared converge and verify playbooks | When changing test coverage |
-| `molecule/default/` | Localhost test scenario | When changing local test config |
-| `molecule/docker/` | Docker CI scenario (Arch + Ubuntu) | When changing container test config |
-| `molecule/vagrant/` | Vagrant scenario (Arch + Ubuntu VMs) | When changing VM test config |
+| File | Purpose |
+|------|---------|
+| `defaults/main.yml` | External role contract. |
+| `vars/main.yml` | Internal constants. |
+| `tasks/main.yml` | Role orchestrator. |
+| `tasks/validate.yml` | Supported platform check. |
+| `tasks/detect.yml` | Passwd/home detection. |
+| `tasks/configure/directories.yml` | `.ssh` directory state. |
+| `tasks/configure/authorized_keys.yml` | `authorized_keys` deployment. |
+| `tasks/configure/keygen.yml` | Target-local keypair generation. |
+| `molecule/shared/prepare.yml` | Test account setup. |
+| `molecule/shared/converge.yml` | Shared role converge. |

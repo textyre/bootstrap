@@ -1,0 +1,10 @@
+---
+# === ssh_keys / configure / authorized_keys ===
+
+- name: Add SSH authorized keys
+  ansible.posix.authorized_key:
+    user: "{{ ssh_keys_user }}"
+    key: "{{ ssh_keys_authorized_keys | join('\n') }}"
+    manage_dir: true
+    exclusive: "{{ ssh_keys_exclusive }}"
+  no_log: true

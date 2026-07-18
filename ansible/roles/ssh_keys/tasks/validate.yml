@@ -1,0 +1,21 @@
+---
+# === ssh_keys / validate ===
+# Validate platform prerequisites before mutation.
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _ssh_keys_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _ssh_keys_supported_os | join(', ') }}
+    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
+
+- name: "Report: Validate prerequisites"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_keys_phases"
+    common_rpt_phase: "Validate prerequisites"
+    common_rpt_detail: "{{ ansible_facts['os_family'] }}"

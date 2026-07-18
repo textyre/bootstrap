@@ -1,15 +1,9 @@
 ---
-# Role dependencies for ssh_keys (TEST-010).
-# The 'common' role is used via include_role for report_phase and report_render.
-#
-# Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
-# so the 'common' role is resolved directly from the source tree — no galaxy install required.
-# The dependency section in molecule.yml uses ignore-errors: true so galaxy does not abort
-# when common is not found on Ansible Galaxy (it is a local monorepo role, not a public role).
+# Role dependency used by report_phase.yml and report_render.yml.
+# Molecule resolves this from the monorepo through ANSIBLE_ROLES_PATH.
 roles:
   - name: common
 
-# Collection dependencies required by this role:
-#   - ansible.posix >=1.0.0     (ansible.posix.authorized_key in authorized_keys.yml)
-#   - community.crypto >=2.0.0  (community.crypto.openssh_keypair in keygen.yml)
-# These are declared in ansible/requirements.yml at the project level.
+# Collection dependencies are declared at project level in ansible/requirements.yml:
+#   - ansible.posix >=1.5.0
+#   - community.crypto >=2.0.0

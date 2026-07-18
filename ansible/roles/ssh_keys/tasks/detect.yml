@@ -1,0 +1,16 @@
+---
+# === ssh_keys / detect ===
+# The user role owns account creation.
+
+- name: Read passwd database
+  ansible.builtin.getent:
+    database: passwd
+
+- name: "Report: Detect account homes"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_keys_phases"
+    common_rpt_phase: "Detect account homes"
+    common_rpt_detail: "{{ ssh_keys_user }}"
