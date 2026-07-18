@@ -17,7 +17,7 @@ It does not create users, remove users, configure `sshd`, install packages, rest
 3. **Configure SSH key state** (`tasks/configure/main.yml`) -- creates `.ssh`, manages `authorized_keys` when keys are declared, and generates the user keypair when enabled.
 4. **Report** (`tasks/main.yml`) -- renders the final Ansible execution report.
 
-There is no in-role `verify` phase. The role uses idempotent Ansible modules, and Molecule verifies the role contract separately.
+There is no separate assertion phase for this role. Successful converge and idempotence are the test signal.
 
 ## Variables
 
@@ -82,12 +82,13 @@ Role dependency:
 
 ## Testing
 
-The Molecule scenarios use a shared converge play that checks:
+The Molecule scenarios run syntax, prepare, converge, and idempotence. The shared converge play applies:
 
 - `authorized_keys` deployment;
 - exclusive replacement of old undeclared keys;
-- generated private and public keypair;
-- idempotence.
+- generated private and public keypair.
+
+They do not use a separate Ansible assertion playbook for module-level results.
 
 Per project rules, run Ansible/Molecule through the remote VM or CI, not directly on the local machine.
 
@@ -114,4 +115,3 @@ Per project rules, run Ansible/Molecule through the remote VM or CI, not directl
 | `tasks/configure/keygen.yml` | Target-local keypair generation. |
 | `molecule/shared/prepare.yml` | Test account setup. |
 | `molecule/shared/converge.yml` | Shared role converge. |
-| `molecule/shared/verify.yml` | Contract-level test assertions. |

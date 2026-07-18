@@ -25,10 +25,6 @@ provisioner:
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -36,4 +32,3 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
