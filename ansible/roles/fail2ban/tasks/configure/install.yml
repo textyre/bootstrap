@@ -1,0 +1,17 @@
+---
+# === fail2ban: package installation ===
+
+- name: Install fail2ban packages
+  ansible.builtin.package:
+    name: "{{ fail2ban_packages }}"
+    state: present
+
+- name: "Report: Install fail2ban packages"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_fail2ban_phases"
+    common_rpt_phase: "Install"
+    common_rpt_detail: "packages={{ fail2ban_packages | join(',') }}"
+  tags: ['report']

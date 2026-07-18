@@ -1,0 +1,16 @@
+---
+# === fail2ban: internal role constants ===
+
+_fail2ban_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+_fail2ban_supported_init_systems:
+  - systemd
+  - runit
+  - openrc
+  - s6
+  - dinit

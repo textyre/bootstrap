@@ -1,0 +1,23 @@
+---
+# === fail2ban: service state ===
+
+- name: Apply init-specific fail2ban service policy
+  ansible.builtin.include_tasks:
+    file: "init/{{ ansible_facts['service_mgr'] }}/service.yml"
+
+- name: Reload fail2ban after jail configuration changes
+  ansible.builtin.command:
+    cmd: fail2ban-client reload
+  register: _fail2ban_reload
+  changed_when: true
+  when: _fail2ban_sshd_jail is defined and _fail2ban_sshd_jail.changed
+
+- name: "Report: fail2ban service"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_fail2ban_phases"
+    common_rpt_phase: "Service"
+    common_rpt_detail: "svc=fail2ban"
+  tags: ['report']

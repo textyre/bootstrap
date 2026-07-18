@@ -1,0 +1,10 @@
+---
+# === fail2ban: configure SSH brute-force protection ===
+
+- name: Install fail2ban packages
+  ansible.builtin.include_tasks:
+    file: install.yml
+
+- name: Configure fail2ban sshd jail
+  ansible.builtin.include_tasks:
+    file: jail.yml

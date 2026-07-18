@@ -1,88 +1,59 @@
 ---
-- name: "Verify fail2ban is running"
-  ansible.builtin.command:
-    cmd: "fail2ban-client status"
-  register: _fail2ban_verify_status
-  changed_when: false
-  failed_when: false
-  retries: 5
-  delay: 2
-  until: >-
-    _fail2ban_verify_status.rc == 0 or
-    not (fail2ban_start_service | bool) or
-    ansible_virtualization_type | default('') in ['docker', 'container', 'lxc']
-  when: fail2ban_start_service | bool
-  tags: [fail2ban]
+# === fail2ban: runtime contract verification ===
 
-- name: "Diagnostic: collect fail2ban journal on startup failure"
-  ansible.builtin.command:
-    cmd: "journalctl -u fail2ban --lines=40 --no-pager --output=short-iso"
-  register: _fail2ban_diag_journal
-  changed_when: false
-  failed_when: false
-  when:
-    - fail2ban_start_service | bool
-    - _fail2ban_verify_status is defined
-    - _fail2ban_verify_status.rc | default(0) != 0
-    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
-    - ansible_facts['service_mgr'] == 'systemd'
-  tags: [fail2ban]
+- name: Check fail2ban server status
+  block:
+    - name: Check fail2ban server status
+      ansible.builtin.command:
+        cmd: fail2ban-client ping
+      register: _fail2ban_server_status
+      changed_when: false
 
-- name: "Diagnostic: show fail2ban journal on startup failure"
-  ansible.builtin.debug:
-    msg: "fail2ban journal (last 40 lines):\n{{ _fail2ban_diag_journal.stdout | default('(empty)') }}"
-  when:
-    - fail2ban_start_service | bool
-    - _fail2ban_verify_status is defined
-    - _fail2ban_verify_status.rc | default(0) != 0
-    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
-    - _fail2ban_diag_journal is defined
-  tags: [fail2ban]
+    - name: Check fail2ban sshd jail status
+      ansible.builtin.command:
+        cmd: fail2ban-client status sshd
+      register: _fail2ban_sshd_jail_status
+      changed_when: false
+      when: fail2ban_sshd_enabled | bool
 
-- name: "Assert fail2ban is running"
-  ansible.builtin.assert:
-    that: _fail2ban_verify_status.rc == 0
-    fail_msg: >-
-      fail2ban is not running (rc={{ _fail2ban_verify_status.rc }},
-      stderr={{ _fail2ban_verify_status.stderr | default('') }}).
-      See diagnostic output above for fail2ban journal.
-  when:
-    - fail2ban_start_service | bool
-    - ansible_virtualization_type | default('') not in ['docker', 'container', 'lxc']
-  tags: [fail2ban]
+  rescue:
+    - name: Collect fail2ban configuration dump
+      ansible.builtin.command:
+        cmd: fail2ban-client --dp
+      register: _fail2ban_configuration_dump
+      changed_when: false
+      failed_when: false
 
-- name: "Warn if fail2ban not running in container"
-  ansible.builtin.debug:
-    msg: >-
-      INFO: fail2ban service start skipped in container environment
-      (fail2ban_start_service={{ fail2ban_start_service }}).
-      Config file deployment and package install were verified.
-  when:
-    - not (fail2ban_start_service | bool) or
-      ansible_virtualization_type | default('') in ['docker', 'container', 'lxc']
-  tags: [fail2ban]
+    - name: Collect init-specific fail2ban diagnostics
+      ansible.builtin.include_tasks:
+        file: "init/{{ ansible_facts['service_mgr'] }}/verify_diagnostics.yml"
 
-- name: "Verify SSH jail is active"
-  ansible.builtin.command:
-    cmd: "fail2ban-client status sshd"
-  register: _fail2ban_verify_sshd
-  changed_when: false
-  failed_when: false
-  when:
-    - fail2ban_start_service | bool
-    - fail2ban_sshd_enabled | bool
-    - _fail2ban_verify_status is defined
-    - _fail2ban_verify_status.rc == 0
-  tags: [fail2ban]
+    - name: Fail fail2ban runtime contract
+      ansible.builtin.fail:
+        msg:
+          fail2ban_verify_failed: true
+          server:
+            command: fail2ban-client ping
+            rc: "{{ _fail2ban_server_status.rc | default('not-run') }}"
+            stdout: "{{ _fail2ban_server_status.stdout | default('') }}"
+            stderr: "{{ _fail2ban_server_status.stderr | default('') }}"
+          sshd_jail:
+            command: fail2ban-client status sshd
+            rc: "{{ _fail2ban_sshd_jail_status.rc | default('not-run') }}"
+            stdout: "{{ _fail2ban_sshd_jail_status.stdout | default('') }}"
+            stderr: "{{ _fail2ban_sshd_jail_status.stderr | default('') }}"
+          configuration_dump:
+            command: fail2ban-client --dp
+            stdout: "{{ _fail2ban_configuration_dump.stdout | default('not collected') }}"
+            stderr: "{{ _fail2ban_configuration_dump.stderr | default('') }}"
+          init_diagnostics: "{{ _fail2ban_init_diagnostics | default({}) }}"
 
-- name: "Assert SSH jail reports correctly"
-  ansible.builtin.assert:
-    that:
-      - "'sshd' in _fail2ban_verify_sshd.stdout"
-    fail_msg: "fail2ban sshd jail is not active"
-  when:
-    - fail2ban_start_service | bool
-    - fail2ban_sshd_enabled | bool
-    - _fail2ban_verify_status is defined
-    - _fail2ban_verify_status.rc == 0
-  tags: [fail2ban]
+- name: "Report: Verify fail2ban runtime"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_fail2ban_phases"
+    common_rpt_phase: "Verify runtime"
+    common_rpt_detail: "fail2ban-client ping + sshd jail status"
+  tags: ['report']

@@ -1,0 +1,6 @@
+---
+# === fail2ban: runit service policy ===
+
+- name: Fail for unsupported fail2ban runit service management
+  ansible.builtin.fail:
+    msg: "fail2ban service management for runit is not implemented in this role."

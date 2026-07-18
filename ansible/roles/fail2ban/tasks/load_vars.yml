@@ -1,0 +1,16 @@
+---
+# === fail2ban: load platform variables ===
+
+- name: Load distro-specific fail2ban variables
+  ansible.builtin.include_vars:
+    file: "{{ ansible_facts['os_family'] | lower }}/main.yml"
+
+- name: "Report: Load fail2ban vars"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_fail2ban_phases"
+    common_rpt_phase: "Load vars"
+    common_rpt_detail: "{{ ansible_facts['os_family'] | lower }}/main.yml"
+  tags: ['report']

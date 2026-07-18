@@ -1,0 +1,24 @@
+---
+# === fail2ban: managed sshd jail ===
+
+- name: Deploy fail2ban sshd jail configuration
+  ansible.builtin.template:
+    src: jail_sshd.conf.j2
+    dest: /etc/fail2ban/jail.d/sshd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: _fail2ban_sshd_jail
+
+- name: "Report: fail2ban sshd jail"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_fail2ban_phases"
+    common_rpt_phase: "Configure sshd jail"
+    common_rpt_detail: >-
+      enabled={{ fail2ban_sshd_enabled }}
+      maxretry={{ fail2ban_sshd_maxretry }}
+      bantime={{ fail2ban_sshd_bantime }}
+  tags: ['report']

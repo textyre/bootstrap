@@ -1,0 +1,14 @@
+---
+# === fail2ban: systemd verify diagnostics ===
+
+- name: Collect fail2ban systemd journal diagnostics
+  ansible.builtin.command:
+    cmd: >-
+      journalctl
+      -u fail2ban
+      --lines=80
+      --no-pager
+      --output=short-iso
+  register: _fail2ban_init_diagnostics
+  changed_when: false
+  failed_when: false
