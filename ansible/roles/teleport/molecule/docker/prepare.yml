@@ -1,8 +1,14 @@
 ---
-- name: Prepare
+- name: Bootstrap Docker container
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+
+- name: Prepare Teleport test prerequisites
   hosts: all
   become: true
   gather_facts: true
   tasks:
-    - name: Run OS-specific prepare tasks
-      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"
+    - name: Install OpenSSH client for CA validation
+      community.general.pacman:
+        name: openssh
+        state: present
+      when: ansible_facts['os_family'] == 'Archlinux'

@@ -8,8 +8,6 @@ galaxy_info:
   platforms:
     - name: ArchLinux
       versions: [all]
-    - name: Debian
-      versions: [all]
     - name: Ubuntu
       versions: [all]
     - name: Fedora

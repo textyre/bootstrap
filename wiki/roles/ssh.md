@@ -103,7 +103,7 @@ Vagrant scenario проверяет реальные Arch/Ubuntu VM.
 - `firewall` — открытие SSH-порта, если порт должен быть доступен извне.
 - `ssh_keys` / `user` — пользователи, группы и authorized keys.
 - `fail2ban` — brute-force защита, если она нужна.
-- `teleport` — выполняется раньше `ssh`; при включённом экспорте CA playbook явно передаёт `ssh_teleport_integration: true` и путь к CA.
+- `teleport` — выполняется раньше `ssh`; inventory включает доверие OpenSSH к обязательно экспортируемому standalone CA.
 
 ## Ограничения
 

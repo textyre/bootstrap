@@ -1,14 +1,6 @@
 ---
 # === teleport: configure phase ===
 
-- name: Ensure Teleport data directory exists
-  ansible.builtin.file:
-    path: /var/lib/teleport
-    state: directory
-    owner: root
-    group: root
-    mode: "0750"
-
 - name: Render Teleport configuration
   ansible.builtin.template:
     src: teleport.yaml.j2

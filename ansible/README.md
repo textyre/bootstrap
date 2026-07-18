@@ -53,7 +53,7 @@ task workstation # Применить все роли
 - **user** — локальные пользователи, sudo, password aging, umask
 - **ssh_keys** — генерация и деплой SSH ключей
 - **ssh** — hardened OpenSSH server configuration, host keys, banner
-- **teleport** — zero-trust access (опционально)
+- **teleport** — standalone-кластер или агент существующего Teleport-кластера
 - **fail2ban** — SSH brute-force jail
 
 ### Phase 4: Development Tools

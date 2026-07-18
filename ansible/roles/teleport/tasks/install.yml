@@ -1,24 +1,6 @@
 ---
 # === teleport: install phase ===
 
-- name: Install Teleport from configured packages
-  ansible.builtin.package:
-    name: "{{ _teleport_packages }}"
-    state: present
-  register: _teleport_package_install
-  when: teleport_install_method == 'package'
-
-- name: Install Teleport from official package repository
-  ansible.builtin.include_tasks:
-    file: "repository/{{ ansible_facts['os_family'] | lower }}.yml"
-  when: teleport_install_method == 'repo'
-
-- name: Check installed Teleport binary
-  ansible.builtin.stat:
-    path: /usr/local/bin/teleport
-  register: _teleport_binary
-  when: teleport_install_method == 'binary'
-
 - name: Read installed Teleport version
   ansible.builtin.command:
     argv:
@@ -26,41 +8,37 @@
       - version
   register: _teleport_installed_version
   changed_when: false
-  when:
-    - teleport_install_method == 'binary'
-    - _teleport_binary.stat.exists
+  # ansible.builtin.command reports a missing executable path as rc=2.
+  failed_when: _teleport_installed_version.rc not in [0, 2]
 
-- name: Install Teleport from verified binary archive
-  when: teleport_install_method == 'binary'
-  vars:
-    _teleport_needs_binary_install: >-
-      {{ not _teleport_binary.stat.exists
-         or ('Teleport v' ~ teleport_version) not in
-           (_teleport_installed_version.stdout | default('')) }}
+- name: Install required Teleport version
+  when: >-
+    _teleport_installed_version.rc == 2
+    or ('Teleport v' ~ teleport_version) not in
+      _teleport_installed_version.stdout
   block:
-    - name: Create temporary Teleport extraction directory
+    - name: Create temporary Teleport installation directory
       ansible.builtin.tempfile:
         state: directory
         prefix: teleport-
       register: _teleport_temp_directory
-      when: _teleport_needs_binary_install | bool
 
-    - name: Download verified Teleport binary archive
+    - name: Download Teleport release
       ansible.builtin.get_url:
-        url: "{{ _teleport_archive_url }}"
+        url: >-
+          https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ _teleport_architecture }}-bin.tar.gz
         dest: "{{ _teleport_temp_directory.path }}/teleport.tar.gz"
-        checksum: "sha256:{{ _teleport_archive_url }}.sha256"
+        checksum: >-
+          sha256:https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ _teleport_architecture }}-bin.tar.gz.sha256
         mode: "0644"
-      when: _teleport_needs_binary_install | bool
 
-    - name: Extract Teleport binary archive
+    - name: Extract Teleport release
       ansible.builtin.unarchive:
         src: "{{ _teleport_temp_directory.path }}/teleport.tar.gz"
         dest: "{{ _teleport_temp_directory.path }}"
         remote_src: true
-      when: _teleport_needs_binary_install | bool
 
-    - name: Deploy Teleport binaries
+    - name: Install Teleport executables
       ansible.builtin.copy:
         src: "{{ _teleport_temp_directory.path }}/teleport/{{ item }}"
         dest: "/usr/local/bin/{{ item }}"
@@ -70,9 +48,8 @@
         remote_src: true
       loop: "{{ _teleport_binary_names }}"
       register: _teleport_binary_install
-      when: _teleport_needs_binary_install | bool
   always:
-    - name: Remove temporary Teleport extraction directory
+    - name: Remove temporary Teleport installation directory
       ansible.builtin.file:
         path: "{{ _teleport_temp_directory.path }}"
         state: absent

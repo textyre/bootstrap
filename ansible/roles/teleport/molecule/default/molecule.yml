@@ -21,8 +21,6 @@ provisioner:
     host_vars:
       Localhost:
         ansible_connection: local
-        teleport_install_method: binary
-        teleport_export_ca_key: true
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
 

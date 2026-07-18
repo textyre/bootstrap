@@ -33,6 +33,4 @@
           - -f
           - "{{ teleport_ca_keys_file | default('/etc/ssh/teleport_user_ca.pub') }}"
       changed_when: false
-      when:
-        - teleport_mode | default('standalone') == 'standalone'
-        - teleport_export_ca_key | default(false) | bool
+      when: teleport_mode | default('standalone') == 'standalone'

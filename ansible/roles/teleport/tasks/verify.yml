@@ -1,13 +1,6 @@
 ---
 # === teleport: verify final contract ===
 
-- name: Verify Teleport binary is executable
-  ansible.builtin.command:
-    argv:
-      - teleport
-      - version
-  changed_when: false
-
 - name: Verify Teleport accepts the rendered configuration
   ansible.builtin.command:
     argv:
@@ -16,8 +9,3 @@
       - --test
       - /etc/teleport.yaml
   changed_when: false
-
-- name: Verify Teleport service contract
-  ansible.builtin.include_tasks:
-    file: "verify/{{ ansible_facts['service_mgr'] }}.yml"
-  when: teleport_manage_service | bool

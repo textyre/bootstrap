@@ -1,6 +1,6 @@
 ---
 # === teleport — SSH access platform ===
-# validate -> load vars -> install -> configure -> service -> verify -> CA export -> report
+# validate -> install -> configure -> service -> verify -> CA export -> report
 
 - name: Configure Teleport access platform
   tags: ['teleport']
@@ -9,24 +9,17 @@
       ansible.builtin.include_tasks:
         file: validate.yml
 
-    - name: Load Teleport platform variables
-      ansible.builtin.include_tasks:
-        file: load_vars.yml
-
     - name: Install Teleport
       ansible.builtin.include_tasks:
         file: install.yml
-      when: teleport_manage_install | bool
 
     - name: Configure Teleport
       ansible.builtin.include_tasks:
         file: configure.yml
-      when: teleport_manage_config | bool
 
     - name: Manage Teleport service
       ansible.builtin.include_tasks:
-        file: "service/{{ ansible_facts['service_mgr'] }}.yml"
-      when: teleport_manage_service | bool
+        file: service/main.yml
 
     - name: Verify Teleport
       ansible.builtin.include_tasks:
@@ -35,7 +28,7 @@
     - name: Export Teleport user CA
       ansible.builtin.include_tasks:
         file: ca_export.yml
-      when: teleport_export_ca_key | bool
+      when: teleport_mode == 'standalone'
 
     - name: Render Teleport execution report
       ansible.builtin.include_tasks:

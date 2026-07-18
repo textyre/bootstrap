@@ -1,0 +1,14 @@
+---
+# === teleport: service phase ===
+
+- name: Assert Teleport service management is available
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      Teleport service management is implemented only for systemd.
+      Detected init system: {{ ansible_facts['service_mgr'] }}.
+
+- name: Manage Teleport with systemd
+  ansible.builtin.include_tasks:
+    file: systemd.yml
