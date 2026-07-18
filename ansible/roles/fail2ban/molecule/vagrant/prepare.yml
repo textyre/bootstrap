@@ -7,10 +7,7 @@
   become: true
   gather_facts: true
   tasks:
-    # ---- fail2ban needs iptables for its default ban action (iptables-multiport) ----
-    # iptables-nft conflicts with iptables. --ask=4 (ALPM_QUESTION_CONFLICT_PKG) makes
-    # pacman auto-confirm the replacement in a single transaction so iproute2's
-    # libxtables.so=12-64 dependency stays satisfied (iptables-nft provides it too).
+    # Arch test fixture for Fail2Ban's default iptables ban action.
     - name: Install iptables-nft for fail2ban backend, replacing iptables (Arch)
       community.general.pacman:
         name: iptables-nft
@@ -18,9 +15,7 @@
         extra_args: --ask=4
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    # fail2ban with polling backend requires a log file to exist at startup.
-    # Arch Linux uses systemd journald by default (no /var/log/auth.log).
-    # Create an empty file so fail2ban can start with backend=polling.
+    # Arch test fixture for the polling backend used by this scenario.
     - name: Create /var/log/auth.log for fail2ban polling backend (Arch)
       ansible.builtin.file:
         path: /var/log/auth.log

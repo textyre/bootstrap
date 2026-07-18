@@ -1,213 +1,146 @@
 # fail2ban
 
-Protects SSH against brute-force attacks with progressive ban escalation.
+Configures Fail2Ban SSH brute-force protection.
 
-## Execution flow
+## Contract
 
-1. **Assert OS** (`tasks/main.yml`) -- fails if `ansible_facts['os_family']` is not in `_fail2ban_supported_os`
-2. **Load OS vars** (`vars/<os_family>.yml`) -- loads package names and service name map for the detected OS family
-3. **Install** (`tasks/install.yml`) -- installs fail2ban via `ansible.builtin.package` using OS-specific package list
-4. **Configure** (`tasks/configure.yml`) -- deploys `/etc/fail2ban/jail.d/sshd.conf` from Jinja2 template. **Triggers handler:** if config changed, fail2ban will be restarted before verification.
-5. **Enable** -- enables fail2ban service (init-agnostic via `ansible.builtin.service`)
-6. **Start** -- starts fail2ban service (skipped when `fail2ban_start_service: false`)
-7. **Flush handlers** -- applies pending restart (from step 4) so verification runs against new config
-8. **Verify** (`tasks/verify.yml`) -- checks fail2ban is running, sshd jail is active, collects journal diagnostics on failure. Container environments get relaxed checks (service may not start due to missing iptables kernel modules).
-9. **Report** -- writes execution report via `common/report_phase` + `report_render`
+The role owns Fail2Ban SSH jail configuration on the host:
 
-### Handlers
+- Fail2Ban packages are installed for the detected distribution.
+- `/etc/fail2ban/jail.d/sshd.conf` is rendered from role variables.
+- Fail2Ban service is enabled and started on systemd hosts.
+- Updated jail configuration is reloaded into the running Fail2Ban server.
+- Runtime verification confirms that Fail2Ban answers and the `sshd` jail is loaded.
 
-| Handler | Triggered by | What it does |
-|---------|-------------|-------------|
-| `restart fail2ban` | Config file change (step 4) | Restarts fail2ban service. Flushed before verification (step 7). |
+The role does not manage SSH server configuration, users, SSH keys, firewall policy,
+centralized logging, or the system log source. Those belong to their owning roles or to
+the host platform.
+
+## Execution Flow
+
+1. **Validate** (`tasks/validate.yml`) -- checks supported OS family and init system.
+2. **Load vars** (`tasks/load_vars.yml`) -- loads `vars/<os_family>/main.yml`.
+3. **Configure** (`tasks/configure/main.yml`) -- installs packages and deploys the `sshd` jail.
+4. **Service** (`tasks/configure/service.yml`) -- applies init-specific service policy and reloads Fail2Ban when the jail changed.
+5. **Verify** (`tasks/verify.yml`) -- checks `fail2ban-client ping` and `fail2ban-client status sshd`; on failure, collects diagnostics.
+6. **Report** -- renders the final execution report through the shared `common` role.
+
+`tasks/main.yml` is only the orchestrator.
 
 ## Variables
 
-### Configurable (`defaults/main.yml`)
+Override these through inventory. Do not edit role defaults directly.
 
-Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `fail2ban_sshd_enabled` | `true` | Enables the SSH jail. |
+| `fail2ban_sshd_port` | `{{ ssh_port | default(22) }}` | SSH port monitored by the jail. |
+| `fail2ban_sshd_maxretry` | `5` | Failed attempts within `findtime` before banning. |
+| `fail2ban_sshd_findtime` | `600` | Time window in seconds for counting failures. |
+| `fail2ban_sshd_bantime` | `3600` | Initial ban duration in seconds. |
+| `fail2ban_sshd_bantime_increment` | `true` | Enables progressive ban escalation for repeat offenders. |
+| `fail2ban_sshd_bantime_maxtime` | `86400` | Maximum progressive ban duration in seconds. |
+| `fail2ban_sshd_backend` | `"auto"` | Fail2Ban log backend: `auto`, `systemd`, `polling`, or `pyinotify`. |
+| `fail2ban_sshd_banaction` | `""` | Optional Fail2Ban ban action override. Empty uses Fail2Ban default. |
+| `fail2ban_ignoreip` | loopback CIDRs | IPs/CIDRs exempt from bans. Keep loopback entries. |
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `fail2ban_enabled` | `true` | safe | Set `false` to skip this role entirely |
-| `fail2ban_start_service` | `true` | safe | Set `false` to install and configure without starting the service |
-| `fail2ban_sshd_enabled` | `true` | safe | Enable the SSH jail |
-| `fail2ban_sshd_port` | `{{ ssh_port \| default(22) }}` | safe | Port to monitor; automatically follows the `ssh` role port |
-| `fail2ban_sshd_maxretry` | `5` | safe | Failed attempts within `findtime` before banning |
-| `fail2ban_sshd_findtime` | `600` | careful | Window for counting failures in seconds (10 min). Too short misses slow attacks; too long causes false positives |
-| `fail2ban_sshd_bantime` | `3600` | safe | Initial ban duration in seconds (1 hour) |
-| `fail2ban_sshd_bantime_increment` | `true` | careful | Double ban duration on each repeat offence. Disabling removes progressive escalation |
-| `fail2ban_sshd_bantime_maxtime` | `86400` | careful | Maximum ban duration in seconds (24 hours). Only applies when `bantime_increment` is true |
-| `fail2ban_sshd_backend` | `auto` | careful | Log backend: `auto`, `systemd`, `pyinotify`, or `polling`. Wrong value causes fail2ban to miss auth failures |
-| `fail2ban_sshd_banaction` | `""` | internal | Override ban action (e.g., `iptables-multiport`). Empty uses fail2ban default. Changing requires understanding iptables/nftables backend |
-| `fail2ban_ignoreip` | `[127.0.0.1/8, ::1]` | safe | IPs and CIDRs exempt from banning (whitelist) |
+## Internal Vars
 
-### Internal mappings (`vars/`)
-
-These files contain cross-platform mappings. Do not override via inventory -- edit the files directly only when adding new platform or init system support.
-
-| File | What it contains | When to edit |
-|------|-----------------|-------------|
-| `vars/archlinux.yml` | Package list (`fail2ban`, `python-systemd`), service name map | Adding Arch-specific dependencies |
-| `vars/debian.yml` | Package list (`fail2ban`), service name map | Adding Debian-specific dependencies |
-| `vars/redhat.yml` | Package list (`fail2ban`), service name map | Adding RHEL-specific dependencies |
-| `vars/void.yml` | Package list (`fail2ban`), service name map | Adding Void-specific dependencies |
-| `vars/gentoo.yml` | Package list (`net-analyzer/fail2ban`), service name map | Adding Gentoo-specific dependencies |
+| File | Purpose |
+|------|---------|
+| `vars/main.yml` | Supported OS families and init systems. |
+| `vars/archlinux/main.yml` | Arch packages. |
+| `vars/debian/main.yml` | Debian/Ubuntu packages. |
+| `vars/redhat/main.yml` | RedHat/Fedora packages. |
+| `vars/void/main.yml` | Void packages. |
+| `vars/gentoo/main.yml` | Gentoo packages. |
 
 ## Examples
 
-### Tightening SSH protection
+### Stricter SSH Protection
 
 ```yaml
-# In group_vars/all/fail2ban.yml or host_vars/<hostname>/fail2ban.yml:
 fail2ban_sshd_maxretry: 3
 fail2ban_sshd_bantime: 1800
 fail2ban_sshd_bantime_maxtime: 172800
 ```
 
-- `maxretry: 3` -- ban after 3 failed attempts (stricter than default 5)
-- `bantime: 1800` -- initial 30-minute ban
-- `bantime_maxtime: 172800` -- maximum 48-hour ban for repeat offenders
-
-### Whitelisting a management subnet
+### Management Network Whitelist
 
 ```yaml
-# In group_vars/all/fail2ban.yml:
 fail2ban_ignoreip:
   - 127.0.0.1/8
   - "::1"
   - 10.0.0.0/24
 ```
 
-Keep localhost entries -- removing them can cause fail2ban to ban local processes.
-
-### Using a custom SSH port
+### Custom SSH Port
 
 ```yaml
-# In host_vars/<hostname>/fail2ban.yml:
 fail2ban_sshd_port: 2222
 ```
 
-If the `ssh` role is also applied, `fail2ban_sshd_port` defaults to `ssh_port` automatically -- no override needed.
+If the `ssh` role is also applied, `fail2ban_sshd_port` follows `ssh_port` by default.
 
-### Disabling the role on a specific host
+## Supported Platforms
 
-```yaml
-# In host_vars/<hostname>/fail2ban.yml:
-fail2ban_enabled: false
-```
+| OS family | Packages | Service |
+|-----------|----------|---------|
+| Archlinux | `fail2ban` | `fail2ban` |
+| Debian / Ubuntu | `fail2ban` | `fail2ban` |
+| RedHat / Fedora | `fail2ban` | `fail2ban` |
+| Void | `fail2ban` | `fail2ban` |
+| Gentoo | `net-analyzer/fail2ban` | `fail2ban` |
 
-## Progressive ban escalation
+Supported init systems: `systemd`, `runit`, `openrc`, `s6`, `dinit`.
 
-With `fail2ban_sshd_bantime_increment: true`, repeat offenders receive exponentially longer bans:
-
-| Offence | Ban duration |
-|---------|-------------|
-| 1st ban | 1 hour (`bantime`) |
-| 2nd ban | 2 hours |
-| 3rd ban | 4 hours |
-| ... | doubles each time |
-| Maximum | 24 hours (`bantime_maxtime`) |
-
-## Cross-platform details
-
-| Aspect | Arch Linux | Ubuntu / Debian | Fedora / RHEL | Void Linux | Gentoo |
-|--------|-----------|-----------------|---------------|------------|--------|
-| Package | `fail2ban` | `fail2ban` | `fail2ban` | `fail2ban` | `net-analyzer/fail2ban` |
-| Extra packages | `python-systemd` | -- | -- | -- | -- |
-| Service name | `fail2ban` | `fail2ban` | `fail2ban` | `fail2ban` | `fail2ban` |
-| Jail config path | `/etc/fail2ban/jail.d/sshd.conf` | `/etc/fail2ban/jail.d/sshd.conf` | `/etc/fail2ban/jail.d/sshd.conf` | `/etc/fail2ban/jail.d/sshd.conf` | `/etc/fail2ban/jail.d/sshd.conf` |
-
-Arch Linux requires `python-systemd` for the `systemd` log backend to function.
-
-## Logs
-
-### Log files
-
-| File | Path | Contents | Rotation |
-|------|------|----------|----------|
-| fail2ban log | `/var/log/fail2ban.log` | Ban/unban events, jail start/stop, filter matches | logrotate (distro default) |
-| syslog / journal | `journalctl -u fail2ban` | Service start/stop, configuration errors | system journal rotation |
-| auth log | `/var/log/auth.log` (Debian) or journal | SSH authentication failures that fail2ban monitors | system default |
-
-### Reading the logs
-
-- Currently banned IPs: `fail2ban-client status sshd` -- look at "Banned IP list"
-- Recent bans: `grep 'Ban' /var/log/fail2ban.log | tail -20`
-- Total bans since last restart: `fail2ban-client status sshd` -- "Currently banned" + "Total banned"
-- Filter matches: `grep 'Found' /var/log/fail2ban.log | tail -20` -- shows detected auth failures
-
-## Troubleshooting
-
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| fail2ban won't start | `journalctl -u fail2ban -n 50` | Usually bad jail config: check `/etc/fail2ban/jail.d/sshd.conf` for syntax errors |
-| Service starts but sshd jail not active | `fail2ban-client status` -- is `sshd` listed? | Check `fail2ban_sshd_enabled: true`. Check backend matches system: use `systemd` on systemd hosts |
-| Legitimate users getting banned | `fail2ban-client status sshd` -- check banned IPs | Add their IP/subnet to `fail2ban_ignoreip`. Unban immediately: `fail2ban-client set sshd unbanip <IP>` |
-| Ban not working (attackers not blocked) | `iptables -L f2b-sshd` or `nft list chain inet f2b-sshd` | Check iptables/nftables is installed and kernel modules are loaded. In Docker, host kernel modules required |
-| Role fails at "Assert supported operating system" | Read the `fail_msg` | Running on unsupported OS family. Only Archlinux, Debian, RedHat, Void, Gentoo are supported |
-| Idempotence failure on jail config | Template produces different output on second run | Check for dynamic values in template variables. Config should be deterministic |
-| fail2ban not detecting SSH failures | `fail2ban-client get sshd logpath` | Verify log path matches actual auth log. On systemd, set `fail2ban_sshd_backend: systemd` |
+Only systemd service management is currently implemented. Other supported init systems fail
+explicitly with a clear message instead of silently pretending to be configured.
 
 ## Testing
 
-Both scenarios are required for every role (TEST-002). Run Docker for fast feedback, Vagrant for full validation.
+The role has Docker and Vagrant Molecule scenarios.
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| `default` | `molecule test` | After changing variables or task logic | Localhost smoke test on Arch |
-| `docker` | `molecule test -s docker` | After changing templates or config logic | Package, config, permissions in Arch systemd container |
-| `vagrant` | `molecule test -s vagrant` | After changing OS-specific logic | Real systemd, Arch + Ubuntu VMs, cross-platform |
+| Scenario | What it proves |
+|----------|----------------|
+| Docker | Limited install/config scenario on systemd Arch/Ubuntu containers. It creates a dummy auth log for config validation and skips runtime service checks because containers do not reliably provide Fail2Ban firewall/logging runtime. |
+| Vagrant | Full runtime scenario on real Arch/Ubuntu VMs: converge, idempotence, Fail2Ban service, and `sshd` jail runtime. |
 
-### Success criteria
+Molecule verify checks Fail2Ban configuration syntax with `fail2ban-server --test`.
+Runtime status is verified by the role itself during Vagrant converge.
 
-- All steps complete: `syntax -> converge -> idempotence -> verify -> destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass with `success_msg` output
-- Final line: no `failed` tasks
+## File Map
 
-### What the tests verify
+| File | Purpose |
+|------|---------|
+| `defaults/main.yml` | External role contract. |
+| `vars/main.yml` | Internal supported OS/init constants. |
+| `vars/<os_family>/main.yml` | Distro package names. |
+| `tasks/main.yml` | Orchestrator only. |
+| `tasks/validate.yml` | Input contract validation. |
+| `tasks/load_vars.yml` | Distro variable loading. |
+| `tasks/configure/main.yml` | Configure pipeline. |
+| `tasks/configure/install.yml` | Package installation. |
+| `tasks/configure/jail.yml` | Managed `sshd` jail configuration. |
+| `tasks/configure/service.yml` | Init-specific service entrypoint and reload on jail changes. |
+| `tasks/init/<init>/service.yml` | Init-specific Fail2Ban service state. |
+| `tasks/init/systemd/verify_diagnostics.yml` | systemd journal diagnostics for runtime verify failures. |
+| `tasks/verify.yml` | Runtime contract verification with diagnostics on failure. |
+| `templates/jail_sshd.conf.j2` | Managed `sshd` jail config. |
+| `molecule/` | Docker and Vagrant test scenarios. |
 
-| Category | Examples | Test requirement |
-|----------|----------|-----------------|
-| Packages | fail2ban installed, `fail2ban-client --version` works | TEST-008 |
-| Config files | `/etc/fail2ban/jail.d/sshd.conf` exists, root:root 0644 | TEST-008 |
-| Config content | All template directives present (maxretry, bantime, findtime, backend, ignoreip, bantime.increment) | TEST-008 |
-| Services | fail2ban enabled + active (relaxed in Docker) | TEST-008 |
-| Runtime | `fail2ban-client status sshd` reports jail active (non-Docker only) | TEST-008 |
+## Troubleshooting
 
-### Common test failures
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| Runtime verify fails at `fail2ban-client ping` | Fail2Ban service did not start or cannot read its configuration | Read the diagnostic output from role verify; check Fail2Ban backend, log source, and firewall backend. |
+| `sshd` jail is not loaded | Jail config is disabled or Fail2Ban rejected the jail | Check `fail2ban_sshd_enabled`, backend, and `fail2ban-server --test`. |
+| Fail2Ban starts but does not ban | Ban action or firewall backend is not functional | Check nftables/iptables/firewalld ownership in the firewall role or host baseline. |
+| SSH failures are not detected | Backend/log source mismatch | Use `fail2ban-client get sshd logpath` and align `fail2ban_sshd_backend` with the host logging model. |
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `fail2ban package not found` | Stale package cache in container | Rebuild: `molecule destroy && molecule test` |
-| fail2ban service not active in Docker | Missing iptables kernel modules in container | Expected -- verify.yml warns but does not fail |
-| Idempotence failure on config deploy | Template produces different output on second run | Check for timestamps or random values in template |
-| `maxretry not set to N` in verify | Verify vars out of sync with converge vars | Check `molecule/shared/vars.yml` matches converge overrides |
-| Vagrant: `Python not found` | prepare.yml missing or Arch bootstrap skipped | Check `prepare.yml` has raw Python install |
+## Boundaries
 
-## Tags
-
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `fail2ban` | Entire role | Full apply: `ansible-playbook playbook.yml --tags fail2ban` |
-| `fail2ban`, `install` | Package installation only | Reinstall packages without reconfiguring |
-| `fail2ban`, `service` | Service enable/start only | Restart fail2ban without redeploying config: `ansible-playbook playbook.yml --tags fail2ban,service` |
-| `fail2ban`, `report` | Execution report only | Regenerate report |
-
-## File map
-
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable settings | No -- override via inventory |
-| `vars/archlinux.yml` | Arch package list + service name map | Only when adding Arch-specific dependencies |
-| `vars/debian.yml` | Debian package list + service name map | Only when adding Debian-specific dependencies |
-| `vars/redhat.yml` | RHEL package list + service name map | Only when adding RHEL-specific dependencies |
-| `vars/void.yml` | Void package list + service name map | Only when adding Void-specific dependencies |
-| `vars/gentoo.yml` | Gentoo package list + service name map | Only when adding Gentoo-specific dependencies |
-| `templates/jail_sshd.conf.j2` | SSH jail config template | When changing jail config structure |
-| `tasks/main.yml` | Execution flow orchestrator | When adding/removing steps |
-| `tasks/install.yml` | Package installation | When changing install logic |
-| `tasks/configure.yml` | Jail config deployment | When changing config deployment |
-| `tasks/verify.yml` | Post-deploy self-check | When changing verification logic |
-| `handlers/main.yml` | Service restart handler | Rarely |
-| `molecule/` | Test scenarios | When changing test coverage |
+- SSH port changes are owned by the `ssh` role and firewall exposure by the `firewall` role.
+- Log source availability is owned by the OS/logging baseline.
+- Ban enforcement depends on the host firewall backend.
+- Docker tests are intentionally limited and do not prove runtime ban behavior.

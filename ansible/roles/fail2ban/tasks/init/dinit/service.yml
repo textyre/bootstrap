@@ -1,0 +1,6 @@
+---
+# === fail2ban: dinit service policy ===
+
+- name: Fail for unsupported fail2ban dinit service management
+  ansible.builtin.fail:
+    msg: "fail2ban service management for dinit is not implemented in this role."

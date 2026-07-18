@@ -1,27 +1,12 @@
 ---
 # === fail2ban — защита от brute-force атак ===
 
-# ROLE-003: Поддерживаемые ОС (underscore prefix — internal variable)
-_fail2ban_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# ---- Главный переключатель ----
-fail2ban_enabled: true
-
-# Start the fail2ban service after configuration.
-# Set false in Docker/container environments where iptables/netfilter is unavailable.
-fail2ban_start_service: true
-
 # ---- SSH jail ----
 
-# Enable the sshd jail. Set false only if SSH is not exposed or another IPS covers it.
+# Включить SSH jail для защиты от brute-force по SSH.
 fail2ban_sshd_enabled: true
 
-# SSH port to monitor. Inherits from ssh_port if defined; override for non-standard ports.
+# SSH port для мониторинга. По умолчанию наследуется из роли ssh.
 fail2ban_sshd_port: "{{ ssh_port | default(22) }}"
 
 # Max authentication failures before ban. Lower = stricter (3 for high-security),
@@ -46,11 +31,9 @@ fail2ban_sshd_bantime_increment: true
 # Prevents indefinite bans from bantime_increment escalation.
 fail2ban_sshd_bantime_maxtime: 86400
 
-# Log backend: auto (systemd journal if available, else polling), systemd, polling, pyinotify.
-# Use 'polling' in containers or when journal is unavailable.
-# Use 'systemd' on systemd hosts for lower latency detection; otherwise keep
-# Fail2Ban's auto-detection so non-systemd platforms stay supported.
-fail2ban_sshd_backend: "{{ 'systemd' if ansible_facts['service_mgr'] == 'systemd' else 'auto' }}"
+# Log backend: auto, systemd, polling, or pyinotify.
+# auto lets Fail2Ban choose the backend appropriate for the host.
+fail2ban_sshd_backend: "auto"
 
 # Ban action override. Empty = fail2ban default (iptables-multiport on most systems).
 # Set to 'nftables-multiport' for nftables-only hosts, or 'firewallcmd-rich-rules' for firewalld.
@@ -58,7 +41,7 @@ fail2ban_sshd_banaction: ""
 
 # ---- Белый список ----
 
-# IPs/CIDRs that are never banned. Always include loopback.
+# IPs/CIDRs that are never banned. Loopback must stay allowed.
 # Add management IPs or VPN ranges to prevent self-lockout.
 fail2ban_ignoreip:
   - 127.0.0.1/8

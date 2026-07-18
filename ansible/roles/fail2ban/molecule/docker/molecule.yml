@@ -36,10 +36,7 @@ platforms:
 provisioner:
   name: ansible
   options:
-    skip-tags: report
-    # Docker containers can't reliably run fail2ban (iptables/netfilter unavailable).
-    # Skip service start — test only config deployment, package install, service enable.
-    extra-vars: "fail2ban_start_service=false"
+    skip-tags: report,fail2ban_runtime
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

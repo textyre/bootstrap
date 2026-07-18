@@ -1,0 +1,8 @@
+---
+# === fail2ban: systemd service policy ===
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started

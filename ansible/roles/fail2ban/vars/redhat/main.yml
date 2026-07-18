@@ -1,0 +1,5 @@
+---
+# === fail2ban: RedHat/Fedora internals ===
+
+fail2ban_packages:
+  - fail2ban

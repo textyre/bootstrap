@@ -1,0 +1,6 @@
+---
+# === fail2ban: s6 service policy ===
+
+- name: Fail for unsupported fail2ban s6 service management
+  ansible.builtin.fail:
+    msg: "fail2ban service management for s6 is not implemented in this role."

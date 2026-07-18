@@ -1,0 +1,6 @@
+---
+# === fail2ban: openrc service policy ===
+
+- name: Fail for unsupported fail2ban openrc service management
+  ansible.builtin.fail:
+    msg: "fail2ban service management for openrc is not implemented in this role."
