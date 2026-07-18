@@ -1,32 +1,21 @@
-# ansible/roles/ssh_keys/defaults/main.yml
 ---
 # === ssh_keys role defaults ===
+# External role contract. Internal state lives in vars/main.yml.
 
-# ROLE-003: Supported operating systems (internal, not user-configurable)
-_ssh_keys_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
+# User whose SSH key state is managed by this role.
+ssh_keys_user: "{{ target_user }}"
 
-# Feature toggles (ROLE-010)
-ssh_keys_manage_authorized_keys: true
-ssh_keys_generate_user_keys: false
-ssh_keys_key_type: ed25519
+# Public keys allowed to log in as ssh_keys_user. Empty means authorized_keys is
+# not managed by this role.
+ssh_keys_authorized_keys: []
+
+# When true, authorized_keys contains only keys declared in
+# ssh_keys_authorized_keys. This removes manually added keys for ssh_keys_user.
 ssh_keys_exclusive: false
 
-# Data source: reads from `accounts` variable (shared with users role)
-# accounts:
-#   - name: alice
-#     state: present
-#     ssh_keys:
-#       - "ssh-ed25519 AAAA... alice@laptop"
+# Generate ssh_keys_user's keypair on the target host.
+ssh_keys_generate_user_key: true
 
-# Backward compatibility with user role data model
-# If `accounts` is not defined, falls back to user_owner + user_additional_users
-ssh_keys_users: >-
-  {{ accounts | default(
-       [user_owner | default({})] +
-       (user_additional_users | default([]))
-     ) }}
+# SSH key type passed to community.crypto.openssh_keypair for generated keypair.
+# Common values: ed25519, rsa, ecdsa.
+ssh_keys_user_key_type: ed25519

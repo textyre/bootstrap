@@ -1,0 +1,11 @@
+---
+# === ssh_keys / configure / keygen ===
+
+- name: Generate SSH keypair
+  community.crypto.openssh_keypair:
+    path: "{{ getent_passwd[ssh_keys_user][4] }}/.ssh/id_{{ ssh_keys_user_key_type }}"
+    type: "{{ ssh_keys_user_key_type }}"
+    comment: "{{ ssh_keys_user }}@{{ ansible_hostname }}"
+    owner: "{{ ssh_keys_user }}"
+    group: "{{ ssh_keys_user }}"
+    mode: "0600"

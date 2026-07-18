@@ -4,91 +4,81 @@
 
 ## Цель
 
-Управление SSH authorized_keys и генерация SSH-ключей для пользователей. Обеспечивает контроль доступа к системе через SSH-ключи: развёртывание публичных ключей из центрального источника данных (`accounts`), удаление ключей при деактивации пользователя, и опциональная генерация ключевых пар на целевых машинах. Поддерживает exclusive-режим для удаления неучтённых ключей.
+`ssh_keys` управляет SSH-файлами одного существующего пользователя:
 
-## Ключевые переменные (defaults)
+- создает `~/.ssh` для `ssh_keys_user`;
+- при наличии публичных ключей записывает их в `~/.ssh/authorized_keys`;
+- генерирует ключевую пару пользователя на целевой машине.
+
+Роль не создает и не удаляет пользователей, не настраивает `sshd`, не перезапускает SSH-сервис, не управляет firewall и не устанавливает пакеты. Эти контракты принадлежат соседним ролям.
+
+## Ключевые переменные
 
 ```yaml
-ssh_keys_manage_authorized_keys: true   # Развёртывание authorized_keys из accounts[].ssh_keys
-ssh_keys_generate_user_keys: false      # Генерация SSH-ключей на целевых машинах
-ssh_keys_key_type: ed25519              # Тип ключа: ed25519, rsa, ecdsa
-ssh_keys_exclusive: false               # Удалить ключи, не указанные в accounts[].ssh_keys
-
-# Источник данных (общий с user ролью)
-ssh_keys_users: "{{ accounts | default([...]) }}"
-
-# Поддерживаемые ОС
-ssh_keys_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
+ssh_keys_user: "{{ target_user }}"       # Существующий пользователь
+ssh_keys_authorized_keys: []             # Публичные ключи для входа на эту машину
+ssh_keys_exclusive: false                # Удалять ключи, которых нет в ssh_keys_authorized_keys
+ssh_keys_generate_user_key: true         # Генерировать keypair на целевой машине
+ssh_keys_user_key_type: ed25519          # Тип генерируемого ключа
 ```
+
+Конкретные значения задаются в inventory. `defaults/main.yml` описывает внешний контракт роли.
+
+## Pipeline
+
+1. `validate.yml` — проверяет поддержанную OS family.
+2. `detect.yml` — читает passwd database, чтобы получить home directory пользователя.
+3. `configure/main.yml` — применяет состояние `.ssh`, `authorized_keys` и keypair.
+4. `report` — выводит финальный execution report через `common`.
+
+In-role `verify` отсутствует: роль использует idempotent-модули Ansible, а контракт проверяется Molecule.
 
 ## Что настраивает
 
-- Файлы:
-  - `~/.ssh/` — директория, mode 0700, владелец = пользователь
-  - `~/.ssh/authorized_keys` — публичные ключи для авторизации (mode 0600, управляется `ansible.posix.authorized_key`)
-  - `~/.ssh/id_<key_type>` / `~/.ssh/id_<key_type>.pub` — генерируемые ключевые пары (mode 0600, при `ssh_keys_generate_user_keys: true`)
-- Удаление:
-  - `authorized_keys` для пользователей с `state: absent`
-  - Неучтённые ключи при `ssh_keys_exclusive: true`
+| Объект | Состояние |
+|--------|-----------|
+| `~/.ssh` | Директория `ssh_keys_user`, mode `0700`, owner=user |
+| `~/.ssh/authorized_keys` | Публичные ключи из `ssh_keys_authorized_keys`; не управляется, если список пустой |
+| `~/.ssh/id_<type>` | Приватный ключ, если `ssh_keys_generate_user_key: true` |
+| `~/.ssh/id_<type>.pub` | Публичный ключ, если keygen включен |
 
-**Все платформы:**
-- Роль не устанавливает пакетов и не управляет сервисами
-- sshd перезапуск управляется ролью `ssh`, не `ssh_keys`
-- Одинаковое поведение на всех пяти OS family (Archlinux, Debian, RedHat, Void, Gentoo)
+`authorized_keys` — это вход на машину. Туда кладутся публичные ключи людей или систем, которым разрешен SSH-вход под `ssh_keys_user`.
 
-## Audit Events
+Сгенерированный `id_<type>` — это исходящая идентичность самой машины. Его публичную часть можно добавить, например, в GitHub/GitLab deploy keys или account keys.
 
-| Событие | Источник | Формат | Значение |
-|---------|----------|--------|----------|
-| **Добавление SSH-ключа** | ansible.posix.authorized_key | Ansible changed | Новый публичный ключ добавлен в authorized_keys |
-| **Удаление SSH-ключа (exclusive)** | ansible.posix.authorized_key | Ansible changed | Незадекларированный ключ удалён из authorized_keys |
-| **Удаление authorized_keys** | ansible.builtin.file state=absent | Ansible changed | authorized_keys удалён для деактивированного пользователя |
-| **Генерация ключевой пары** | community.crypto.openssh_keypair | Ansible changed | Новая ключевая пара создана для пользователя |
-| **SSH-вход с ключом** | sshd | auth.log / journalctl -u sshd | `Accepted publickey for <user> from <ip>` |
-| **SSH-отказ (ключ не найден)** | sshd | auth.log / journalctl -u sshd | `Connection closed by authenticating user <user>` |
-| **Ошибка прав доступа** | tasks/verify.yml assert | Ansible stderr | .ssh mode != 0700 или authorized_keys не найден |
+## Границы роли
 
-## Мониторинг (интеграция)
+- Пользователя создает роль `user`.
+- SSH daemon policy настраивает роль `ssh`.
+- OpenSSH client tools должны быть доступны до включения keygen.
+- Monitoring/audit SSH-доступа делается через sshd/auditd/логовую подсистему, не через эту роль.
 
-SSH-авторизация мониторится через sshd, не через эту роль:
+## Проверяемые сценарии
 
-- **Prometheus/node_exporter**: количество SSH-сессий через `node_textfile_collector`
-- **Alloy pipeline**: парсинг auth.log для метрик SSH-авторизации
-- **Auditd** (если включен): `auditctl -w /home/<user>/.ssh/authorized_keys -p wa`
-- **Ansible execution report** — `common/report_phase.yml` логирует количество обработанных пользователей, статус keygen, exclusive mode
-- **Git audit trail** — изменения `accounts[].ssh_keys` в inventory отслеживаются через git log
+Molecule проверяет:
 
-### Рекомендуемые алерты
+- deployment `authorized_keys`;
+- exclusive replacement старого неописанного ключа;
+- generated private/public keypair;
+- idempotence.
 
-```yaml
-groups:
-  - name: ssh_keys_drift
-    rules:
-      - alert: SSHAuthorizedKeysModified
-        expr: node_textfile_ssh_authorized_keys_modified > 0
-        for: 1m
-        annotations:
-          summary: "authorized_keys modified outside Ansible on {{ $labels.instance }}"
-          runbook: "wiki/runbooks/ssh-keys-drift.md"
-```
+Docker используется как контейнерная среда, Vagrant — как VM-сценарий.
 
 ## Зависимости
 
-- `user` — роль создания пользователей (должна выполняться раньше, чтобы home-директории существовали)
-- `common` — reporting framework (`report_phase.yml`, `report_render.yml`)
+- `user` — должен создать `ssh_keys_user` до запуска `ssh_keys`.
+- `common` — execution reporting.
+- `ansible.posix` — `authorized_key`.
+- `community.crypto` — `openssh_keypair`.
 
-**Коллекции** (объявлены в `ansible/requirements.yml`):
-- `ansible.posix` >= 1.5.0 — модуль `authorized_key`
-- `community.crypto` >= 2.0.0 — модуль `openssh_keypair` (только при `ssh_keys_generate_user_keys: true`)
+## Операционные события
 
-## Tags
-
-- `ssh_keys`, `security`, `report`
+| Событие | Источник |
+|---------|----------|
+| Добавление/изменение authorized key | Ansible changed от `ansible.posix.authorized_key` |
+| Удаление неописанного ключа | Ansible changed при `ssh_keys_exclusive: true` |
+| Генерация keypair | Ansible changed от `community.crypto.openssh_keypair` |
+| SSH login/failure | sshd logs, вне контракта роли |
 
 ---
 

@@ -1,0 +1,12 @@
+---
+# === ssh_keys: internal variables ===
+# Public operator decisions live in defaults/main.yml.
+
+# OS families accepted by validate.yml. The role has no distro-specific
+# packages, services, or config paths.
+_ssh_keys_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo

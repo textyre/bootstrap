@@ -1,0 +1,28 @@
+---
+# === ssh_keys / configure ===
+
+- name: Ensure SSH directories exist
+  ansible.builtin.include_tasks:
+    file: configure/directories.yml
+
+- name: Manage authorized_keys files
+  ansible.builtin.include_tasks:
+    file: configure/authorized_keys.yml
+  when: ssh_keys_authorized_keys | length > 0
+
+- name: Generate SSH keypair
+  ansible.builtin.include_tasks:
+    file: configure/keygen.yml
+  when: ssh_keys_generate_user_key | bool
+
+- name: "Report: Configure SSH keys"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_keys_phases"
+    common_rpt_phase: "Configure SSH keys"
+    common_rpt_detail: >-
+      authorized_keys={{ ssh_keys_authorized_keys | length }},
+      keygen={{ ssh_keys_generate_user_key | bool }},
+      exclusive={{ ssh_keys_exclusive | bool }}

@@ -1,0 +1,9 @@
+---
+# === ssh_keys / configure / directories ===
+
+- name: Ensure .ssh directory exists
+  ansible.builtin.file:
+    path: "{{ getent_passwd[ssh_keys_user][4] }}/.ssh"
+    state: directory
+    owner: "{{ ssh_keys_user }}"
+    mode: "0700"
