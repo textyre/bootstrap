@@ -1,0 +1,17 @@
+---
+# === ssh: install OpenSSH packages ===
+
+- name: Install OpenSSH packages
+  ansible.builtin.package:
+    name: "{{ ssh_packages }}"
+    state: present
+
+- name: "Report: Install ssh packages"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "Install"
+    common_rpt_detail: "packages={{ ssh_packages | join(',') }}"
+  tags: ['report']

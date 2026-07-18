@@ -1,0 +1,43 @@
+---
+# === ssh: target user access contract ===
+
+- name: Read target SSH user groups
+  ansible.builtin.command: "id -nG {{ ssh_user }}"
+  register: _ssh_user_groups
+  changed_when: false
+
+- name: Verify target SSH user matches AllowGroups
+  ansible.builtin.fail:
+    msg: >-
+      SSH access contract violation: ssh_user '{{ ssh_user }}' is not a member of any
+      group from ssh_allow_groups {{ ssh_allow_groups }}. Current groups: {{ _ssh_user_groups.stdout }}.
+  when:
+    - ssh_allow_groups | length > 0
+    - ssh_allow_groups | intersect(_ssh_user_groups.stdout.split()) | length == 0
+
+- name: Verify target SSH user matches AllowUsers
+  ansible.builtin.fail:
+    msg: >-
+      SSH access contract violation: ssh_user '{{ ssh_user }}' is absent from
+      ssh_allow_users {{ ssh_allow_users }}.
+  when:
+    - ssh_allow_users | length > 0
+    - ssh_user not in ssh_allow_users
+
+- name: Verify target SSH user does not match DenyGroups
+  ansible.builtin.fail:
+    msg: >-
+      SSH access contract violation: ssh_user '{{ ssh_user }}' is a member of a denied
+      group from ssh_deny_groups {{ ssh_deny_groups }}. Current groups: {{ _ssh_user_groups.stdout }}.
+  when:
+    - ssh_deny_groups | length > 0
+    - ssh_deny_groups | intersect(_ssh_user_groups.stdout.split()) | length > 0
+
+- name: Verify target SSH user does not match DenyUsers
+  ansible.builtin.fail:
+    msg: >-
+      SSH access contract violation: ssh_user '{{ ssh_user }}' is present in
+      ssh_deny_users {{ ssh_deny_users }}.
+  when:
+    - ssh_deny_users | length > 0
+    - ssh_user in ssh_deny_users

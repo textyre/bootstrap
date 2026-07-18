@@ -4,36 +4,6 @@
 #  Источники: dev-sec.io, konstruktoid, CIS Benchmark, Mozilla Modern
 # =====================================================================
 
-# ROLE-003: Supported operating systems
-ssh_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# ---- Общий флаг hardening ----
-
-# Включить hardening sshd (развёртывание конфигурации)
-ssh_harden_sshd: true
-
-# ---- Per-subsystem toggles (ROLE-010) ----
-# Each subsystem can be independently disabled while keeping ssh_harden_sshd: true.
-# When disabled, the corresponding section uses OpenSSH defaults (not rendered in template).
-
-# Manage cryptographic settings (ciphers, MACs, KEX, host key algorithms, RekeyLimit)
-ssh_manage_crypto: true
-# Manage authentication settings (root login, password auth, auth methods, PAM, etc.)
-ssh_manage_auth: true
-# Manage forwarding and tunnel settings (X11, TCP, agent forwarding, tunnels, gateway ports)
-ssh_manage_forwarding: true
-# Manage access control directives (AllowGroups, AllowUsers, DenyGroups, DenyUsers)
-ssh_manage_access_control: true
-# Manage logging settings (LogLevel, SyslogFacility)
-ssh_manage_logging: true
-# Manage session settings (ClientAlive, TCPKeepAlive, MaxStartups, PrintMotd, etc.)
-ssh_manage_session: true
-
 # ---- Сеть и порт ----
 
 # Порт SSH-сервера (стандарт 22; смена снижает шум автосканеров)
@@ -50,9 +20,6 @@ ssh_host_keys:
   - /etc/ssh/ssh_host_ed25519_key
   - /etc/ssh/ssh_host_rsa_key
 
-# Удалить слабые host-ключи (DSA, ECDSA) — рекомендация dev-sec
-ssh_host_key_cleanup: true
-
 # ---- Криптография ----
 
 # Алгоритмы обмена ключами — только современные с forward secrecy
@@ -61,7 +28,6 @@ ssh_kex_algorithms:
   - curve25519-sha256@libssh.org
   - diffie-hellman-group16-sha512
   - diffie-hellman-group18-sha512
-  - diffie-hellman-group-exchange-sha256
 
 # Симметричные шифры — только AEAD (authenticated encryption)
 ssh_ciphers:
@@ -123,8 +89,10 @@ ssh_use_pam: "yes"
 
 # ---- Контроль доступа ----
 
-# Пользователь для проверки lockout-защиты (по умолчанию текущий пользователь)
-ssh_user: "{{ ansible_user_id }}"
+# Целевой пользователь, который должен сохранить SSH-доступ после применения политики роли.
+# В проектном inventory это значение приходит как ssh_user: "{{ target_user }}".
+# Роль не создает этого пользователя, не добавляет группы и не управляет его ключами.
+ssh_user: "{{ target_user | default(ansible_user_id) }}"
 
 # Группы с разрешённым SSH-доступом (whitelist; пустой = все)
 ssh_allow_groups: ["wheel"]
@@ -141,6 +109,8 @@ ssh_deny_users: []
 ssh_x11_forwarding: "no"
 # TCP-перенаправление (проброс портов; отключить = защита от обхода firewall)
 ssh_allow_tcp_forwarding: "no"
+# Unix socket forwarding (проброс socket-файлов вроде docker.sock)
+ssh_allow_stream_local_forwarding: "no"
 # Перенаправление SSH-агента (проброс ключей; отключить = защита ключей)
 ssh_allow_agent_forwarding: "no"
 # VPN-туннель через SSH (tun-устройство)
@@ -184,10 +154,8 @@ ssh_compression: "no"
 # MaxStartups start:rate:full (CIS/Mozilla: 10:30:60)
 ssh_max_startups: "10:30:60"
 
-# ---- SSH баннер (опционально) ----
+# ---- SSH баннер ----
 
-# Включить баннер (/etc/issue.net) показываемый до аутентификации
-ssh_banner_enabled: false
 # Путь к файлу баннера
 ssh_banner_path: "/etc/issue.net"
 # Текст баннера (юридическое предупреждение)
@@ -210,21 +178,6 @@ ssh_sftp_chroot_enabled: false
 ssh_sftp_chroot_group: "sftponly"
 # Каталог chroot (%h = домашний каталог пользователя)
 ssh_sftp_chroot_directory: "/home/%u"
-
-# ---- DH модули (опционально) ----
-
-# Удалить слабые DH-модули из /etc/ssh/moduli
-ssh_moduli_cleanup: false
-# Минимальный размер DH-модуля в битах (3072 — рекомендация NIST/Mozilla)
-ssh_moduli_minimum_bits: 3072
-
-# ---- Custom sshd_config overrides ----
-
-# Dict of additional sshd_config directives merged on top of the template.
-# Example: ssh_config_overwrite: { "ClientAliveInterval": "600" }
-# Keys are sshd_config directive names, values are their settings.
-# WARNING: overrides bypass variable validation — ensure values are valid.
-ssh_config_overwrite: {}
 
 # ---- Teleport SSH CA integration ----
 

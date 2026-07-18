@@ -1,0 +1,11 @@
+---
+# === ssh: login banner ===
+
+- name: Deploy SSH banner
+  ansible.builtin.template:
+    src: issue.net.j2
+    dest: "{{ ssh_banner_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: _ssh_banner

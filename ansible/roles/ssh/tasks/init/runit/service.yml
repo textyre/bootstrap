@@ -1,0 +1,8 @@
+---
+# === ssh: runit service policy ===
+
+- name: Enable and start sshd
+  ansible.builtin.service:
+    name: "{{ ssh_service_name[ansible_facts['service_mgr']] | default('sshd') }}"
+    enabled: true
+    state: started

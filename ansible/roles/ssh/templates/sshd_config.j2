@@ -30,8 +30,7 @@ ListenAddress {{ addr }}
 HostKey {{ key }}
 {% endfor %}
 
-{% if ssh_manage_crypto %}
-# ---- Криптография (ssh_manage_crypto: true) ----
+# ---- Криптография ----
 
 # Алгоритмы обмена ключами (KEX) — только современные с эфемерными ключами
 # curve25519 + DH group16/18 — соответствует Mozilla Modern и dev-sec
@@ -52,10 +51,8 @@ HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}
 # Перегенерация ключей сессии — ограничение объёма данных и времени
 # на одном сессионном ключе (защита от long-running session compromise)
 RekeyLimit {{ ssh_rekey_limit }}
-{% endif %}
 
-{% if ssh_manage_auth %}
-# ---- Аутентификация (ssh_manage_auth: true) ----
+# ---- Аутентификация ----
 
 # Время на ввод учётных данных после подключения (секунды)
 # Короткое значение снижает окно для brute-force атак
@@ -108,10 +105,8 @@ PermitUserEnvironment {{ ssh_permit_user_environment }}
 # PAM (Pluggable Authentication Modules) — нужен для account/session management
 # Даже при password auth=no, PAM обеспечивает account lockout, session limits
 UsePAM {{ ssh_use_pam }}
-{% endif %}
 
-{% if ssh_manage_access_control %}
-# ---- Контроль доступа (ssh_manage_access_control: true) ----
+# ---- Контроль доступа ----
 
 {% if ssh_allow_groups | length > 0 %}
 # Группы, которым разрешён SSH-доступ (whitelist)
@@ -133,10 +128,8 @@ DenyGroups {{ ssh_deny_groups | join(' ') }}
 # Пользователи, которым запрещён SSH-доступ (blacklist)
 DenyUsers {{ ssh_deny_users | join(' ') }}
 {% endif %}
-{% endif %}
 
-{% if ssh_manage_forwarding %}
-# ---- Перенаправление и туннели (ssh_manage_forwarding: true) ----
+# ---- Перенаправление и туннели ----
 
 # X11-перенаправление — графический вывод через SSH
 # Отключение предотвращает X11 sniffing (перехват клавиатуры/экрана)
@@ -145,6 +138,9 @@ X11Forwarding {{ ssh_x11_forwarding }}
 # TCP-перенаправление — проброс портов через SSH-туннель
 # Отключение предотвращает обход firewall через SSH
 AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+
+# Unix socket forwarding — проброс socket-файлов вроде docker.sock
+AllowStreamLocalForwarding {{ ssh_allow_stream_local_forwarding }}
 
 # Перенаправление SSH-агента — проброс ключей на удалённый хост
 # Отключение предотвращает кражу ключей через скомпрометированный хост
@@ -157,10 +153,8 @@ PermitTunnel {{ ssh_permit_tunnel }}
 # Открытие сокета на всех интерфейсах для перенаправленных портов
 # no = только localhost может подключаться к перенаправленным портам
 GatewayPorts {{ ssh_gateway_ports }}
-{% endif %}
 
-{% if ssh_manage_logging %}
-# ---- Логирование (ssh_manage_logging: true) ----
+# ---- Логирование ----
 
 # Уровень логирования: VERBOSE записывает fingerprint ключа при каждом входе
 # Необходимо для аудита — кто и каким ключом подключился (CIS, DISA STIG)
@@ -168,10 +162,8 @@ LogLevel {{ ssh_log_level }}
 
 # Facility syslog — AUTH направляет логи в стандартный журнал безопасности
 SyslogFacility {{ ssh_syslog_facility }}
-{% endif %}
 
-{% if ssh_manage_session %}
-# ---- Сессия и окружение (ssh_manage_session: true) ----
+# ---- Сессия и окружение ----
 
 # Интервал keepalive — сервер проверяет что клиент жив (секунды)
 ClientAliveInterval {{ ssh_client_alive_interval }}
@@ -191,11 +183,9 @@ PrintMotd {{ ssh_print_motd }}
 PrintLastLog {{ ssh_print_last_log }}
 
 
-{% if ssh_banner_enabled %}
 # Баннер — текст, показываемый ДО аутентификации
 # Обычно юридическое предупреждение о несанкционированном доступе
 Banner {{ ssh_banner_path }}
-{% endif %}
 
 # Принимаемые переменные окружения от клиента
 # LANG/LC_* — для корректной локализации терминала
@@ -219,7 +209,6 @@ Compression {{ ssh_compression }}
 # full — все отклоняются при достижении full
 # CIS/Mozilla: 10:30:60 (агрессивный, но эффективный против brute-force)
 MaxStartups {{ ssh_max_startups }}
-{% endif %}
 
 {% if ssh_teleport_integration %}
 # ---- Teleport SSH CA ----
@@ -244,11 +233,4 @@ Match Group {{ ssh_sftp_chroot_group }}
 {% else %}
 # SFTP отключён — подсистема не сконфигурирована
 # Для включения: ssh_sftp_enabled: true
-{% endif %}
-{% if ssh_config_overwrite | length > 0 %}
-
-# ---- Custom overrides (ssh_config_overwrite) ----
-{% for key, value in ssh_config_overwrite.items() %}
-{{ key }} {{ value }}
-{% endfor %}
 {% endif %}

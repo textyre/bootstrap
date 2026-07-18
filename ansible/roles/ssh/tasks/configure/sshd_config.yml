@@ -1,0 +1,26 @@
+---
+# === ssh: managed sshd_config ===
+
+- name: "CIS 5.2.1 | DISA V-238215 | Deploy managed sshd_config"
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+    validate: 'sshd -t -f %s'
+    backup: true
+  register: _ssh_sshd_config
+
+- name: "Report: sshd_config"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_ssh_phases"
+    common_rpt_phase: "sshd_config"
+    common_rpt_detail: >-
+      port={{ ssh_port }}
+      root_login={{ ssh_permit_root_login }}
+      password_auth={{ ssh_password_authentication }}
+  tags: ['report']

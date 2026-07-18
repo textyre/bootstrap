@@ -1,0 +1,30 @@
+---
+# === ssh: configure hardened OpenSSH server ===
+
+- name: Install OpenSSH packages
+  ansible.builtin.include_tasks:
+    file: install.yml
+
+- name: Check target user access-control consistency
+  ansible.builtin.include_tasks:
+    file: preflight.yml
+
+- name: Configure SSH host key policy
+  ansible.builtin.include_tasks:
+    file: host_key_policy.yml
+
+- name: Configure SSH runtime directories
+  ansible.builtin.include_tasks:
+    file: runtime.yml
+
+- name: Configure sshd_config
+  ansible.builtin.include_tasks:
+    file: sshd_config.yml
+
+- name: Deploy SSH banner
+  ansible.builtin.include_tasks:
+    file: banner.yml
+
+- name: Manage sshd service
+  ansible.builtin.include_tasks:
+    file: service.yml

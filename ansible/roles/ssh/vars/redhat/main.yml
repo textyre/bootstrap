@@ -1,7 +1,10 @@
 ---
+# === ssh: RedHat/Fedora internals ===
+
 ssh_packages:
   - openssh-server
   - openssh-clients
+
 ssh_service_name:
   systemd: sshd
   runit: sshd
