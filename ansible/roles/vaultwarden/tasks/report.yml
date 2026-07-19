@@ -1,0 +1,20 @@
+---
+- name: Report Vaultwarden desired state
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_vaultwarden_phases"
+    common_rpt_phase: "Configure Vaultwarden"
+    common_rpt_detail: >-
+      domain={{ vaultwarden_domain }} image={{ vaultwarden_docker_image }}
+      admin={{ vaultwarden_admin_enabled | bool }}
+      backups={{ vaultwarden_backup_enabled | bool }}
+
+- name: Render Vaultwarden execution report
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_vaultwarden_phases"
+    common_rpt_title: vaultwarden

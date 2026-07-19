@@ -18,20 +18,6 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report,molecule-notest
-  inventory:
-    group_vars:
-      all:
-        # Handlers skip: containers not started (molecule-notest).
-        vaultwarden_compose_manage: false
-        # CI-safe docker override: use json-file in Vagrant fixtures.
-        docker_log_driver: "json-file"
-    host_vars:
-      arch-vm:
-        docker_storage_driver: "btrfs"
-      ubuntu-base:
-        docker_storage_driver: "overlay2"
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:

@@ -1,0 +1,11 @@
+---
+- name: Start Vaultwarden Compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ vaultwarden_base_dir }}"
+    state: present
+
+- name: Restart Caddy after Vaultwarden site changes # noqa: no-handler
+  community.docker.docker_compose_v2:
+    project_src: "{{ caddy_base_dir }}"
+    state: restarted
+  when: _vaultwarden_caddy_configuration is changed

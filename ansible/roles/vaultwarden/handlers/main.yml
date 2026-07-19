@@ -1,9 +1,0 @@
----
-- name: Restart vaultwarden
-  community.docker.docker_compose_v2:
-    project_src: "{{ vaultwarden_base_dir }}"
-    state: restarted
-  listen: Restart vaultwarden
-  when:
-    - ansible_facts['virtualization_type'] | default('') != 'docker'
-    - vaultwarden_compose_manage | default(true)

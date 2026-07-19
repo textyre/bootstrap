@@ -1,0 +1,4 @@
+---
+- name: Load Vaultwarden package and service variables
+  ansible.builtin.include_vars:
+    file: "distro/{{ ansible_facts['os_family'] | lower }}/main.yml"

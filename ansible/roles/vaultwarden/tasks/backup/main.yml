@@ -1,0 +1,33 @@
+---
+- name: Configure Vaultwarden backup schedule
+  when: vaultwarden_backup_enabled | bool
+  block:
+    - name: Create Vaultwarden backup directory
+      ansible.builtin.file:
+        path: "{{ vaultwarden_backup_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Deploy Vaultwarden backup command
+      ansible.builtin.template:
+        src: vaultwarden-backup.sh.j2
+        dest: "{{ vaultwarden_base_dir }}/backup.sh"
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Enable and start backup scheduler
+      ansible.builtin.service:
+        name: "{{ _vaultwarden_cron_service }}"
+        enabled: true
+        state: started
+
+    - name: Schedule Vaultwarden backup
+      ansible.builtin.cron:
+        name: Vaultwarden backup
+        hour: "{{ vaultwarden_backup_cron_hour }}"
+        minute: "{{ vaultwarden_backup_cron_minute }}"
+        job: "{{ vaultwarden_base_dir }}/backup.sh"
+        user: root

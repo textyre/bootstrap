@@ -1,0 +1,20 @@
+---
+- name: Configure Vaultwarden directories
+  ansible.builtin.include_tasks:
+    file: directories.yml
+
+- name: Configure Vaultwarden local name resolution
+  ansible.builtin.include_tasks:
+    file: dns.yml
+
+- name: Configure Vaultwarden admin token
+  ansible.builtin.include_tasks:
+    file: token.yml
+
+- name: Configure Vaultwarden Compose project
+  ansible.builtin.include_tasks:
+    file: compose.yml
+
+- name: Configure Vaultwarden Caddy site
+  ansible.builtin.include_tasks:
+    file: caddy.yml

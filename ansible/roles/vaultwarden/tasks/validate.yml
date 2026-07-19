@@ -1,13 +1,12 @@
 ---
-# === Vaultwarden — preflight validation ===
-# Called at the start of main.yml before any configuration
-
-- name: Assert OS is supported by vaultwarden role
+- name: Validate Vaultwarden platform support
   ansible.builtin.assert:
     that:
       - ansible_facts['os_family'] in _vaultwarden_supported_os
+      - >-
+        not (vaultwarden_backup_enabled | bool)
+        or ansible_facts['service_mgr'] in _vaultwarden_supported_service_managers
     fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _vaultwarden_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-  tags: ['vaultwarden']
+      Vaultwarden supports {{ _vaultwarden_supported_os | join(', ') }} and
+      backup scheduling through
+      {{ _vaultwarden_supported_service_managers | join(', ') }}.

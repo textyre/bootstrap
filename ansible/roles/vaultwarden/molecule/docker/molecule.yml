@@ -37,8 +37,6 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report,molecule-notest
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -46,7 +44,7 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-    converge: converge.yml
+    converge: ../shared/converge.yml
     verify: ../shared/verify.yml
 
 verifier:
