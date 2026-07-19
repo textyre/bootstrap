@@ -1,11 +1,17 @@
 ---
-- name: Bootstrap Vagrant VM
+- name: Prepare Docker virtual machines
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
 
-- name: Prepare (role-specific)
+- name: Install Docker test prerequisite
   hosts: all
   become: true
   gather_facts: true
+  vars:
+    _docker_test_packages:
+      Archlinux: docker
+      Debian: docker.io
   tasks:
-    - name: Platform-specific preparation
-      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"
+    - name: Install Docker Engine for role testing
+      ansible.builtin.package:
+        name: "{{ _docker_test_packages[ansible_facts['os_family']] }}"
+        state: present

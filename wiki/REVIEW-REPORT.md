@@ -4,6 +4,12 @@
 **Phases completed:** 5/5
 **Total findings:** 67
 
+> **Current-state note (2026-07-19):** this report records the repository snapshot
+> from 2026-02-17. Its Docker findings are historical: secure daemon defaults are
+> now enabled, the generated configuration is validated with `dockerd --validate`,
+> and the role no longer has a Docker handler. Current Docker behavior is documented
+> in `ansible/roles/docker/README.md` and `wiki/roles/docker.md`.
+
 | Severity | Count |
 |----------|-------|
 | Critical | 14 |
@@ -467,14 +473,15 @@ Code: `docker_log_driver: "json-file"`. Quick-Wins.md: `docker_log_driver: "jour
 
 ---
 
-### MED-07: SSH and Docker handlers lack `listen:` directive [P1]
+### MED-07: SSH and Docker handlers lacked `listen:` directive [P1]
 
 **File:** `ansible/roles/ssh/handlers/main.yml:1-5`
-**File:** `ansible/roles/docker/handlers/main.yml`
+**Historical file:** `ansible/roles/docker/handlers/main.yml` (removed)
 
 Per project convention (MEMORY.md): "Handlers use `listen:` for cross-role notification." Neither handler has this directive, preventing other roles from triggering restarts via generic notification names.
 
-**Fix:** Add `listen: "restart sshd"` and `listen: "restart docker"` to respective handler files.
+**Current status:** the SSH finding remains part of the historical snapshot. Docker
+no longer uses a handler; configuration changes are applied in its service phase.
 
 ---
 
@@ -870,7 +877,7 @@ Ordered by impact: quick fixes first, then structural changes, then architectura
 |---|--------|------|---------|
 | 1 | Add `validate: 'python3 -m json.tool %s'` to Docker template task | `ansible/roles/docker/tasks/main.yml:17-25` | CRIT-03 |
 | 2 | Add `listen: "restart sshd"` to SSH handler | `ansible/roles/ssh/handlers/main.yml:1-5` | MED-07 |
-| 3 | Add `listen: "restart docker"` to Docker handler | `ansible/roles/docker/handlers/main.yml` | MED-07 |
+| 3 | Docker action resolved by removing the handler and applying service state directly | `ansible/roles/docker/tasks/service.yml` | MED-07 |
 | 4 | Add `ssh_log_level: "VERBOSE"` to SSH defaults and sshd_config | `ansible/roles/ssh/defaults/main.yml` | MED-17 |
 | 5 | Change `auditd_space_left_action` default to `syslog` | `wiki/roles/auditd.md:21` | MED-12 |
 | 6 | Replace "River" with "Alloy syntax" in wiki | `wiki/roles/alloy.md` | MED-14 |

@@ -8,6 +8,12 @@
 **Ветка:** `fix/vaultwarden-molecule-overhaul`
 **Скоуп:** ~140 добавленных строк, ~10 удалённых, 7 изменённых файлов (1 новый)
 
+> **Актуализация 2026-07-19:** документ сохраняет факты старого расследования.
+> Упомянутая ниже переменная `docker_enable_service` удалена: Docker role всегда
+> управляет сервисом, а её Docker Molecule scenario предоставляет полноценный
+> privileged systemd runtime. Этот старый test bypass нельзя использовать как
+> текущий проектный паттерн.
+
 ---
 
 ## 1. Задача
@@ -102,7 +108,7 @@ socket mount), и `systemctl start docker` падает.
 | Подход | Плюсы | Минусы |
 |--------|-------|--------|
 | `include_role` в converge | Пропускает meta deps | Нужен отдельный converge.yml |
-| `docker_enable_service: false` | Минимальные изменения | Не решает caddy + все deps |
+| Legacy service-disable variable (удалена) | Тогда давала минимальные изменения | Отключала контракт dependency role и не решала caddy + все deps |
 | Extra vars `--skip-tags` | Гибко | Handlers не скипаются tags |
 
 **Фикс — docker-specific converge.yml:**
@@ -453,9 +459,9 @@ handlers**. Handler вызывается, если задача, которая 
 (Docker и Vagrant). Дополнительных изменений для Reload caddy не нужно — достаточно
 добавить условие в handler.
 
-`vaultwarden_compose_manage` — новая переменная, аналогичная `docker_enable_service`
-из docker роли. Паттерн проекта: handlers контролируются переменными, которые molecule
-устанавливает в group_vars.
+В старой реализации `vaultwarden_compose_manage` сравнивалась с существовавшей тогда
+Docker service-disable переменной. Этот подход больше не является проектным паттерном:
+Molecule готовит среду для контракта роли, а не отключает контракт через test-only input.
 
 **Molecule group_vars (vagrant):**
 
@@ -694,10 +700,10 @@ syslog    + {"max-size": "10m"}                      ← INVALID
 Docker daemon валидирует log-opts при СТАРТЕ, не при записи daemon.json.
 ```
 
-### Проектный паттерн: handler guards через переменные
+### Устаревший паттерн: handler guards через переменные
 
 ```yaml
-# Паттерн из docker role (существующий):
+# Исторический Docker handler; роль больше его не содержит:
 - name: Restart docker
   listen: Restart docker
   when: docker_enable_service | default(true)
@@ -807,7 +813,6 @@ Arch docker-compose покрывает оба.
   config" создаёт файл, но caddy не запущен → файл не валидируется Caddy. Синтаксическая
   ошибка в `vault.caddy.j2` не будет поймана molecule.
 
-- **Docker role handler guard не унифицирован** — docker role использует
-  `docker_enable_service`, vaultwarden — `vaultwarden_compose_manage`, caddy —
-  `caddy_enabled`. Три разных паттерна для одной задачи (skip handler in molecule).
-  Можно унифицировать, но текущее состояние работает.
+- **Исторический Docker role handler guard** — описанный здесь
+  `docker_enable_service` удалён вместе с handler. Тесты Docker role теперь готовят
+  полноценную среду и не отключают service contract.

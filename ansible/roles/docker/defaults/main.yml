@@ -1,87 +1,40 @@
 ---
-# === Конфигурация Docker ===
-# Docker daemon configuration: daemon.json, сервис, группа пользователя
-# Security baseline: CIS Docker Benchmark Level 1
-# Reference: wiki/standards/security-standards.md (Docker section)
-
-# Supported OS families (ROLE-003)
-_docker_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# --- Subsystem toggles (ROLE-010) ---
-# Each subsystem can be independently disabled
+# Deploy and validate /etc/docker/daemon.json.
 docker_manage_daemon: true
-docker_add_user_to_group: true
-docker_enable_service: true
 
-# ---- Core settings (safe) ----
+# Container logging driver. Non-systemd hosts use Docker's local driver because
+# they do not provide the journald socket.
+docker_log_driver: "{{ 'journald' if ansible_facts['service_mgr'] == 'systemd' else 'local' }}"
 
-# Целевой пользователь (добавляется в группу docker)
-# Safety: safe — user must exist on the system
-docker_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-
-# ---- Logging (safe) ----
-
-# Logging driver for containers
-# Safety: safe — journald integrates with systemd journal
-docker_log_driver: "journald"
-
-# Max log file size (applies to non-journald drivers)
-# Safety: safe
+# Maximum container log size for drivers that support rotation options.
 docker_log_max_size: "10m"
 
-# Max number of rotated log files (applies to non-journald drivers)
-# Safety: safe
+# Number of rotated container log files to retain.
 docker_log_max_file: "3"
 
-# ---- Storage (careful) ----
-
-# Storage driver. Must be explicit; Docker auto-selection is intentionally disabled.
-# Safety: careful — changing on existing installs requires data migration
+# Docker storage driver. Changing it on a populated host requires data migration.
+# Allowed: overlay2, btrfs, zfs, fuse-overlayfs.
 docker_storage_driver: "overlay2"
 
-# Supported modern Docker storage drivers for workstation hosts.
-# Safety: internal — extend only with a tested preflight and runtime scenario
-docker_storage_supported_drivers:
-  - overlay2
-  - btrfs
-  - zfs
-  - fuse-overlayfs
-
-# ---- Security features (careful) ----
-# CIS Docker Benchmark defaults
-
-# CIS 2.8 — Enable user namespace support (userns-remap)
-# WARNING: userns-remap ломает volume permissions — используйте named volumes
-# или chown 100000:100000 на хосте. Подробности: https://docs.docker.com/engine/security/userns-remap/
-# Keep this enabled by default for every workstation profile. Disable only with
-# an explicit host override after accepting the bind-mount ownership trade-off.
+# Remap container UIDs away from host UIDs. Empty string disables remapping.
+# The default can affect writable bind mounts; named volumes are preferred.
 docker_userns_remap: "default"
 
-# CIS 2.1 — Restrict network traffic between containers (icc)
-# ICC false блокирует прямое общение контейнеров через docker0.
-# Используйте user-defined networks (Docker Compose создаёт их автоматически)
-# Profile: developer relaxes this (true allows inter-container communication)
+# Allow communication between containers attached to Docker's default bridge.
 docker_icc: >-
   {{ true if 'developer' in (workstation_profiles | default([])) else false }}
 
-# CIS 2.14 — Ensure containers are restricted from acquiring new privileges
-# live-restore позволяет контейнерам работать при рестарте dockerd.
-# Несовместимо с Docker Swarm (не используется в данном проекте)
+# Keep running containers alive while the Docker daemon restarts.
 docker_live_restore: true
 
-# CIS 5.25 — Ensure that the on-failure container restart policy is set
-# no-new-privileges блокирует повышение привилегий через setuid в контейнерах.
-# При необходимости — per-container override: --security-opt no-new-privileges=false
+# Prevent containers from gaining additional privileges through setuid binaries.
 docker_no_new_privileges: true
 
-# ---- Customization (internal) ----
-
-# User-provided daemon.json additions for settings not owned by this role.
-# Safety: internal — managed keys are validated and rejected in tasks/core.yml
-# Example: { "dns": ["8.8.8.8"], "default-address-pools": [{"base": "172.80.0.0/16", "size": 24}] }
-docker_daemon_overwrite: {}
+# Additional daemon settings not represented by dedicated docker_* variables.
+# Keys already managed by this role are rejected during validation.
+docker_daemon_extra: {}
+# Example:
+# docker_daemon_extra:
+#   dns: ["8.8.8.8"]
+#   default-address-pools:
+#     - {base: "172.80.0.0/16", size: 24}

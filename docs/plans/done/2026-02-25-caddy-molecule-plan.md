@@ -1,5 +1,11 @@
 # Caddy Role: Molecule Testing Plan
 
+> **Current compatibility note (2026-07-19):** this completed plan contains an
+> obsolete Docker test bypass. `docker_enable_service` no longer exists; current
+> scenarios must prepare a runtime in which the Docker dependency can satisfy its
+> full service contract. The config-only design snippets below are historical and
+> must not be copied into current scenarios.
+
 **Date:** 2026-02-25
 **Status:** Draft
 **Role:** `ansible/roles/caddy/`
@@ -183,9 +189,9 @@ The caddy role requires a **running Docker daemon** to:
 2. Deploy and start containers (`community.docker.docker_compose_v2`)
 3. Execute commands inside containers (`docker exec`, `docker cp`)
 
-This is a Docker-in-Docker (DinD) scenario. Running a Docker daemon inside a molecule Docker container is possible but fragile. The same challenge exists for the docker role (see `2026-02-25-docker-role-molecule-plan.md` Section 4).
+This is a Docker-in-Docker (DinD) scenario. Running a Docker daemon inside a Molecule Docker container requires explicit systemd, cgroup, privilege, and runtime-mount preparation. The reusable guidance is recorded in `docs/troubleshooting/troubleshooting-history-2026-02-24-ansible-molecule-ci.md`.
 
-### Recommended approach: Config-only verification
+### Historical approach: Config-only verification
 
 In the Docker scenario, **skip Docker daemon-dependent tasks** and verify only the configuration artifacts:
 - Directory structure created
@@ -227,11 +233,6 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    host_vars:
-      Archlinux-systemd:
-        docker_enable_service: false
-        caddy_enabled: true
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
@@ -253,7 +254,7 @@ scenario:
 
 **Key decisions:**
 - `skip-tags: service,proxy` -- skips Docker service start (from docker role dependency) and could be used for Caddy service tasks. However, the caddy role's tasks use tags `caddy`, `proxy`, `configure`, `service`. We need the `configure` tags to run (directory creation, file templating) but skip `service` (compose up) and any Docker-daemon-dependent tasks.
-- `docker_enable_service: false` -- prevents the docker dependency role from trying to start dockerd
+- The old Docker service-disable input has been removed. A current scenario must provide a working Docker service runtime for the dependency role.
 - The `caddy` role's tasks are guarded by `when: caddy_enabled` and tagged. The tasks that need Docker daemon are:
   - `Create Docker network for proxy` (tagged `caddy, proxy, configure`) -- uses `community.docker.docker_network` which requires dockerd
   - `Start Caddy with docker compose` (tagged `caddy, proxy, service`) -- uses `community.docker.docker_compose_v2`
@@ -264,7 +265,7 @@ scenario:
 
 **Revised approach:** Use `skip-tags: service` to skip compose-up, and accept that some tasks will fail in the Docker container. The prepare.yml can install a mock or we handle this with a converge override.
 
-**Better approach:** Since the Docker scenario cannot meaningfully test Docker-dependent tasks, create a `molecule/docker/converge.yml` that applies the role with limited scope instead of using the shared converge:
+**Historical approach:** this plan proposed a scenario-specific config-only converge. Current scenarios must instead prepare the Docker runtime and execute the dependency contract.
 
 ### molecule/docker/converge.yml (scenario-specific)
 

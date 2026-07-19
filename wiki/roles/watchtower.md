@@ -67,13 +67,13 @@ watchtower_container_name: watchtower           # Имя контейнера Wa
 - HTTP API для ручного запуска (опционально)
 
 **На Arch Linux:**
-- Требует: роль `docker` (docker и docker-compose установлены)
+- Требует: Docker Engine из package layer и настроенный сервис из роли `docker`
 
 **На Debian/Ubuntu:**
-- Требует: роль `docker` (docker и docker-compose установлены)
+- Требует: Docker Engine из package layer и настроенный сервис из роли `docker`
 
 **На Fedora/RHEL:**
-- Требует: роль `docker` (docker и docker-compose установлены)
+- Требует: Docker Engine из package layer и настроенный сервис из роли `docker`
 
 ## Зависимости
 

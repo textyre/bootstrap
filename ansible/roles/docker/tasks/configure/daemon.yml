@@ -1,0 +1,28 @@
+---
+- name: Create Docker configuration directory
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy Docker daemon configuration
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'dockerd --validate --config-file=%s'
+  register: _docker_daemon_configuration
+
+- name: Report Docker daemon phase
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_docker_phases"
+    common_rpt_phase: "Configure daemon"
+    common_rpt_detail: >-
+      log={{ docker_log_driver }} storage={{ docker_storage_driver }}

@@ -1,0 +1,5 @@
+---
+- name: Configure Docker daemon
+  ansible.builtin.include_tasks:
+    file: daemon.yml
+  when: docker_manage_daemon | bool

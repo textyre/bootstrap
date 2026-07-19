@@ -1,0 +1,29 @@
+---
+# OS families supported by the Docker configuration contract.
+_docker_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Docker service name on supported hosts.
+_docker_service_name: docker
+
+# Storage drivers accepted by daemon configuration validation.
+_docker_storage_supported_drivers:
+  - overlay2
+  - btrfs
+  - zfs
+  - fuse-overlayfs
+
+# daemon.json keys rendered from dedicated docker_* variables. They cannot also
+# be declared through docker_daemon_extra because JSON keys must be unique.
+_docker_managed_daemon_keys:
+  - storage-driver
+  - log-driver
+  - log-opts
+  - userns-remap
+  - icc
+  - live-restore
+  - no-new-privileges

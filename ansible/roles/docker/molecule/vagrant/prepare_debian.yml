@@ -1,8 +1,0 @@
----
-- name: "Prepare: install docker.io and uidmap"
-  ansible.builtin.apt:
-    name:
-      - docker.io
-      - uidmap
-      - python3
-    state: present

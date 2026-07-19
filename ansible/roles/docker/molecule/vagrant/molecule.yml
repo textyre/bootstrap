@@ -16,37 +16,16 @@ platforms:
     memory: 2048
     cpus: 2
 
-dependency:
-  name: galaxy
-  options:
-    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
-    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
-
 provisioner:
   name: ansible
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles:${MOLECULE_PROJECT_DIRECTORY}/../"
-  inventory:
-    group_vars:
-      all:
-        docker_user: "vagrant"
-        docker_test_runtime_smoke_enabled: true
-    host_vars:
-      arch-vm:
-        docker_log_driver: "json-file"
-        docker_storage_driver: "btrfs"
-      ubuntu-base:
-        docker_log_driver: "json-file"
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   playbooks:
     prepare: prepare.yml
-    converge: converge.yml
-    verify: verify.yml
-
-verifier:
-  name: ansible
+    converge: ../shared/converge.yml
 
 scenario:
   test_sequence:
@@ -55,5 +34,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

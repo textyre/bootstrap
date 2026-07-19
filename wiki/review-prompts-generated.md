@@ -1,3 +1,9 @@
+> **Current-state note (2026-07-19):** this file contains generated review prompts
+> for an older repository snapshot. Docker assertions below about disabled defaults,
+> fragile unvalidated JSON, the `json-file` default, and a Docker handler are resolved
+> and must not be used as current implementation guidance. Current behavior is in
+> `ansible/roles/docker/README.md` and `wiki/roles/docker.md`.
+
 # Review Prompts: Destructive-Critical Audit of Ansible Bootstrap Project
 
 Generated: 2026-02-16
@@ -74,7 +80,6 @@ You must read all 14 files. If you feel done before reading all of them, you are
 11. `/Users/umudrakov/Documents/bootstrap/ansible/roles/firewall/defaults/main.yml`
 12. `/Users/umudrakov/Documents/bootstrap/ansible/roles/user/defaults/main.yml`
 13. `/Users/umudrakov/Documents/bootstrap/ansible/roles/ssh/handlers/main.yml`
-14. `/Users/umudrakov/Documents/bootstrap/ansible/roles/docker/handlers/main.yml`
 
 ### Documentation to compare against code:
 
