@@ -12,6 +12,9 @@
 ## Важные свойства
 
 - `docker_userns_remap: default` отделяет UID контейнеров от UID хоста, но влияет на writable bind mounts.
+- Remapping нужно включать до создания постоянных images/containers: он использует
+  отдельное представление Docker data root и требует корректных диапазонов `dockremap`
+  в `/etc/subuid` и `/etc/subgid`.
 - `docker_icc` запрещает default-bridge communication вне developer profile; Compose/user-defined networks продолжают использовать отдельные сети.
 - На systemd используется logging driver `journald`; на других init systems используется `local`.
 - Роль не добавляет пользователей в root-equivalent группу `docker`; административные команды выполняются через `sudo` и остаются под действием sudo policy.

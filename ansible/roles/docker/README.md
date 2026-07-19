@@ -32,6 +32,24 @@ The role has no handlers. A changed daemon configuration is applied immediately 
 | `docker_no_new_privileges` | `true` | safe | Prevents privilege acquisition through setuid binaries by default. |
 | `docker_daemon_extra` | `{}` | careful | Additional daemon keys not already owned by dedicated variables. Managed-key conflicts are rejected. |
 
+### User namespace remapping
+
+With `docker_userns_remap: default`, Docker creates the `dockremap` user and maps
+container UID/GID ranges through `/etc/subuid` and `/etc/subgid`. The host kernel
+must support user namespaces. After the first successful daemon start, both files
+must contain non-overlapping ranges for `dockremap`; some distributions do not add
+those ranges automatically. See the
+[Docker user namespace documentation](https://docs.docker.com/engine/security/userns-remap/).
+
+Enable remapping before creating production images, containers, and volumes.
+Changing it on an existing Docker data root makes previously created Docker objects
+unavailable under the new mapping until the old configuration is restored. Writable
+bind mounts require ownership compatible with the remapped host IDs.
+
+Daemon-wide remapping is incompatible with host PID/network namespaces, some external
+volume or storage drivers, and privileged containers unless the individual container
+uses `--userns=host` and accepts the resulting isolation trade-off.
+
 ### Internal mappings (`vars/main.yml`)
 
 `vars/main.yml` contains the five supported OS families, the stable service name, the accepted storage drivers, and the daemon keys owned by dedicated variables. These are implementation constants, not inventory settings.
@@ -92,6 +110,8 @@ Systemd hosts default to `journald`; runit, openrc, s6, and dinit hosts default 
 | `dockerd` is missing during template validation | Docker Engine package was not installed by the package layer | Apply the package layer before this role |
 | Docker fails after changing storage driver | Existing data belongs to another backend or the selected filesystem prerequisite is missing | Migrate or clear Docker data according to the selected driver's official procedure |
 | Bind mount is not writable | `userns-remap` maps container root to an unprivileged host UID | Prefer a named volume or assign compatible ownership to the bind path |
+| Docker fails on first start with `userns-remap: default` | User namespaces are unavailable, or `dockremap` has no valid subordinate UID/GID ranges | Check host user-namespace support and non-overlapping `dockremap` entries in `/etc/subuid` and `/etc/subgid` |
+| Existing images or containers disappear after enabling remapping | Docker uses a remapped data namespace under `/var/lib/docker` | Restore the previous setting to access old objects, or migrate/recreate them before enabling remapping permanently |
 | Docker CLI reports permission denied | The role intentionally does not grant access to the root-equivalent Docker socket | Run the administrative Docker command through `sudo` |
 | Containers on the default bridge cannot communicate | `docker_icc` is false | Use a user-defined network or explicitly enable ICC for the host |
 

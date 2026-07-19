@@ -13,6 +13,12 @@
 > управляет сервисом, а её Docker Molecule scenario предоставляет полноценный
 > privileged systemd runtime. Этот старый test bypass нельзя использовать как
 > текущий проектный паттерн.
+>
+> При удалении bypass CI подтвердил недостающий prerequisite: Vaultwarden Docker
+> prepare не устанавливал Docker Engine, поэтому Docker dependency падала на
+> `dockerd --validate`. Текущий scenario устанавливает `docker`/`docker.io`,
+> предоставляет systemd/cgroups и отдельный `/var/lib/docker`, после чего dependency
+> выполняет полный service contract.
 
 ---
 

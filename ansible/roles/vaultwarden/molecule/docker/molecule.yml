@@ -13,6 +13,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8
@@ -28,6 +29,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8

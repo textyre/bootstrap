@@ -1,31 +1,27 @@
 ---
-- name: Prepare (stub docker + caddy dependencies)
+- name: Bootstrap Docker container
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+
+- name: Prepare Vaultwarden test prerequisites
   hosts: all
   become: true
   gather_facts: true
+  vars:
+    _vaultwarden_test_packages:
+      Archlinux:
+        - docker
+        - openssl
+        - cronie
+      Debian:
+        - docker.io
+        - openssl
+        - cron
 
   tasks:
-    - name: Update pacman package cache
-      community.general.pacman:
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Install openssl and cronie (Arch)
-      community.general.pacman:
-        name:
-          - openssl
-          - cronie
+    - name: Install Vaultwarden test prerequisites
+      ansible.builtin.package:
+        name: "{{ _vaultwarden_test_packages[ansible_facts['os_family']] }}"
         state: present
-      when: ansible_facts['os_family'] == 'Archlinux'
-
-    - name: Install openssl and cron (Debian)
-      ansible.builtin.apt:
-        name:
-          - openssl
-          - cron
-        state: present
-        update_cache: true
-      when: ansible_facts['os_family'] == 'Debian'
 
     - name: Create Caddy directories (stub for caddy role)
       ansible.builtin.file:
