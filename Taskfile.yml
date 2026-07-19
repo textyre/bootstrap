@@ -286,14 +286,14 @@ tasks:
       - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
 
   test-firewall:
-    desc: "Run molecule tests for firewall"
+    desc: "Run Docker molecule tests for firewall"
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/firewall'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/firewall'
     cmds:
       - 'echo "==> Testing firewall role..."'
-      - '{{.PREFIX}} molecule test'
+      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
 
   test-xorg:
     desc: "Run molecule tests for xorg"

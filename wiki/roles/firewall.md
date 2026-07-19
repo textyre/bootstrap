@@ -1,42 +1,40 @@
 # Firewall Role
 
-Manages nftables-based firewall configuration for workstation hardening.
+The `firewall` role configures an nftables workstation firewall. Its `inet
+filter` table defaults inbound and forwarded traffic to drop, permits
+established traffic, preserves required ICMP/ICMPv6 control messages, and
+optionally permits SSH, application ports, and Docker bridge forwarding. The
+project package layer provides nftables before this role runs.
 
-## Security Controls
+## Security behavior
 
-| Setting | CIS Control | Variable |
-|---------|-------------|----------|
-| Default deny inbound | 3.4.1.1 | `firewall_enabled: true` |
-| nftables installed and enabled | 3.4.1.1 | `firewall_enable_service: true` |
-| SSH rate limit per-IP | 3.4.1.4 | `firewall_ssh_rate_limit_enabled: true` |
-| Ruleset configuration deployed | 3.4.1.4 | `firewall_enabled: true` |
+| Behavior | Implementation |
+|---|---|
+| Default deny inbound | `chain input` uses `policy drop` |
+| Default deny forwarding | `chain forward` uses `policy drop` |
+| SSH brute-force containment | Dynamic IPv4 and IPv6 sets rate-limit each source separately |
+| Existing connections | `ct state established,related accept` |
+| Invalid packets | `ct state invalid drop` |
+| IPv4/IPv6 stability | Required error and IPv6 discovery messages are accepted; only ping requests are rate-limited |
+| Dropped traffic visibility | Kernel log prefixes `[nftables] drop:` and `[nftables] ssh-rate:` are limited to 10 messages/second with burst 20 |
+| Outbound traffic | Accepted without filtering |
 
-## Audit Events
+The role replaces only its `inet filter` table. It does not flush the complete
+ruleset and therefore does not remove tables maintained by Docker or other
+software.
 
-| Event | Source | Severity | Threshold |
-|-------|--------|----------|-----------|
-| Dropped packet rate exceeds threshold | nftables log prefix `[nftables] drop:` | WARNING | > 100/min for 5m |
-| SSH brute-force rate limit triggered | nftables log prefix `[nftables] ssh-rate:` | CRITICAL | > 10 events/min |
-| Ruleset changed outside Ansible | drift detection script | CRITICAL | any change detected |
-| nftables service not enabled | systemctl is-enabled | CRITICAL | service disabled |
-| inet filter table missing from runtime | nft list tables | CRITICAL | table absent |
+## Operation
 
-## Monitoring Integration
+The role validates the platform, validates the generated configuration with
+`nft -c`, applies a changed ruleset, and keeps the nftables service enabled and
+started. Configuration and service failures stop the run instead of being
+converted into warnings.
 
-- **Log source:** nftables kernel log messages with `[nftables]` prefix in journald
-- **Prometheus metric:** `node_nf_conntrack_entries` (via node_exporter) for connection tracking saturation
-- **Alloy pipeline:** scrape journald for `[nftables] drop:` and `[nftables] ssh-rate:` patterns, forward to Loki
-- **Alert rules:**
-  - `FirewallDropRateHigh` -- dropped packet rate exceeds threshold (WARNING)
-  - `FirewallSSHBruteForce` -- SSH rate limit triggered repeatedly (CRITICAL)
-  - `FirewallRulesetDrift` -- live ruleset differs from Ansible-managed state (CRITICAL)
-  - `FirewallServiceDown` -- nftables service not enabled or inet filter table missing (CRITICAL)
+Docker Molecule runs the complete role and nftables service in systemd-based
+Arch and Ubuntu containers. Vagrant runs the same contract in Arch and Ubuntu
+VMs and confirms that a fresh SSH connection remains possible after the
+firewall is active. Both scenarios run the role twice and require an idempotent
+second run.
 
-## Drift Detection
-
-When `firewall_drift_detection: true`, the role stores the expected nftables ruleset hash in `{{ firewall_drift_state_dir }}/`. A monitoring script or scheduled task can compare the live ruleset (`nft list ruleset`) against the stored hash to detect out-of-band changes.
-
-**Detection mechanism:**
-1. After applying the nftables configuration, store `nft list ruleset | sha256sum` in the state directory
-2. Periodic check compares current `nft list ruleset | sha256sum` against stored value
-3. Mismatch triggers `FirewallRulesetDrift` alert
+Public variables and examples are documented in
+`ansible/roles/firewall/README.md` and `defaults/main.yml`.

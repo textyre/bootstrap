@@ -105,7 +105,6 @@ shell_type: zsh
 #  firewall — роль roles/firewall
 # ============================================================
 
-firewall_enabled: true
 firewall_allow_ssh: true
 firewall_docker_enabled: true
 firewall_allow_tcp_ports:

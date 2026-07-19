@@ -1,13 +1,7 @@
 ---
-- name: Converge
+- name: Converge firewall role
   hosts: all
   become: true
   gather_facts: true
-  vars_files:
-    - vars.yml
-
   roles:
     - role: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
-      vars:
-        firewall_allow_tcp_ports: "{{ firewall_test_tcp_ports }}"
-        firewall_allow_udp_ports: "{{ firewall_test_udp_ports }}"

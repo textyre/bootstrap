@@ -1,8 +1,0 @@
----
-# === Gentoo: установка nftables ===
-
-- name: "CIS 3.4.1.1 | Ensure nftables is installed (Gentoo)"
-  ansible.builtin.package:
-    name: "{{ _firewall_packages }}"
-    state: present
-  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']

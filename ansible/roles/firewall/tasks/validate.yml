@@ -1,0 +1,27 @@
+---
+- name: Validate firewall operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _firewall_supported_os
+    fail_msg: >-
+      Firewall does not support {{ ansible_facts['os_family'] }}.
+      Supported OS families: {{ _firewall_supported_os | join(', ') }}.
+
+- name: Validate firewall service manager
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['service_mgr'] in _firewall_supported_service_managers
+    fail_msg: >-
+      Firewall service management is not implemented for
+      {{ ansible_facts['service_mgr'] }}. Supported service managers:
+      {{ _firewall_supported_service_managers | join(', ') }}.
+
+- name: Report firewall validation phase
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Validate environment"
+    common_rpt_detail: >-
+      {{ ansible_facts['os_family'] }} / {{ ansible_facts['service_mgr'] }}

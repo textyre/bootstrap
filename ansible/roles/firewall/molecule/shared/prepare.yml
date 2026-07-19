@@ -1,0 +1,10 @@
+---
+- name: Install firewall test prerequisite
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install nftables for role testing
+      ansible.builtin.package:
+        name: nftables
+        state: present

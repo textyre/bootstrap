@@ -1,0 +1,17 @@
+---
+# OS families with an nftables package mapping provided by this role.
+_firewall_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Service managers with a tested nftables service contract in this role.
+_firewall_supported_service_managers:
+  - systemd
+  - openrc
+  - runit
+
+# Service name shared by supported distributions.
+_firewall_service_name: nftables

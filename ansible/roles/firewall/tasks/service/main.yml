@@ -1,0 +1,24 @@
+---
+- name: Restart nftables with changed firewall configuration
+  ansible.builtin.service:
+    name: "{{ _firewall_service_name }}"
+    enabled: true
+    state: restarted
+  when: _firewall_configuration is changed
+
+- name: Enable and start nftables service
+  ansible.builtin.service:
+    name: "{{ _firewall_service_name }}"
+    enabled: true
+    state: started
+  when: _firewall_configuration is not changed
+
+- name: Report firewall service phase
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Apply service policy"
+    common_rpt_status: "done"
+    common_rpt_detail: "{{ _firewall_service_name }}"
