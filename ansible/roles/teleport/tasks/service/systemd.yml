@@ -10,7 +10,7 @@
     mode: "0644"
   register: _teleport_systemd_unit
 
-- name: Reload systemd after Teleport unit changes
+- name: Reload systemd after Teleport unit changes  # noqa: no-handler
   ansible.builtin.systemd_service:
     daemon_reload: true
   when: _teleport_systemd_unit is changed
