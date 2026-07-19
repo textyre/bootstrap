@@ -1,0 +1,38 @@
+---
+- name: Read Caddy runtime log
+  ansible.builtin.command:
+    argv:
+      - docker
+      - logs
+      - --tail
+      - "50"
+      - caddy
+  register: _vaultwarden_caddy_log
+  changed_when: false
+  failed_when: false
+
+- name: Read Vaultwarden runtime log
+  ansible.builtin.command:
+    argv:
+      - docker
+      - logs
+      - --tail
+      - "50"
+      - vaultwarden
+  register: _vaultwarden_application_log
+  changed_when: false
+  failed_when: false
+
+- name: Fail Vaultwarden runtime contract
+  ansible.builtin.fail:
+    msg: |-
+      Vaultwarden HTTPS health check failed:
+      {{ _vaultwarden_runtime_health.msg | default('unknown error') }}
+
+      Caddy log:
+      {{ _vaultwarden_caddy_log.stdout | default('') }}
+      {{ _vaultwarden_caddy_log.stderr | default('') }}
+
+      Vaultwarden log:
+      {{ _vaultwarden_application_log.stdout | default('') }}
+      {{ _vaultwarden_application_log.stderr | default('') }}

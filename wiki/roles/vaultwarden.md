@@ -19,7 +19,9 @@ token lifecycle, security settings, and SQLite backup schedule.
 
 Docker, global Caddy configuration, firewall ports, and external DNS remain
 separate contracts. The workstation playbook orders those roles before
-Vaultwarden instead of pulling them through role metadata.
+Vaultwarden instead of pulling them through role metadata. Before changing its
+own state, Vaultwarden requires an available Docker daemon, a running Caddy
+container, and the shared Docker network.
 
 The role supports package mappings for Arch Linux, Ubuntu, Fedora, Void Linux,
 and Gentoo. Backup scheduling supports systemd, OpenRC, and runit. Backups on s6

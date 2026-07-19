@@ -68,9 +68,11 @@ management supports systemd, OpenRC, and runit; requesting backups on s6 or dini
 fails before the role changes the host.
 
 Docker Engine, Compose V2, the shared `proxy` network, and the Caddy global
-project must already be working. Firewall exposure and name resolution for
-other devices are separate role or network contracts. The role only maps
-`vaultwarden_domain` to loopback on the server itself.
+project must already be working. Validation fails before changing Vaultwarden
+when the Docker daemon, running Caddy container, or shared network is missing.
+Firewall exposure and name resolution for other devices are separate role or
+network contracts. The role only maps `vaultwarden_domain` to loopback on the
+server itself.
 
 ## Backup
 

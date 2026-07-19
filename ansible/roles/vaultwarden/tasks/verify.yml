@@ -1,10 +1,17 @@
 ---
-- name: Verify Vaultwarden through its HTTPS endpoint
-  ansible.builtin.uri:
-    url: "https://{{ vaultwarden_domain }}/alive"
-    validate_certs: true
-    status_code: 200
-  register: _vaultwarden_runtime_health
-  retries: 15
-  delay: 2
-  until: _vaultwarden_runtime_health.status | default(0) == 200
+- name: Verify Vaultwarden runtime contract
+  block:
+    - name: Request Vaultwarden health endpoint
+      ansible.builtin.uri:
+        url: "https://{{ vaultwarden_domain }}/alive"
+        validate_certs: true
+        status_code: 200
+      register: _vaultwarden_runtime_health
+      retries: 15
+      delay: 2
+      until: _vaultwarden_runtime_health.status | default(0) == 200
+
+  rescue:
+    - name: Explain Vaultwarden runtime failure
+      ansible.builtin.include_tasks:
+        file: rescue/runtime.yml
