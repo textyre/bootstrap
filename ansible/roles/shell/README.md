@@ -1,221 +1,79 @@
 # shell
 
-Sets up the system-level shell environment: installs the shell package, sets the login shell, creates XDG Base Directories, and deploys global configuration files.
+Installs Bash, Zsh, or Fish and assigns it as the login shell for an existing user.
+
+The role does not create users and does not manage PATH, environment variables, or dotfiles. User-specific shell configuration remains the responsibility of Chezmoi/dotfiles.
 
 ## Execution flow
 
-1. **Merge profile/overrides** (`tasks/main.yml`) -- merges developer profile paths/env and user overrides into `shell_global_path` and `shell_global_env`
-2. **Resolve user home** (`tasks/main.yml`) -- looks up `shell_user` in `/etc/passwd` via `getent` to determine the home directory for XDG and ownership operations
-3. **Load OS-specific vars** (`tasks/main.yml`) -- includes `vars/<os_family>.yml` to resolve package names (`shell_packages`) and binary paths (`shell_bin`) for the current distro
-4. **Validate** (`tasks/validate.yml`) -- asserts OS family is supported, `shell_type` is one of `bash`/`zsh`/`fish`, and `shell_user` is defined and non-empty. Fails early with descriptive messages if any check fails
-5. **Install** (`tasks/install.yml`) -- installs the shell package via `ansible.builtin.package`. Skips if `shell_type` is `bash` (already present on all distros)
-6. **Set login shell** (`tasks/chsh.yml`) -- sets `shell_user`'s login shell via `ansible.builtin.user`. Skips when `shell_set_login: false`
-7. **Create XDG directories** (`tasks/xdg.yml`) -- creates `~/.config`, `~/.local/share`, `~/.local/bin`, `~/.cache` under `shell_user`'s home with correct ownership
-8. **Deploy global config** (`tasks/global.yml`) -- deploys system-wide shell configuration:
-   - `/etc/profile.d/dev-paths.sh` (bash + zsh) -- PATH additions and environment variables
-   - `/etc/zsh/zshenv` (zsh only) -- sets `ZDOTDIR` to `${XDG_CONFIG_HOME:-$HOME/.config}/zsh`
-   - `/etc/fish/conf.d/dev-paths.fish` (fish only) -- PATH additions and environment variables via `fish_add_path`
-9. **Verify** (`tasks/verify.yml`) -- checks login shell is correct (via `getent`), XDG dirs exist, and deployed config files are present
-10. **Report** (`tasks/main.yml`) -- renders execution report via `common/report_render.yml`
+1. **Validate** (`tasks/validate.yml`) checks the supported OS family and selected shell.
+2. **Load variables** (`tasks/load_vars.yml`) loads package and executable mappings for the detected OS family.
+3. **Detect** (`tasks/detect.yml`) requires `shell_user` to reference an existing account.
+4. **Configure** (`tasks/configure/main.yml`) installs the selected shell and assigns it to the account.
+5. **Verify** (`tasks/verify.yml`) starts the configured executable with `--version`.
+6. **Report** (`tasks/main.yml`) renders the execution report through the `common` role.
 
-### Handlers
-
-This role has no handlers. It does not manage any services -- shell configuration is applied statically via config files and `passwd` entry.
+The role has no handlers and manages no service.
 
 ## Variables
 
-### Configurable (`defaults/main.yml`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `shell_user` | project `target_user` | Existing account whose login shell is managed. |
+| `shell_type` | `zsh` | Shell to install and assign: `bash`, `zsh`, or `fish`. |
 
-Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaults/main.yml` directly.
+Internal distro files define only package names and executable paths:
 
-| Variable | Default | Safety | Description |
-|----------|---------|--------|-------------|
-| `shell_user` | `SUDO_USER` or current user | careful | Target user for login shell and XDG directories. Changing this affects which user's home directory is modified and which user's login shell is set |
-| `shell_type` | `zsh` | safe | Shell to install and configure: `bash`, `zsh`, or `fish` |
-| `shell_manage_packages` | `true` | safe | Install shell packages |
-| `shell_set_login` | `true` | safe | Whether to set `shell_type` as the user's login shell via `ansible.builtin.user` |
-| `shell_manage_xdg` | `true` | safe | Create XDG Base Directories |
-| `shell_manage_global_config` | `true` | safe | Deploy global config files (/etc/profile.d/, /etc/zsh/zshenv, /etc/fish/conf.d/) |
-| `shell_global_path` | `["$HOME/.local/bin"]` | safe | PATH entries added to `/etc/profile.d/dev-paths.sh` or `/etc/fish/conf.d/dev-paths.fish`. Developer profile adds cargo/go paths automatically |
-| `shell_developer_path` | `["$HOME/.cargo/bin", "/usr/local/go/bin"]` | safe | Additional PATH entries merged when `developer` profile is active |
-| `shell_global_env` | `{}` | safe | Environment variables added to global profile (e.g., `GOPATH: "$HOME/go"`) |
-| `shell_developer_env` | `{GOPATH: "$HOME/go"}` | safe | Additional env vars merged when `developer` profile is active |
-| `shell_global_env_overwrite` | `{}` | safe | User overrides merged on top of `shell_global_env` (ROLE-010 overwrite pattern) |
-| `shell_xdg_dirs` | `[".config", ".local/share", ".local/bin", ".cache"]` | careful | XDG directories to create under `shell_user`'s home. Removing entries does not delete existing directories |
-| `shell_zsh_zdotdir` | `true` | safe | Set `ZDOTDIR` in `/etc/zsh/zshenv` pointing to `${XDG_CONFIG_HOME:-$HOME/.config}/zsh`. Only applies when `shell_type: zsh` |
+| OS family | Bash | Zsh | Fish |
+|-----------|------|-----|------|
+| Arch Linux | `bash` | `zsh` | `fish` |
+| Ubuntu / Debian | `bash` | `zsh` | `fish` |
+| Fedora / RedHat | `bash` | `zsh` | `fish` |
+| Void Linux | `bash` | `zsh` | `fish` |
+| Gentoo | `app-shells/bash` | `app-shells/zsh` | `app-shells/fish` |
 
-### Internal mappings (`vars/`)
-
-These files contain per-distro package names and binary paths. Do not override via inventory -- edit the files directly only when adding new platform support.
-
-| File | What it contains | When to edit |
-|------|-----------------|-------------|
-| `vars/main.yml` | Supported shell types list (`_shell_supported_types`) | Adding a new shell type |
-| `vars/archlinux.yml` | Arch Linux package names and binary paths | Changing Arch-specific package names |
-| `vars/debian.yml` | Debian/Ubuntu package names and binary paths | Changing Debian-specific package names |
-| `vars/redhat.yml` | RedHat/Fedora package names and binary paths | Changing RedHat-specific package names |
-| `vars/void.yml` | Void Linux package names and binary paths | Changing Void-specific package names |
-| `vars/gentoo.yml` | Gentoo package names (`app-shells/zsh`, `app-shells/fish`) and binary paths | Changing Gentoo-specific package names |
-
-## Examples
-
-### Using zsh (default)
+## Example
 
 ```yaml
-# In group_vars/all/shell.yml or host_vars/<hostname>/shell.yml:
+# ansible/inventory/group_vars/all/system.yml
+shell_user: "{{ target_user }}"
 shell_type: zsh
-shell_set_login: true
-shell_zsh_zdotdir: true
 ```
 
-This installs zsh, sets it as the login shell, creates XDG directories, deploys `/etc/profile.d/dev-paths.sh` with PATH additions, and sets `ZDOTDIR` in `/etc/zsh/zshenv`.
+## Result
 
-### Switching to fish
+After the role completes:
 
-```yaml
-# In host_vars/<hostname>/shell.yml:
-shell_type: fish
-```
+- the selected shell executable is installed;
+- the existing account's login-shell field points to that executable;
+- new login sessions use the selected shell.
 
-Installs fish, sets it as the login shell, deploys `/etc/fish/conf.d/dev-paths.fish` instead of `/etc/profile.d/dev-paths.sh`. The fish template uses `fish_add_path` and `set -gx` instead of POSIX syntax.
-
-### Adding custom PATH entries and environment variables
-
-```yaml
-# In group_vars/developers/shell.yml:
-shell_global_path:
-  - "$HOME/.local/bin"
-  - "$HOME/.cargo/bin"
-  - "/usr/local/go/bin"
-  - "$HOME/.npm-global/bin"
-shell_global_env:
-  GOPATH: "$HOME/go"
-  JAVA_HOME: "/usr/lib/jvm/default"
-```
-
-### Keeping bash without changing login shell
-
-```yaml
-# In host_vars/<hostname>/shell.yml:
-shell_type: bash
-shell_set_login: false
-```
-
-No package is installed (bash is always present). Login shell is not changed. XDG directories and `/etc/profile.d/dev-paths.sh` are still deployed.
-
-## Cross-platform details
-
-| Aspect | Arch Linux | Debian / Ubuntu | RedHat / Fedora | Void Linux | Gentoo |
-|--------|-----------|-----------------|-----------------|------------|--------|
-| zsh package | `zsh` | `zsh` | `zsh` | `zsh` | `app-shells/zsh` |
-| fish package | `fish` | `fish` | `fish` | `fish` | `app-shells/fish` |
-| bash binary | `/bin/bash` | `/bin/bash` | `/bin/bash` | `/bin/bash` | `/bin/bash` |
-| zsh binary | `/usr/bin/zsh` | `/usr/bin/zsh` | `/usr/bin/zsh` | `/usr/bin/zsh` | `/usr/bin/zsh` |
-| fish binary | `/usr/bin/fish` | `/usr/bin/fish` | `/usr/bin/fish` | `/usr/bin/fish` | `/usr/bin/fish` |
-
-Config file paths are the same across all distros:
-
-| Config file | Path | Deployed when |
-|------------|------|---------------|
-| POSIX profile | `/etc/profile.d/dev-paths.sh` | `shell_type` is `bash` or `zsh` |
-| zsh environment | `/etc/zsh/zshenv` | `shell_type` is `zsh` |
-| fish config | `/etc/fish/conf.d/dev-paths.fish` | `shell_type` is `fish` |
-
-## Logs
-
-This role does not create log files or configure log rotation. All output is visible in the Ansible run output.
-
-### Diagnostic commands
-
-| What to check | Command |
-|---------------|---------|
-| Current login shell | `getent passwd <username>` -- 7th field is the login shell |
-| Shell binary version | `zsh --version` / `fish --version` / `bash --version` |
-| Profile.d is sourced | `echo $PATH` after login -- should contain `.local/bin` (plus `.cargo/bin`, `go/bin` if developer profile) |
-| ZDOTDIR is set (zsh) | `echo $ZDOTDIR` -- should show `~/.config/zsh` |
-| XDG dirs exist | `ls -la ~/.config ~/.local/share ~/.local/bin ~/.cache` |
-
-## Troubleshooting
-
-| Symptom | Diagnosis | Fix |
-|---------|-----------|-----|
-| Login shell not changed | `getent passwd <user>` -- check 7th field | Verify `shell_set_login: true` and `shell_type` is correct. Run role again |
-| Shell binary not found | `which zsh` or `which fish` returns nothing | Package not installed. Check `ansible_facts['os_family']` matches a supported family. Run role with `-v` to see package task |
-| `/etc/profile.d/dev-paths.sh` not sourced | `echo $PATH` missing expected entries after login | Verify file exists: `cat /etc/profile.d/dev-paths.sh`. Non-login shells skip `/etc/profile.d/`. Use `zsh -l` or `bash -l` for login shell |
-| ZDOTDIR not set after login | `echo $ZDOTDIR` is empty | Check `/etc/zsh/zshenv` exists and contains `export ZDOTDIR`. Verify `shell_zsh_zdotdir: true`. Some distros source `/etc/zshenv` instead of `/etc/zsh/zshenv` |
-| XDG directories have wrong owner | `ls -la ~/.config` shows root ownership | Check `shell_user` is set correctly. If run as root without `SUDO_USER`, dirs are created under `/root/`. Set `shell_user` explicitly in inventory |
-| Fish PATH not updated | `echo $PATH` in fish missing entries | Check `/etc/fish/conf.d/dev-paths.fish` exists. Fish ignores `/etc/profile.d/` -- it needs its own config in `/etc/fish/conf.d/` |
-| Role fails at Validate step | Read the `fail_msg` in output | Check `shell_type` is `bash`, `zsh`, or `fish`. Check OS family is supported. Check `shell_user` is defined |
-| Gentoo package install fails | `emerge` error in output | Gentoo uses `app-shells/zsh` and `app-shells/fish`. Verify `vars/gentoo.yml` has correct atom names |
+Existing sessions keep their current shell until the user logs in again. The role does not write `/etc/profile.d`, system `zshenv`, Fish `conf.d`, or files in the user's home directory.
 
 ## Testing
 
-Both scenarios are required for every role (TEST-002). Run Docker for fast feedback, Vagrant for full validation.
+Docker and Vagrant scenarios run defaults-only converge and idempotence on Arch and Ubuntu. Shared prepare creates the target account because account creation belongs outside this role. The role-level verify phase checks that the selected shell executable starts.
 
-| Scenario | Command | When to use | What it tests |
-|----------|---------|-------------|---------------|
-| Docker (fast) | `molecule test -s docker` | After changing variables, templates, or task logic | Logic correctness, idempotence, config deployment on Arch + Ubuntu containers |
-| Vagrant (cross-platform) | `molecule test -s vagrant` | After changing OS-specific logic or login shell tasks | Real systemd, real packages, real non-root user (`vagrant`), Arch + Ubuntu VMs |
-| Default (localhost) | `molecule test` | Quick syntax check and local validation | Syntax, converge, idempotence, verify on the local machine |
+All Ansible, lint, and Molecule operations run through the project remote VM or CI workflow.
 
-### Success criteria
+## Troubleshooting
 
-- All steps complete: `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy`
-- Idempotence step: `changed=0` (second run changes nothing)
-- Verify step: all assertions pass
-- Final line: no `failed` tasks
-
-### What the tests verify
-
-| Category | What is checked | How |
-|----------|----------------|-----|
-| Package | zsh installed, binary exists and is executable | `package_facts` + `stat` on binary |
-| `/etc/shells` | Shell binary is registered in `/etc/shells` | `slurp` + content check |
-| Login shell | `getent passwd` shows correct shell for user | `getent` + assert |
-| XDG directories | `.config`, `.local/share`, `.local/bin`, `.cache` exist with correct owner | `stat` + assert on each dir |
-| `/etc/profile.d/dev-paths.sh` | Exists, mode 0644, owned by root, contains PATH entries and `export PATH`, contains Ansible managed marker | `stat` + `slurp` + content asserts |
-| `/etc/zsh/zshenv` | Exists, mode 0644, owned by root, contains `export ZDOTDIR` with XDG path, contains Ansible managed marker | `stat` + `slurp` + content asserts |
-| Runtime | Shell binary responds to `--version` | `command` + rc check |
-
-### Common test failures
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `zsh package not found` | Stale package cache in container | Rebuild: `molecule destroy -s docker && molecule test -s docker` |
-| Idempotence failure on config deploy | Template produces different output on second run | Check for timestamps or random values in template |
-| `Assertion failed` on login shell | User's shell was not changed | Verify `shell_set_login: true` in converge.yml variables |
-| XDG directory ownership mismatch | Running in Docker as root without `SUDO_USER` | Expected in Docker -- dirs are created under `/root/`. Vagrant scenario tests real non-root user |
-| Vagrant: `Python not found` | prepare.yml missing or Arch bootstrap skipped | Check `prepare.yml` imports shared vagrant prepare playbook |
-| `/etc/zsh/zshenv` not found | zshenv template not deployed | Check `shell_type` is `zsh` in converge.yml. Check `/etc/zsh/` directory was created |
-
-## Tags
-
-| Tag | What it runs | Use case |
-|-----|-------------|----------|
-| `shell` | Entire role (validate, install, chsh, xdg, global config, verify, report) | Full apply: `ansible-playbook playbook.yml --tags shell` |
-| `shell,report` | Report rendering only | Re-generate execution report: `ansible-playbook playbook.yml --tags shell,report` |
-| `shell,install` | Package installation only | Reinstall shell package: `ansible-playbook playbook.yml --tags "shell,install"` |
-| `shell,configure` | Login shell, XDG dirs, and global config tasks | Re-apply configuration without reinstalling: `ansible-playbook playbook.yml --tags "shell,configure"` |
-
-Use `--skip-tags report` in molecule and automation pipelines to suppress the execution report.
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| Target-user lookup fails | `shell_user` does not exist | Create the account through the owning user-management role or select an existing account. |
+| New login still uses the old shell | The session started before the account entry changed | End the session and log in again. |
+| PATH or dotfiles are missing | They are outside the shell role contract | Configure them through Chezmoi/dotfiles. |
 
 ## File map
 
-| File | Purpose | Edit? |
-|------|---------|-------|
-| `defaults/main.yml` | All configurable settings with comments | No -- override via inventory |
-| `vars/main.yml` | Supported shell types list (`_shell_supported_types`) | Only when adding a new shell type |
-| `vars/<os_family>.yml` | Per-distro package names and binary paths | Only when changing distro-specific packages |
-| `tasks/main.yml` | Execution flow orchestrator: resolve user, load vars, include task files | When adding/removing execution steps |
-| `tasks/validate.yml` | Preflight assertions (OS, shell_type, shell_user) | When adding new validation checks |
-| `tasks/install.yml` | Package installation via `ansible.builtin.package` | Rarely |
-| `tasks/chsh.yml` | Login shell change via `ansible.builtin.user` | Rarely |
-| `tasks/xdg.yml` | XDG Base Directory creation | When changing directory list or permissions |
-| `tasks/global.yml` | Template deployment for profile.d, zshenv, fish conf.d | When adding new config files |
-| `tasks/verify.yml` | In-role verification (login shell, XDG dirs, config files) | When adding new verification checks |
-| `templates/profile.d-dev-paths.sh.j2` | POSIX shell PATH and env var template | When changing PATH/env syntax |
-| `templates/zshenv.j2` | zsh ZDOTDIR template | When changing ZDOTDIR logic |
-| `templates/fish-dev-paths.fish.j2` | Fish shell PATH and env var template | When changing fish-specific syntax |
-| `handlers/main.yml` | Empty -- present for role structure completeness | No |
-| `meta/main.yml` | Galaxy metadata, platform list, dependencies | When updating metadata |
-| `molecule/` | Test scenarios (default, docker, vagrant) | When changing test coverage |
+| Path | Purpose |
+|------|---------|
+| `tasks/main.yml` | Phase orchestrator |
+| `tasks/validate.yml` | Input validation |
+| `tasks/load_vars.yml` | Distro mapping loader |
+| `tasks/detect.yml` | Existing-account lookup |
+| `tasks/configure/install.yml` | Shell package state |
+| `tasks/configure/login_shell.yml` | Account login-shell state |
+| `tasks/verify.yml` | Shell executable check |
+| `vars/distro/` | Package and executable mappings |
+| `molecule/shared/` | Shared prepare and converge playbooks |

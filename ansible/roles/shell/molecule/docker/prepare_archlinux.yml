@@ -1,4 +1,0 @@
----
-- name: Update pacman package cache
-  community.general.pacman:
-    update_cache: true

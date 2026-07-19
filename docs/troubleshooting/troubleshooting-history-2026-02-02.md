@@ -110,7 +110,7 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
       PS1='...'
   fi
   ```
-  Развёрнуто через Ansible с `-e '{"shell_deploy_config": true}'` (обход `shell_deploy_config: false` из system.yml).
+  Текущее решение: starship инициализируется пользовательским `dotfiles/dot_bashrc.tmpl`, который разворачивает Chezmoi.
 
   **Самокритика:** очевидный пропуск. Конфиг starship.toml.tmpl создан в предыдущих сессиях, но пакет и init никогда не были добавлены. Нужна checklist: конфиг → пакет → init → verify.
 
@@ -126,11 +126,9 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 
   **Самокритика:** нет. Это было уже известно из конфигурации проекта, но в packages.yml i3-wm оставался. Ansible-роль AUR-пакетов (`packages_aur`) была создана отдельно и packages_wm не был синхронизирован. Нужна валидация: AUR provides vs official provides не пересекаются.
 
-#### Ansible: shell_deploy_config: false блокирует bashrc
+#### Конфликт владения bashrc между Ansible и Chezmoi
 
-- [x] **system.yml переопределял shell_deploy_config в false** — роль `shell` по умолчанию имеет `shell_deploy_config: true`, но `group_vars/all/system.yml` устанавливал `false` (т.к. chezmoi управляет dotfiles). Для разового деплоя bashrc использован override: `-e '{"shell_deploy_config": true}'`. Строка `"true"` не работает — Ansible требует JSON boolean.
-
-  **Самокритика:** корректный дизайн (chezmoi управляет dotfiles → Ansible не перезаписывает). Но bashrc содержит starship init, который нужен для работы промпта. Архитектурная двусмысленность: кто владеет bashrc — chezmoi или Ansible? Сейчас — Ansible (шаблон в roles/shell), но деплой заблокирован. Нужно принять решение: либо перенести bashrc в chezmoi полностью, либо разблокировать shell_deploy_config.
+- [x] **Конфликт ответственности устранён** — пользовательский `~/.bashrc` перенесён в `dotfiles/dot_bashrc.tmpl` и управляется Chezmoi. Роль `shell` устанавливает выбранную оболочку и назначает её как login shell, но не управляет пользовательскими dotfiles. Старый механизм развёртывания Bash-конфига из Ansible удалён.
 
 #### Система: локаль POSIX → en_US.UTF-8
 
@@ -155,12 +153,6 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 - [ ] **naivecalendar-git AUR: PKGBUILD сломан** — `makepkg` не находит `naivecalendar.py`. Pre-existing issue, не связан с иконками. Календарь использует fallback `notify-send "Calendar" "$(cal)"`.
 
 #### Требуют core fix в конфигах
-
-- [ ] **Владение bashrc: Ansible vs chezmoi** — сейчас bashrc генерируется Ansible (roles/shell/templates/bashrc.j2), но `shell_deploy_config: false` в system.yml блокирует деплой (т.к. "chezmoi управляет dotfiles"). При этом chezmoi НЕ управляет bashrc. Два варианта:
-  1. Перенести bashrc в chezmoi (`dotfiles/dot_bashrc.tmpl`) — единый источник dotfiles
-  2. Установить `shell_deploy_config: true` в system.yml — Ansible владеет shell config
-
-  Текущее состояние: bashrc развёрнут одноразовым override, при следующем полном прогоне Ansible он будет пропущен.
 
 - [ ] **`wm-restack = i3` при `override-redirect = true`** — оба параметра одновременно в polybar конфиге. `wm-restack` нерелевантен при `override-redirect = true` (polybar wiki). Не вызывает ошибок, но является мёртвым кодом.
 
@@ -198,7 +190,7 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 | `dotfiles/dot_local/bin/executable_wallpaper-restore` | Idempotent wallpaper restore |
 | `dotfiles/.chezmoi.toml.tmpl` | promptChoiceOnce для выбора темы |
 | `ansible/inventory/group_vars/all/packages.yml` | +starship, -i3-wm |
-| `ansible/roles/shell/templates/bashrc.j2` | +starship init с fallback PS1 |
+| `dotfiles/dot_bashrc.tmpl` | Bash-конфигурация и starship init; единый владелец — Chezmoi |
 
 ---
 
@@ -215,7 +207,7 @@ VM: Arch Linux (VirtualBox, NAT 127.0.0.1:2222), user: textyre
 | 7 | beast-mode "успех" без изменений | Edit tool fail на invisible chars | 2 | Да | Верифицировать `xxd` после каждого edit |
 | 8 | i3 config parse error | CRLF от Python на Windows | 2 | Да | `open('wb')` или Write tool |
 | 9 | Unicode не рендерится | Локаль POSIX, не UTF-8 | ~3 | Да | `locale` — первая команда при отладке Unicode |
-| 10 | Ansible skip bashrc | `shell_deploy_config: false` | 2 | Частично | Архитектурная двусмысленность Ansible/chezmoi |
+| 10 | Конфликт владения bashrc | Одновременная ответственность Ansible и Chezmoi | 2 | Да | Назначить одного владельца пользовательских dotfiles |
 | 11 | i3-wm конфликт с AUR | Дублирование provides | 1 | Да | Валидация AUR vs official provides |
 
 **Суммарно ошибок: 11. Из них предотвратимых: 10 (91%).**
