@@ -14,6 +14,7 @@ table inet filter {
     # CRIT-01: per-source-IP SSH rate limiting — IPv4
     set ssh_ratelimit {
         type ipv4_addr
+        size 65535
         flags dynamic,timeout
         timeout 1m
     }
@@ -21,11 +22,22 @@ table inet filter {
     # CRIT-01: per-source-IP SSH rate limiting — IPv6
     set ssh6_ratelimit {
         type ipv6_addr
+        size 65535
         flags dynamic,timeout
         timeout 1m
     }
 
 {% endif %}
+    chain log_ssh_rate_drop {
+        limit rate 10/second burst 20 packets log prefix "[nftables] ssh-rate: "
+        counter drop
+    }
+
+    chain log_input_drop {
+        limit rate 10/second burst 20 packets log prefix "[nftables] drop: "
+        counter drop
+    }
+
     chain input {
         type filter hook input priority 0; policy drop;
 
@@ -38,16 +50,23 @@ table inet filter {
         # Разрешить установленные соединения
         ct state established,related accept
 
-        # Разрешить ICMP с rate limiting (защита от flood)
-        ip protocol icmp limit rate 10/second accept
-        ip6 nexthdr icmpv6 limit rate 10/second accept
+        # Error and discovery messages keep IPv4/IPv6 connectivity functional.
+        icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+        icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } accept
+        icmpv6 type { nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+
+        # Rate-limit only diagnostic requests; replies remain available.
+        icmp type echo-reply accept
+        icmp type echo-request limit rate 10/second accept
+        icmpv6 type echo-reply accept
+        icmpv6 type echo-request limit rate 10/second accept
 
 {% if firewall_allow_ssh %}
 {% if firewall_ssh_rate_limit_enabled %}
         # SSH с per-source-IP rate limiting IPv4 (CRIT-01)
-        tcp dport 22 ct state new add @ssh_ratelimit { ip saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } log prefix "[nftables] ssh-rate: " drop
+        tcp dport 22 ct state new add @ssh_ratelimit { ip saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } jump log_ssh_rate_drop
         # SSH с per-source-IP rate limiting IPv6 (CRIT-01)
-        tcp dport 22 ct state new add @ssh6_ratelimit { ip6 saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } log prefix "[nftables] ssh6-rate: " drop
+        tcp dport 22 ct state new add @ssh6_ratelimit { ip6 saddr limit rate over {{ firewall_ssh_rate_limit }} burst {{ firewall_ssh_rate_limit_burst }} packets } jump log_ssh_rate_drop
 {% endif %}
         # SSH — разрешить
         tcp dport 22 ct state new accept
@@ -59,8 +78,8 @@ table inet filter {
         udp dport {{ port }} accept
 {% endfor %}
 
-        # Логировать и отбросить остальное
-        log prefix "[nftables] drop: " counter drop
+        # Always drop unmatched traffic, but keep kernel logging bounded.
+        jump log_input_drop
     }
 
     chain forward {

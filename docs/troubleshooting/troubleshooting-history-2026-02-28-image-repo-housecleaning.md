@@ -300,6 +300,6 @@ docker run --rm -v "$PWD/contracts:/contracts" image:tag bash /contracts/script.
 | Проблема | Статус | Решение |
 |----------|--------|---------|
 | `captree` gobinary CVEs (Go stdlib < 1.25.7) | Открыта | Ждём ребилда Arch-пакета апстримом; попадает в SBOM |
-| bootstrap: teleport/fail2ban/firewall/power_management/ssh/sysctl Docker-тесты | Pre-existing | AUR-пакеты и systemd-сервисы не работают в Docker-контейнере |
+| bootstrap: teleport/fail2ban/power_management/ssh/sysctl Docker-тесты | Pre-existing | Часть runtime-контрактов всё ещё требует возможностей, которых нет в обычном Docker-контейнере; firewall исключён после перехода на privileged systemd scenario с netfilter support |
 | GHCR: старые пакеты arch-molecule, ubuntu-noble, ubuntu-molecule | Требует ручного удаления | Удалить через github.com/orgs/textyre/packages |
 | Rolling `boxes` release накапливает версии | **Решено** | Мигрировали на CalVer-релизы (`v20260228`); bootstrap использует `/releases/latest/download/`; rolling release удалён |

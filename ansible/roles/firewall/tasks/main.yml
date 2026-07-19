@@ -1,147 +1,23 @@
 ---
-# === Базовый firewall (nftables) ===
-# Минимальный набор правил для рабочей станции
-# preflight → install → configure → service → verify → report
+# === firewall — nftables workstation firewall ===
+# validate -> configure -> service -> report
 
-# ======================================================================
-# ---- Preflight ----
-# ======================================================================
+- name: Validate firewall role prerequisites
+  ansible.builtin.include_tasks:
+    file: validate.yml
 
-- name: "CIS 3.4.1.1 | Assert supported operating system"
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in _firewall_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ _firewall_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-  tags: ['firewall', 'security', 'cis_3.4.1.1']
+- name: Configure nftables ruleset
+  ansible.builtin.include_tasks:
+    file: configure/main.yml
 
-- name: Load OS-specific variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['firewall']
+- name: Apply nftables service policy
+  ansible.builtin.include_tasks:
+    file: service/main.yml
 
-# ======================================================================
-# ---- Install ----
-# ======================================================================
-
-- name: "CIS 3.4.1.1 | Install nftables (OS-specific)"
-  ansible.builtin.include_tasks: "install-{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: ['firewall', 'install', 'security', 'cis_3.4.1.1']
-
-- name: Reload systemd daemon after nftables install
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: ansible_facts['service_mgr'] | default('') == 'systemd'
-  tags: ['firewall', 'install']
-
-- name: "CIS 3.4.1.4 | Deploy nftables configuration"
-  ansible.builtin.template:
-    src: nftables.conf.j2
-    dest: /etc/nftables.conf
-    owner: root
-    group: root
-    mode: '0644'
-  notify: Restart nftables
-  when: firewall_enabled | bool
-  tags: ['firewall', 'configure', 'security', 'cis_3.4.1.4']
-
-- name: "CIS 3.4.1.1 | Enable nftables service"
-  ansible.builtin.service:
-    name: nftables
-    enabled: true
-  when:
-    - firewall_enabled | bool
-    - firewall_enable_service | bool
-    - not ansible_check_mode
-    - ansible_facts['service_mgr'] | default('') != 'host'
-  tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
-
-- name: Check if nftables ruleset is already loaded
-  ansible.builtin.command: nft list ruleset
-  register: _firewall_nft_ruleset
-  changed_when: false
-  failed_when: false
-  when: (firewall_enabled | bool) and (firewall_start_service | bool)
-  tags: ['firewall', 'service']
-
-- name: Report nftables ruleset probe outcome
-  ansible.builtin.debug:
-    msg: >-
-      nft list ruleset {{ 'succeeded -- ruleset already loaded'
-      if (_firewall_nft_ruleset.rc | default(1)) == 0
-      else 'failed (rc=' ~ (_firewall_nft_ruleset.rc | default('N/A')) ~ ') -- will start service to load ruleset' }}
-  when: (firewall_enabled | bool) and (firewall_start_service | bool)
-  tags: ['firewall', 'service']
-
-- name: "CIS 3.4.1.1 | Start nftables service"
-  ansible.builtin.service:
-    name: nftables
-    state: started
-  when:
-    - firewall_enabled | bool
-    - firewall_start_service | bool
-    - not ansible_check_mode
-    - "'chain input' not in (_firewall_nft_ruleset.stdout | default(''))"
-  tags: ['firewall', 'service', 'security', 'cis_3.4.1.1']
-
-# ======================================================================
-# ---- Verify ----
-# ======================================================================
-
-- name: Flush handlers before verification
-  ansible.builtin.meta: flush_handlers
-  tags: ['firewall']
-
-- name: Verify firewall
-  ansible.builtin.include_tasks: verify.yml
-  when: (firewall_enabled | bool) and not ansible_check_mode
-  tags: ['firewall']
-
-# ---- Отчёт о выполнении ----
-
-- name: "Report: firewall — install"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_firewall_phases"
-    common_rpt_phase: "Install nftables"
-    common_rpt_detail: "{{ ansible_facts['os_family'] | lower }}"
-  tags: ['firewall', 'report']
-
-- name: "Report: firewall — configure"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_firewall_phases"
-    common_rpt_phase: "Deploy nftables config"
-    common_rpt_status: "{{ 'done' if firewall_enabled else 'skip' }}"
-    common_rpt_detail: >-
-      ssh={{ firewall_allow_ssh | string }}
-      rl={{ firewall_ssh_rate_limit_enabled | string }}
-      docker={{ firewall_docker_enabled | string }}
-  tags: ['firewall', 'report']
-
-- name: "Report: firewall — service"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_firewall_phases"
-    common_rpt_phase: "Enable/start nftables"
-    common_rpt_status: "{{ 'done' if (firewall_enabled and firewall_enable_service) else 'skip' }}"
-    common_rpt_detail: >-
-      enabled={{ firewall_enable_service | string }}
-      started={{ firewall_start_service | string }}
-  tags: ['firewall', 'report']
-
-- name: "Firewall — Execution Report"
+- name: Render firewall execution report
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
     common_rpt_fact: "_firewall_phases"
     common_rpt_title: "firewall"
-  tags: ['firewall', 'report']

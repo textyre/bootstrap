@@ -1,53 +1,21 @@
 ---
-# === Базовый firewall (nftables) ===
-# Минимальный набор правил для рабочей станции
-
-# === OS Support ===
-# Supported operating systems for this role
-_firewall_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# Включить firewall (развернуть конфиг и управлять сервисом)
-firewall_enabled: true
-
-# Включить сервис nftables (enabled при загрузке)
-firewall_enable_service: true
-
-# Запустить сервис nftables сейчас (state: started)
-firewall_start_service: true
-
-# Разрешить SSH (порт 22)
+# Allow inbound SSH on TCP port 22.
 firewall_allow_ssh: true
 
-# SSH rate limiting (per-source-IP, защита от brute-force — CIS 3.4.1.4)
-# Защищает оба семейства адресов: IPv4 (ssh_ratelimit) и IPv6 (ssh6_ratelimit)
+# Rate-limit new SSH connections separately for each IPv4 and IPv6 source.
 firewall_ssh_rate_limit_enabled: true
+
+# Maximum sustained rate of new SSH connections from one source address.
 firewall_ssh_rate_limit: "4/minute"
+
+# Additional new SSH connections accepted before rate limiting takes effect.
 firewall_ssh_rate_limit_burst: 2
 
-# Docker совместимость — разрешить forward для default bridge и user-defined
-# Docker bridge interfaces (docker0, br-*)
-# Включить, если Docker публикует порты через iptables/nftables DNAT
+# Allow forwarding through Docker's default and user-defined bridge interfaces.
 firewall_docker_enabled: false
 
-# Дополнительные TCP-порты для входящих
+# Additional inbound TCP ports to allow. Example: [80, 443].
 firewall_allow_tcp_ports: []
 
-# Дополнительные UDP-порты для входящих
+# Additional inbound UDP ports to allow. Example: [53].
 firewall_allow_udp_ports: []
-
-# === Audit / Monitoring (ROLE-007) ===
-# Toggles for observability integration (Phase 8: prometheus, alloy)
-
-# Enable nftables audit logging for dropped packets
-firewall_audit_enabled: true
-
-# Enable drift detection — compare live ruleset against expected state
-firewall_drift_detection: true
-
-# Directory for drift detection state files
-firewall_drift_state_dir: /var/lib/ansible-firewall

@@ -1,0 +1,20 @@
+---
+- name: Deploy nftables configuration
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nft -c -f %s'
+  register: _firewall_configuration
+
+- name: Report firewall configuration phase
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_firewall_phases"
+    common_rpt_phase: "Configure ruleset"
+    common_rpt_detail: >-
+      ssh={{ firewall_allow_ssh | bool }} docker={{ firewall_docker_enabled | bool }}

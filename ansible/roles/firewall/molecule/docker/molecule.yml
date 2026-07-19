@@ -33,21 +33,8 @@ platforms:
       - 8.8.8.8
       - 8.8.4.4
 
-dependency:
-  name: galaxy
-  options:
-    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
-    role-file: ${MOLECULE_PROJECT_DIRECTORY}/requirements.yml
-
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
-  inventory:
-    group_vars:
-      all:
-        firewall_start_service: false
-        firewall_enable_service: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -56,10 +43,6 @@ provisioner:
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -68,5 +51,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

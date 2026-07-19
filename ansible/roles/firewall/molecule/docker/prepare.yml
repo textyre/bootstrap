@@ -1,12 +1,6 @@
 ---
-- name: Prepare
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Wait for systemd to reach multi-user target  # noqa: command-instead-of-module
-      ansible.builtin.command: systemctl is-system-running --wait
-      register: _firewall_prepare_systemd_state
-      changed_when: false
-      failed_when: false
-      timeout: 30
+- name: Prepare firewall containers
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+
+- name: Prepare firewall role prerequisites
+  ansible.builtin.import_playbook: ../shared/prepare.yml
