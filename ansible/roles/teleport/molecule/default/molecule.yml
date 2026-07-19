@@ -1,8 +1,6 @@
 ---
-# NOTE (TEST-013): This scenario runs on localhost only — it is an offline smoke
-# test designed for syntax checking, variable loading, and config rendering.
-# Cross-platform coverage (Arch + Ubuntu) is provided by the docker and vagrant
-# scenarios which run real containers/VMs with actual package installs.
+# The default scenario runs on the disposable remote test host. It exercises the
+# complete standalone contract; Docker and Vagrant provide the platform matrix.
 driver:
   name: default
   options:

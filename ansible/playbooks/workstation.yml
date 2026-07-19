@@ -80,11 +80,11 @@
     - role: ssh_keys
       tags: [ssh_keys, security]
 
-    - role: ssh
-      tags: [ssh, security]
-
     - role: teleport
       tags: [teleport, security]
+
+    - role: ssh
+      tags: [ssh, security]
 
     - role: fail2ban
       tags: [fail2ban, security]

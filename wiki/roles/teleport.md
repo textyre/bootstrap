@@ -2,80 +2,60 @@
 
 **Phase**: 2 | **Направление**: Безопасность / Доступ
 
-## Цель
+## Назначение
 
-Установка и настройка агента Teleport — платформы для zero-trust SSH-доступа с сертификатной авторизацией. Роль устанавливает `teleport`, разворачивает конфигурацию (`/etc/teleport.yaml` v3-формат) и интегрируется с ролью `ssh` через экспорт CA-ключа.
+Роль устанавливает Teleport 17 и приводит машину к одному из двух состояний:
 
-## Ключевые переменные (defaults)
+- `standalone` -- на машине работают Auth, Proxy и SSH services, то есть это самостоятельный Teleport-кластер;
+- `agent` -- машина запускает SSH service и присоединяется к уже существующему кластеру через `teleport_auth_server` и `teleport_join_token`.
 
-```yaml
-teleport_enabled: true              # Включить/выключить роль
+Teleport SSH и системный OpenSSH `sshd` являются отдельными сервисами. Роль
+`teleport` управляет первым. В standalone она экспортирует user CA, после чего
+следующая роль `ssh` настраивает OpenSSH принимать сертификаты Teleport.
 
-# === Подсистемные переключатели (ROLE-010) ===
-teleport_manage_install: true       # Управлять установкой
-teleport_manage_config: true        # Управлять конфигурацией
-teleport_manage_service: true       # Управлять сервисом
+## Поток выполнения
 
-# === Обязательные ===
-teleport_auth_server: ""            # Auth/proxy адрес: "auth.example.com:443"
-teleport_join_token: ""             # Join-токен кластера
+`validate -> install -> configure -> service -> verify -> CA export -> report`
 
-# === Основные ===
-teleport_version: "17.4.10"         # Версия для binary/repo метода
-teleport_node_name: "{{ ansible_hostname }}"
-teleport_labels: {}                 # RBAC-метки узла
-teleport_session_recording: "node"  # node | proxy | off
-teleport_enhanced_recording: false  # BPF-запись (требует kernel ≥ 5.8)
+Роль:
 
-# === Интеграция с ssh ролью ===
-teleport_export_ca_key: true
-teleport_ca_keys_file: /etc/ssh/teleport_user_ca.pub
+1. проверяет поддержанный режим и один из пяти дистрибутивов, а для управляемого ролью agent-конфига -- адрес кластера и join token;
+2. устанавливает заданную версию Teleport из официального архива одинаково на всех пяти дистрибутивах и проверяет опубликованный SHA-256 checksum;
+3. создаёт `/var/lib/teleport` и рендерит `/etc/teleport.yaml`, не удаляя существующие данные кластера;
+4. сразу применяет service state без handlers;
+5. проверяет парсинг конфига самим Teleport;
+6. в standalone после запуска сервиса экспортирует user CA через `tctl` и приводит вывод к формату OpenSSH `TrustedUserCAKeys`;
+7. выводит итоговый report.
 
-# === Override dict (ROLE-010) ===
-teleport_config_overwrite: {}       # Произвольные ключи в teleport.yaml
-```
+## Основные переменные
 
-## Что настраивает
+| Переменная | По умолчанию | Назначение |
+|------------|---------------|------------|
+| `teleport_mode` | `standalone` | Самостоятельный кластер или agent существующего кластера |
+| `teleport_version` | `17.7.23` | Точная версия Teleport, одинаковая для всех поддержанных дистрибутивов |
+| `teleport_auth_server` | `""` | Адрес существующего кластера, обязателен только для agent |
+| `teleport_join_token` | `""` | Секрет первичного присоединения agent |
+| `teleport_node_name` | hostname | Имя ресурса, которое видит пользователь Teleport |
+| `teleport_labels` | `{}` | Метки ресурса для RBAC и поиска |
+| `teleport_proxy_public_addr` | `hostname:3080` | Публичный адрес standalone Proxy/Web UI |
+| `teleport_session_recording` | `node` | `node`, `node-sync`, `proxy`, `proxy-sync` или `off` |
+| `teleport_enhanced_recording` | `false` | Linux BPF/cgroup v2 enhanced session recording |
+| `teleport_ca_keys_file` | `/etc/ssh/teleport_user_ca.pub` | Файл CA для OpenSSH `TrustedUserCAKeys` |
+| `teleport_config_overwrite` | `{}` | Явное рекурсивное переопределение полей итогового Teleport-конфига |
 
-- **Установка**: пакет (Arch AUR), официальный репозиторий (Debian/RedHat), или binary с CDN (Void/Gentoo)
-- **Конфигурация**:
-  - `/var/lib/teleport/` (0750) — директория данных
-  - `/etc/teleport.yaml` (0600) — конфигурация агента (v3-формат)
-- **Systemd unit** (только binary-метод): `/etc/systemd/system/teleport.service`
-- **CA-экспорт**: при `teleport_export_ca_key: true` — записывает CA-ключ в `teleport_ca_keys_file` и устанавливает fact `ssh_teleport_integration: true` для роли `ssh`
+Полный контракт переменных, обоснование значений и примеры находятся в
+`ansible/roles/teleport/README.md`.
 
-## Зависимости
+## Поддержка и тесты
 
-- `common` — отчёты `report_phase.yml` / `report_render.yml` (via `include_role`)
-- `ssh` — опциональная интеграция: `teleport` должен запускаться до `ssh` для передачи CA-факта
+- Дистрибутивы: Arch Linux, Ubuntu, Fedora, Void и Gentoo.
+- Service management: только systemd; для остальных init systems роль падает явно, если должна управлять сервисом.
+- Docker и Vagrant проверяют Arch standalone и Ubuntu agent.
+- Standalone-тест проверяет реальный HTTPS Proxy API, инициализированный кластер и экспортированный SSH CA.
+- Agent-тест устанавливает настоящий binary и валидирует конфиг самим Teleport, но не заявляет регистрацию во внешнем кластере.
+- Все сценарии включают idempotence.
 
-## Tags
-
-| Tag | Что запускает | Использование |
-|-----|--------------|---------------|
-| `teleport` | Вся роль | Полное применение |
-| `teleport,install` | Только установка | Обновление бинарника без смены конфига |
-| `teleport,security` | Валидация join-токена + CA-экспорт | Обновление CA после ротации кластера |
-| `teleport,service` | Управление сервисом | Перезапуск без применения конфига |
-| `teleport,report` | Отчёты ROLE-008 | Перегенерация отчёта |
-
-## Кросс-платформенные различия
-
-| Аспект | Arch | Debian/Ubuntu | Fedora/RHEL | Void | Gentoo |
-|--------|------|---------------|-------------|------|--------|
-| Метод установки | AUR пакет | APT репо | YUM репо | binary CDN | binary CDN |
-| Пакет | `teleport-bin` | `teleport` | `teleport` | — | — |
-| Systemd unit | из пакета | из пакета | из пакета | роль деплоит | роль деплоит |
-| Конфиг | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` | `/etc/teleport.yaml` |
-
-## Ограничения
-
-| Ограничение | Подробности |
-|-------------|-------------|
-| AUR не тестируется в CI | `teleport-bin` — AUR-пакет; molecule-сценарии используют binary-метод |
-| Сервис требует живого кластера | `teleport.service` не перейдёт в `running` без валидного `auth_server` + `join_token` |
-| CA-экспорт требует `tctl` | Экспорт CA работает только при подключённом к кластеру `tctl`; в offline/CI не выполняется |
-| BPF требует kernel ≥ 5.8 | `teleport_enhanced_recording: true` требует BTF-поддержки ядра |
+Основные источники реализации: [Teleport 17 CLI](https://goteleport.com/docs/ver/17.x/reference/cli/teleport/), [Teleport 17 configuration](https://goteleport.com/docs/ver/17.x/reference/config/), [Linux installation](https://goteleport.com/docs/installation/linux/) и [security notice CVE-2025-49825](https://support.goteleport.com/hc/en-us/articles/42280478593043-CVE-2025-49825-for-Cloud-Customers).
 
 ---
 

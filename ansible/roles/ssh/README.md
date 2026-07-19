@@ -111,7 +111,7 @@ Override these through inventory. Do not edit role defaults directly.
 | `ssh_sftp_chroot_enabled` | `false` | Enable SFTP chroot for a group. |
 | `ssh_sftp_chroot_group` | `"sftponly"` | Chrooted SFTP group. |
 | `ssh_sftp_chroot_directory` | `"/home/%u"` | Chroot directory. |
-| `ssh_teleport_integration` | `{{ teleport_ca_deployed | default(false) }}` | Trust a Teleport user CA when the Teleport role exposes it. |
+| `ssh_teleport_integration` | `false` | Trust a Teleport user CA. Inventory enables this for standalone Teleport CA export. |
 | `ssh_teleport_ca_keys_file` | `/etc/ssh/teleport_user_ca.pub` | Teleport user CA path. |
 
 ### Internal Vars

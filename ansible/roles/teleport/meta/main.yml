@@ -2,13 +2,11 @@
 galaxy_info:
   role_name: teleport
   author: textyre
-  description: Teleport SSH access platform agent deployment
+  description: Teleport standalone cluster and SSH agent deployment
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
-      versions: [all]
-    - name: Debian
       versions: [all]
     - name: Ubuntu
       versions: [all]

@@ -13,15 +13,19 @@
 }) %}
 {% endif %}
 {% set _base_config = _base_config | combine({'version': 'v3', 'teleport': _teleport_section}) %}
-{% set _ssh = {'enabled': teleport_ssh_enabled | bool} %}
+{% set _ssh = {
+  'enabled': teleport_ssh_enabled | bool,
+  'enhanced_recording': {'enabled': teleport_enhanced_recording | bool}
+} %}
 {% if teleport_labels %}
 {% set _ssh = _ssh | combine({'labels': teleport_labels}) %}
 {% endif %}
 {% if teleport_mode == 'standalone' %}
-{% set _auth_service = {'enabled': true, 'listen_addr': teleport_auth_listen_addr} %}
-{% if teleport_session_recording != 'off' %}
-{% set _auth_service = _auth_service | combine({'session_recording': teleport_session_recording}) %}
-{% endif %}
+{% set _auth_service = {
+  'enabled': true,
+  'listen_addr': teleport_auth_listen_addr,
+  'session_recording': teleport_session_recording
+} %}
 {% set _proxy_service = {
   'enabled': true,
   'web_listen_addr': teleport_proxy_listen_addr,

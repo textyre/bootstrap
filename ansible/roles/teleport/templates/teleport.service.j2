@@ -1,0 +1,19 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=Teleport SSH Access Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+StateDirectory=teleport
+StateDirectoryMode=0750
+Restart=on-failure
+RestartSec=5
+ExecStart=/usr/local/bin/teleport start --config=/etc/teleport.yaml --pid-file=/run/teleport.pid
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/teleport.pid
+LimitNOFILE=524288
+
+[Install]
+WantedBy=multi-user.target

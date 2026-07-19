@@ -71,6 +71,7 @@ user_groups:
 ssh_user: "{{ target_user }}"
 ssh_permit_root_login: "no"
 ssh_password_authentication: "no"
+ssh_teleport_integration: "{{ teleport_mode | default('standalone') == 'standalone' }}"
 
 # ============================================================
 #  ssh_keys — роль roles/ssh_keys

@@ -59,7 +59,7 @@ ssh_max_startups: "10:30:60"
 
 ssh_sftp_enabled: true
 ssh_sftp_chroot_enabled: false
-ssh_teleport_integration: "{{ teleport_ca_deployed | default(false) }}"
+ssh_teleport_integration: false
 ```
 
 Полный внешний контракт описан в `ansible/roles/ssh/defaults/main.yml` и README роли.
@@ -103,7 +103,7 @@ Vagrant scenario проверяет реальные Arch/Ubuntu VM.
 - `firewall` — открытие SSH-порта, если порт должен быть доступен извне.
 - `ssh_keys` / `user` — пользователи, группы и authorized keys.
 - `fail2ban` — brute-force защита, если она нужна.
-- `teleport` — deployment Teleport CA, если включена `ssh_teleport_integration`.
+- `teleport` — выполняется раньше `ssh`; inventory включает доверие OpenSSH к обязательно экспортируемому standalone CA.
 
 ## Ограничения
 

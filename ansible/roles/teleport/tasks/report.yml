@@ -1,0 +1,22 @@
+---
+# === teleport: final report ===
+
+- name: "Report: Teleport configuration"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: _teleport_phases
+    common_rpt_phase: "Teleport {{ teleport_mode }}"
+    common_rpt_detail: >-
+      mode={{ teleport_mode }}
+      node={{ teleport_node_name }}
+      recording={{ teleport_session_recording }}
+
+- name: Teleport execution report
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: _teleport_phases
+    common_rpt_title: teleport

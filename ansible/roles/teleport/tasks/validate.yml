@@ -1,0 +1,27 @@
+---
+# === teleport: validate phase ===
+
+- name: Assert supported Linux distribution
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in _teleport_supported_distributions
+    fail_msg: >-
+      Linux distribution '{{ ansible_facts['distribution'] }}' is not supported.
+      Supported: {{ _teleport_supported_distributions | join(', ') }}
+
+- name: Assert supported Teleport mode
+  ansible.builtin.assert:
+    that:
+      - teleport_mode in _teleport_supported_modes
+    fail_msg: >-
+      Teleport mode '{{ teleport_mode }}' is not supported.
+      Supported: {{ _teleport_supported_modes | join(', ') }}
+
+- name: Assert agent join configuration
+  ansible.builtin.assert:
+    that:
+      - teleport_auth_server | length > 0
+      - teleport_join_token | length > 0
+    fail_msg: >-
+      Agent mode requires both teleport_auth_server and teleport_join_token.
+  when: teleport_mode == 'agent'

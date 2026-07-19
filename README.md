@@ -59,7 +59,7 @@ scripts/setup-vault-pass.sh
 | `user` | Локальные пользователи, sudo, password aging, umask |
 | `ssh_keys` | Генерация и деплой SSH ключей |
 | `ssh` | sshd hardening, moduli, баннеры |
-| `teleport` | Teleport agent (zero-trust access) |
+| `teleport` | Teleport standalone-кластер или агент существующего кластера |
 | `fail2ban` | Jail для SSH brute-force |
 
 ### Phase 4: Development Tools
