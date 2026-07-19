@@ -11,7 +11,7 @@ Self-hosted Bitwarden-compatible password manager deployed via Docker Compose, r
 5. **DNS** — adds `127.0.0.1 <domain>` to `/etc/hosts` via `lineinfile`
 6. **Admin token** — if `vaultwarden_admin_enabled` and `.admin_token` doesn't exist: generates with `openssl rand -base64 48`, writes to `vaultwarden_base_dir/.admin_token` (0600). Reads back and sets `_vaultwarden_admin_token` fact.
 7. **Docker Compose** — deploys `docker-compose.yml` from template. **Triggers handler:** "Restart vaultwarden" if file changes.
-8. **Caddy site config** — deploys `vault.caddy` to `caddy_base_dir/sites/vault.caddy`. **Triggers handler:** "Restart caddy" if file changes.
+8. **Caddy site config** — deploys `vault.caddy` to `caddy_base_dir/sites/vault.caddy` and restarts Caddy when that file changes.
 9. **Start** (`molecule-notest`) — runs `docker compose up` via `community.docker.docker_compose_v2`. Skipped in molecule.
 10. **Backup** (when `vaultwarden_backup_enabled`) — installs backup packages, deploys `backup.sh` (0700), enables cron service (`molecule-notest`), schedules daily cron job.
 11. **Verify** (`tasks/verify.yml`) — checks `/etc/hosts` via lineinfile check_mode, file existence and permissions, admin token length, backup script presence.
@@ -22,7 +22,6 @@ Self-hosted Bitwarden-compatible password manager deployed via Docker Compose, r
 | Handler | Triggered by | What it does |
 |---------|-------------|--------------|
 | `restart vaultwarden` | `docker-compose.yml` change (step 7) | Restarts Vaultwarden containers via `docker_compose_v2` |
-| `Restart caddy` | `vault.caddy` change (step 8) | Delegates Caddy restart to the `caddy` role handler |
 
 ## Variables
 
@@ -33,7 +32,7 @@ Override these via inventory (`group_vars/` or `host_vars/`), never edit `defaul
 | Variable | Default | Safety | Description |
 |----------|---------|--------|-------------|
 | `vaultwarden_enabled` | `true` | safe | Set `false` to skip the entire role |
-| `vaultwarden_domain` | `"vault.local"` | careful | Caddy virtual host and Vaultwarden `DOMAIN` env var. Changing after deploy requires DNS update and Caddy reload. |
+| `vaultwarden_domain` | `"vault.local"` | careful | Caddy virtual host and Vaultwarden `DOMAIN` env var. Changing after deploy requires DNS update and Caddy restart. |
 | `vaultwarden_base_dir` | `"/opt/vaultwarden"` | careful | Root directory for compose file, data, and backups. Changing after initial deploy requires migrating existing data. |
 | `vaultwarden_docker_network` | `"proxy"` | careful | External Docker network shared with Caddy. Must match `caddy_docker_network`. |
 | `vaultwarden_admin_enabled` | `true` | careful | Enable `/admin` panel. Disable after initial setup — leaving enabled in production exposes the admin interface. |
@@ -198,7 +197,7 @@ Tasks tagged `molecule-notest` (Docker Compose `up`, cron service start) are ski
 | `Assertion — 127.0.0.1 <domain> in /etc/hosts` fails | `/etc/hosts` write failed (unsafe_writes issue) | Check container has write access to `/etc/hosts`; `unsafe_writes: true` is set on the task |
 | Idempotence: `docker-compose.yml changed` | Admin token fact changes between plays | Token is read back from file; check `_vaultwarden_admin_token` set_fact runs correctly |
 | `Assert admin token is non-empty` fails | Token generation failed or `vaultwarden_admin_enabled: false` | Check `openssl` is available; verify `vaultwarden_admin_enabled: true` in converge vars |
-| `Assert Caddy config` fails | `caddy_base_dir` not set, `/opt/caddy/sites/` doesn't exist | Create the sites directory in `prepare.yml` or ensure `caddy` role ran first |
+| `Assert Caddy config` fails | `caddy_base_dir` does not match the Caddy deployment | Keep the application and Caddy roles on the same base directory |
 
 ## Tags
 

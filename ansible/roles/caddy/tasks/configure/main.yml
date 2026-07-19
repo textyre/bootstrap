@@ -1,0 +1,16 @@
+---
+- name: Configure Caddy Docker network
+  ansible.builtin.include_tasks:
+    file: network.yml
+
+- name: Configure Caddy directories
+  ansible.builtin.include_tasks:
+    file: directories.yml
+
+- name: Configure Caddy global settings
+  ansible.builtin.include_tasks:
+    file: caddyfile.yml
+
+- name: Configure Caddy Compose project
+  ansible.builtin.include_tasks:
+    file: compose.yml

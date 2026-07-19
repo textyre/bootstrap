@@ -211,7 +211,14 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Restart caddy
+      register: _vaultwarden_caddy_site
+      tags: ['vaultwarden', 'secrets']
+
+    - name: Apply Vaultwarden Caddy site config # noqa: no-handler
+      community.docker.docker_compose_v2:
+        project_src: "{{ caddy_base_dir | default('/opt/caddy') }}"
+        state: restarted
+      when: _vaultwarden_caddy_site is changed
       tags: ['vaultwarden', 'secrets']
 
     - name: "Report: Caddy"

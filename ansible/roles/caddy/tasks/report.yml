@@ -1,0 +1,19 @@
+---
+- name: Report Caddy desired state
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_caddy_phases"
+    common_rpt_phase: "Configure Caddy"
+    common_rpt_detail: >-
+      tls={{ caddy_tls_mode }} network={{ caddy_docker_network }}
+      ports={{ caddy_http_port }},{{ caddy_https_port }}
+
+- name: Render Caddy execution report
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_caddy_phases"
+    common_rpt_title: caddy

@@ -23,7 +23,6 @@ provisioner:
   inventory:
     group_vars:
       all:
-        caddy_enabled: false
         # Handlers skip: containers not started (molecule-notest).
         vaultwarden_compose_manage: false
         # CI-safe docker override: use json-file in Vagrant fixtures.

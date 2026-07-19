@@ -17,5 +17,4 @@ galaxy_info:
     - name: Gentoo
       versions: [all]
   galaxy_tags: [caddy, proxy, https, reverseproxy]
-dependencies:
-  - role: docker
+dependencies: []

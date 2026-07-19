@@ -1,0 +1,22 @@
+---
+- name: Create Caddy configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ caddy_base_dir }}"
+    - "{{ caddy_base_dir }}/sites"
+
+- name: Create Caddy writable directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ caddy_container_uid }}"
+    group: "{{ caddy_container_uid }}"
+    mode: '0750'
+  loop:
+    - "{{ caddy_base_dir }}/data"
+    - "{{ caddy_base_dir }}/config"

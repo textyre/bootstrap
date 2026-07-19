@@ -13,6 +13,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8
@@ -28,6 +29,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8
@@ -35,8 +37,6 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -44,10 +44,7 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-    converge: converge.yml
-
-verifier:
-  name: ansible
+    converge: ../shared/converge.yml
 
 scenario:
   test_sequence:
@@ -56,5 +53,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

@@ -1,0 +1,26 @@
+---
+- name: Load Caddy trust-store variables
+  ansible.builtin.include_vars:
+    file: "distro/{{ ansible_facts['os_family'] | lower }}/main.yml"
+
+- name: Wait for Caddy internal root certificate
+  ansible.builtin.wait_for:
+    path: "{{ caddy_base_dir }}/data/caddy/pki/authorities/local/root.crt"
+    state: present
+    timeout: 30
+
+- name: Install Caddy internal root certificate
+  ansible.builtin.copy:
+    src: "{{ caddy_base_dir }}/data/caddy/pki/authorities/local/root.crt"
+    remote_src: true
+    dest: "{{ _caddy_ca_trust_dir }}/{{ _caddy_ca_cert_filename }}"
+    owner: root
+    group: root
+    mode: '0644'
+  register: _caddy_trust_certificate
+
+- name: Update host certificate trust # noqa: no-handler
+  ansible.builtin.command:
+    argv: "{{ _caddy_update_ca_trust_argv }}"
+  changed_when: true
+  when: _caddy_trust_certificate is changed

@@ -1,5 +1,11 @@
 ---
-# === Caddy -- common internal variables ===
+# OS families with trust-store mappings supplied by this role.
+_caddy_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Gentoo
+  - Void
 
-# CA cert filename placed in trust store
-_caddy_ca_cert_filename: "caddy-local.crt"
+# Filename installed into the host certificate trust source directory.
+_caddy_ca_cert_filename: caddy-local.crt

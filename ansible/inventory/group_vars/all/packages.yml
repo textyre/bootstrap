@@ -30,6 +30,7 @@ packages_base:
   - cronie           # Планировщик задач (cron, для бэкапов Vaultwarden)
   - sqlite           # SQLite CLI (для бэкапов Vaultwarden)
   - logrotate        # Ротация логов (/etc/logrotate.d/* из ролей ntp и др.)
+  - ca-certificates  # Системное доверие TLS-сертификатам, включая локальный CA Caddy
 
 # --- Редакторы ---
 packages_editors:
