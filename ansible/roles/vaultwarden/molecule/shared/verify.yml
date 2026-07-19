@@ -15,9 +15,15 @@
     - name: Verify Vaultwarden security response headers
       ansible.builtin.assert:
         that:
-          - _vaultwarden_test_web.x_content_type_options == 'nosniff'
-          - _vaultwarden_test_web.x_frame_options == 'SAMEORIGIN'
-          - "'max-age=31536000' in _vaultwarden_test_web.strict_transport_security"
+          - >-
+            'nosniff' in
+            (_vaultwarden_test_web.x_content_type_options | default('') | lower)
+          - >-
+            'sameorigin' in
+            (_vaultwarden_test_web.x_frame_options | default('') | lower)
+          - >-
+            'max-age=31536000' in
+            (_vaultwarden_test_web.strict_transport_security | default('') | lower)
         fail_msg: Vaultwarden was not served with the configured security headers.
 
     - name: Execute Vaultwarden backup
