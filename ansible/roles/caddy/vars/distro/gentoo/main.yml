@@ -1,0 +1,5 @@
+---
+# Gentoo trust source and database update command.
+_caddy_ca_trust_dir: /usr/local/share/ca-certificates
+_caddy_update_ca_trust_argv:
+  - update-ca-certificates

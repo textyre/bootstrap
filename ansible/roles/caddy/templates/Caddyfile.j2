@@ -2,6 +2,12 @@
 {
 {% if caddy_tls_mode == "internal" %}
     local_certs
+    skip_install_trust
+    pki {
+        ca local
+    }
+{% else %}
+    email {{ caddy_tls_email }}
 {% endif %}
     admin off
 }

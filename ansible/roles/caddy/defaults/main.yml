@@ -1,54 +1,23 @@
 ---
-# === Reverse Proxy (Caddy) ===
-# Единый HTTPS reverse proxy для всех self-hosted сервисов
+# Host directory containing compose configuration, sites, data, and state.
+caddy_base_dir: /opt/caddy
 
-# === OS Support ===
-# Supported operating systems for this role
-_caddy_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Gentoo
-  - Void
-
-# Включить роль
-caddy_enabled: true
-
-# Базовая директория
-caddy_base_dir: "/opt/caddy"
-
-# UID/GID for writable directories (data, config).
-# With docker userns-remap: "default", container root (UID 0) maps to host UID 100000.
-# Set to 0 if userns-remap is disabled.
+# Host UID/GID mapped to container root when Docker userns-remap is "default".
+# Use 0 when Docker user namespace remapping is disabled.
 caddy_container_uid: 100000
 
-# HTTPS порт
+# Host ports published by the Caddy container.
 caddy_https_port: 443
-
-# HTTP порт (для редиректа на HTTPS)
 caddy_http_port: 80
 
-# TLS режим: "internal" (self-signed) или "acme" (Let's Encrypt)
-caddy_tls_mode: "internal"
+# Certificate issuer mode. Allowed: internal, acme.
+caddy_tls_mode: internal
 
-# Email для Let's Encrypt (только при caddy_tls_mode: acme)
+# ACME account email. Required when caddy_tls_mode is acme.
 caddy_tls_email: ""
 
-# Docker network для связи с сервисами
-caddy_docker_network: "proxy"
+# External Docker network shared with proxied application containers.
+caddy_docker_network: proxy
 
-# === Per-subsystem toggles (ROLE-010) ===
-
-# Manage Docker network creation
-caddy_manage_network: true
-
-# Manage CA certificate trust (copy root CA to system trust store)
-# Only applies when caddy_tls_mode: internal
-caddy_manage_certs: true
-
-# Manage browser enterprise root trust (Zen Browser / Firefox)
-# Only applies when caddy_tls_mode: internal
-caddy_manage_browser_trust: true
-
-# Docker image for Caddy container
-caddy_docker_image: "caddy:2-alpine"
+# Caddy container image pinned to a deterministic patch release.
+caddy_docker_image: caddy:2.11.4-alpine

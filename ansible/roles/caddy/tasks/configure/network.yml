@@ -1,0 +1,5 @@
+---
+- name: Create Caddy Docker network
+  community.docker.docker_network:
+    name: "{{ caddy_docker_network }}"
+    state: present

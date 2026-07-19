@@ -10,10 +10,16 @@
     _vaultwarden_test_packages:
       Archlinux:
         - docker
+        - docker-compose
+        - python-requests
+        - ca-certificates
         - openssl
         - cronie
       Debian:
         - docker.io
+        - docker-compose-v2
+        - python3-requests
+        - ca-certificates
         - openssl
         - cron
 
@@ -22,14 +28,3 @@
       ansible.builtin.package:
         name: "{{ _vaultwarden_test_packages[ansible_facts['os_family']] }}"
         state: present
-
-    - name: Create Caddy directories (stub for caddy role)
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-      loop:
-        - /opt/caddy
-        - /opt/caddy/sites

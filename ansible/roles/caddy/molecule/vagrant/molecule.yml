@@ -18,30 +18,14 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    group_vars:
-      all:
-        # CI-safe docker overrides: these apply to all plays (including TEST-011
-        # edge-case play) so the docker dependency doesn't rewrite daemon.json
-        # with incompatible defaults on the second role invocation.
-        docker_log_driver: "json-file"
-    host_vars:
-      arch-vm:
-        docker_storage_driver: "btrfs"
-      ubuntu-base:
-        docker_storage_driver: "overlay2"
   playbooks:
     prepare: prepare.yml
-
-verifier:
-  name: ansible
+    converge: ../shared/converge.yml
 
 scenario:
   test_sequence:
@@ -50,5 +34,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

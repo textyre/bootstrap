@@ -15,6 +15,8 @@
         name:
           - docker
           - docker-compose
+          - python-requests
+          - ca-certificates
           - openssl
           - cronie
           - sqlite3
@@ -28,6 +30,8 @@
         name:
           - docker.io
           - docker-compose-v2
+          - python3-requests
+          - ca-certificates
           - openssl
           - cron
           - sqlite3
@@ -50,19 +54,3 @@
       delay: 3
       until: _prepare_docker_info.rc == 0
       changed_when: false
-
-    - name: Create Docker proxy network
-      community.docker.docker_network:
-        name: proxy
-        state: present
-
-    - name: Create Caddy directories (stub for caddy role)
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-      loop:
-        - /opt/caddy
-        - /opt/caddy/sites

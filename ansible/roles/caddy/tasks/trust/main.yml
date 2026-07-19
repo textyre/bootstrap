@@ -1,0 +1,5 @@
+---
+- name: Configure host trust for Caddy internal CA
+  ansible.builtin.include_tasks:
+    file: certificate.yml
+  when: caddy_tls_mode == 'internal'

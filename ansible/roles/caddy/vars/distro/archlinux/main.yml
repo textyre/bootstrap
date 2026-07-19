@@ -1,0 +1,5 @@
+---
+# Arch trust source and database update command.
+_caddy_ca_trust_dir: /etc/ca-certificates/trust-source/anchors
+_caddy_update_ca_trust_argv:
+  - update-ca-trust

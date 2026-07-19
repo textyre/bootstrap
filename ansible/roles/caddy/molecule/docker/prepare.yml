@@ -1,8 +1,29 @@
 ---
-- name: Prepare
+- name: Prepare Caddy Docker containers
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
+
+- name: Install Caddy runtime test prerequisites
   hosts: all
   become: true
   gather_facts: true
+  vars:
+    _caddy_test_packages:
+      Archlinux:
+        - docker
+        - docker-compose
+        - python-requests
+        - ca-certificates
+      Debian:
+        - docker.io
+        - docker-compose-v2
+        - python3-requests
+        - ca-certificates
   tasks:
-    - name: Run OS-specific prepare tasks
-      ansible.builtin.include_tasks: "prepare_{{ ansible_facts['os_family'] | lower }}.yml"
+    - name: Install Caddy test prerequisites
+      ansible.builtin.package:
+        name: "{{ _caddy_test_packages[ansible_facts['os_family']] }}"
+        state: present
+
+    - name: Configure Caddy Docker runtime prerequisite
+      ansible.builtin.include_role:
+        name: docker

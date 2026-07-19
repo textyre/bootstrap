@@ -4,6 +4,8 @@ services:
     image: {{ caddy_docker_image }}
     container_name: caddy
     restart: unless-stopped
+    labels:
+      io.textyre.caddy.configuration: "{{ _caddy_configuration_checksum }}"
     ports:
       - "{{ caddy_https_port }}:443"
       - "{{ caddy_http_port }}:80"

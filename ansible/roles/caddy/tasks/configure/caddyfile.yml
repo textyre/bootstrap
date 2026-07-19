@@ -1,0 +1,8 @@
+---
+- name: Deploy Caddy global configuration
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_base_dir }}/Caddyfile"
+    owner: root
+    group: root
+    mode: '0644'

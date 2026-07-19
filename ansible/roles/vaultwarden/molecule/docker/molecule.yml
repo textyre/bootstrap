@@ -39,10 +39,6 @@ provisioner:
   name: ansible
   options:
     skip-tags: report,molecule-notest
-  inventory:
-    group_vars:
-      all:
-        caddy_enabled: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
