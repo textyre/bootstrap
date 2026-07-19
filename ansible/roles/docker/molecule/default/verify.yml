@@ -1,3 +1,0 @@
----
-- name: Verify
-  import_playbook: ../shared/verify.yml

@@ -1,7 +1,6 @@
 ---
-# Docker-specific converge: uses include_role to skip meta dependencies
-# (docker, caddy) that cannot run inside a container without a Docker daemon.
-# The shared converge.yml (with roles: + meta deps) is used by vagrant/default.
+# Docker-specific converge uses an explicit include so this scenario can exercise
+# its disabled-role path separately. Role dependencies still execute normally.
 - name: Converge
   hosts: all
   become: true

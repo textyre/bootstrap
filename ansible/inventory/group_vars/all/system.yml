@@ -101,10 +101,6 @@ shell_type: zsh
 #  docker — роль roles/docker
 # ============================================================
 
-docker_user: "{{ target_user }}"
-docker_enable_service: true
-docker_add_user_to_group: true
-
 # ============================================================
 #  firewall — роль roles/firewall
 # ============================================================

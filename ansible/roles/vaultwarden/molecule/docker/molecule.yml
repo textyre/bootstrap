@@ -13,6 +13,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8
@@ -28,6 +29,7 @@ platforms:
     tmpfs:
       - /run
       - /tmp
+      - /var/lib/docker
     privileged: true
     dns_servers:
       - 8.8.8.8
@@ -40,7 +42,6 @@ provisioner:
   inventory:
     group_vars:
       all:
-        docker_enable_service: false
         caddy_enabled: false
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"

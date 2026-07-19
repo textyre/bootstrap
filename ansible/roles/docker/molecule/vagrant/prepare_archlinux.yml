@@ -1,8 +1,0 @@
----
-- name: "Prepare: install docker and shadow packages"
-  community.general.pacman:
-    name:
-      - docker
-      - btrfs-progs
-      - shadow
-    state: present

@@ -1,36 +1,23 @@
 ---
-# Docker role entrypoint. The flow is deliberately layered:
-# core validates the role contract, apply mutates the host, verify observes
-# the applied implementation. Tests live under molecule/.
+# === docker — Docker Engine configuration ===
+# validate -> configure -> service -> report
 
-- name: Establish Docker core contract
-  ansible.builtin.include_tasks: core.yml
-  tags: ['docker', 'docker:configure', 'docker:service', 'security']
+- name: Validate Docker role inputs
+  ansible.builtin.include_tasks:
+    file: validate.yml
 
-- name: Apply Docker core implementation
-  ansible.builtin.include_tasks: apply.yml
-  tags: ['docker', 'docker:configure', 'docker:service', 'security']
+- name: Configure Docker Engine
+  ansible.builtin.include_tasks:
+    file: configure/main.yml
 
-- name: Verify Docker core implementation
-  ansible.builtin.include_tasks: verify.yml
-  when: docker_manage_daemon | bool
-  tags: ['docker']
+- name: Apply Docker service policy
+  ansible.builtin.include_tasks:
+    file: service.yml
 
-- name: "Report: Verify"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_docker_phases"
-    common_rpt_phase: "Verify"
-    common_rpt_detail: "daemon.json + runtime driver"
-  tags: ['docker', 'report']
-
-- name: "Docker — Execution Report"
+- name: Render Docker execution report
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
     common_rpt_fact: "_docker_phases"
     common_rpt_title: "docker"
-  tags: ['docker', 'report']

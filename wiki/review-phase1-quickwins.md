@@ -4,6 +4,12 @@
 **Reviewer:** Claudette (destructive-critical mode)
 **Scope:** 6 Quick Wins (QW-1 through QW-6), 14 files read and analyzed
 
+> **Current-state note (2026-07-19):** this review describes the 2026-02-16
+> repository snapshot. The Docker defaults and template excerpts below are retained
+> as historical evidence, not current instructions. The role now enables its secure
+> defaults, validates the generated config with `dockerd --validate`, and applies
+> service state without a handler. See `ansible/roles/docker/README.md`.
+
 ---
 
 ## Context Verification
@@ -670,7 +676,7 @@ The code omits `umac-128-etm@openssh.com`. This is actually a more conservative 
 
 ---
 
-### MED-06: Docker `docker_log_driver` default does not match Quick-Wins.md
+### MED-06: Docker `docker_log_driver` default did not match Quick-Wins.md
 
 **File:** `/Users/umudrakov/Documents/bootstrap/ansible/roles/docker/defaults/main.yml`, line 15
 **Evidence:**
@@ -681,6 +687,9 @@ Quick-Wins.md (line 247): `docker_log_driver: "journald"`
 Quick-Wins.md identifies `json-file` without rotation as a problem (line 221: "Logging through json-file without rotation (disk overflow)"). The code keeps `json-file` as default but adds `max-size` and `max-file` rotation options. This addresses the rotation concern but does not switch to journald as documented.
 
 **CHECK 3.3: CONFIRMED.** The log driver was NOT changed to `journald` as specified in Quick-Wins.md. The code has `json-file` with rotation, which is a reasonable alternative but does not match the documented plan.
+
+**Current status:** systemd hosts now default to `journald`; other init systems use
+Docker's `local` driver. Rotation options are emitted only for compatible drivers.
 
 > **Research Note: Docker Log Driver Types**
 >
@@ -753,7 +762,8 @@ The only toggle is the global `sysctl_security_enabled: true`. There is no separ
 
 Per MEMORY.md project conventions: "Handlers use `listen:` for cross-role notification." The SSH handler does not have a `listen:` directive. This means other roles cannot trigger an sshd restart via a generic notification name.
 
-Similarly, the Docker handler (`docker/handlers/main.yml`) lacks `listen:` on the "Restart docker" handler.
+The historical Docker handler had the same finding. It has since been removed; the
+Docker role now applies changed daemon configuration in its service phase.
 
 > **Research Note: What `listen:` Is and Why It Matters**
 >
@@ -944,7 +954,7 @@ Prioritized by impact (highest first):
 
 11. **Add `pam_faillock_enabled` toggle** (GAP-03). Add the variable to `defaults/main.yml` and guard the faillock task with `when: pam_faillock_enabled | default(true) | bool`.
 
-12. **Add `listen:` directives to SSH and Docker handlers** (MED-08). Follow project conventions.
+12. **Add `listen:` to the SSH handler** (MED-08). The Docker side is resolved because that handler no longer exists.
 
 ### P3 -- Low Priority (polish/consistency)
 

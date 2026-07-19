@@ -4,6 +4,11 @@
 **Reviewer:** Claudette Research Agent v1.0.0
 **Scope:** Ansible bootstrap project security audit against CIS, OWASP, NIST, Mozilla, and dev-sec.io standards
 
+> **Current-state note (2026-07-19):** this audit describes the 2026-02-16
+> repository snapshot. Its Docker findings about disabled user namespaces, enabled
+> ICC, `json-file` defaults, and missing config validation are historical. Current
+> Docker behavior is documented in `ansible/roles/docker/README.md`.
+
 ---
 
 ## Executive Summary

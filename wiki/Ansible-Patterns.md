@@ -82,7 +82,6 @@
 
 - [ ] `<role>_<setting>` — конфигурационные переменные (`base_system_locale`)
 - [ ] `_<role>_<purpose>` — внутренние register-переменные (`_base_system_alpm_user`)
-- [ ] `<role>_<feature>` — флаги включения фич (`docker_enable_service`)
 - [ ] `_<role>_supported_os` — списки поддерживаемых значений
 
 ---
@@ -113,7 +112,6 @@
 
 ## Условные паттерны
 
-- [ ] Feature flag: `when: docker_add_user_to_group`
 - [ ] OS check: `when: ansible_facts['os_family'] in _<role>_supported_os`
 - [ ] Service manager: `when: ansible_facts['service_mgr'] == 'systemd'`
 - [ ] Сложные условия — multiline `>`

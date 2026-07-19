@@ -1,1 +1,13 @@
-{{ _docker_daemon_config | to_nice_json }}
+{
+  "storage-driver": {{ docker_storage_driver | to_json }},
+  "log-driver": {{ docker_log_driver | to_json }}{% if docker_log_driver in ['local', 'json-file'] %},
+  "log-opts": {
+    "max-size": {{ docker_log_max_size | to_json }},
+    "max-file": {{ docker_log_max_file | to_json }}
+  }{% endif %}{% if docker_userns_remap | length > 0 %},
+  "userns-remap": {{ docker_userns_remap | to_json }}{% endif %}{% if not (docker_icc | bool) %},
+  "icc": false{% endif %}{% if docker_live_restore | bool %},
+  "live-restore": true{% endif %}{% if docker_no_new_privileges | bool %},
+  "no-new-privileges": true{% endif %}{% for daemon_option in docker_daemon_extra | dict2items %},
+  {{ daemon_option.key | to_json }}: {{ daemon_option.value | to_json }}{% endfor %}
+}
