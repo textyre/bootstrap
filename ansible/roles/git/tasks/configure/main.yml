@@ -1,0 +1,24 @@
+---
+# === git: configure developer toolchain ===
+
+- name: Install git packages
+  ansible.builtin.include_tasks: install.yml
+
+- name: Configure git for each user
+  ansible.builtin.include_tasks: user.yml
+  loop: "{{ [git_owner] + git_additional_users }}"
+  loop_control:
+    loop_var: _git_current_user
+    label: "{{ _git_current_user.name }}"
+
+- name: "Report: Configure git"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Configure"
+    common_rpt_detail: >-
+      packages={{ git_packages | join(',') }}
+      lfs={{ git_lfs_package }}
+      users={{ ([git_owner] + git_additional_users) | length }}

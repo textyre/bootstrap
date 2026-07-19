@@ -1,8 +1,8 @@
 ---
-# === git — base configuration (per-user layer) ===
+# === git: base per-user configuration ===
 # Sets core git settings: user.name, user.email, init.defaultBranch, core.editor,
 # pull.rebase, push.autoSetupRemote, core.autocrlf, safe.directory.
-# Runs as become_user via _git_current_user from configure_user.yml loop.
+# Runs as become_user via _git_current_user from configure/user.yml loop.
 
 - name: Set git user.name
   community.general.git_config:
@@ -10,7 +10,6 @@
     value: "{{ _git_current_user.user_name }}"
     scope: global
   when: (_git_current_user.user_name | default('')) | length > 0
-  tags: [git, configure]
 
 - name: Set git user.email
   community.general.git_config:
@@ -18,64 +17,41 @@
     value: "{{ _git_current_user.user_email }}"
     scope: global
   when: (_git_current_user.user_email | default('')) | length > 0
-  tags: [git, configure]
 
 - name: Set git init.defaultBranch
   community.general.git_config:
     name: init.defaultBranch
     value: "{{ git_default_branch }}"
     scope: global
-  tags: [git, configure]
 
 - name: Set git core.editor
   community.general.git_config:
     name: core.editor
     value: "{{ git_editor }}"
     scope: global
-  tags: [git, configure]
 
 - name: Set git pull.rebase
   community.general.git_config:
     name: pull.rebase
     value: "{{ git_pull_rebase | string | lower }}"
     scope: global
-  tags: [git, configure]
 
 - name: Set git push.autoSetupRemote
   community.general.git_config:
     name: push.autoSetupRemote
     value: "{{ git_push_autosetup_remote | string | lower }}"
     scope: global
-  tags: [git, configure]
 
 - name: Set git core.autocrlf
   community.general.git_config:
     name: core.autocrlf
     value: "{{ git_core_autocrlf }}"
     scope: global
-  tags: [git, configure]
 
-- name: "CVE-2022-24765 | Check current safe.directory entries"  # noqa: command-instead-of-module
-  ansible.builtin.command:
-    cmd: git config --global --get-all safe.directory
-  register: _git_current_safe_dirs
-  changed_when: false
-  failed_when: false
-  when: git_safe_directories | length > 0
-  tags: [git, configure, security]
-
-- name: "CVE-2022-24765 | Add git safe.directory entries"  # noqa: command-instead-of-module
-  ansible.builtin.command:
-    argv:
-      - git
-      - config
-      - --global
-      - --add
-      - safe.directory
-      - "{{ item }}"
+- name: Add git safe.directory entries
+  community.general.git_config:
+    name: safe.directory
+    value: "{{ item }}"
+    scope: global
+    add_mode: add
   loop: "{{ git_safe_directories }}"
-  when:
-    - git_safe_directories | length > 0
-    - item not in (_git_current_safe_dirs.stdout_lines | default([]))
-  changed_when: true
-  tags: [git, configure, security]

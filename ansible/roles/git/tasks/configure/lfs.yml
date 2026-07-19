@@ -1,0 +1,26 @@
+---
+# === git: LFS per-user configuration ===
+
+- name: Configure git-lfs clean filter
+  community.general.git_config:
+    name: filter.lfs.clean
+    value: "git-lfs clean -- %f"
+    scope: global
+
+- name: Configure git-lfs smudge filter
+  community.general.git_config:
+    name: filter.lfs.smudge
+    value: "git-lfs smudge -- %f"
+    scope: global
+
+- name: Configure git-lfs process filter
+  community.general.git_config:
+    name: filter.lfs.process
+    value: "git-lfs filter-process"
+    scope: global
+
+- name: Require git-lfs filter
+  community.general.git_config:
+    name: filter.lfs.required
+    value: "true"
+    scope: global

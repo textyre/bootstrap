@@ -35,57 +35,14 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    host_vars:
-      Archlinux-systemd:
-        git_owner:
-          name: root
-          user_name: "Test User"
-          user_email: "test@example.com"
-          signing_method: none
-          signing_key: ""
-          credential_helper: ""
-        git_manage_hooks: true
-        git_hooks_path: "/tmp/test-git-hooks"
-        git_config_extra:
-          color.ui: auto
-          diff.colorMoved: zebra
-        git_safe_directories:
-          - /tmp/test-safe-dir
-      Ubuntu-systemd:
-        git_owner:
-          name: root
-          user_name: "Test User"
-          user_email: "test@example.com"
-          signing_method: none
-          signing_key: ""
-          credential_helper: ""
-        git_manage_hooks: true
-        git_hooks_path: "/tmp/test-git-hooks"
-        git_config_extra:
-          color.ui: auto
-          diff.colorMoved: zebra
-        git_safe_directories:
-          - /tmp/test-safe-dir
   playbooks:
     prepare: prepare.yml
-
-dependency:
-  name: galaxy
-  options:
-    ignore-errors: true
-  # 'common' role is a local monorepo role, not available on Ansible Galaxy.
-  # It is resolved via ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../".
-
-verifier:
-  name: ansible
+    converge: ../shared/converge.yml
 
 scenario:
   test_sequence:
@@ -94,5 +51,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

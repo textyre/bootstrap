@@ -1,0 +1,27 @@
+---
+# === git — commit signing configuration (per-user layer) ===
+
+- name: Configure commit signing identity
+  when: (_git_current_user.signing_method | default('none')) in ['ssh', 'gpg']
+  block:
+    - name: Configure signing format
+      community.general.git_config:
+        name: gpg.format
+        value: "{{ 'ssh' if _git_current_user.signing_method == 'ssh' else 'openpgp' }}"
+        scope: global
+
+    - name: Configure signing key
+      community.general.git_config:
+        name: user.signingKey
+        value: "{{ _git_current_user.signing_key }}"
+        scope: global
+
+- name: Configure automatic commit signing
+  community.general.git_config:
+    name: commit.gpgSign
+    value: >-
+      {{
+        ((_git_current_user.signing_method | default('none')) in ['ssh', 'gpg'])
+        | string | lower
+      }}
+    scope: global

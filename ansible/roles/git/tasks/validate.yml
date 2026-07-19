@@ -1,0 +1,20 @@
+---
+# === git: validate platform mapping ===
+
+- name: Assert supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in _git_supported_os
+    fail_msg: >-
+      OS family '{{ ansible_facts['os_family'] }}' is not supported.
+      Supported: {{ _git_supported_os | join(', ') }}
+    quiet: true
+
+- name: "Report: Validate git platform"
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_git_phases"
+    common_rpt_phase: "Validate platform"
+    common_rpt_detail: "os={{ ansible_facts['os_family'] }}"

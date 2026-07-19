@@ -1,0 +1,7 @@
+---
+# Git package names on Arch Linux.
+git_packages:
+  - git
+
+# Git LFS package name on Arch Linux.
+git_lfs_package: git-lfs

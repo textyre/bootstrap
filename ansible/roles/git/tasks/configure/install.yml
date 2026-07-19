@@ -5,11 +5,8 @@
   ansible.builtin.package:
     name: "{{ git_packages }}"
     state: present
-  tags: [git, install]
 
 - name: Install git-lfs
   ansible.builtin.package:
     name: "{{ git_lfs_package }}"
     state: present
-  when: git_lfs_enabled | bool
-  tags: [git, install, lfs]

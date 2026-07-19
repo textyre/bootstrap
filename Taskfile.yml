@@ -260,7 +260,7 @@ tasks:
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/git'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/git'
     cmds:
       - 'echo "==> Testing git role..."'
       - '{{.PREFIX}} molecule test'

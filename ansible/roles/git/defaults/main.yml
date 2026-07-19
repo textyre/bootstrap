@@ -1,24 +1,19 @@
 ---
 # === git role — defaults ===
 
-# --- ROLE-003: Supported operating systems ---
-git_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# --- Primary owner ---
+# Primary user whose global git config is managed.
+# signing_method controls automatic commit signing: none disables it, ssh or gpg enables it.
+# signing_key is a public key path for ssh or a key ID for gpg.
 git_owner:
-  name: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
+  name: "{{ target_user }}"
   user_name: ""
   user_email: ""
   signing_method: none
   signing_key: ""
   credential_helper: ""
 
-# --- Additional users ---
+# Additional users managed with the same git configuration contract.
+# Each entry uses the same fields as git_owner.
 git_additional_users: []
 # - name: alice
 #   user_name: "Alice"
@@ -27,27 +22,31 @@ git_additional_users: []
 #   signing_key: ""
 #   credential_helper: ""
 
-# --- Shared defaults (applied to all users) ---
+# Default branch used by `git init`.
 git_default_branch: main
+
+# Editor written to `core.editor`.
 git_editor: vim
+
+# Whether `git pull` rebases by default.
 git_pull_rebase: true
+
+# Whether `git push` automatically creates upstream tracking for new branches.
 git_push_autosetup_remote: true
+
+# Line-ending policy. `input` keeps LF in repository content on Unix hosts.
 git_core_autocrlf: input
-git_commit_sign: >-
-  {{ true if 'security' in (workstation_profiles | default([]))
-     else false }}
 
-# --- Per-subsystem toggles (ROLE-010) ---
-git_manage_signing: >-
-  {{ true if 'developer' in (workstation_profiles | default([]))
-     or 'security' in (workstation_profiles | default([]))
-     else false }}
+# Manage convenience aliases.
 git_manage_aliases: true
-git_manage_credential: true
-git_manage_hooks: false
-git_lfs_enabled: true
 
-# --- Aliases ---
+# Manage credential helper.
+git_manage_credential: true
+
+# Manage a global hooks directory and `core.hooksPath`.
+git_manage_hooks: false
+
+# Built-in aliases applied when `git_manage_aliases` is true.
 git_aliases_preset:
   st: status
   co: checkout
@@ -57,23 +56,21 @@ git_aliases_preset:
   unstage: "reset HEAD --"
   last: "log -1 HEAD"
   amend: "commit --amend --no-edit"
+# Alias values merged on top of `git_aliases_preset`.
 git_aliases_extra: {}
-git_aliases_overwrite: {}
 
-# --- Credential helper ---
+# Default credential helper used when a user does not override it.
 git_credential_helper: "cache --timeout=3600"
 
-# --- Global hooks ---
+# Global hooks directory configured when `git_manage_hooks` is true.
 git_hooks_path: "~/.config/git/hooks"
 
-# --- Extra git config (ROLE-010 dict pattern) ---
+# Additional arbitrary git config values.
 git_config_extra: {}
 # Recommended settings (uncomment or add to group_vars):
 #   color.ui: auto
 #   diff.colorMoved: zebra
 #   merge.conflictstyle: diff3
 #   rerere.enabled: "true"
-git_config_overwrite: {}
-
-# --- Safe directory (CVE-2022-24765) ---
+# Repositories trusted despite ownership boundaries.
 git_safe_directories: []

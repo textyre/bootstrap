@@ -1,4 +1,7 @@
 ---
+# Git package names on Gentoo.
 git_packages:
   - dev-vcs/git
+
+# Git LFS package name on Gentoo.
 git_lfs_package: dev-vcs/git-lfs

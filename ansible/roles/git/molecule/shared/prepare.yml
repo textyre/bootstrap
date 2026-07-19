@@ -1,0 +1,16 @@
+---
+- name: Prepare Git target user
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install ACL support for unprivileged become
+      ansible.builtin.package:
+        name: acl
+        state: present
+
+    - name: Create target user
+      ansible.builtin.user:
+        name: testuser
+        create_home: true
+        shell: /bin/bash
