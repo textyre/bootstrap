@@ -35,8 +35,6 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
@@ -44,9 +42,7 @@ provisioner:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
-
-verifier:
-  name: ansible
+    converge: ../shared/converge.yml
 
 scenario:
   test_sequence:
@@ -55,5 +51,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

@@ -1,120 +1,31 @@
 ---
-# === System-level shell environment ===
-# validate -> install -> chsh -> xdg -> global -> verify -> report
+# === shell — orchestrator ===
+# validate -> load vars -> detect -> configure -> verify -> report
 
-- name: Shell role
-  tags: ['shell']
-  block:
+- name: Validate shell role inputs
+  ansible.builtin.include_tasks:
+    file: validate.yml
 
-    # ======================================================================
-    # ---- Merge developer profile paths/env (ROLE-009) ----
-    # ======================================================================
+- name: Load shell platform variables
+  ansible.builtin.include_tasks:
+    file: load_vars.yml
 
-    - name: Merge developer PATH additions
-      ansible.builtin.set_fact:
-        shell_global_path: "{{ shell_global_path + shell_developer_path }}"
-      when: "'developer' in (workstation_profiles | default([]))"
-      tags: ['shell', 'profile:developer']
+- name: Detect target user
+  ansible.builtin.include_tasks:
+    file: detect.yml
 
-    - name: Merge developer environment variables
-      ansible.builtin.set_fact:
-        shell_global_env: "{{ shell_global_env | combine(shell_developer_env, recursive=True) }}"
-      when: "'developer' in (workstation_profiles | default([]))"
-      tags: ['shell', 'profile:developer']
+- name: Configure login shell
+  ansible.builtin.include_tasks:
+    file: configure/main.yml
 
-    # ======================================================================
-    # ---- Merge user overrides for env dict (ROLE-010) ----
-    # ======================================================================
+- name: Verify shell runtime contract
+  ansible.builtin.include_tasks:
+    file: verify.yml
 
-    - name: Merge shell_global_env with overrides
-      ansible.builtin.set_fact:
-        shell_global_env: "{{ shell_global_env | combine(shell_global_env_overwrite, recursive=True) }}"
-      when: shell_global_env_overwrite | length > 0
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Resolve user home ----
-    # ======================================================================
-
-    - name: Get user home directory
-      ansible.builtin.getent:
-        database: passwd
-        key: "{{ shell_user }}"
-      tags: ['shell']
-
-    - name: Set user home fact
-      ansible.builtin.set_fact:
-        shell_user_home: "{{ getent_passwd[shell_user][4] }}"
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Load OS-specific vars ----
-    # ======================================================================
-
-    - name: Include OS-specific variables
-      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Validation ----
-    # ======================================================================
-
-    - name: Validate shell configuration
-      ansible.builtin.include_tasks: validate.yml
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Install ----
-    # ======================================================================
-
-    - name: Install shell package
-      ansible.builtin.include_tasks: install.yml
-      when: shell_manage_packages | bool
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Login shell ----
-    # ======================================================================
-
-    - name: Set login shell
-      ansible.builtin.include_tasks: chsh.yml
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- XDG directories ----
-    # ======================================================================
-
-    - name: Create XDG directories
-      ansible.builtin.include_tasks: xdg.yml
-      when: shell_manage_xdg | bool
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Global config ----
-    # ======================================================================
-
-    - name: Deploy global shell configuration
-      ansible.builtin.include_tasks: global.yml
-      when: shell_manage_global_config | bool
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Verification ----
-    # ======================================================================
-
-    - name: Verify shell configuration
-      ansible.builtin.include_tasks: verify.yml
-      tags: ['shell']
-
-    # ======================================================================
-    # ---- Report ----
-    # ======================================================================
-
-    - name: "Shell — Execution Report"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_render.yml
-      vars:
-        common_rpt_fact: "_shell_phases"
-        common_rpt_title: "shell"
-      tags: ['shell', 'report']
+- name: Render shell execution report
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_shell_phases"
+    common_rpt_title: "shell"

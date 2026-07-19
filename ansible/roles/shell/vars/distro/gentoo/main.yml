@@ -1,14 +1,15 @@
 ---
 # === Shell packages — Gentoo ===
 
-shell_packages:
-  bash: []
+_shell_packages:
+  bash:
+    - app-shells/bash
   zsh:
     - app-shells/zsh
   fish:
     - app-shells/fish
 
-shell_bin:
+_shell_bin:
   bash: /bin/bash
   zsh: /usr/bin/zsh
   fish: /usr/bin/fish

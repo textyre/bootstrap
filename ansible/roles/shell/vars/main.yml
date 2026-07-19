@@ -6,3 +6,11 @@ _shell_supported_types:
   - bash
   - zsh
   - fish
+
+# OS families with package and path mappings implemented by this role.
+_shell_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo

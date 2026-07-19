@@ -4,7 +4,6 @@
 #
 # Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
 # so the 'common' role is resolved directly from the source tree — no galaxy install required.
-# The dependency section in molecule.yml uses ignore-errors: true so galaxy does not abort
-# when common is not found on Ansible Galaxy (it is a local monorepo role, not a public role).
+# The common role is local to this monorepo and is resolved without a Galaxy install.
 roles:
   - name: common

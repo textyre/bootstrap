@@ -1,0 +1,5 @@
+---
+- name: Read target user account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ shell_user }}"

@@ -3,22 +3,21 @@ galaxy_info:
   role_name: shell
   author: textyre
   description: >-
-    System-level shell environment. Installs shell (bash/zsh/fish),
-    sets login shell, creates XDG directories, deploys global config
-    (/etc/profile.d/, /etc/zsh/zshenv, /etc/fish/conf.d/).
-    Per-user dotfiles managed by chezmoi — not this role.
+    Installs bash, zsh, or fish and assigns it as the login shell
+    for an existing user. PATH, environment variables, and per-user
+    dotfiles are managed outside this role.
   license: MIT
   min_ansible_version: "2.15"
   platforms:
     - name: ArchLinux
       versions: [all]
-    - name: Debian
-      versions: [all]
     - name: Ubuntu
       versions: [all]
-    - name: EL
+    - name: Fedora
+      versions: [all]
+    - name: Void Linux
       versions: [all]
     - name: Gentoo
       versions: [all]
-  galaxy_tags: [shell, bash, zsh, fish, environment]
+  galaxy_tags: [shell, bash, zsh, fish]
 dependencies: []

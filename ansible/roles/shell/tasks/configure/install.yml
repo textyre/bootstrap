@@ -4,10 +4,8 @@
 
 - name: Install shell packages
   ansible.builtin.package:
-    name: "{{ shell_packages[shell_type] }}"
+    name: "{{ _shell_packages[shell_type] }}"
     state: present
-  when: shell_packages[shell_type] | length > 0
-  tags: ['shell', 'install']
 
 - name: "Report: Install shell"
   ansible.builtin.include_role:
@@ -16,6 +14,5 @@
   vars:
     common_rpt_fact: "_shell_phases"
     common_rpt_phase: "Install shell"
-    common_rpt_status: "{{ 'done' if (shell_packages[shell_type] | length > 0) else 'skip' }}"
+    common_rpt_status: "done"
     common_rpt_detail: "{{ shell_type }} ({{ ansible_facts['os_family'] }})"
-  tags: ['shell', 'report']

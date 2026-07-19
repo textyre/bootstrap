@@ -1483,7 +1483,7 @@ vault_password_file = ~/.ansible/vault-pass.sh
 - Document setup in `wiki/Secrets-Management.md`
 
 7. **Configure editor security:**
-- Add `.vimrc`/`.emacs` settings to `shell` role
+- Manage `.vimrc`/`.emacs` security settings through Chezmoi/dotfiles
 
 8. **Schedule password rotation:**
 - Every 90 days
