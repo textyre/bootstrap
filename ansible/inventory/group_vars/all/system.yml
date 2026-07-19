@@ -87,9 +87,6 @@ ssh_keys_user_key_type: ed25519
 #  git — роль roles/git
 # ============================================================
 
-git_target_user: "{{ target_user }}"
-git_user_name: ""
-git_user_email: ""
 git_default_branch: "main"
 git_editor: "vim"
 

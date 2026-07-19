@@ -1,0 +1,11 @@
+---
+- name: Prepare Git target user
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create target user
+      ansible.builtin.user:
+        name: testuser
+        create_home: true
+        shell: /bin/bash

@@ -1,116 +1,22 @@
 ---
-# === git role — main orchestration ===
-# Two-level architecture:
-#   System layer (root): preflight, install
-#   Per-user layer (become_user): config, signing, aliases, credential, LFS, hooks
+# === git: role orchestration ===
 
-# ======================================================================
-# ---- ROLE-003: Preflight ----
-# ======================================================================
+- name: Validate git platform
+  ansible.builtin.include_tasks: validate.yml
 
-- name: Assert supported operating system
-  ansible.builtin.assert:
-    that:
-      - ansible_facts['os_family'] in git_supported_os
-    fail_msg: >-
-      OS family '{{ ansible_facts['os_family'] }}' is not supported.
-      Supported: {{ git_supported_os | join(', ') }}
-    success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-  tags: [git]
+- name: Load git platform variables
+  ansible.builtin.include_tasks: load_vars.yml
 
-# ======================================================================
-# ---- ROLE-001: Load OS-specific variables ----
-# ======================================================================
+- name: Configure git
+  ansible.builtin.include_tasks: configure/main.yml
 
-- name: Include OS-specific variables
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-  tags: [git]
-
-# ROLE-008: Report preflight
-- name: "Report: preflight"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_git_phases"
-    common_rpt_phase: "Preflight"
-    common_rpt_detail: "os={{ ansible_facts['os_family'] }}"
-  tags: [git, report]
-
-# ======================================================================
-# ---- System layer: install packages ----
-# ======================================================================
-
-- name: Install git packages
-  ansible.builtin.include_tasks: install.yml
-  tags: [git, install]
-
-# ROLE-008: Report install
-- name: "Report: install"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_git_phases"
-    common_rpt_phase: "Install"
-    common_rpt_detail: >-
-      packages={{ git_packages | join(', ') }}
-      lfs={{ git_lfs_enabled }}
-  tags: [git, report]
-
-# ======================================================================
-# ---- Per-user layer: configure each user ----
-# ======================================================================
-
-- name: Configure git for each user
-  ansible.builtin.include_tasks: configure_user.yml
-  loop: "{{ [git_owner] + git_additional_users }}"
-  loop_control:
-    loop_var: _git_current_user
-    label: "{{ _git_current_user.name }}"
-  tags: [git, configure]
-
-# ROLE-008: Report user configuration
-- name: "Report: user configuration"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_git_phases"
-    common_rpt_phase: "Configure users"
-    common_rpt_detail: >-
-      owner={{ git_owner.name }}
-      additional={{ git_additional_users | length }}
-  tags: [git, report]
-
-# ======================================================================
-# ---- ROLE-005: Verification ----
-# ======================================================================
-
-- name: Verify git configuration
+- name: Verify git contract
   ansible.builtin.include_tasks: verify.yml
-  tags: [git]
 
-# ROLE-008: Report verification
-- name: "Report: verification"
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: report_phase.yml
-  vars:
-    common_rpt_fact: "_git_phases"
-    common_rpt_phase: "Verify"
-    common_rpt_detail: "all checks passed"
-  tags: [git, report]
-
-# ======================================================================
-# ---- ROLE-008: Final report ----
-# ======================================================================
-
-- name: "Git -- Execution Report"
+- name: Render git execution report
   ansible.builtin.include_role:
     name: common
     tasks_from: report_render.yml
   vars:
     common_rpt_fact: "_git_phases"
     common_rpt_title: "git"
-  tags: [git, report]

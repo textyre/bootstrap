@@ -1,0 +1,13 @@
+---
+# === git — extra configuration (per-user layer) ===
+# Applies arbitrary git config from git_config_extra.
+# Runs as become_user via _git_current_user from configure/user.yml loop.
+
+- name: Set extra git config entries
+  community.general.git_config:
+    name: "{{ item.key }}"
+    value: "{{ item.value | string }}"
+    scope: global
+  loop: "{{ git_config_extra | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

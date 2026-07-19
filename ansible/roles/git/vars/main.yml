@@ -1,0 +1,10 @@
+---
+# === git: internal role constants ===
+
+# Supported OS families for distro package mapping.
+_git_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
