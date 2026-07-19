@@ -29,7 +29,7 @@ same desired ruleset.
 
 1. Validate the OS family and service manager.
 2. Render `/etc/nftables.conf`; `nft -c` rejects invalid generated syntax before deployment.
-3. Restart nftables after a ruleset change; otherwise ensure it is enabled and started.
+3. Enable nftables, apply a changed ruleset, or restore the managed table if it is missing.
 4. Render the execution report.
 
 ## Variables

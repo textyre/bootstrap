@@ -1,17 +1,29 @@
 ---
-- name: Restart nftables with changed firewall configuration
+- name: Enable nftables service
   ansible.builtin.service:
     name: "{{ _firewall_service_name }}"
     enabled: true
+
+- name: Read managed nftables table
+  ansible.builtin.command:
+    cmd: nft list table inet filter
+  register: _firewall_managed_table
+  changed_when: false
+  failed_when: _firewall_managed_table.rc not in [0, 1]
+
+- name: Apply changed firewall configuration # noqa no-handler
+  ansible.builtin.service:
+    name: "{{ _firewall_service_name }}"
     state: restarted
   when: _firewall_configuration is changed
 
-- name: Enable and start nftables service
+- name: Restore missing firewall configuration
   ansible.builtin.service:
     name: "{{ _firewall_service_name }}"
-    enabled: true
     state: started
-  when: _firewall_configuration is not changed
+  when:
+    - _firewall_configuration is not changed
+    - _firewall_managed_table.rc == 1
 
 - name: Report firewall service phase
   ansible.builtin.include_role:

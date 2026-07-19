@@ -26,9 +26,9 @@ software.
 ## Operation
 
 The role validates the platform, validates the generated configuration with
-`nft -c`, applies a changed ruleset, and keeps the nftables service enabled and
-started. Configuration and service failures stop the run instead of being
-converted into warnings.
+`nft -c`, applies a changed ruleset, restores the managed table if it is
+missing, and enables the nftables service for boot. Configuration and service
+failures stop the run instead of being converted into warnings.
 
 Docker Molecule runs the complete role and nftables service in systemd-based
 Arch and Ubuntu containers. Vagrant runs the same contract in Arch and Ubuntu
