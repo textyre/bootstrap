@@ -45,6 +45,32 @@
   changed_when: false
   failed_when: false
 
+- name: Read Caddy network state
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - caddy
+      - ip
+      - "{{ item }}"
+  loop:
+    - address
+    - route
+    - neighbor
+  register: _vaultwarden_caddy_network_state
+  changed_when: false
+  failed_when: false
+
+- name: Read Docker bridge ports
+  ansible.builtin.command:
+    argv:
+      - bridge
+      - link
+      - show
+  register: _vaultwarden_bridge_ports
+  changed_when: false
+  failed_when: false
+
 - name: Read nftables forwarding rules
   ansible.builtin.command:
     argv:
@@ -100,6 +126,17 @@
       Shared Docker network:
       {{ _vaultwarden_proxy_network.stdout | default('') }}
       {{ _vaultwarden_proxy_network.stderr | default('') }}
+
+      Caddy network state:
+      {% for result in _vaultwarden_caddy_network_state.results | default([]) %}
+      {{ result.item }}:
+      {{ result.stdout | default('') }}
+      {{ result.stderr | default('') }}
+      {% endfor %}
+
+      Docker bridge ports:
+      {{ _vaultwarden_bridge_ports.stdout | default('') }}
+      {{ _vaultwarden_bridge_ports.stderr | default('') }}
 
       nftables ruleset:
       {{ _vaultwarden_firewall_rules.stdout | default('') }}
