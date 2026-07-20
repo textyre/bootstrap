@@ -1,10 +1,12 @@
 import { chmod, cp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryDir = path.resolve(projectDir, '..');
 const distDir = path.join(projectDir, 'dist');
+const artifactFile = path.join(distDir, 'ctos-greeter.tar');
 const themeBuildDir = path.join(distDir, 'theme');
 const rootfsDir = path.join(distDir, 'rootfs');
 const themeDir = path.join(rootfsDir, 'usr/share/web-greeter/themes/ctos');
@@ -55,3 +57,16 @@ const packageMetadata = JSON.parse(await readFile(path.join(projectDir, 'package
 await writeFile(path.join(themeDir, 'version'), `${packageMetadata.version}\n`, { mode: 0o644 });
 await normalizePermissions(rootfsDir);
 await chmod(path.join(helperDir, 'write-system-info'), 0o755);
+
+const artifactEntries = (await readdir(rootfsDir)).sort();
+await rm(artifactFile, { force: true });
+execFileSync('tar', [
+  '--create',
+  '--file', artifactFile,
+  '--owner=0',
+  '--group=0',
+  '--numeric-owner',
+  '--directory', rootfsDir,
+  ...artifactEntries,
+]);
+await rm(rootfsDir, { recursive: true, force: true });

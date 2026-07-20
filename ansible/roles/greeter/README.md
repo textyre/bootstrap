@@ -4,7 +4,7 @@ Deploys the complete ctOS greeter artifact produced by `task greeter:build`.
 
 ## Contract
 
-The role has one responsibility: copy the ready-to-deploy greeter filesystem
+The role has one responsibility: deploy the ready-to-use greeter filesystem
 artifact onto the target host. It does not build the frontend, interpret the
 artifact contents, collect machine information, or configure individual
 greeter features.
@@ -16,7 +16,7 @@ runtime and managing the display manager.
 
 ## Execution flow
 
-1. **Deploy** - copy `greeter/dist/rootfs` onto the target filesystem.
+1. **Deploy** - extract `greeter/dist/ctos-greeter.tar` onto the target filesystem.
 2. **Report** - record that the ctOS greeter artifact was deployed.
 
 The role has no handlers, public variables, platform branches, or init-system
@@ -30,9 +30,9 @@ Run the project build before the role:
 task greeter:build
 ```
 
-The build creates `greeter/dist/rootfs`. The workstation Taskfile and greeter CI
-jobs declare this build as a dependency, so the role always receives a complete
-artifact.
+The build creates `greeter/dist/ctos-greeter.tar` with deterministic permissions
+and `root:root` ownership. The workstation Taskfile and greeter CI jobs declare
+this build as a dependency, so the role always receives a complete artifact.
 
 ## Machine information
 

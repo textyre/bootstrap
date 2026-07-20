@@ -23,8 +23,9 @@ theme during initial provisioning.
 ## Build and deployment
 
 `task greeter:build` runs `npm ci` and `npm run build` in `greeter/`. The build
-creates the complete filesystem artifact in `greeter/dist/rootfs`. The role
-copies that artifact onto the target without interpreting its contents.
+creates the complete filesystem artifact as `greeter/dist/ctos-greeter.tar`.
+The role extracts that artifact onto the target without interpreting its
+contents.
 
 The artifact owns the theme, Nody configuration, backgrounds, metadata, and a
 LightDM setup helper. The helper refreshes host, kernel, virtualization,
