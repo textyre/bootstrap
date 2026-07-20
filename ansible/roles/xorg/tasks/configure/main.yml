@@ -1,0 +1,29 @@
+---
+- name: Create Xorg configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ _xorg_system_files | map(attribute='dest') | map('dirname') | unique | list }}"
+
+- name: Deploy Xorg configuration files
+  ansible.builtin.copy:
+    src: "{{ dotfiles_base_dir }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    remote_src: true
+  loop: "{{ _xorg_system_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+
+- name: Configure Xorg monitor mode
+  ansible.builtin.template:
+    src: 10-monitor.conf.j2
+    dest: /etc/X11/xorg.conf.d/10-monitor.conf
+    owner: root
+    group: root
+    mode: "0644"

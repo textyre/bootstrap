@@ -2,6 +2,11 @@
 
 Полное руководство по конфигурации X.Org Server для мониторов и видеодрайверов.
 
+Роль `xorg` управляет только файлами
+`/etc/X11/xorg.conf.d/00-keyboard.conf` и
+`/etc/X11/xorg.conf.d/10-monitor.conf`. Установкой Xorg и драйверов занимаются
+роли `packages` и `gpu_drivers`; запуском графического входа - `lightdm`.
+
 ## Файлы конфигурации X Server
 
 ### Основные файлы xorg.conf и xorg.conf.d

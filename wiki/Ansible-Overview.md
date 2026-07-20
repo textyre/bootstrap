@@ -48,7 +48,7 @@ task workstation # Применить все 14 ролей
 - **firewall** — базовый nftables
 
 ### Desktop Environment
-- **xorg** — конфигурация X11 мониторов
+- **xorg** — системная конфигурация клавиатуры и монитора X11
 - **lightdm** — display manager
 - **chezmoi** — деплой дотфайлов
 
