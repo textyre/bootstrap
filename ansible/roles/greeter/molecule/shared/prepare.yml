@@ -1,0 +1,17 @@
+---
+- name: Prepare greeter artifact
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create test artifact directory
+      ansible.builtin.file:
+        path: /tmp/greeter_test_project/greeter/dist
+        state: directory
+        mode: "0755"
+
+    - name: Copy built ctOS greeter artifact into the test host
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../../../greeter/dist/ctos-greeter.tar"
+        dest: /tmp/greeter_test_project/greeter/dist/ctos-greeter.tar
+        mode: "0644"

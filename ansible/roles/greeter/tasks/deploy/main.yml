@@ -1,0 +1,6 @@
+---
+- name: Deploy ctOS greeter artifact
+  ansible.builtin.unarchive:
+    src: "{{ lookup('env', 'REPO_ROOT') }}/greeter/dist/ctos-greeter.tar"
+    dest: /
+    remote_src: true

@@ -50,6 +50,7 @@ task workstation # Применить все 14 ролей
 ### Desktop Environment
 - **xorg** — системная конфигурация клавиатуры и монитора X11
 - **lightdm** — display manager
+- **greeter** — деплой готового ctOS greeter для Nody/LightDM
 - **chezmoi** — деплой дотфайлов
 
 ## Тестирование

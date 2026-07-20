@@ -115,11 +115,11 @@
       tags: [xorg, display]
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - role: lightdm
-      tags: [lightdm, display]
-
     - role: greeter
       tags: [greeter, display]
+
+    - role: lightdm
+      tags: [lightdm, display]
 
     - role: zen_browser
       tags: [zen_browser, browser]

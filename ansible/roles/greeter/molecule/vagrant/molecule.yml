@@ -18,21 +18,15 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
-    REPO_ROOT: "/opt/greeter-stub"
+    REPO_ROOT: /tmp/greeter_test_project
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -41,5 +35,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

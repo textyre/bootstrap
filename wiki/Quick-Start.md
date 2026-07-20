@@ -83,7 +83,8 @@ scripts/setup-vault-pass.sh
 | 11 | `firewall` | nftables firewall |
 | 12 | `xorg` | Системная конфигурация клавиатуры и монитора X11 |
 | 13 | `lightdm` | Display manager |
-| 14 | `chezmoi` | Деплой дотфайлов через chezmoi |
+| 14 | `greeter` | Деплой готового ctOS greeter для Nody/LightDM |
+| 15 | `chezmoi` | Деплой дотфайлов через chezmoi |
 
 ## Доступные теги
 
@@ -102,6 +103,7 @@ scripts/setup-vault-pass.sh
 --tags firewall   # firewall
 --tags xorg       # xorg
 --tags lightdm    # lightdm
+--tags greeter    # greeter
 --tags chezmoi    # chezmoi
 
 # По категории

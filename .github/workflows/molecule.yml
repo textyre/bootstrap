@@ -147,6 +147,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node.js for greeter assets
+        if: matrix.role == 'greeter'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: greeter/package-lock.json
+
+      - name: Build greeter assets
+        if: matrix.role == 'greeter'
+        working-directory: greeter
+        run: npm ci && npm run build
+
       - name: Run Molecule
         run: |
           if [ "${{ matrix.platform }}" = "arch" ]; then
