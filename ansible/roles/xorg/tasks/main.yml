@@ -1,51 +1,26 @@
 ---
-# === Xorg — main orchestration ===
+# === Xorg system configuration ===
+# configure -> report
 
-- name: Xorg role
-  when: xorg_enabled | bool
-  tags: ['xorg']
-  block:
+- name: Configure Xorg
+  ansible.builtin.include_tasks:
+    file: configure/main.yml
 
-    - name: Assert supported operating system
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] in xorg_supported_os
-        fail_msg: >-
-          OS family '{{ ansible_facts['os_family'] }}' is not supported.
-          Supported: {{ xorg_supported_os | join(', ') }}
-        success_msg: "OS family '{{ ansible_facts['os_family'] }}' is supported"
-      tags: ['xorg']
+- name: Record Xorg configuration
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_phase.yml
+  vars:
+    common_rpt_fact: "_xorg_phases"
+    common_rpt_phase: "Configure"
+    common_rpt_detail: >-
+      files={{ (_xorg_system_files | length) + 1 }}
+      monitor={{ xorg_monitor_mode }}
 
-    - name: Include OS-specific variables
-      ansible.builtin.include_vars: "{{ ansible_facts['os_family'] | lower }}.yml"
-      tags: ['xorg']
-
-    - name: Include OS-specific tasks
-      ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
-      when: ansible_facts['os_family'] in xorg_supported_os
-      tags: ['xorg']
-
-    - name: Report Xorg configuration
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_phase.yml
-      vars:
-        common_rpt_fact: "_xorg_phases"
-        common_rpt_phase: "Deploy config"
-        common_rpt_detail: >-
-          files={{ xorg_system_files | length }}
-          os={{ ansible_facts['os_family'] | lower }}
-      tags: ['xorg', 'report']
-
-    - name: Verify Xorg configuration
-      ansible.builtin.include_tasks: verify.yml
-      tags: ['xorg']
-
-    - name: "Xorg -- Execution Report"
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: report_render.yml
-      vars:
-        common_rpt_fact: "_xorg_phases"
-        common_rpt_title: "xorg"
-      tags: ['xorg', 'report']
+- name: Render Xorg execution report
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: report_render.yml
+  vars:
+    common_rpt_fact: "_xorg_phases"
+    common_rpt_title: "xorg"

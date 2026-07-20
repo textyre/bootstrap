@@ -3,16 +3,15 @@
   hosts: all
   become: true
   gather_facts: true
-
-  tasks:
-    - name: Import shared converge tasks
-      ansible.builtin.import_tasks: tasks/converge_apply.yml
-
-- name: Negative test — invalid xorg_source_dir
-  hosts: all
-  become: true
-  gather_facts: true
-
-  tasks:
-    - name: Import shared negative converge tasks
-      ansible.builtin.import_tasks: tasks/converge_negative.yml
+  roles:
+    - role: xorg
+      vars:
+        dotfiles_base_dir: /tmp/xorg_test_dotfiles
+        xorg_monitor_mode: >-
+          {{ '2560x1440_60.00' if 'xorg_fixed' in group_names else 'auto' }}
+        xorg_monitor_modeline: >-
+          {{
+            '312.25 2560 2752 3024 3488 1440 1443 1448 1493 -hsync +vsync'
+            if 'xorg_fixed' in group_names
+            else ''
+          }}

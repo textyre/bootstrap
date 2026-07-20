@@ -1,0 +1,8 @@
+---
+# System-wide Xorg files owned by this role.
+_xorg_system_files:
+  - src: etc/X11/xorg.conf.d/00-keyboard.conf
+    dest: /etc/X11/xorg.conf.d/00-keyboard.conf
+    owner: root
+    group: root
+    mode: "0644"

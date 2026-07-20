@@ -1,4 +1,0 @@
----
-- name: Configure Xorg on RedHat family
-  ansible.builtin.include_tasks: configure.yml
-  tags: ['xorg']

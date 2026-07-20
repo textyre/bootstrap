@@ -81,7 +81,7 @@ scripts/setup-vault-pass.sh
 | 9 | `shell` | Bash/Zsh конфигурация, алиасы |
 | 10 | `docker` | Docker daemon, сервис, группа |
 | 11 | `firewall` | nftables firewall |
-| 12 | `xorg` | Конфигурация X11 мониторов |
+| 12 | `xorg` | Системная конфигурация клавиатуры и монитора X11 |
 | 13 | `lightdm` | Display manager |
 | 14 | `chezmoi` | Деплой дотфайлов через chezmoi |
 

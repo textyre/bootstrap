@@ -1,0 +1,28 @@
+# Managed by Ansible role xorg.
+{% if xorg_monitor_mode != 'auto' %}
+Section "Monitor"
+    Identifier "ConfiguredMonitor"
+{% if xorg_monitor_modeline | length > 0 %}
+    Modeline "{{ xorg_monitor_mode }}" {{ xorg_monitor_modeline }}
+{% endif %}
+    Option "PreferredMode" "{{ xorg_monitor_mode }}"
+EndSection
+
+Section "Device"
+    Identifier "ConfiguredDevice"
+    Driver "{{ xorg_monitor_driver }}"
+EndSection
+
+Section "Screen"
+    Identifier "ConfiguredScreen"
+    Device "ConfiguredDevice"
+    Monitor "ConfiguredMonitor"
+
+    SubSection "Display"
+        Depth 24
+        Modes "{{ xorg_monitor_mode }}"
+    EndSubSection
+EndSection
+{% else %}
+# Xorg selects the preferred mode reported by the physical or virtual display.
+{% endif %}
