@@ -1,4 +1,39 @@
 ---
+- name: Read Caddy published HTTPS port
+  ansible.builtin.command:
+    argv:
+      - docker
+      - port
+      - caddy
+      - 443/tcp
+  register: _vaultwarden_caddy_https_port
+  changed_when: false
+  failed_when: false
+
+- name: Read host listening sockets
+  ansible.builtin.command:
+    argv:
+      - ss
+      - -lntp
+  register: _vaultwarden_host_sockets
+  changed_when: false
+  failed_when: false
+
+- name: Request Vaultwarden from Caddy container
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - caddy
+      - wget
+      - -S
+      - -O
+      - /dev/null
+      - http://vaultwarden/alive
+  register: _vaultwarden_caddy_backend
+  changed_when: false
+  failed_when: false
+
 - name: Read Caddy runtime log
   ansible.builtin.command:
     argv:
@@ -28,6 +63,18 @@
     msg: |-
       Vaultwarden HTTPS health check failed:
       {{ _vaultwarden_runtime_health.msg | default('unknown error') }}
+
+      Published HTTPS port:
+      {{ _vaultwarden_caddy_https_port.stdout | default('') }}
+      {{ _vaultwarden_caddy_https_port.stderr | default('') }}
+
+      Host listening sockets:
+      {{ _vaultwarden_host_sockets.stdout | default('') }}
+      {{ _vaultwarden_host_sockets.stderr | default('') }}
+
+      Caddy to Vaultwarden request:
+      {{ _vaultwarden_caddy_backend.stdout | default('') }}
+      {{ _vaultwarden_caddy_backend.stderr | default('') }}
 
       Caddy log:
       {{ _vaultwarden_caddy_log.stdout | default('') }}
