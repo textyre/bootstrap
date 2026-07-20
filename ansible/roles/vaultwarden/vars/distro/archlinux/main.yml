@@ -1,0 +1,6 @@
+---
+# Scheduler service and SQLite CLI used by the backup subsystem.
+_vaultwarden_cron_service: cronie
+_vaultwarden_backup_packages:
+  - cronie
+  - sqlite3

@@ -1,12 +1,7 @@
 ---
-# Role dependencies for vaultwarden.
-# common/docker/caddy are used via include_role inside tasks.
-#
-# Resolution: molecule provisioner sets ANSIBLE_ROLES_PATH="${MOLECULE_PROJECT_DIRECTORY}/../"
-# so all three roles are resolved directly from the source tree — no galaxy install required.
-# The dependency section in molecule.yml uses ignore-errors: true so galaxy does not abort
-# when these roles are not found on Ansible Galaxy (they are local monorepo roles).
+# Local prerequisite roles are resolved from the adjacent source tree through
+# ANSIBLE_ROLES_PATH in Molecule and the project playbook environment.
 roles:
   - name: common
-  - name: docker
   - name: caddy
+  - name: docker

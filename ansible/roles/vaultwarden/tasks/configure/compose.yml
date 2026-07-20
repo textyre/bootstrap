@@ -1,0 +1,16 @@
+---
+- name: Deploy Vaultwarden Compose project
+  vars:
+    _vaultwarden_effective_admin_token: >-
+      {{
+        (_vaultwarden_admin_token_file.content | b64decode | trim)
+        if vaultwarden_admin_enabled | bool
+        else ''
+      }}
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ vaultwarden_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: "{{ vaultwarden_admin_enabled | bool }}"

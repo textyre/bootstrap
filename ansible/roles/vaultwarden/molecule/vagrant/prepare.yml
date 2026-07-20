@@ -1,56 +1,52 @@
 ---
-- name: Bootstrap Vagrant VM
+- name: Prepare Vaultwarden virtual machines
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
 
-- name: Prepare Vagrant VM
+- name: Install Vaultwarden runtime test prerequisite
   hosts: all
   become: true
   gather_facts: true
-
+  vars:
+    _vaultwarden_test_docker_packages:
+      Archlinux:
+        - docker
+        - docker-compose
+        - python-requests
+        - ca-certificates
+      Debian:
+        - docker.io
+        - docker-compose-v2
+        - python3-requests
+        - ca-certificates
   tasks:
-    # ---- Arch Linux ----
+    - name: Keep Docker interfaces unmanaged by systemd-networkd
+      ansible.builtin.copy:
+        dest: /etc/systemd/network/10-docker-unmanaged.network
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Match]
+          Name=docker* br-* veth*
 
-    - name: Install Docker and prerequisites (Arch)
-      community.general.pacman:
-        name:
-          - docker
-          - docker-compose
-          - python-requests
-          - ca-certificates
-          - openssl
-          - cronie
-          - sqlite3
-        state: present
+          [Link]
+          Unmanaged=yes
+      register: _vaultwarden_test_networkd_configuration
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    # ---- Debian/Ubuntu ----
+    - name: Reload systemd-networkd test configuration
+      ansible.builtin.systemd_service:
+        name: systemd-networkd
+        state: reloaded
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - _vaultwarden_test_networkd_configuration is changed
 
-    - name: Install Docker and prerequisites (Debian)
-      ansible.builtin.apt:
-        name:
-          - docker.io
-          - docker-compose-v2
-          - python3-requests
-          - ca-certificates
-          - openssl
-          - cron
-          - sqlite3
+    - name: Install Docker Engine and Compose
+      ansible.builtin.package:
+        name: "{{ _vaultwarden_test_docker_packages[ansible_facts['os_family']] }}"
         state: present
-      when: ansible_facts['os_family'] == 'Debian'
 
-    # ---- Common ----
-
-    - name: Enable and start Docker service
-      ansible.builtin.service:
+    - name: Configure Vaultwarden Docker runtime prerequisite
+      ansible.builtin.include_role:
         name: docker
-        enabled: true
-        state: started
-
-    - name: Wait for Docker daemon to be ready
-      ansible.builtin.command:
-        cmd: docker info
-      register: _prepare_docker_info
-      retries: 10
-      delay: 3
-      until: _prepare_docker_info.rc == 0
-      changed_when: false

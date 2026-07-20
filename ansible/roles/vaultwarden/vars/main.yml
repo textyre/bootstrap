@@ -1,0 +1,14 @@
+---
+# OS families with package and scheduler mappings supplied by this role.
+_vaultwarden_supported_os:
+  - Archlinux
+  - Debian
+  - RedHat
+  - Void
+  - Gentoo
+
+# Init systems supported for the backup scheduler service.
+_vaultwarden_supported_service_managers:
+  - systemd
+  - openrc
+  - runit

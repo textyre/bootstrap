@@ -1,0 +1,6 @@
+---
+- name: Install Vaultwarden backup dependencies
+  ansible.builtin.package:
+    name: "{{ _vaultwarden_backup_packages }}"
+    state: present
+  when: vaultwarden_backup_enabled | bool

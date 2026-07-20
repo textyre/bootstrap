@@ -1,0 +1,16 @@
+---
+- name: Create Vaultwarden base directory
+  ansible.builtin.file:
+    path: "{{ vaultwarden_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create Vaultwarden data directory
+  ansible.builtin.file:
+    path: "{{ vaultwarden_base_dir }}/data"
+    state: directory
+    owner: "{{ vaultwarden_container_uid }}"
+    group: "{{ vaultwarden_container_uid }}"
+    mode: '0700'

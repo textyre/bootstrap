@@ -1,96 +1,53 @@
 ---
-# === Vaultwarden (Self-hosted Bitwarden) ===
-# Self-hosted password and secrets manager deployed via Docker Compose
+# HTTPS domain used by Vaultwarden and its Caddy virtual host. Name resolution
+# for other devices belongs to the local DNS service, not this role.
+vaultwarden_domain: vault.local
 
-# === OS Support ===
-# Supported operating systems for this role
-_vaultwarden_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
+# Host directory containing Compose configuration and persistent data.
+vaultwarden_base_dir: /opt/vaultwarden
 
-# --- Core ---
-# Master switch -- set to false to skip all tasks
-vaultwarden_enabled: true
+# External Docker network shared with Caddy.
+vaultwarden_docker_network: proxy
 
-# Domain name used by Caddy virtual host and Vaultwarden DOMAIN env var
-# safe: change to your real domain (e.g., vault.example.com)
-vaultwarden_domain: "vault.local"
+# Vaultwarden container image pinned to a deterministic release.
+vaultwarden_docker_image: vaultwarden/server:1.36.0
 
-# Root directory for compose file, data, and backups
-# careful: changing after initial deploy requires migrating existing data
-vaultwarden_base_dir: "/opt/vaultwarden"
-
-# External Docker network shared with Caddy reverse proxy
-# careful: must match caddy_docker_network in the caddy role
-vaultwarden_docker_network: "proxy"
-
-# --- Admin panel ---
-# Enable /admin panel -- disable after initial setup for security
-# careful: leaving enabled in production exposes admin interface
+# Enable the Vaultwarden /admin interface. Keep it enabled for initial setup;
+# disable it after administration through the web panel is no longer needed.
 vaultwarden_admin_enabled: true
 
-# Pre-set admin token from Ansible vault; if empty, a random token
-# is auto-generated on first run via openssl rand -base64 48
+# Existing admin token, preferably an Argon2 PHC value supplied through Ansible
+# Vault. When empty, the role preserves the existing token or generates a
+# random plaintext token once; Vaultwarden accepts it but reports a warning.
 vaultwarden_admin_token: "{{ vault_vaultwarden_admin_token | default('') }}"
 
-# --- Registration ---
-# Allow new user registration -- disable after creating your account
-# careful: leaving enabled lets anyone create accounts on your instance
+# Allow creation of new user accounts. Disable after intended accounts exist
+# when the service must not accept public or household self-registration.
 vaultwarden_signups_allowed: true
 
-# --- Security (dict-based config with overwrite) ---
-# ROLE-010: dict-based configuration for related security settings.
-# Override individual values via vaultwarden_security_overwrite in inventory.
+# Authentication hashing and endpoint rate limits passed to Vaultwarden.
+# password_iterations=600000 is the upstream default. Login burst 5 is stricter
+# than the upstream value 10; it still permits password plus 2FA requests.
 vaultwarden_security:
-  # PBKDF2 iteration count for password hashing
-  # internal: OWASP minimum is 310,000 (2023); default exceeds this
-  # WARNING: lowering below 310000 weakens password security
   password_iterations: 600000
-  # Max login attempts before rate limiting kicks in
   login_ratelimit_max_burst: 5
-  # Rate-limit window in seconds for login endpoint
   login_ratelimit_seconds: 60
-  # Max admin panel attempts before rate limiting
   admin_ratelimit_max_burst: 3
-  # Rate-limit window in seconds for admin endpoint
   admin_ratelimit_seconds: 60
 
-# User overrides merged on top of vaultwarden_security defaults.
-# Example: { password_iterations: 1000000 }
-vaultwarden_security_overwrite: {}
-
-# --- Backup ---
-# Enable scheduled backup cron job
+# Install backup dependencies and schedule daily SQLite backups.
 vaultwarden_backup_enabled: true
 
-# Directory where backup archives are stored
-# careful: ensure sufficient disk space for retention period
-vaultwarden_backup_dir: "/opt/vaultwarden/backups"
+# Host directory containing generated backups.
+vaultwarden_backup_dir: /opt/vaultwarden/backups
 
-# Number of days to retain backup files before rotation
+# Remove backup artifacts older than this number of days.
 vaultwarden_backup_keep_days: 30
 
-# Hour for the daily backup cron job (24h format)
+# Daily backup schedule in host-local time.
 vaultwarden_backup_cron_hour: "3"
-
-# Minute for the daily backup cron job
 vaultwarden_backup_cron_minute: "0"
 
-# --- Workstation Profiles (ROLE-009) ---
-# Profile-aware defaults. When workstation_profiles is undefined,
-# these expressions evaluate to their base (safe) defaults.
-# security profile: disable admin panel and signups by default
-# developer profile: keep admin enabled for development convenience
-vaultwarden_profile_admin_enabled: >-
-  {{ false if 'security' in (workstation_profiles | default([])) else true }}
-
-vaultwarden_profile_signups_allowed: >-
-  {{ false if 'security' in (workstation_profiles | default([])) else true }}
-
-# UID/GID for the writable data directory.
-# With docker userns-remap: "default", container root (UID 0) maps to host UID 100000.
-# Set to 0 if userns-remap is disabled.
+# Host UID/GID mapped to container root when Docker userns-remap is "default".
+# Use 0 when Docker user namespace remapping is disabled.
 vaultwarden_container_uid: 100000

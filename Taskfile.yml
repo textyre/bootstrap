@@ -77,6 +77,7 @@ tasks:
       - task: test-docker
       - task: test-firewall
       - task: test-caddy
+      - task: test-vaultwarden
       - task: test-xorg
       - task: test-lightdm
       - task: test-greeter
@@ -304,6 +305,17 @@ tasks:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/caddy'
     cmds:
       - 'echo "==> Testing caddy role..."'
+      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
+      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
+
+  test-vaultwarden:
+    desc: "Run Docker and Vagrant molecule tests for vaultwarden"
+    deps: [_ensure-venv, _check-vault]
+    dir: '{{.ANSIBLE_DIR}}/roles/vaultwarden'
+    env:
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/vaultwarden'
+    cmds:
+      - 'echo "==> Testing vaultwarden role..."'
       - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
       - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
 

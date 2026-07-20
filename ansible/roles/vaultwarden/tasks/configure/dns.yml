@@ -1,0 +1,8 @@
+---
+- name: Resolve Vaultwarden domain locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: ".*\\s{{ vaultwarden_domain | regex_escape }}$"
+    line: "127.0.0.1 {{ vaultwarden_domain }}"
+    state: present
+    unsafe_writes: true

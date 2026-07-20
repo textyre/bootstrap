@@ -1,0 +1,9 @@
+---
+- name: Deploy Vaultwarden Caddy site
+  ansible.builtin.template:
+    src: vault.caddy.j2
+    dest: "{{ caddy_base_dir }}/sites/vault.caddy"
+    owner: root
+    group: root
+    mode: '0644'
+  register: _vaultwarden_caddy_configuration
