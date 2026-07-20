@@ -1,6 +1,6 @@
 ---
 # === shell — orchestrator ===
-# validate -> load vars -> detect -> configure -> verify -> report
+# validate -> load vars -> configure -> report
 
 - name: Validate shell role inputs
   ansible.builtin.include_tasks:
@@ -10,17 +10,9 @@
   ansible.builtin.include_tasks:
     file: load_vars.yml
 
-- name: Detect target user
-  ansible.builtin.include_tasks:
-    file: detect.yml
-
 - name: Configure login shell
   ansible.builtin.include_tasks:
     file: configure/main.yml
-
-- name: Verify shell runtime contract
-  ansible.builtin.include_tasks:
-    file: verify.yml
 
 - name: Render shell execution report
   ansible.builtin.include_role:

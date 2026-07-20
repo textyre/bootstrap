@@ -6,12 +6,10 @@ The role does not create users and does not manage PATH, environment variables, 
 
 ## Execution flow
 
-1. **Validate** (`tasks/validate.yml`) checks the supported OS family and selected shell.
+1. **Validate** (`tasks/validate.yml`) checks the supported OS family and selected shell, then requires the target account to exist so the role cannot create it implicitly.
 2. **Load variables** (`tasks/load_vars.yml`) loads package and executable mappings for the detected OS family.
-3. **Detect** (`tasks/detect.yml`) requires `shell_user` to reference an existing account.
-4. **Configure** (`tasks/configure/main.yml`) installs the selected shell and assigns it to the account.
-5. **Verify** (`tasks/verify.yml`) starts the configured executable with `--version`.
-6. **Report** (`tasks/main.yml`) renders the execution report through the `common` role.
+3. **Configure** (`tasks/configure/main.yml`) installs the selected shell and assigns it to the account.
+4. **Report** (`tasks/main.yml`) renders the execution report through the `common` role.
 
 The role has no handlers and manages no service.
 
@@ -52,7 +50,7 @@ Existing sessions keep their current shell until the user logs in again. The rol
 
 ## Testing
 
-Docker and Vagrant scenarios run defaults-only converge and idempotence on Arch and Ubuntu. Shared prepare creates the target account because account creation belongs outside this role. The role-level verify phase checks that the selected shell executable starts.
+Docker and Vagrant scenarios run defaults-only converge and idempotence on Arch and Ubuntu. Shared prepare creates the target account because account creation belongs outside this role. The Docker platform uses the project's shared systemd-capable base images, but the shell role itself has no init-specific behavior.
 
 All Ansible, lint, and Molecule operations run through the project remote VM or CI workflow.
 
@@ -71,9 +69,7 @@ All Ansible, lint, and Molecule operations run through the project remote VM or 
 | `tasks/main.yml` | Phase orchestrator |
 | `tasks/validate.yml` | Input validation |
 | `tasks/load_vars.yml` | Distro mapping loader |
-| `tasks/detect.yml` | Existing-account lookup |
 | `tasks/configure/install.yml` | Shell package state |
 | `tasks/configure/login_shell.yml` | Account login-shell state |
-| `tasks/verify.yml` | Shell executable check |
 | `vars/distro/` | Package and executable mappings |
-| `molecule/shared/` | Shared prepare and converge playbooks |
+| `molecule/shared/` | Shared account preparation and defaults-only converge playbooks |
