@@ -8,6 +8,11 @@
       shell requires one of {{ _shell_supported_os | join(', ') }},
       and shell_type={{ _shell_supported_types | join(', ') }}.
 
+- name: Require existing shell user account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ shell_user }}"
+
 - name: Report shell validation phase
   ansible.builtin.include_role:
     name: common
