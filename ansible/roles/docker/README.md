@@ -27,7 +27,7 @@ The role has no handlers. A changed daemon configuration is applied immediately 
 | `docker_log_max_file` | `3` | safe | Number of rotated container logs retained. |
 | `docker_storage_driver` | `overlay2` | careful | Storage backend: `overlay2`, `btrfs`, `zfs`, or `fuse-overlayfs`. Changing it with existing data requires migration. |
 | `docker_userns_remap` | `default` | careful | Maps container root away from host root. Writable bind mounts may need ownership changes; named volumes are preferred. |
-| `docker_icc` | `true` | careful | Allows communication between containers on the same Docker network. Use separate user-defined networks to isolate workloads. |
+| `docker_icc` | profile-dependent | careful | Allows communication on Docker's default bridge. The developer profile enables it; other profiles disable it. |
 | `docker_live_restore` | `true` | safe | Keeps containers alive while dockerd restarts. |
 | `docker_no_new_privileges` | `true` | safe | Prevents privilege acquisition through setuid binaries by default. |
 | `docker_daemon_extra` | `{}` | careful | Additional daemon keys not already owned by dedicated variables. Managed-key conflicts are rejected. |
@@ -113,7 +113,7 @@ Systemd hosts default to `journald`; runit, openrc, s6, and dinit hosts default 
 | Docker fails on first start with `userns-remap: default` | User namespaces are unavailable, or `dockremap` has no valid subordinate UID/GID ranges | Check host user-namespace support and non-overlapping `dockremap` entries in `/etc/subuid` and `/etc/subgid` |
 | Existing images or containers disappear after enabling remapping | Docker uses a remapped data namespace under `/var/lib/docker` | Restore the previous setting to access old objects, or migrate/recreate them before enabling remapping permanently |
 | Docker CLI reports permission denied | The role intentionally does not grant access to the root-equivalent Docker socket | Run the administrative Docker command through `sudo` |
-| Containers on the same network cannot communicate | `docker_icc` is false | Enable ICC or remove the override; isolate workloads with separate user-defined networks |
+| Containers on the default bridge cannot communicate | `docker_icc` is false | Use a user-defined network or explicitly enable ICC for the host |
 
 ## Testing
 
