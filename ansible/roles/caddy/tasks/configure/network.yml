@@ -2,4 +2,6 @@
 - name: Create Caddy Docker network
   community.docker.docker_network:
     name: "{{ caddy_docker_network }}"
+    driver_options:
+      com.docker.network.bridge.enable_icc: "true"
     state: present
