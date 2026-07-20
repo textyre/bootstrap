@@ -4,6 +4,7 @@
     - name: Request Vaultwarden health endpoint
       ansible.builtin.uri:
         url: "https://{{ vaultwarden_domain }}/alive"
+        use_proxy: false
         validate_certs: true
         status_code: 200
       register: _vaultwarden_runtime_health

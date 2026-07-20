@@ -7,6 +7,7 @@
     - name: Request Vaultwarden web application through Caddy
       ansible.builtin.uri:
         url: https://vault.local/
+        use_proxy: false
         validate_certs: true
         return_content: true
         status_code: 200
