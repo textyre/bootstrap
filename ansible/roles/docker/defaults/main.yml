@@ -20,9 +20,9 @@ docker_storage_driver: "overlay2"
 # The default can affect writable bind mounts; named volumes are preferred.
 docker_userns_remap: "default"
 
-# Allow communication between containers on the same Docker network.
-# Isolate workloads with separate user-defined networks.
-docker_icc: true
+# Allow communication between containers attached to Docker's default bridge.
+docker_icc: >-
+  {{ true if 'developer' in (workstation_profiles | default([])) else false }}
 
 # Keep running containers alive while the Docker daemon restarts.
 docker_live_restore: true
