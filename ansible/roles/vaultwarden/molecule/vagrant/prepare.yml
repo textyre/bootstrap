@@ -19,6 +19,29 @@
         - python3-requests
         - ca-certificates
   tasks:
+    - name: Keep Docker interfaces unmanaged by systemd-networkd
+      ansible.builtin.copy:
+        dest: /etc/systemd/network/10-docker-unmanaged.network
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Match]
+          Name=docker* br-* veth*
+
+          [Link]
+          Unmanaged=yes
+      register: _vaultwarden_test_networkd_configuration
+      when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Reload systemd-networkd test configuration
+      ansible.builtin.systemd_service:
+        name: systemd-networkd
+        state: reloaded
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - _vaultwarden_test_networkd_configuration is changed
+
     - name: Install Docker Engine and Compose
       ansible.builtin.package:
         name: "{{ _vaultwarden_test_docker_packages[ansible_facts['os_family']] }}"
