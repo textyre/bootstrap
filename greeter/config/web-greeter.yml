@@ -1,0 +1,23 @@
+branding:
+    background_images_dir: "/usr/share/web-greeter/themes/ctos/backgrounds"
+    logo_image: ""
+    user_image: ""
+
+greeter:
+    debug_mode: false
+    detect_theme_errors: true
+    screensaver_timeout: 300
+    secure_mode: true
+    theme: "ctos"
+    icon_theme:
+    time_language: ""
+
+layouts:
+    - us
+
+features:
+    battery: false
+    backlight:
+        enabled: false
+        value: 10
+        steps: 0

@@ -341,13 +341,13 @@ tasks:
 
   test-greeter:
     desc: "Run molecule tests for greeter"
-    deps: [_ensure-venv, _check-vault]
+    deps: [_ensure-venv, _check-vault, greeter:build]
     dir: '{{.ANSIBLE_DIR}}/roles/greeter'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/greeter'
     cmds:
       - 'echo "==> Testing greeter role..."'
-      - '{{.PREFIX}} molecule test'
+      - '{{.PREFIX}} molecule test -s docker'
 
   test-chezmoi:
     desc: "Run molecule tests for chezmoi"

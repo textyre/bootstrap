@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   build: {
-    outDir: 'dist',
+    outDir: 'dist/theme',
     emptyOutDir: true,
     target: 'es2022',
     minify: 'esbuild',

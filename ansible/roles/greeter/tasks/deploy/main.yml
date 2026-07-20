@@ -1,0 +1,9 @@
+---
+- name: Deploy ctOS greeter artifact
+  ansible.builtin.copy:
+    src: "{{ lookup('env', 'REPO_ROOT') }}/greeter/dist/rootfs/"
+    dest: /
+    owner: root
+    group: root
+    mode: preserve
+    remote_src: true

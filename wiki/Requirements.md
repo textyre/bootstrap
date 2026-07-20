@@ -24,7 +24,8 @@
 - **firewall**: nftables, правила
 - **xorg**: системная конфигурация клавиатуры и монитора X11; сервер,
   драйверы и утилиты устанавливает роль `packages`
-- **lightdm**: display manager, greeter
+- **lightdm**: конфигурация и запуск display manager
+- **greeter**: деплой готового ctOS greeter
 - **chezmoi**: dotfiles из репозитория
 
 ## Пакеты

@@ -61,7 +61,8 @@ git clone <repo-url> bootstrap && cd bootstrap
 | 11 | `firewall` | Базовый nftables firewall |
 | 12 | `xorg` | Системная конфигурация клавиатуры и монитора X11 |
 | 13 | `lightdm` | Display manager |
-| 14 | `chezmoi` | Деплой дотфайлов через chezmoi |
+| 14 | `greeter` | Деплой готового ctOS greeter для Nody/LightDM |
+| 15 | `chezmoi` | Деплой дотфайлов через chezmoi |
 
 ## Структура проекта
 
