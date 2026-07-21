@@ -33,10 +33,11 @@
           Server = https://fastly.mirror.pkgbuild.com/$repo/os/$arch
       when: ansible_facts['os_family'] == 'Archlinux'
 
-    - name: Force-refresh pacman package database (Arch)
+    - name: Update Arch Linux packages
       community.general.pacman:
         update_cache: true
         force: true
+        upgrade: true
       when: ansible_facts['os_family'] == 'Archlinux'
 
     # ---- Ubuntu/Debian ----

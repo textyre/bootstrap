@@ -1,0 +1,4 @@
+---
+- name: Manage LightDM with systemd
+  ansible.builtin.include_tasks:
+    file: ../init/systemd/service.yml

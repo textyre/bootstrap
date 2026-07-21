@@ -330,14 +330,15 @@ tasks:
       - '{{.PREFIX}} molecule test -s docker'
 
   test-lightdm:
-    desc: "Run molecule tests for lightdm"
+    desc: "Run Docker and Vagrant molecule tests for lightdm"
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/lightdm'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/lightdm'
     cmds:
       - 'echo "==> Testing lightdm role..."'
-      - '{{.PREFIX}} molecule test'
+      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
+      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
 
   test-greeter:
     desc: "Run molecule tests for greeter"

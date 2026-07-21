@@ -1,0 +1,14 @@
+---
+# A container has no display device. This scenario exercises the common
+# configuration process; the Vagrant scenario exercises the full role.
+- name: Converge LightDM configuration
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Deploy LightDM configuration
+      ansible.builtin.include_role:
+        name: lightdm
+        tasks_from: configure/main.yml
+      vars:
+        dotfiles_base_dir: /tmp/lightdm_test_dotfiles
