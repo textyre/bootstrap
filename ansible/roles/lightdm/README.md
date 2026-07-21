@@ -76,11 +76,9 @@ changed, with a message that the init-specific implementation is missing.
 | Scenario | Coverage |
 |----------|----------|
 | `docker` | Arch Linux and Ubuntu configuration convergence and idempotence. A container has no graphical display, so this scenario intentionally runs only the configure phase. |
-| `vagrant` | Arch Linux and Ubuntu full-role convergence and idempotence with LightDM, Xorg, and a test greeter installed as external prerequisites. |
+| `vagrant` | Arch Linux and Ubuntu full-role convergence and idempotence with LightDM, Xorg, and the distribution GTK greeter installed as package prerequisites. |
 
-The Vagrant fixture selects `lightdm-gtk-greeter` in a separate
-`90-molecule-greeter.conf`; it does not replace the production
-`10-config.conf`. Molecule has no duplicate verify phase for file ownership or
-service state already enforced by Ansible modules.
+Molecule has no duplicate verify phase for file ownership or service state
+already enforced by Ansible modules.
 
 All Ansible and Molecule operations run on the remote VM or in CI.

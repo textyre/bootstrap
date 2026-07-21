@@ -38,13 +38,3 @@
         src: "{{ playbook_dir }}/../../../../../dotfiles/etc/lightdm/lightdm.conf.d/10-config.conf"
         dest: /tmp/lightdm_test_dotfiles/etc/lightdm/lightdm.conf.d/10-config.conf
         mode: "0644"
-
-    - name: Provide a greeter for the LightDM runtime test
-      ansible.builtin.copy:
-        dest: /etc/lightdm/lightdm.conf.d/90-molecule-greeter.conf
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Seat:*]
-          greeter-session=lightdm-gtk-greeter
