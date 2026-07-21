@@ -63,10 +63,11 @@ standard MIME application configuration, usually
 ## Testing
 
 Docker and Vagrant scenarios provide `xdg-utils`, ACL support for unprivileged
-execution, and a normal target user. Both run the same role on Arch Linux and
-Ubuntu and require a zero-change idempotence pass. They do not repeat the
-result check already performed by `community.general.xdg_mime`, and they do not
-download the AUR application because package installation belongs to
-`packages`, not this role.
+execution, a normal target user, and the `zen.desktop` entry normally supplied
+by the package stage. Both run the same role on Arch Linux and Ubuntu and
+require a zero-change idempotence pass. They do not repeat the result check
+already performed by `community.general.xdg_mime`, and they do not download the
+AUR application because package installation belongs to `packages`, not this
+role.
 
 All Ansible and Molecule operations run on the remote VM or in CI.

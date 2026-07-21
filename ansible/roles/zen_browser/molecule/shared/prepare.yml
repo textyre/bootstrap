@@ -16,3 +16,18 @@
         name: testuser
         create_home: true
         shell: /bin/bash
+
+    # The packages stage provides this entry on a workstation. The isolated
+    # role scenario supplies only that external prerequisite, not the browser.
+    - name: Provide Zen Browser package desktop entry
+      ansible.builtin.copy:
+        dest: /usr/share/applications/zen.desktop
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          Name=Zen Browser
+          Type=Application
+          Exec=/usr/bin/zen-browser %u
+          MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
