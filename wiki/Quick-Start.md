@@ -84,7 +84,8 @@ scripts/setup-vault-pass.sh
 | 12 | `xorg` | Системная конфигурация клавиатуры и монитора X11 |
 | 13 | `lightdm` | Display manager |
 | 14 | `greeter` | Деплой готового ctOS greeter для Nody/LightDM |
-| 15 | `chezmoi` | Деплой дотфайлов через chezmoi |
+| 15 | `zen_browser` | Браузер по умолчанию для web-ссылок |
+| 16 | `chezmoi` | Деплой дотфайлов через chezmoi |
 
 ## Доступные теги
 
@@ -104,11 +105,13 @@ scripts/setup-vault-pass.sh
 --tags xorg       # xorg
 --tags lightdm    # lightdm
 --tags greeter    # greeter
+--tags zen_browser # zen_browser
 --tags chezmoi    # chezmoi
 
 # По категории
 --tags security   # ssh + firewall
 --tags display    # xorg + lightdm
+--tags browser    # zen_browser
 --tags dotfiles   # chezmoi
 ```
 

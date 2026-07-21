@@ -70,7 +70,7 @@ task workstation # Применить все роли
 - **xorg** — X11 мониторы
 - **lightdm** — display manager
 - **greeter** — LightDM greeter
-- **zen_browser** — Zen Browser (Arch only)
+- **zen_browser** — XDG web-handler для установленного Zen Browser; текущий пакетный профиль предоставляет браузер на Arch Linux
 
 ### Phase 7: User Dotfiles
 - **chezmoi** — деплой дотфайлов

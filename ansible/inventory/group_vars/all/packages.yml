@@ -160,6 +160,7 @@ packages_aur_remove_conflicts:
 # --- AUR пакеты (только Arch Linux, через AUR backend) ---
 # roles/packages использует AUR backend для установки этих пакетов.
 packages_aur:
+  - zen-browser-bin                # Zen Browser binary package
   - i3-rounded-border-patch-git   # i3 с патчем для скруглённых углов
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi

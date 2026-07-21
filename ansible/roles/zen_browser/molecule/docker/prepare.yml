@@ -1,18 +1,6 @@
 ---
-- name: Prepare
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Create non-root test user for AUR builds
-      ansible.builtin.user:
-        name: testuser
-        create_home: true
-        shell: /bin/bash
+- name: Prepare Docker container
+  ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-docker.yml
 
-    - name: Grant testuser passwordless sudo
-      ansible.builtin.copy:
-        dest: /etc/sudoers.d/testuser
-        content: "testuser ALL=(ALL) NOPASSWD: ALL\n"
-        mode: "0440"
-        validate: "visudo -cf %s"
+- name: Prepare Zen Browser test environment
+  ansible.builtin.import_playbook: ../shared/prepare.yml

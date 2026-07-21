@@ -1,0 +1,10 @@
+---
+# Desktop entry installed by zen-browser-bin and assigned as the XDG handler.
+_zen_browser_desktop_file: zen.desktop
+
+# Web content and URL schemes that must open in Zen Browser.
+_zen_browser_mime_types:
+  - text/html
+  - application/xhtml+xml
+  - x-scheme-handler/http
+  - x-scheme-handler/https
