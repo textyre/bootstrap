@@ -27,6 +27,15 @@
         DEBIAN_FRONTEND: noninteractive
       when: ansible_facts['os_family'] == 'Debian'
 
+    - name: Select the installed greeter for the test machine
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "Seat:*"
+        option: greeter-session
+        value: lightdm-gtk-greeter
+        mode: "0644"
+        no_extra_spaces: true
+
     - name: Create test dotfiles directory
       ansible.builtin.file:
         path: /tmp/lightdm_test_dotfiles/etc/lightdm/lightdm.conf.d

@@ -76,7 +76,7 @@ changed, with a message that the init-specific implementation is missing.
 | Scenario | Coverage |
 |----------|----------|
 | `docker` | Arch Linux and Ubuntu configuration convergence and idempotence. A container has no graphical display, so this scenario intentionally runs only the configure phase. |
-| `vagrant` | Arch Linux and Ubuntu full-role convergence and idempotence with LightDM, Xorg, and the distribution GTK greeter installed as package prerequisites. |
+| `vagrant` | Arch Linux and Ubuntu full-role convergence and idempotence with LightDM, Xorg, and a distribution GTK greeter installed and selected as a machine prerequisite. |
 
 Molecule has no duplicate verify phase for file ownership or service state
 already enforced by Ansible modules.
