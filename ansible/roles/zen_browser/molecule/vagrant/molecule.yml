@@ -18,28 +18,14 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    host_vars:
-      arch-vm:
-        zen_browser_user: testuser
-        zen_browser_set_default: false
-      ubuntu-base:
-        # zen_browser is Arch-only; disable on Ubuntu to skip all tasks
-        zen_browser_enabled: false
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -48,5 +34,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

@@ -51,6 +51,7 @@ task workstation # Применить все 14 ролей
 - **xorg** — системная конфигурация клавиатуры и монитора X11
 - **lightdm** — display manager
 - **greeter** — деплой готового ctOS greeter для Nody/LightDM
+- **zen_browser** — XDG web-handler для пользователя рабочей станции
 - **chezmoi** — деплой дотфайлов
 
 ## Тестирование
@@ -114,6 +115,7 @@ ansible/
     ├── firewall/
     ├── xorg/
     ├── lightdm/
+    ├── zen_browser/
     └── chezmoi/
 ```
 

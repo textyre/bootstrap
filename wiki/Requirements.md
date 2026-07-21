@@ -26,6 +26,7 @@
   драйверы и утилиты устанавливает роль `packages`
 - **lightdm**: конфигурация и запуск display manager
 - **greeter**: деплой готового ctOS greeter
+- **zen_browser**: XDG web-handler для `target_user`; пакет устанавливает роль `packages`
 - **chezmoi**: dotfiles из репозитория
 
 ## Пакеты
@@ -39,7 +40,7 @@
 
 ## Тестирование
 
-- Molecule тест для каждой роли (14 ролей)
+- Molecule тест для каждой роли
 - `go-task test --yes` прогоняет lint + все molecule тесты
 - ansible-lint profile: production, 0 нарушений
 - Idempotence: повторный запуск не меняет состояние системы

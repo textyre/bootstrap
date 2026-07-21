@@ -1,0 +1,7 @@
+---
+- name: Set Zen Browser as the default web browser
+  become: true
+  become_user: "{{ target_user }}"
+  community.general.xdg_mime:
+    handler: "{{ _zen_browser_desktop_file }}"
+    mime_types: "{{ _zen_browser_mime_types }}"

@@ -361,14 +361,15 @@ tasks:
       - '{{.PREFIX}} molecule test -s docker'
 
   test-zen-browser:
-    desc: "Run molecule tests for zen_browser"
+    desc: "Run Docker and Vagrant molecule tests for zen_browser"
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/zen_browser'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/zen_browser'
     cmds:
       - 'echo "==> Testing zen_browser role..."'
-      - '{{.PREFIX}} molecule test'
+      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
+      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
 
   # --- Playbook execution ---
 
