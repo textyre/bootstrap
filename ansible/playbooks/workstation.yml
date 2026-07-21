@@ -51,11 +51,9 @@
 
     - role: ntp
       tags: [system, ntp]
-      when: ntp_enabled | default(true)
 
     - role: ntp_audit
       tags: [system, ntp, ntp_audit]
-      when: ntp_audit_enabled | default(true)
 
     - role: pam_hardening
       tags: [pam, security, hardening]
@@ -88,7 +86,6 @@
 
     - role: fail2ban
       tags: [fail2ban, security]
-      when: fail2ban_enabled | default(true)
 
     # --- Phase 4: Development tools ---
     - role: git
@@ -113,7 +110,6 @@
     # --- Phase 6: Desktop environment ---
     - role: xorg
       tags: [xorg, display]
-      when: ansible_facts['os_family'] == 'Archlinux'
 
     - role: greeter
       tags: [greeter, display]
@@ -123,7 +119,6 @@
 
     - role: zen_browser
       tags: [zen_browser, browser]
-      when: ansible_facts['os_family'] == 'Archlinux'
 
     # --- Phase 7: User dotfiles ---
     - role: chezmoi

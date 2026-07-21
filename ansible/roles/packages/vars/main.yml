@@ -5,6 +5,17 @@
 _packages_archlinux_official_all: "{{ packages_archlinux }}"
 _packages_ubuntu_official_all: "{{ packages_ubuntu }}"
 
+# Ubuntu does not package chezmoi. The packages role installs the pinned
+# upstream Debian package system-wide when chezmoi is requested by packages_base.
+_packages_chezmoi_version: "2.71.0"
+_packages_chezmoi_deb_architecture: >-
+  {{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] }}
+_packages_chezmoi_deb_checksums:
+  amd64: "sha256:a8880a1b01e877c3e5da250b9f882ce9fa39962686d75f436fa21e021fa092b1"
+  arm64: "sha256:ea9389f4efdc26d74bf9b4cc73db8f3a529e1e6effb5703e438117ea3f095439"
+_packages_chezmoi_deb_path: >-
+  /var/cache/apt/archives/chezmoi_{{ _packages_chezmoi_version }}_linux_{{ _packages_chezmoi_deb_architecture }}.deb
+
 _packages_official_all: >-
   {{ _packages_archlinux_official_all
      if ansible_facts['os_family'] == 'Archlinux'
@@ -19,8 +30,11 @@ _packages_archlinux_official_count: "{{ _packages_official_all | length }}"
 _packages_archlinux_aur_count: "{{ _packages_archlinux_aur | length }}"
 _packages_archlinux_verify_count: "{{ _packages_archlinux_verify_all | length }}"
 
-_packages_debian_verify_all: "{{ _packages_official_all }}"
+_packages_debian_verify_all: >-
+  {{ _packages_official_all
+     + (['chezmoi'] if 'chezmoi' in packages_base else []) }}
 _packages_debian_official_count: "{{ _packages_official_all | length }}"
+_packages_debian_upstream_count: "{{ 1 if 'chezmoi' in packages_base else 0 }}"
 _packages_debian_verify_count: "{{ _packages_debian_verify_all | length }}"
 
 _packages_verify_all: >-

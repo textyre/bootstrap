@@ -1,0 +1,88 @@
+---
+- name: Prepare chezmoi test environment
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install shared test packages
+      ansible.builtin.package:
+        name:
+          - acl
+          - git
+        state: present
+
+    - name: Install repository chezmoi package
+      ansible.builtin.package:
+        name: chezmoi
+        state: present
+      when: ansible_facts['os_family'] != 'Debian'
+
+    - name: Provide Ubuntu chezmoi package prerequisite
+      when: ansible_facts['os_family'] == 'Debian'
+      block:
+        - name: Download Ubuntu chezmoi test package
+          ansible.builtin.get_url:
+            url: https://github.com/twpayne/chezmoi/releases/download/v2.71.0/chezmoi_2.71.0_linux_amd64.deb
+            dest: /tmp/chezmoi_2.71.0_linux_amd64.deb
+            checksum: "sha256:a8880a1b01e877c3e5da250b9f882ce9fa39962686d75f436fa21e021fa092b1"
+            mode: "0644"
+
+        - name: Install Ubuntu chezmoi test package
+          ansible.builtin.apt:
+            deb: /tmp/chezmoi_2.71.0_linux_amd64.deb
+            state: present
+
+      always:
+        - name: Remove Ubuntu chezmoi test package artifact
+          ansible.builtin.file:
+            path: /tmp/chezmoi_2.71.0_linux_amd64.deb
+            state: absent
+
+    - name: Create target user
+      ansible.builtin.user:
+        name: testuser
+        create_home: true
+        shell: /bin/bash
+
+    - name: Create test source directory
+      ansible.builtin.file:
+        path: /opt/dotfiles
+        state: directory
+        owner: testuser
+        group: testuser
+        mode: "0755"
+
+    - name: Create test wallpaper directory
+      ansible.builtin.file:
+        path: /opt/dotfiles/wallpapers
+        state: directory
+        owner: testuser
+        group: testuser
+        mode: "0755"
+
+    - name: Provide test wallpaper
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/wallpapers/molecule-wallpaper.txt
+        owner: testuser
+        group: testuser
+        mode: "0644"
+        content: "chezmoi-wallpaper-test\n"
+
+    - name: Provide test chezmoi configuration
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/.chezmoi.toml.tmpl
+        owner: testuser
+        group: testuser
+        mode: "0644"
+        content: |
+          {{ '{{' }}- $theme := promptChoiceOnce . "theme_name" "Choose color theme" (list "dracula" "monochrome") {{ '}}' }}
+          [data]
+            theme_name = {{ '{{' }} $theme | quote {{ '}}' }}
+
+    - name: Provide managed test file
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/dot_chezmoi_test_marker
+        owner: testuser
+        group: testuser
+        mode: "0644"
+        content: "chezmoi-deployment-test\n"

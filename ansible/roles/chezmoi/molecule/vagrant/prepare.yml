@@ -2,36 +2,5 @@
 - name: Bootstrap Vagrant VM
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
 
-- name: Prepare (role-specific)
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    # Fixture dotfiles -- minimal source so chezmoi init --source /opt/dotfiles succeeds.
-    # Owner must be vagrant (the chezmoi_user in this scenario) because
-    # chezmoi init creates .git inside the source directory.
-    - name: Create dotfiles fixture directory
-      ansible.builtin.file:
-        path: /opt/dotfiles
-        state: directory
-        mode: '0755'
-        owner: vagrant
-        group: vagrant
-
-    - name: Deploy minimal .chezmoi.toml.tmpl fixture
-      ansible.builtin.copy:
-        dest: /opt/dotfiles/.chezmoi.toml.tmpl
-        content: |
-          [data]
-            theme_name = "dracula"
-        mode: '0644'
-        owner: vagrant
-        group: vagrant
-
-    - name: Deploy minimal test marker dotfile
-      ansible.builtin.copy:
-        dest: /opt/dotfiles/dot_chezmoi_test_marker
-        content: "chezmoi-molecule-test\n"
-        mode: '0644'
-        owner: vagrant
-        group: vagrant
+- name: Prepare chezmoi test environment
+  ansible.builtin.import_playbook: ../shared/prepare.yml

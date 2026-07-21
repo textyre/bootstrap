@@ -128,13 +128,6 @@ vaultwarden_domain: "vault.local"
 # vaultwarden_admin_enabled: false
 
 # ============================================================
-#  chezmoi — роль roles/chezmoi
-# ============================================================
-
-chezmoi_user: "{{ target_user }}"
-chezmoi_install_method: pacman
-
-# ============================================================
 #  gpu_drivers — роль roles/gpu_drivers
 # ============================================================
 

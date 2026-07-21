@@ -2,9 +2,10 @@
 
 Ensures package lists from inventory are installed on the target host.
 
-The role does not own package data. Public inputs come from inventory and role
-defaults. The role builds internal package lists in `vars/main.yml`, then routes
-install, verify, and report work to an OS-family task directory.
+The role does not own package selections. Public inputs come from inventory and
+role defaults. The role builds internal package lists in `vars/main.yml`, then
+routes install, verify, and report work to an OS-family task directory. It owns
+the installation method required to provide each selected package.
 
 Implemented install backends:
 
@@ -54,7 +55,8 @@ currently declared but unimplemented OS backends have no-op task files.
 | `_packages_official_all` | Official package list selected for the current OS |
 | `_packages_archlinux_aur` | Arch AUR package list from `packages_aur` |
 | `_packages_archlinux_verify_all` | Official packages plus AUR packages |
-| `_packages_debian_verify_all` | Official packages only |
+| `_packages_debian_verify_all` | Official packages plus the selected upstream chezmoi package |
+| `_packages_debian_upstream_count` | Number of selected upstream Debian packages |
 | `_packages_verify_all` | Expected package list for the current OS family |
 
 These variables are not inventory API. They are the private interface between
@@ -87,10 +89,13 @@ Override these through inventory, usually `inventory/group_vars/all/packages*.ym
 | `packages_ubuntu` | `[]` | Ubuntu package list passed to apt |
 | `packages_aur` | `[]` | Arch-only AUR packages requested by inventory |
 | `packages_aur_remove_conflicts` | `[]` | Arch packages to remove before installing AUR replacements |
+| `packages_aur_npm_allow_scripts` | `[]` | Pinned npm dependencies permitted to run install scripts while building selected AUR packages |
 | `packages_aur_transport_proxy_enabled` | `false` | Enables optional AUR transport proxy workaround |
 
-Package names are passed to the selected backend as-is. This role does not
-translate package names between distributions.
+Package names are normally passed to the selected backend as-is. Ubuntu does
+not provide the selected `chezmoi` package, so the Debian backend installs the
+pinned, checksum-verified upstream `.deb` when `packages_base` requests
+`chezmoi`.
 
 Package index refresh is handled before this role by `package_manager`; this
 role installs already-selected package lists and verifies installed state.
@@ -144,7 +149,9 @@ moving AUR helper setup into `packages`.
 `tasks/debian/install.yml`:
 
 1. Installs `_packages_official_all` with `ansible.builtin.apt`.
-2. Runs `dpkg --audit` and fails if dpkg has pending configuration.
+2. If `packages_base` requests chezmoi, downloads the pinned upstream `.deb`
+   into apt's package cache and installs it with `ansible.builtin.apt`.
+3. Runs `dpkg --audit` and fails if dpkg has pending configuration.
 
 The Debian backend does not refresh apt package indexes. That preparation
 belongs to `package_manager`, keeping `packages` focused on installation and

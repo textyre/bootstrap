@@ -31,6 +31,7 @@ packages_ubuntu: []     # Ubuntu package names
 # Arch backend maps it to the concrete AUR helper implementation.
 packages_aur: []
 packages_aur_remove_conflicts: []
+packages_aur_npm_allow_scripts: []
 
 # Third-party release mirrors are an explicit operator decision, not a default.
 # Leave false unless you intentionally want the AUR transport proxy workaround.

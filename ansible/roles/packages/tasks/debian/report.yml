@@ -7,7 +7,8 @@
     common_rpt_fact: "_packages_phases"
     common_rpt_phase: "Install packages"
     common_rpt_detail: >-
-      {{ _packages_debian_official_count }} official on {{ ansible_facts['os_family'] }}
+      {{ _packages_debian_official_count }} repository,
+      {{ _packages_debian_upstream_count }} upstream on {{ ansible_facts['os_family'] }}
   tags: ['packages', 'report']
 
 - name: "Report: Package verification"
@@ -18,5 +19,5 @@
     common_rpt_fact: "_packages_phases"
     common_rpt_phase: "Verify packages"
     common_rpt_detail: >-
-      {{ _packages_debian_verify_count }} official packages verified on {{ ansible_facts['os_family'] }}
+      {{ _packages_debian_verify_count }} packages verified on {{ ansible_facts['os_family'] }}
   tags: ['packages', 'report']

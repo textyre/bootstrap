@@ -1,0 +1,58 @@
+---
+- name: Initialize chezmoi configuration
+  become: true
+  become_user: "{{ target_user }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/chezmoi
+      - --source
+      - "{{ dotfiles_base_dir }}"
+      - --force
+      - --no-tty
+      - init
+      - --promptChoice
+      - "Choose color theme={{ chezmoi_theme_name }}"
+    chdir: "{{ getent_passwd[target_user][4] }}"
+    creates: "{{ getent_passwd[target_user][4] }}/.config/chezmoi/chezmoi.toml"
+
+- name: Configure dotfiles theme
+  become: true
+  become_user: "{{ target_user }}"
+  ansible.builtin.lineinfile:
+    path: "{{ getent_passwd[target_user][4] }}/.config/chezmoi/chezmoi.toml"
+    regexp: '^\s*theme_name\s*='
+    line: '  theme_name = "{{ chezmoi_theme_name }}"'
+    insertafter: '^\[data\]$'
+
+- name: Create user wallpaper directory
+  ansible.builtin.file:
+    path: "{{ getent_passwd[target_user][4] }}/.local/share/wallpapers"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: "0755"
+
+- name: Deploy user wallpapers
+  ansible.builtin.copy:
+    src: "{{ dotfiles_base_dir }}/wallpapers/"
+    dest: "{{ getent_passwd[target_user][4] }}/.local/share/wallpapers/"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: preserve
+    remote_src: true
+
+- name: Apply user dotfiles
+  become: true
+  become_user: "{{ target_user }}"
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/chezmoi
+      - --source
+      - "{{ dotfiles_base_dir }}"
+      - --force
+      - --no-tty
+      - --verbose
+      - apply
+    chdir: "{{ getent_passwd[target_user][4] }}"
+  register: _chezmoi_apply
+  changed_when: _chezmoi_apply.stdout | trim | length > 0

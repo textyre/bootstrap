@@ -1,44 +1,24 @@
-# Dotfiles (chezmoi)
+# Dotfiles
 
-Dotfiles управляются через [chezmoi](https://www.chezmoi.io/).
+This directory is the chezmoi source used by the Ansible `chezmoi` role.
 
-## Структура
+Key paths:
 
-```
-dotfiles/
-├── .chezmoi.toml.tmpl      # chezmoi configuration
-├── dot_xinitrc             # ~/.xinitrc (X11 initialization)
-├── dot_config/i3/config    # ~/.config/i3/config (i3 configuration)
-└── README.md               # этот файл
-```
+- `.chezmoi.toml.tmpl` generates the target user's chezmoi configuration.
+- `.chezmoidata/` contains reusable template data.
+- `dot_config/` maps to `~/.config/`.
+- `dot_local/` maps to `~/.local/`, including executable helpers.
+- `wallpapers/` is ignored by chezmoi and copied by the role to the user's XDG data directory.
+- `.chezmoiscripts/` contains source-controlled post-apply scripts.
+- `.chezmoiignore` excludes repository-only content.
 
-## Установка
+The role applies this source from the project-wide `dotfiles_base_dir`; user
+creation belongs to an earlier workstation stage.
 
-Во время bootstrap процесса chezmoi автоматически инициализируется и применяется:
+For manual read-only inspection as the target user:
 
 ```bash
-chezmoi init --apply https://your-repo-url/dotfiles
-```
-
-## Ручное использование
-
-### Первый запуск
-```bash
-chezmoi init https://your-repo-url/dotfiles
-chezmoi apply
-```
-
-### Обновление dotfiles
-```bash
-chezmoi pull --apply
-```
-
-### Просмотр изменений
-```bash
+chezmoi status
 chezmoi diff
-```
-
-### Редактирование dotfile
-```bash
-chezmoi edit ~/.xinitrc
+chezmoi data
 ```

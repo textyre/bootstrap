@@ -13,6 +13,7 @@ AUR helper installation and AUR package management backend for Arch Linux.
 - [x] Supports split execution: setup-only or AUR-install-only via role flags
 - [x] Optionally installs AUR packages via `kewlfft.aur.aur` with `use: yay`
 - [x] Optionally removes conflicting official packages before AUR installs
+- [x] Configures the AUR builder npm install-script allowlist for Node-based packages
 - [x] Validates AUR vs official package conflicts via `validate-aur-conflicts.sh`
 
 ## Variables
@@ -28,6 +29,7 @@ AUR helper installation and AUR package management backend for Arch Linux.
 | `yay_packages_aur` | `[]` | AUR packages to install (empty = skip AUR package management) |
 | `yay_packages_aur_remove_conflicts` | `[]` | Official packages to remove before AUR installs |
 | `yay_packages_official` | `[]` | Official packages list (used for conflict validation) |
+| `yay_npm_allow_scripts` | `[]` | Pinned npm dependencies permitted to run install scripts during AUR builds |
 
 ## Supported platforms
 

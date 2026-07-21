@@ -1,26 +1,4 @@
 ---
-# === Деплой дотфайлов через chezmoi ===
-# Установка chezmoi, инициализация и применение из локального источника
-
-# Поддерживаемые OS family (ROLE-003)
-_chezmoi_supported_os:
-  - Archlinux
-  - Debian
-  - RedHat
-  - Void
-  - Gentoo
-
-# Включить/выключить роль целиком
-chezmoi_enabled: true
-
-# Целевой пользователь
-chezmoi_user: "{{ ansible_facts['env']['SUDO_USER'] | default(ansible_facts['user_id']) }}"
-
-# Путь к исходным дотфайлам (dotfiles/ в корне репозитория)
-chezmoi_source_dir: "{{ dotfiles_base_dir | default(lookup('env', 'REPO_ROOT') ~ '/dotfiles', true) }}"
-
-# Метод установки: pacman или script
-chezmoi_install_method: pacman
-
-# Тема по умолчанию (передаётся в chezmoi через --promptChoice)
+# Theme selected while generating target_user's chezmoi configuration.
+# Allowed by dotfiles/.chezmoi.toml.tmpl: dracula, monochrome.
 chezmoi_theme_name: "dracula"

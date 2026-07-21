@@ -6,3 +6,6 @@
 
   roles:
     - role: chezmoi
+      vars:
+        target_user: testuser
+        dotfiles_base_dir: /opt/dotfiles

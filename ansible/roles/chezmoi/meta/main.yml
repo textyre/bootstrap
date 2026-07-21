@@ -2,15 +2,11 @@
 galaxy_info:
   role_name: chezmoi
   author: textyre
-  description: Деплой пользовательских дотфайлов через chezmoi
+  description: Apply project dotfiles to the workstation user with chezmoi
   license: MIT
   min_ansible_version: "2.15"
-  # ROLE-003: все 5 поддерживаемых дистро
-  # ROLE-002: chezmoi не управляет сервисами — init-dispatch не применим
   platforms:
     - name: ArchLinux
-      versions: [all]
-    - name: Debian
       versions: [all]
     - name: Ubuntu
       versions: [all]
