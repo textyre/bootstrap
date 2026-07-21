@@ -29,3 +29,4 @@ yay_build_deps:
 yay_packages_aur: []
 yay_packages_aur_remove_conflicts: []
 yay_packages_official: []
+yay_npm_allow_scripts: []

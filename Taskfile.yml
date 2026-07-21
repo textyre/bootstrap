@@ -355,10 +355,10 @@ tasks:
     deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/chezmoi'
     env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
+      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/chezmoi'
     cmds:
       - 'echo "==> Testing chezmoi role..."'
-      - '{{.PREFIX}} molecule test'
+      - '{{.PREFIX}} molecule test -s docker'
 
   test-zen-browser:
     desc: "Run molecule tests for zen_browser"

@@ -13,6 +13,25 @@
   until: _packages_install_result is succeeded
   tags: ['packages', 'install']
 
+- name: Download chezmoi package
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/twpayne/chezmoi/releases/download/v{{ _packages_chezmoi_version }}/chezmoi_{{ _packages_chezmoi_version }}_linux_{{ _packages_chezmoi_deb_architecture }}.deb
+    dest: "{{ _packages_chezmoi_deb_path }}"
+    checksum: "{{ _packages_chezmoi_deb_checksums[_packages_chezmoi_deb_architecture] }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: "'chezmoi' in packages_base"
+  tags: ['packages', 'install']
+
+- name: Install chezmoi package
+  ansible.builtin.apt:
+    deb: "{{ _packages_chezmoi_deb_path }}"
+    state: present
+  when: "'chezmoi' in packages_base"
+  tags: ['packages', 'install']
+
 # Проверяем, что dpkg не оставил незавершенную конфигурацию пакетов.
 # Это ловит поломанное состояние после установки, а не занимается обновлением системы.
 - name: Assert dpkg package database has no pending configuration

@@ -36,5 +36,6 @@
     yay_packages_aur: "{{ _packages_archlinux_aur }}"
     yay_packages_aur_remove_conflicts: "{{ packages_aur_remove_conflicts }}"
     yay_packages_official: "{{ _packages_official_all }}"
+    yay_npm_allow_scripts: "{{ packages_aur_npm_allow_scripts }}"
   when: is_packages_archlinux_aur
   tags: ['packages', 'install', 'aur']

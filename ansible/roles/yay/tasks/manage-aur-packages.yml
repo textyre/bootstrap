@@ -22,6 +22,14 @@
   changed_when: false
   tags: ['install', 'aur']
 
+- name: Configure npm install-script policy for AUR builds
+  ansible.builtin.copy:
+    dest: "/home/{{ yay_builder_user }}/.npmrc"
+    content: "allow-scripts={{ yay_npm_allow_scripts | join(',') }}\n"
+    owner: "{{ yay_builder_user }}"
+    mode: "0600"
+  tags: ['install', 'aur']
+
 - name: Install AUR packages
   vars:
     _yay_command_path: >-
