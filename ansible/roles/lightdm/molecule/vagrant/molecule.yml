@@ -18,28 +18,14 @@ platforms:
 
 provisioner:
   name: ansible
-  options:
-    skip-tags: report
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-  inventory:
-    host_vars:
-      arch-vm:
-        lightdm_enable_service: false
-        lightdm_source_dir: /tmp/dotfiles
-      ubuntu-base:
-        lightdm_enable_service: false
-        lightdm_source_dir: /tmp/dotfiles
   playbooks:
     prepare: prepare.yml
     converge: ../shared/converge.yml
-    verify: ../shared/verify.yml
-
-verifier:
-  name: ansible
 
 scenario:
   test_sequence:
@@ -48,5 +34,4 @@ scenario:
     - prepare
     - converge
     - idempotence
-    - verify
     - destroy

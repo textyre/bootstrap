@@ -1,0 +1,11 @@
+---
+- name: Require a supported init system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.get('service_mgr', '') == 'systemd'
+    fail_msg: >-
+      LightDM service management is implemented only for systemd; detected
+      '{{ ansible_facts['service_mgr'] | default('undefined') }}'. Implement
+      the init-specific service task before using this role on runit, openrc,
+      s6, or dinit.
+    quiet: true

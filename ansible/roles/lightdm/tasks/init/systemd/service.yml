@@ -1,0 +1,6 @@
+---
+- name: Enable and start LightDM
+  ansible.builtin.systemd:
+    name: lightdm
+    enabled: true
+    state: started

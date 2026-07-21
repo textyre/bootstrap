@@ -1,0 +1,17 @@
+---
+- name: Create LightDM configuration directories
+  ansible.builtin.file:
+    path: /etc/lightdm/lightdm.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy LightDM configuration
+  ansible.builtin.copy:
+    src: "{{ dotfiles_base_dir }}/etc/lightdm/lightdm.conf.d/10-config.conf"
+    dest: /etc/lightdm/lightdm.conf.d/10-config.conf
+    owner: root
+    group: root
+    mode: "0644"
+    remote_src: true
