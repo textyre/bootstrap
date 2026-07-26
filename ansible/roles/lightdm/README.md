@@ -32,10 +32,8 @@ by this role.
 
 ## Variables
 
-The role has no role-specific configurable variables.
-
-It consumes the project-wide `dotfiles_base_dir`, which points to the dotfiles
-checkout already present on the managed host.
+The role has no role-specific configurable variables. Its configuration file
+ships in the role's `files/` directory.
 
 ## Managed configuration
 

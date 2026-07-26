@@ -5,5 +5,3 @@
   gather_facts: true
   roles:
     - role: lightdm
-      vars:
-        dotfiles_base_dir: /tmp/lightdm_test_dotfiles

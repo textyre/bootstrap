@@ -16,8 +16,7 @@ new X11 server starts.
 
 ## Variables
 
-The role consumes the project-wide `dotfiles_base_dir` path provided by the
-common inventory and exposes these monitor settings:
+The role exposes these monitor settings:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -27,23 +26,12 @@ common inventory and exposes these monitor settings:
 
 ### Internal (`vars/main.yml`)
 
-`_xorg_system_files` defines the keyboard file copied from dotfiles. The monitor
-file is rendered by the role template. There are no
+`_xorg_system_files` defines the keyboard file shipped in the role's `files/`
+directory. The monitor file is rendered by the role template. There are no
 distro-specific mappings because all supported systems use the same Xorg
 configuration path and format.
 
 ## Examples
-
-### Use a repository checkout on the managed host
-
-```yaml
-# inventory/host_vars/workstation/xorg.yml
-dotfiles_base_dir: /home/textyre/bootstrap/dotfiles
-```
-
-The role reads its keyboard source file relative to the project-wide
-`dotfiles_base_dir`. A missing source file makes the role fail without changing
-the destination file.
 
 ### Use a fixed advertised mode
 
@@ -90,8 +78,7 @@ grep -E '\(EE\)|\(WW\)' ~/.local/share/xorg/Xorg.0.log
 
 | Symptom | Diagnosis | Resolution |
 |---------|-----------|------------|
-| Role cannot copy a source file | Check the reported path beneath `dotfiles_base_dir` | Sync dotfiles to the managed host or correct `dotfiles_base_dir`. |
-| X11 starts with the wrong keyboard layout | Inspect `/etc/X11/xorg.conf.d/00-keyboard.conf` | Correct the source file and rerun the role. |
+| X11 starts with the wrong keyboard layout | Inspect `/etc/X11/xorg.conf.d/00-keyboard.conf` | Correct the role's `files/00-keyboard.conf` and rerun the role. |
 | X11 starts with the wrong resolution or a black screen | Inspect the Xorg log for `(EE)` and rejected modes | Return `xorg_monitor_mode` to `auto` or correct the explicit mode, driver, and optional modeline. |
 | Wayland ignores the monitor file | Confirm the session type with `echo "$XDG_SESSION_TYPE"` | Configure the active Wayland compositor; this role intentionally configures X11 only. |
 

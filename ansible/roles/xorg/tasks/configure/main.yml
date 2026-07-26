@@ -10,12 +10,11 @@
 
 - name: Deploy Xorg configuration files
   ansible.builtin.copy:
-    src: "{{ dotfiles_base_dir }}/{{ item.src }}"
+    src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     owner: "{{ item.owner }}"
     group: "{{ item.group }}"
     mode: "{{ item.mode }}"
-    remote_src: true
   loop: "{{ _xorg_system_files }}"
   loop_control:
     label: "{{ item.dest }}"
