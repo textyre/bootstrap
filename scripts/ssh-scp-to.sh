@@ -58,7 +58,7 @@ if [[ "${1:-}" == "--project" ]]; then
     ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
         "find '${REMOTE_BASE}' -delete 2>/dev/null; rm -rf '${REMOTE_BASE}' 2>/dev/null; true"
 
-    PROJECT_DIRS=(ansible scripts greeter)
+    PROJECT_DIRS=(ansible scripts)
     PROJECT_FILES=(Taskfile.yml bootstrap.sh AGENTS.md CLAUDE.md)
 
     for dir in "${PROJECT_DIRS[@]}"; do
@@ -72,13 +72,6 @@ if [[ "${1:-}" == "--project" ]]; then
                 --exclude='ansible/.molecule' \
                 --exclude='ansible/.vault-pass' \
                 --exclude='ansible/*.vault-pass' \
-                "${dir}/") | \
-                ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "tar xf - -C ${REMOTE_BASE}/"
-        elif [[ "$dir" == "greeter" ]]; then
-            # Build artefacts are created on the VM by the Taskfile before workstation runs.
-            (cd "${REPO_ROOT}" && "${TAR_BIN}" cf - \
-                --exclude='greeter/node_modules' \
-                --exclude='greeter/dist' \
                 "${dir}/") | \
                 ssh "${SSH_OPTS[@]}" "$SSH_TARGET" "tar xf - -C ${REMOTE_BASE}/"
         else

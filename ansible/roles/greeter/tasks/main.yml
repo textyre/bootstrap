@@ -13,7 +13,7 @@
   vars:
     common_rpt_fact: "_greeter_phases"
     common_rpt_phase: "Deploy"
-    common_rpt_detail: "artifact=ctos-greeter"
+    common_rpt_detail: "artifact=ctos-greeter-{{ greeter_version }}"
 
 - name: Render greeter execution report
   ansible.builtin.include_role:

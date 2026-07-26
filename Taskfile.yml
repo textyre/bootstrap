@@ -342,7 +342,7 @@ tasks:
 
   test-greeter:
     desc: "Run molecule tests for greeter"
-    deps: [_ensure-venv, _check-vault, greeter:build]
+    deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}/roles/greeter'
     env:
       MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/greeter'
@@ -400,7 +400,7 @@ tasks:
 
   workstation:
     desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."
-    deps: [_ensure-venv, _check-vault, greeter:build]
+    deps: [_ensure-venv, _check-vault]
     dir: '{{.ANSIBLE_DIR}}'
     prompt: "This will install all packages and configure your system. Continue?"
     cmds:
@@ -432,21 +432,6 @@ tasks:
         echo "DEPRECATED: snapshot mutation on source VM 'arch-base' is disabled."
         echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone."
         exit 1
-
-  # --- ctOS Greeter ---
-
-  greeter:build:
-    desc: "Build ctOS greeter theme (Vite + TypeScript)"
-    dir: greeter
-    cmds:
-      - npm ci
-      - npm run build
-
-  greeter:dev:
-    desc: "Start Vite dev server for greeter theme"
-    dir: greeter
-    cmds:
-      - npm run dev
 
   all:
     desc: "Run check + lint"
