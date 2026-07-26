@@ -16,7 +16,7 @@
     common_rpt_phase: "Configure"
     common_rpt_detail: >-
       user={{ target_user }}
-      source={{ dotfiles_base_dir }}
+      source={{ chezmoi_repo_url }}
       theme={{ chezmoi_theme_name }}
 
 - name: Render chezmoi execution report

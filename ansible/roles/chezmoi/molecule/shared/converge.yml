@@ -8,4 +8,4 @@
     - role: chezmoi
       vars:
         target_user: testuser
-        dotfiles_base_dir: /opt/dotfiles
+        chezmoi_repo_url: file:///opt/dotfiles

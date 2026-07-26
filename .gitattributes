@@ -1,6 +1,0 @@
-# Track wallpaper binaries with Git LFS
-dotfiles/wallpapers/*.png filter=lfs diff=lfs merge=lfs -text
-dotfiles/wallpapers/*.jpg filter=lfs diff=lfs merge=lfs -text
-dotfiles/wallpapers/*.jpeg filter=lfs diff=lfs merge=lfs -text
-dotfiles/wallpapers/*.webp filter=lfs diff=lfs merge=lfs -text
-dotfiles/wallpapers/*.bmp filter=lfs diff=lfs merge=lfs -text

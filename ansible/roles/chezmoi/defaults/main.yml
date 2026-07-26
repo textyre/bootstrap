@@ -1,4 +1,10 @@
 ---
+# Git repository with the chezmoi source applied for target_user.
+chezmoi_repo_url: "https://github.com/textyre/dotfiles.git"
+
+# Optional branch or tag passed to chezmoi init; empty uses the remote default.
+chezmoi_repo_ref: ""
+
 # Theme selected while generating target_user's chezmoi configuration.
-# Allowed by dotfiles/.chezmoi.toml.tmpl: dracula, monochrome.
+# Allowed by the dotfiles repository .chezmoi.toml.tmpl: dracula, monochrome.
 chezmoi_theme_name: "dracula"
