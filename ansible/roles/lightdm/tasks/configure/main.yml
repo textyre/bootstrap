@@ -9,9 +9,8 @@
 
 - name: Deploy LightDM configuration
   ansible.builtin.copy:
-    src: "{{ dotfiles_base_dir }}/etc/lightdm/lightdm.conf.d/10-config.conf"
+    src: 10-config.conf
     dest: /etc/lightdm/lightdm.conf.d/10-config.conf
     owner: root
     group: root
     mode: "0644"
-    remote_src: true

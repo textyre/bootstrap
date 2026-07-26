@@ -6,7 +6,6 @@
   roles:
     - role: xorg
       vars:
-        dotfiles_base_dir: /tmp/xorg_test_dotfiles
         xorg_monitor_mode: >-
           {{ '2560x1440_60.00' if 'xorg_fixed' in group_names else 'auto' }}
         xorg_monitor_modeline: >-
