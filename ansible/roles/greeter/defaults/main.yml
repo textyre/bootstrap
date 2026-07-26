@@ -1,0 +1,5 @@
+---
+# Released ctOS greeter artifact deployed to the workstation.
+greeter_version: "1.0.0"
+greeter_artifact_url: "https://github.com/textyre/ctos-greeter/releases/download/v{{ greeter_version }}/ctos-greeter.tar"
+greeter_artifact_checksum: "sha256:8f2429c7d82156f27a47d5363282baa01e38b6c2bc210e818d5945e9de82f266"

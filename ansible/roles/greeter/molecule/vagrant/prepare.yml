@@ -1,6 +1,3 @@
 ---
 - name: Prepare Vagrant guest
   ansible.builtin.import_playbook: ../../../../molecule/shared/prepare-vagrant.yml
-
-- name: Prepare real greeter artifact
-  ansible.builtin.import_playbook: ../shared/prepare.yml

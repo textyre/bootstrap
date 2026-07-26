@@ -1,38 +1,38 @@
 # greeter
 
-Deploys the complete ctOS greeter artifact produced by `task greeter:build`.
+Deploys the released ctOS greeter artifact from the standalone
+[textyre/ctos-greeter](https://github.com/textyre/ctos-greeter) repository.
 
 ## Contract
 
-The role has one responsibility: deploy the ready-to-use greeter filesystem
-artifact onto the target host. It does not build the frontend, interpret the
+The role has one responsibility: download the pinned release artifact and
+deploy it onto the target host. It does not build the frontend, interpret the
 artifact contents, collect machine information, or configure individual
 greeter features.
 
 The artifact owns everything required by the ctOS greeter, including its theme,
-runtime configuration, backgrounds, metadata, and machine-information helper.
+runtime configuration, metadata, and machine-information helper.
 The `packages` and `lightdm` roles remain responsible for installing the greeter
 runtime and managing the display manager.
 
 ## Execution flow
 
-1. **Deploy** - extract `greeter/dist/ctos-greeter.tar` onto the target filesystem.
+1. **Deploy** - download the release tar (checksum-verified) and extract it
+   onto the target filesystem.
 2. **Report** - record that the ctOS greeter artifact was deployed.
 
-The role has no handlers, public variables, platform branches, or init-system
-branches.
+The role has no handlers, platform branches, or init-system branches.
 
-## Build requirement
+## Variables
 
-Run the project build before the role:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `greeter_version` | `1.0.0` | Released ctos-greeter version to deploy. |
+| `greeter_artifact_url` | GitHub Release URL derived from `greeter_version` | Download location of `ctos-greeter.tar`. |
+| `greeter_artifact_checksum` | pinned `sha256:...` | Checksum the downloaded artifact must match. |
 
-```bash
-task greeter:build
-```
-
-The build creates `greeter/dist/ctos-greeter.tar` with deterministic permissions
-and `root:root` ownership. The workstation Taskfile and greeter CI jobs declare
-this build as a dependency, so the role always receives a complete artifact.
+Bumping the version requires updating both `greeter_version` and
+`greeter_artifact_checksum` together.
 
 ## Machine information
 
@@ -42,11 +42,18 @@ starts. Ansible does not collect or render those values.
 
 ## Testing
 
-Docker and Vagrant scenarios run on Arch Linux and Ubuntu. Each scenario copies
-the real built artifact into the test host, converges the role, and runs the
-idempotence pass. The tests cover artifact deployment; installing Nody and
-starting LightDM belong to their respective role and workstation integration
-tests.
+Docker and Vagrant scenarios run on Arch Linux and Ubuntu. Each scenario
+converges the role with its defaults, downloading the pinned release artifact
+from GitHub, and runs the idempotence pass. The tests cover artifact
+deployment; installing Nody and starting LightDM belong to their respective
+role and workstation integration tests.
 
 Ansible, Molecule, package, and build commands run only on the remote VM or in
 CI.
+
+## Troubleshooting
+
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| Download fails | Release or network unavailable from the target | Check `greeter_artifact_url` and network access; releases are published by the ctos-greeter repository CI. |
+| Checksum mismatch | `greeter_version` and `greeter_artifact_checksum` are out of sync | Update both values together from the release. |

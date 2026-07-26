@@ -20,7 +20,6 @@ provisioner:
   name: ansible
   env:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/../"
-    REPO_ROOT: /tmp/greeter_test_project
   config_options:
     defaults:
       callbacks_enabled: profile_tasks

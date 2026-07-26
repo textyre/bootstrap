@@ -1,6 +1,13 @@
 ---
+- name: Download ctOS greeter artifact
+  ansible.builtin.get_url:
+    url: "{{ greeter_artifact_url }}"
+    dest: "/var/tmp/ctos-greeter-{{ greeter_version }}.tar"
+    checksum: "{{ greeter_artifact_checksum }}"
+    mode: "0644"
+
 - name: Deploy ctOS greeter artifact
   ansible.builtin.unarchive:
-    src: "{{ lookup('env', 'REPO_ROOT') }}/greeter/dist/ctos-greeter.tar"
+    src: "/var/tmp/ctos-greeter-{{ greeter_version }}.tar"
     dest: /
     remote_src: true
