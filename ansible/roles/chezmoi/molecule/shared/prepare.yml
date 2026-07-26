@@ -52,22 +52,6 @@
         group: testuser
         mode: "0755"
 
-    - name: Create test wallpaper directory
-      ansible.builtin.file:
-        path: /opt/dotfiles/wallpapers
-        state: directory
-        owner: testuser
-        group: testuser
-        mode: "0755"
-
-    - name: Provide test wallpaper
-      ansible.builtin.copy:
-        dest: /opt/dotfiles/wallpapers/molecule-wallpaper.txt
-        owner: testuser
-        group: testuser
-        mode: "0644"
-        content: "chezmoi-wallpaper-test\n"
-
     - name: Provide test chezmoi configuration
       ansible.builtin.copy:
         dest: /opt/dotfiles/.chezmoi.toml.tmpl
@@ -86,3 +70,17 @@
         group: testuser
         mode: "0644"
         content: "chezmoi-deployment-test\n"
+
+    - name: Commit test source repository
+      become: true
+      become_user: testuser
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          git init -b master
+          git config user.email molecule@example.invalid
+          git config user.name Molecule
+          git add -A
+          git commit -m "Molecule fixture"
+        chdir: /opt/dotfiles
+        creates: /opt/dotfiles/.git

@@ -58,7 +58,7 @@ if [[ "${1:-}" == "--project" ]]; then
     ssh "${SSH_OPTS[@]}" "$SSH_TARGET" \
         "find '${REMOTE_BASE}' -delete 2>/dev/null; rm -rf '${REMOTE_BASE}' 2>/dev/null; true"
 
-    PROJECT_DIRS=(ansible dotfiles scripts greeter)
+    PROJECT_DIRS=(ansible scripts greeter)
     PROJECT_FILES=(Taskfile.yml bootstrap.sh AGENTS.md CLAUDE.md)
 
     for dir in "${PROJECT_DIRS[@]}"; do
