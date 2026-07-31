@@ -9,7 +9,7 @@ The role owns Fail2Ban SSH jail configuration on the host:
 - Fail2Ban packages are installed for the detected distribution.
 - `/etc/fail2ban/jail.d/sshd.conf` is rendered from role variables.
 - Fail2Ban service is enabled and started on systemd hosts.
-- Updated jail configuration is reloaded into the running Fail2Ban server.
+- Updated jail configuration is validated and applied through a systemd restart.
 - Runtime verification confirms that Fail2Ban answers and the `sshd` jail is loaded.
 
 The role does not manage SSH server configuration, users, SSH keys, firewall policy,
@@ -21,7 +21,7 @@ the host platform.
 1. **Validate** (`tasks/validate.yml`) -- checks supported OS family and init system.
 2. **Load vars** (`tasks/load_vars.yml`) -- loads `vars/<os_family>/main.yml`.
 3. **Configure** (`tasks/configure/main.yml`) -- installs packages and deploys the `sshd` jail.
-4. **Service** (`tasks/configure/service.yml`) -- applies init-specific service policy and reloads Fail2Ban when the jail changed.
+4. **Service** (`tasks/configure/service.yml`) -- validates configuration, applies init-specific service policy, restarts Fail2Ban when the jail changed, and verifies the server responds.
 5. **Verify** (`tasks/verify.yml`) -- checks `fail2ban-client ping` and `fail2ban-client status sshd`; on failure, collects diagnostics.
 6. **Report** -- renders the final execution report through the shared `common` role.
 
@@ -40,7 +40,7 @@ Override these through inventory. Do not edit role defaults directly.
 | `fail2ban_sshd_bantime` | `3600` | Initial ban duration in seconds. |
 | `fail2ban_sshd_bantime_increment` | `true` | Enables progressive ban escalation for repeat offenders. |
 | `fail2ban_sshd_bantime_maxtime` | `86400` | Maximum progressive ban duration in seconds. |
-| `fail2ban_sshd_backend` | `"auto"` | Fail2Ban log backend: `auto`, `systemd`, `polling`, or `pyinotify`. |
+| `fail2ban_sshd_backend` | `"auto"` | Fail2Ban log backend: `auto`, `systemd`, `polling`, or `pyinotify`. On systemd hosts, `auto` is resolved to `systemd` so the jail reads the journal instead of requiring `/var/log/auth.log`. |
 | `fail2ban_sshd_banaction` | `""` | Optional Fail2Ban ban action override. Empty uses Fail2Ban default. |
 | `fail2ban_ignoreip` | loopback CIDRs | IPs/CIDRs exempt from bans. Keep loopback entries. |
 
@@ -122,7 +122,7 @@ Runtime status is verified by the role itself during Vagrant converge.
 | `tasks/configure/main.yml` | Configure pipeline. |
 | `tasks/configure/install.yml` | Package installation. |
 | `tasks/configure/jail.yml` | Managed `sshd` jail configuration. |
-| `tasks/configure/service.yml` | Init-specific service entrypoint and reload on jail changes. |
+| `tasks/configure/service.yml` | Init-specific service entrypoint, config validation, restart on jail changes, and service ping. |
 | `tasks/init/<init>/service.yml` | Init-specific Fail2Ban service state. |
 | `tasks/init/systemd/verify_diagnostics.yml` | systemd journal diagnostics for runtime verify failures. |
 | `tasks/verify.yml` | Runtime contract verification with diagnostics on failure. |
