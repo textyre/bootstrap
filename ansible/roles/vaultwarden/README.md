@@ -19,9 +19,12 @@ Vaultwarden.
 
 The role installs cron and SQLite when backups are enabled. It creates the data
 directories, local host record, stable admin token, Compose
-project, and Caddy site. Compose applies application changes directly; a changed
-site restarts Caddy in the same runtime phase without handlers. Verification
-requests `/alive` through Caddy with certificate validation enabled, proving the
+project, and Caddy site. Local name resolution first checks whether
+`vaultwarden_domain` already resolves to `127.0.0.1`, so a shared `/etc/hosts`
+owner such as `hostctl` can carry the hostname without being rewritten by this
+role. Compose applies application changes directly; a changed site restarts
+Caddy in the same runtime phase without handlers. Verification requests
+`/alive` through Caddy with certificate validation enabled, proving the
 container, proxy, DNS, TLS trust, and application endpoint work together.
 
 ## Admin token

@@ -1,8 +1,20 @@
 ---
+- name: Inspect Vaultwarden local name resolution
+  ansible.builtin.command:
+    cmd: "getent hosts {{ vaultwarden_domain }}"
+  register: _vaultwarden_domain_resolution
+  changed_when: false
+  failed_when: false
+
 - name: Resolve Vaultwarden domain locally
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: ".*\\s{{ vaultwarden_domain | regex_escape }}$"
+    regexp: "^(?!127\\.0\\.0\\.1\\s).*\\s{{ vaultwarden_domain | regex_escape }}(?:\\s.*)?$"
     line: "127.0.0.1 {{ vaultwarden_domain }}"
     state: present
     unsafe_writes: true
+  when: >-
+    _vaultwarden_domain_resolution.stdout_lines
+    | select('match', '^127\\.0\\.0\\.1\\s')
+    | list
+    | length == 0
