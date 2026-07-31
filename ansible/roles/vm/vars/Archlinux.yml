@@ -24,3 +24,6 @@ vm_vbox_lts_kernel_support: true
 # VirtualBox kernel headers: Archlinux uses linux-lts-headers for LTS kernels.
 vm_vbox_kernel_header_packages:
   - "{{ 'linux-lts-headers' if '-lts' in ansible_kernel else 'linux-headers' }}"
+
+vm_vbox_lightdm_resize_packages:
+  - xdotool

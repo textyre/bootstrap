@@ -55,9 +55,10 @@ Flow:
 4. Install Guest Additions from ISO only when host and guest versions differ.
 5. Configure `/dev/vboxguest` access and `vboxsf` user membership.
 6. Configure XDG autostart for `VBoxClient-all`.
-7. Configure time-sync policy for the active init system.
-8. Start `vboxadd-service`.
-9. Verify `vboxguest` and `vboxsf`; report optional `vboxvideo`.
+7. Configure a LightDM XRandR resize hook for VirtualBox VMSVGA display hints.
+8. Configure time-sync policy for the active init system.
+9. Start `vboxadd-service`.
+10. Verify `vboxguest` and `vboxsf`; report optional `vboxvideo`.
 10. Report version when `vm_vbox_version_check` is enabled.
 
 ISO install cleanup lives in the ISO install flow. If ISO install fails, rescue
@@ -154,6 +155,15 @@ Desktop integration is user-session integration, not a system service.
 
 These files are for XDG-compliant graphical sessions. X11 is the current
 priority for clipboard and drag-and-drop behavior.
+
+The LightDM login screen starts before a user's XDG desktop session exists, so
+it cannot rely on `/etc/xdg/autostart/vboxclient.desktop`. For VirtualBox VMSVGA
+guests the role also installs
+`/usr/local/lib/bootstrap/virtualbox-lightdm-xrandr-auto` and
+`/etc/lightdm/lightdm.conf.d/30-virtualbox-display-resize.conf`. The helper
+watches the XRandR preferred mode exposed by VirtualBox resize hints and applies
+it to the active LightDM X server. It does not start `VBoxClient` in the greeter
+process tree.
 
 ## Variables
 

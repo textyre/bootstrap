@@ -26,3 +26,6 @@ vm_vbox_lts_kernel_support: false
 # VirtualBox kernel headers: static for RedHat
 vm_vbox_kernel_header_packages:
   - kernel-devel
+
+vm_vbox_lightdm_resize_packages:
+  - xdotool

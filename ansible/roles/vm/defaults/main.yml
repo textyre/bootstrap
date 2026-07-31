@@ -17,6 +17,10 @@ vm_packages_hyperv_guest:
 vm_packages_kvm_guest:
   - qemu-guest-agent
 
+# X11 utility packages used by the VirtualBox LightDM resize helper.
+# Distro-specific package names live in vars/<OsFamily>.yml.
+vm_vbox_lightdm_resize_packages: []
+
 # VBox host version override - set to bypass dmesg/journalctl detection.
 # Use when the kernel ring buffer was cleared on a long-running system.
 # Example: vm_vbox_host_version_override: "7.1.16"

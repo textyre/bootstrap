@@ -19,3 +19,6 @@ vm_vbox_lts_kernel_support: false
 # VirtualBox kernel headers: static for Void
 vm_vbox_kernel_header_packages:
   - linux-headers
+
+vm_vbox_lightdm_resize_packages:
+  - xdotool

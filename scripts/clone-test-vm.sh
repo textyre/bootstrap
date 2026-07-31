@@ -78,8 +78,10 @@ for rule in ssh ssh2222 ssh2223; do
 done
 VBoxManage modifyvm "$NAME" --natpf1 "ssh,tcp,,$PORT,,22"
 
-# Step 4: Enable 3D + 128 MB VRAM (required for ctOS greeter)
+# Step 4: Enable graphics integration required for ctOS greeter and GUI testing.
 VBoxManage modifyvm "$NAME" --accelerate3d on --vram 128 2>/dev/null || true
+VBoxManage setextradata "$NAME" GUI/AutoresizeGuest true
+VBoxManage setextradata "$NAME" GUI/Scale false
 
 # Step 5: Start headless
 echo "==> Starting '$NAME' headless..."
