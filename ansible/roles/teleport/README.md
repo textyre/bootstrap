@@ -6,7 +6,7 @@ cluster or as an SSH agent of an existing cluster.
 ## Execution Flow
 
 1. **Validate** (`tasks/validate.yml`) -- accepts Arch Linux, Ubuntu, Fedora, Void, or Gentoo and the `standalone` or `agent` mode. A role-managed agent configuration must have an auth server and join token.
-2. **Install** (`tasks/install.yml`) -- installs the pinned Teleport release from the verified official archive on every supported distribution; temporary files are removed in the same block.
+2. **Install** (`tasks/install.yml`) -- installs the pinned Teleport release from the verified official archive on every supported distribution; download attempts use a bounded timeout with retries, and temporary files are removed in the same block.
 3. **Configure** (`tasks/configure.yml`) -- creates `/var/lib/teleport` and renders `/etc/teleport.yaml`. Existing cluster data is never removed.
 4. **Service** (`tasks/service/main.yml`) -- stops explicitly without systemd. Under systemd it deploys the Teleport unit, enables Teleport, starts it, and restarts it immediately when the executable, unit, or configuration changed. The role has no handlers.
 5. **Verify** (`tasks/verify.yml`) -- asks Teleport itself to parse the rendered configuration.
@@ -131,6 +131,7 @@ entrypoint.
 | Standalone UI is unreachable | Proxy is not reachable at the advertised/listen address | Check service logs, firewall port 3080, DNS, and `teleport_proxy_public_addr` |
 | CA export fails | Local `tctl` cannot read the running standalone Auth Service CA | Check the standalone service logs and local cluster state; agent mode does not export a CA |
 | Binary checksum fails | The archive does not match Teleport's published SHA-256 file | Treat it as an integrity failure; do not bypass checksum validation |
+| Release download times out | Network or CDN response was too slow during archive/checksum retrieval | Rerun the role; the download task retries before failing and keeps checksum validation enabled |
 
 ## License
 

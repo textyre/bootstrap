@@ -31,6 +31,11 @@
         checksum: >-
           sha256:https://cdn.teleport.dev/teleport-v{{ teleport_version }}-linux-{{ _teleport_architecture }}-bin.tar.gz.sha256
         mode: "0644"
+        timeout: 60
+      register: _teleport_release_download
+      retries: 5
+      delay: 15
+      until: _teleport_release_download is succeeded
 
     - name: Extract Teleport release
       ansible.builtin.unarchive:
