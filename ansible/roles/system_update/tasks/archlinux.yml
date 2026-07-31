@@ -18,6 +18,14 @@
   until: _system_update_arch_keyring is succeeded
   tags: ['system_update', 'upgrade', 'pacman', 'keyring']
 
+- name: "Arch Linux | Capture installed OpenSSH version before full upgrade"
+  ansible.builtin.command:
+    cmd: pacman -Q openssh
+  register: _system_update_arch_openssh_before
+  changed_when: false
+  failed_when: _system_update_arch_openssh_before.rc not in [0, 1]
+  tags: ['system_update', 'upgrade', 'pacman', 'ssh']
+
 - name: "Arch Linux | Full system upgrade (pacman -Su)"
   community.general.pacman:
     upgrade: true
@@ -26,3 +34,50 @@
   register: _system_update_arch_upgrade
   until: _system_update_arch_upgrade is succeeded
   tags: ['system_update', 'upgrade', 'pacman']
+
+- name: "Arch Linux | Capture installed OpenSSH version after full upgrade"
+  ansible.builtin.command:
+    cmd: pacman -Q openssh
+  register: _system_update_arch_openssh_after
+  changed_when: false
+  failed_when: _system_update_arch_openssh_after.rc not in [0, 1]
+  tags: ['system_update', 'upgrade', 'pacman', 'ssh']
+
+- name: "Arch Linux | Detect OpenSSH package upgrade"
+  ansible.builtin.set_fact:
+    _system_update_arch_openssh_upgraded: >-
+      {{
+        _system_update_arch_openssh_before.rc == 0
+        and _system_update_arch_openssh_after.rc == 0
+        and (
+          _system_update_arch_openssh_before.stdout | trim
+          != _system_update_arch_openssh_after.stdout | trim
+        )
+      }}
+  tags: ['system_update', 'upgrade', 'pacman', 'ssh']
+
+- name: "Arch Linux | Stabilize OpenSSH after package upgrade"
+  when:
+    - ansible_facts['service_mgr'] | default('') == 'systemd'
+    - _system_update_arch_openssh_upgraded | bool
+  tags: ['system_update', 'upgrade', 'pacman', 'ssh']
+  block:
+    - name: "Arch Linux | Validate OpenSSH daemon configuration before restart"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: _system_update_arch_sshd_validate
+      changed_when: false
+      failed_when: _system_update_arch_sshd_validate.rc != 0
+
+    - name: "Arch Linux | Restart OpenSSH daemon after package upgrade"
+      ansible.builtin.systemd_service:
+        name: sshd.service
+        state: restarted
+      register: _system_update_arch_sshd_restart
+
+    - name: "Arch Linux | Verify OpenSSH daemon is active after restart"
+      ansible.builtin.command:
+        cmd: systemctl is-active sshd.service
+      register: _system_update_arch_sshd_active
+      changed_when: false
+      failed_when: _system_update_arch_sshd_active.stdout | trim != 'active'
