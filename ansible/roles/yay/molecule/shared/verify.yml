@@ -147,6 +147,21 @@
       changed_when: false
       when: yay_packages_aur | default([]) | length > 0
 
+    - name: Read AUR package management task source
+      ansible.builtin.set_fact:
+        _yay_verify_manage_source: >-
+          {{ lookup('file', lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/tasks/manage-aur-packages.yml') }}
+
+    - name: Assert AUR installs run without interactive yay menus
+      ansible.builtin.assert:
+        that:
+          - "'extra_args:' in _yay_verify_manage_source"
+          - "'--answerclean None' in _yay_verify_manage_source"
+          - "'--answerdiff None' in _yay_verify_manage_source"
+          - "'--answeredit None' in _yay_verify_manage_source"
+          - "'--answerupgrade None' in _yay_verify_manage_source"
+          - "'--removemake' in _yay_verify_manage_source"
+
     # ---- aur_builder can execute yay (functional test) ----
 
     - name: Verify aur_builder can run yay --version

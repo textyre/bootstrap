@@ -41,6 +41,12 @@
     name: "{{ yay_packages_aur }}"
     use: yay
     state: present
+    extra_args: >-
+      --answerclean None
+      --answerdiff None
+      --answeredit None
+      --answerupgrade None
+      --removemake
   become: true
   become_user: "{{ yay_builder_user }}"
   environment:

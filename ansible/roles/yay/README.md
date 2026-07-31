@@ -12,6 +12,9 @@ AUR helper installation and AUR package management backend for Arch Linux.
 - [x] Cleans up build artifacts (`/tmp/yay_build_*`) in an `always:` block
 - [x] Supports split execution: setup-only or AUR-install-only via role flags
 - [x] Optionally installs AUR packages via `kewlfft.aur.aur` with `use: yay`
+- [x] Forces unattended AUR installs through yay menu answers
+  (`--answerclean None`, `--answerdiff None`, `--answeredit None`,
+  `--answerupgrade None`, `--removemake`)
 - [x] Optionally removes conflicting official packages before AUR installs
 - [x] Configures the AUR builder npm install-script allowlist for Node-based packages
 - [x] Validates AUR vs official package conflicts via `validate-aur-conflicts.sh`
@@ -94,5 +97,10 @@ Verify assertions (14 total):
 **Broken libs detection:**  After major Go upgrades, shared libs can become invalid. The role runs `ldd /usr/bin/yay` before skipping the build — if `"not found"` appears in output, the binary is rebuilt.
 
 **AUR package management is optional:** Leave `yay_packages_aur: []` (the default) to install only yay itself without managing any AUR packages.
+
+**Unattended AUR installs:** The `kewlfft.aur.aur` collection already passes
+`--noconfirm`, but yay has separate clean/diff/edit/upgrade menus. The role
+adds explicit menu answers so a VM run cannot wait forever after downloading an
+AUR package.
 
 **Split role usage:** `package_manager` calls this role with `yay_manage_setup: true` and `yay_manage_aur_packages: false`; `packages` calls it the other way around after official packages are installed.
