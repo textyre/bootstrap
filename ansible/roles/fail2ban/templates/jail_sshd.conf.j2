@@ -11,7 +11,7 @@ bantime = {{ fail2ban_sshd_bantime }}
 bantime.increment = true
 bantime.maxtime = {{ fail2ban_sshd_bantime_maxtime }}
 {% endif %}
-backend = {{ fail2ban_sshd_backend }}
+backend = {{ _fail2ban_sshd_effective_backend }}
 {% if fail2ban_sshd_banaction %}
 banaction = {{ fail2ban_sshd_banaction }}
 {% endif %}

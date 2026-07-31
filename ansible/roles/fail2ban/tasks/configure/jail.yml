@@ -1,6 +1,18 @@
 ---
 # === fail2ban: managed sshd jail ===
 
+- name: Resolve fail2ban sshd jail backend
+  ansible.builtin.set_fact:
+    _fail2ban_sshd_effective_backend: >-
+      {{
+        'systemd'
+        if (
+          fail2ban_sshd_backend == 'auto'
+          and ansible_facts['service_mgr'] == 'systemd'
+        )
+        else fail2ban_sshd_backend
+      }}
+
 - name: Deploy fail2ban sshd jail configuration
   ansible.builtin.template:
     src: jail_sshd.conf.j2
@@ -19,6 +31,7 @@
     common_rpt_phase: "Configure sshd jail"
     common_rpt_detail: >-
       enabled={{ fail2ban_sshd_enabled }}
+      backend={{ _fail2ban_sshd_effective_backend }}
       maxretry={{ fail2ban_sshd_maxretry }}
       bantime={{ fail2ban_sshd_bantime }}
   tags: ['report']

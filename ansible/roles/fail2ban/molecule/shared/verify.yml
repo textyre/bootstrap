@@ -5,6 +5,53 @@
   gather_facts: true
 
   tasks:
+    - name: Read fail2ban service task source
+      ansible.builtin.set_fact:
+        _fail2ban_verify_service_source: >-
+          {{
+            lookup(
+              'ansible.builtin.file',
+              lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/tasks/configure/service.yml'
+            )
+          }}
+
+    - name: Assert fail2ban service transition contract
+      ansible.builtin.assert:
+        that:
+          - "'Validate fail2ban configuration before service transition' in _fail2ban_verify_service_source"
+          - "'Restart fail2ban after jail configuration changes' in _fail2ban_verify_service_source"
+          - "'Verify fail2ban server responds after service transition' in _fail2ban_verify_service_source"
+          - "'fail2ban-client reload' not in _fail2ban_verify_service_source"
+        fail_msg: "fail2ban must validate config and use service restart on jail changes, not client reload against a possibly absent server."
+        success_msg: "fail2ban service transition validates config, restarts on jail changes, and verifies server availability."
+
+    - name: Read fail2ban jail task and template sources
+      ansible.builtin.set_fact:
+        _fail2ban_verify_jail_source: >-
+          {{
+            lookup(
+              'ansible.builtin.file',
+              lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/tasks/configure/jail.yml'
+            )
+          }}
+        _fail2ban_verify_jail_template: >-
+          {{
+            lookup(
+              'ansible.builtin.file',
+              lookup('env', 'MOLECULE_PROJECT_DIRECTORY') ~ '/templates/jail_sshd.conf.j2'
+            )
+          }}
+
+    - name: Assert fail2ban backend resolution contract
+      ansible.builtin.assert:
+        that:
+          - "'Resolve fail2ban sshd jail backend' in _fail2ban_verify_jail_source"
+          - "'_fail2ban_sshd_effective_backend' in _fail2ban_verify_jail_source"
+          - "'backend =' in _fail2ban_verify_jail_template"
+          - "'_fail2ban_sshd_effective_backend' in _fail2ban_verify_jail_template"
+        fail_msg: "fail2ban must resolve backend=auto to a concrete backend before rendering the sshd jail."
+        success_msg: "fail2ban sshd jail renders an explicitly resolved backend."
+
     - name: Validate fail2ban configuration syntax
       ansible.builtin.command:
         cmd: fail2ban-server --test

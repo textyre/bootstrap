@@ -5,12 +5,28 @@
   ansible.builtin.include_tasks:
     file: "init/{{ ansible_facts['service_mgr'] }}/service.yml"
 
-- name: Reload fail2ban after jail configuration changes
+- name: Validate fail2ban configuration before service transition
   ansible.builtin.command:
-    cmd: fail2ban-client reload
-  register: _fail2ban_reload
-  changed_when: true
+    cmd: fail2ban-server --test
+  register: _fail2ban_config_validate
+  changed_when: false
+
+- name: Restart fail2ban after jail configuration changes
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+    state: restarted
+  register: _fail2ban_restart
   when: _fail2ban_sshd_jail is defined and _fail2ban_sshd_jail.changed
+
+- name: Verify fail2ban server responds after service transition
+  ansible.builtin.command:
+    cmd: fail2ban-client ping
+  register: _fail2ban_service_ping
+  changed_when: false
+  retries: 6
+  delay: 2
+  until: _fail2ban_service_ping.rc == 0
 
 - name: "Report: fail2ban service"
   ansible.builtin.include_role:
