@@ -48,5 +48,33 @@
         state: present
 
     - name: Configure Vaultwarden Docker runtime prerequisite
-      ansible.builtin.include_role:
-        name: docker
+      block:
+        - name: Apply Docker role for Vaultwarden test runtime
+          ansible.builtin.include_role:
+            name: docker
+          vars:
+            # Vaultwarden tests need a working daemon prerequisite, not Docker
+            # hardening coverage. The docker role tests own userns-remap.
+            docker_userns_remap: ""
+
+      rescue:
+        - name: Collect Docker service status after prerequisite failure
+          ansible.builtin.command:
+            cmd: systemctl status docker.service --no-pager --lines=80
+          register: _vaultwarden_test_docker_status
+          changed_when: false
+          failed_when: false
+
+        - name: Collect Docker journal after prerequisite failure
+          ansible.builtin.command:
+            cmd: journalctl -u docker.service --no-pager --lines=160
+          register: _vaultwarden_test_docker_journal
+          changed_when: false
+          failed_when: false
+
+        - name: Report Docker prerequisite diagnostics
+          ansible.builtin.fail:
+            msg:
+              - "Docker runtime prerequisite failed before vaultwarden role converge."
+              - "{{ _vaultwarden_test_docker_status.stdout_lines }}"
+              - "{{ _vaultwarden_test_docker_journal.stdout_lines }}"

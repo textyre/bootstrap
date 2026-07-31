@@ -28,3 +28,7 @@
     - name: Configure Vaultwarden Docker runtime prerequisite
       ansible.builtin.include_role:
         name: docker
+      vars:
+        # Vaultwarden tests need a working daemon prerequisite, not Docker
+        # hardening coverage. The docker role tests own userns-remap.
+        docker_userns_remap: ""
