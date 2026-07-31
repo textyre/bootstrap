@@ -57,6 +57,9 @@ packages_wm:
   - picom             # композитор (анимации, тени, размытие, rules)
   - dmenu             # минимальный лаунчер (фолбэк)
   # - polybar         # ОТКЛЮЧЕНО: заменено на eww (ewwii)
+  - gtk4              # runtime/build dependency for Ewwii widgets
+  - gtk4-layer-shell  # Ewwii layer-shell integration
+  - graphene          # GTK4/Ewwii rendering dependency
   - rofi              # лаунчер приложений и меню
   - dunst             # демон уведомлений
   - feh               # управление обоями
@@ -90,6 +93,16 @@ packages_desktop:
   - imagemagick       # блюр для lock screen
   - lxappearance      # GTK тема (GUI)
   - arandr            # GUI для xrandr (настройки дисплея)
+
+# --- WebView desktop apps / Tauri experiments ---
+# Tauri on Linux uses WebKitGTK and xdotool/libxdo.
+# Source: https://v2.tauri.app/start/prerequisites/
+packages_webview_desktop:
+  - webkit2gtk-4.1
+  - appmenu-gtk-module
+  - libappindicator-gtk3
+  - librsvg
+  - xdotool
 
 # --- Графика ---
 packages_graphics:
@@ -165,7 +178,7 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
-  - eww-git                       # виджет-фреймворк для статус-бара (ewwii)
+  - ewwii-git                     # виджет-фреймворк для статус-бара (Ewwii/NBCL)
   - nody-greeter                   # LightDM web-гритер (Electron) для ctOS темы
 
 # npm 12 blocks dependency install scripts unless they are explicitly approved.
