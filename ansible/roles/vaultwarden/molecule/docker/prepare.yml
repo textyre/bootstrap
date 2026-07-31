@@ -11,6 +11,7 @@
       Archlinux:
         - docker
         - docker-compose
+        - fuse-overlayfs
         - python-requests
         - ca-certificates
       Debian:
@@ -32,3 +33,9 @@
         # Vaultwarden tests need a working daemon prerequisite, not Docker
         # hardening coverage. The docker role tests own userns-remap.
         docker_userns_remap: ""
+        docker_storage_driver: >-
+          {{
+            'fuse-overlayfs'
+            if ansible_facts['os_family'] == 'Archlinux'
+            else docker_storage_driver
+          }}
