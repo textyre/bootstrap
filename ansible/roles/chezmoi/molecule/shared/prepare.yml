@@ -44,6 +44,18 @@
         create_home: true
         shell: /bin/bash
 
+    - name: Reproduce root-owned user XDG directories from prior system tasks
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /home/testuser/.local
+        - /home/testuser/.local/bin
+        - /home/testuser/.local/share
+
     - name: Create test source directory
       ansible.builtin.file:
         path: /opt/dotfiles

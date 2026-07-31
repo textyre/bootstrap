@@ -9,9 +9,29 @@
         src: /home/testuser/.chezmoi_test_marker
       register: _chezmoi_test_marker
 
+    - name: Inspect repaired user XDG directories
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop:
+        - path: /home/testuser/.local
+          mode: "0755"
+        - path: /home/testuser/.local/bin
+          mode: "0755"
+        - path: /home/testuser/.local/share
+          mode: "0750"
+      register: _chezmoi_xdg_dirs
+
     - name: Require deployed source content
       ansible.builtin.assert:
         that:
           - >-
             _chezmoi_test_marker.content | b64decode
             == "chezmoi-deployment-test\n"
+
+    - name: Require target user ownership for XDG directories
+      ansible.builtin.assert:
+        that:
+          - item.stat.pw_name == "testuser"
+          - item.stat.gr_name == "testuser"
+          - item.stat.mode == item.item.mode
+      loop: "{{ _chezmoi_xdg_dirs.results }}"
