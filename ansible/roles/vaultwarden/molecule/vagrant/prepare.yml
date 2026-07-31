@@ -63,6 +63,12 @@
                 if ansible_facts['os_family'] == 'Archlinux'
                 else 'overlay2'
               }}
+            docker_daemon_extra: >-
+              {{
+                {'iptables': false, 'ip6tables': false}
+                if ansible_facts['os_family'] == 'Archlinux'
+                else {}
+              }}
 
       rescue:
         - name: Collect Docker service status after prerequisite failure
