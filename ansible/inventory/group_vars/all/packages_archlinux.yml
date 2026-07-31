@@ -13,6 +13,7 @@ packages_archlinux_from_packages: >-
      + packages_network
      + packages_media
      + packages_desktop
+     + packages_webview_desktop
      + packages_graphics
      + packages_session
      + packages_terminal
