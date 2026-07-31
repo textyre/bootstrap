@@ -57,6 +57,7 @@
             # Vaultwarden tests need a working daemon prerequisite, not Docker
             # hardening coverage. The docker role tests own userns-remap.
             docker_userns_remap: ""
+            docker_icc: "{{ ansible_facts['os_family'] == 'Archlinux' }}"
             docker_storage_driver: >-
               {{
                 'fuse-overlayfs'
