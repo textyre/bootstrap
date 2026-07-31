@@ -38,7 +38,15 @@
         update_cache: true
         force: true
         upgrade: true
+      register: _molecule_vagrant_arch_package_update
       when: ansible_facts['os_family'] == 'Archlinux'
+
+    - name: Reboot Arch Vagrant VM after package upgrade
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when:
+        - ansible_facts['os_family'] == 'Archlinux'
+        - _molecule_vagrant_arch_package_update is changed
 
     # ---- Ubuntu/Debian ----
     - name: Update apt cache (Ubuntu)
