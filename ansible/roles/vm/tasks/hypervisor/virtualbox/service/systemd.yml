@@ -1,7 +1,85 @@
 ---
+- name: "VirtualBox: Inspect vboxguest module source"
+  ansible.builtin.command: modinfo vboxguest
+  register: vm_vbox_vboxguest_modinfo
+  changed_when: false
+
+- name: "VirtualBox: Check legacy kernel module service unit"
+  ansible.builtin.command: systemctl list-unit-files vboxadd.service --no-legend
+  register: vm_vbox_legacy_module_service_unit
+  changed_when: false
+  failed_when: vm_vbox_legacy_module_service_unit.rc not in [0, 1]
+
+- name: "VirtualBox: Disable legacy kernel module rebuild service"
+  ansible.builtin.systemd:
+    name: vboxadd.service
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  when:
+    - vm_vbox_legacy_module_service_unit.rc == 0
+    - vm_vbox_vboxguest_modinfo.stdout is search('(?m)^intree:\\s+Y$')
+
+- name: "VirtualBox: Clear legacy kernel module service failure state"
+  ansible.builtin.command: systemctl reset-failed vboxadd.service
+  changed_when: false
+  when:
+    - vm_vbox_legacy_module_service_unit.rc == 0
+    - vm_vbox_vboxguest_modinfo.stdout is search('(?m)^intree:\\s+Y$')
+
+- name: "VirtualBox: Check guest service state"
+  ansible.builtin.command: "systemctl is-active {{ vm_vbox_guest_service_name }}"
+  register: vm_vbox_service_active
+  changed_when: false
+  failed_when: vm_vbox_service_active.rc not in [0, 3]
+
+- name: "VirtualBox: Check for orphan VBoxService process"
+  ansible.builtin.command: pgrep -x VBoxService
+  register: vm_vbox_orphan_service_pids
+  changed_when: false
+  failed_when: vm_vbox_orphan_service_pids.rc not in [0, 1]
+  when: vm_vbox_service_active.rc != 0
+
+- name: "VirtualBox: Stop orphan VBoxService process"
+  ansible.builtin.command: pkill -TERM -x VBoxService
+  changed_when: true
+  when:
+    - vm_vbox_service_active.rc != 0
+    - vm_vbox_orphan_service_pids.rc == 0
+
 - name: "VirtualBox: Start guest service"
   ansible.builtin.systemd:
     name: "{{ vm_vbox_guest_service_name }}"
     enabled: true
     state: started
     daemon_reload: true
+
+- name: "VirtualBox: Configure DRM resize client service"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vboxadd-drm-client.service
+    content: |
+      [Unit]
+      Description=VirtualBox Guest Additions DRM resize client
+      After=vboxadd.service {{ vm_vbox_guest_service_name }}.service
+      Before=display-manager.service lightdm.service
+
+      [Service]
+      Type=simple
+      ExecStartPre=/bin/sh -c 'if [ -s /var/run/VBoxDRMClient ] && kill -0 "$(cat /var/run/VBoxDRMClient)" 2>/dev/null; then kill -USR1 "$(cat /var/run/VBoxDRMClient)" || true; sleep 1; fi; rm -f /var/run/VBoxDRMClient'
+      ExecStart=/usr/bin/VBoxDRMClient
+      Restart=on-failure
+      KillSignal=SIGUSR1
+
+      [Install]
+      WantedBy=multi-user.target
+    owner: root
+    group: root
+    mode: "0644"
+  register: vm_vbox_drm_client_service
+
+- name: "VirtualBox: Start DRM resize client service"
+  ansible.builtin.systemd:
+    name: vboxadd-drm-client.service
+    enabled: true
+    state: started
+    daemon_reload: "{{ vm_vbox_drm_client_service.changed }}"

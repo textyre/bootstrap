@@ -66,8 +66,9 @@
     dest: "/etc/systemd/system/{{ vm_vbox_guest_service_name }}.service.d/disable-timesync.conf"
     content: |
       [Service]
+      ExecStartPre=/bin/sh -c 'if [ -s /var/run/vboxadd-service.sh ] && kill -0 "$(cat /var/run/vboxadd-service.sh)" 2>/dev/null; then kill "$(cat /var/run/vboxadd-service.sh)" || true; sleep 1; fi; rm -f /var/run/vboxadd-service.sh'
       ExecStart=
-      ExecStart=/usr/bin/VBoxService -f --disable-timesync
+      ExecStart=/usr/bin/VBoxService --pidfile /var/run/vboxadd-service.sh --disable-timesync
     owner: root
     group: root
     mode: "0644"

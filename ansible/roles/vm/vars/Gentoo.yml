@@ -25,3 +25,6 @@ vm_vbox_lts_kernel_support: false
 
 # VirtualBox kernel headers: Gentoo — headers are part of kernel source
 vm_vbox_kernel_header_packages: []
+
+vm_vbox_lightdm_resize_packages:
+  - x11-misc/xdotool

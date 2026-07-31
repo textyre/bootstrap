@@ -31,3 +31,186 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: "VirtualBox: Install LightDM resize helper packages"
+  ansible.builtin.package:
+    name: "{{ vm_vbox_lightdm_resize_packages }}"
+    state: present
+  register: vm_vbox_lightdm_resize_package_install
+  retries: 3
+  delay: 5
+  until: vm_vbox_lightdm_resize_package_install is succeeded
+  when: vm_vbox_lightdm_resize_packages | length > 0
+
+- name: "VirtualBox: Remove deprecated LightDM VBoxClient resize helper"
+  ansible.builtin.file:
+    path: /usr/local/lib/bootstrap/virtualbox-lightdm-resize
+    state: absent
+
+- name: "VirtualBox: Ensure bootstrap helper directory exists"
+  ansible.builtin.file:
+    path: /usr/local/lib/bootstrap
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "VirtualBox: Install LightDM XRandR resize helper"
+  ansible.builtin.copy:
+    dest: /usr/local/lib/bootstrap/virtualbox-lightdm-xrandr-auto
+    content: |
+      #!/bin/sh
+      set -eu
+
+      [ -x /usr/bin/xrandr ] || exit 0
+
+      case "$(systemd-detect-virt 2>/dev/null || true)" in
+        oracle|virtualbox) ;;
+        *) exit 0 ;;
+      esac
+
+      export DISPLAY="${DISPLAY:-:0}"
+      export XAUTHORITY="${XAUTHORITY:-/run/lightdm/root/${DISPLAY}}"
+      pidfile="/run/virtualbox-lightdm-xrandr-auto.pid"
+      greeter_seen=0
+
+      greeter_is_running() {
+        pgrep -u lightdm -f '/opt/nody-greeter/nody-greeter' >/dev/null 2>&1
+      }
+
+      resize_greeter_window() {
+        [ -x /usr/bin/xdotool ] || return 0
+
+        size="$(/usr/bin/xrandr --query 2>/dev/null | awk '/^Screen 0:/{ print $8 "x" $10; exit }' | tr -d ',')"
+        [ -n "${size}" ] || return 0
+
+        width="${size%x*}"
+        height="${size#*x}"
+        [ -n "${width}" ] && [ -n "${height}" ] || return 0
+
+        /usr/bin/xdotool search --name '^ctOS$' 2>/dev/null | while read -r window_id; do
+          [ -n "${window_id}" ] || continue
+          /usr/bin/xdotool windowmove "${window_id}" 0 0 windowsize "${window_id}" "${width}" "${height}" || true
+        done
+      }
+
+      # The watcher applies the mode that VirtualBox exposes as preferred.
+      # This keeps LightDM's X server in sync with host-side resize hints
+      # and resizes the existing greeter window to the new X root size.
+      if [ "${1:-}" = "--watch" ]; then
+        echo "$$" >"${pidfile}"
+        trap 'rm -f "${pidfile}" /tmp/virtualbox-lightdm-xrandr.$$' EXIT INT TERM
+
+        while /usr/bin/xrandr --query >/tmp/virtualbox-lightdm-xrandr.$$ 2>/dev/null; do
+          if greeter_is_running; then
+            greeter_seen=1
+          elif [ "${greeter_seen}" -eq 1 ]; then
+            exit 0
+          fi
+
+          output="$(awk '/ connected/{ print $1; exit }' /tmp/virtualbox-lightdm-xrandr.$$)"
+          preferred="$(awk '
+            / connected/{ in_output = 1; next }
+            in_output && / disconnected/{ exit }
+            in_output && /\+/{ print $1; exit }
+          ' /tmp/virtualbox-lightdm-xrandr.$$)"
+          current="$(awk '
+            / connected/{ in_output = 1; next }
+            in_output && / disconnected/{ exit }
+            in_output && /\*/{ print $1; exit }
+          ' /tmp/virtualbox-lightdm-xrandr.$$)"
+
+          if [ -n "${output}" ] && [ -n "${preferred}" ] && [ "${preferred}" != "${current}" ]; then
+            /usr/bin/xrandr --output "${output}" --mode "${preferred}" || true
+          fi
+          resize_greeter_window
+
+          rm -f /tmp/virtualbox-lightdm-xrandr.$$
+          sleep 1
+        done
+
+        exit 0
+      fi
+
+      if [ -s "${pidfile}" ]; then
+        pid="$(cat "${pidfile}")"
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+          exit 0
+        fi
+        rm -f "${pidfile}"
+      fi
+
+      "$0" --watch >/var/log/virtualbox-lightdm-xrandr-auto.log 2>&1 &
+    owner: root
+    group: root
+    mode: "0755"
+  register: vm_vbox_lightdm_resize_helper
+
+- name: "VirtualBox: Check active LightDM X authority"
+  ansible.builtin.stat:
+    path: /run/lightdm/root/:0
+  register: vm_vbox_lightdm_xauthority
+
+- name: "VirtualBox: Check active LightDM greeter"
+  ansible.builtin.command:
+    argv:
+      - pgrep
+      - -u
+      - lightdm
+      - -f
+      - /opt/nody-greeter/nody-greeter
+  register: vm_vbox_lightdm_greeter_check
+  changed_when: false
+  failed_when: vm_vbox_lightdm_greeter_check.rc not in [0, 1]
+
+- name: "VirtualBox: Stop stale LightDM XRandR resize watcher"
+  ansible.builtin.shell: |
+    set -eu
+    pids="$(pgrep -f '^/bin/sh /usr/local/lib/bootstrap/virtualbox-lightdm-xrandr-auto --watch$' || true)"
+    [ -n "${pids}" ] || exit 1
+
+    kill -TERM ${pids} 2>/dev/null || true
+    sleep 1
+
+    for pid in ${pids}; do
+      if kill -0 "${pid}" 2>/dev/null; then
+        kill -KILL "${pid}" 2>/dev/null || true
+      fi
+    done
+  args:
+    executable: /bin/sh
+  register: vm_vbox_lightdm_resize_watcher_stop
+  changed_when: vm_vbox_lightdm_resize_watcher_stop.rc == 0
+  failed_when: vm_vbox_lightdm_resize_watcher_stop.rc not in [0, 1]
+  when: vm_vbox_lightdm_resize_helper.changed or vm_vbox_lightdm_greeter_check.rc != 0
+
+- name: "VirtualBox: Start LightDM XRandR resize watcher"
+  ansible.builtin.command:
+    argv:
+      - /usr/local/lib/bootstrap/virtualbox-lightdm-xrandr-auto
+  environment:
+    DISPLAY: ":0"
+    XAUTHORITY: /run/lightdm/root/:0
+  changed_when: true
+  when:
+    - vm_vbox_lightdm_resize_helper.changed
+    - vm_vbox_lightdm_xauthority.stat.exists
+    - vm_vbox_lightdm_greeter_check.rc == 0
+
+- name: "VirtualBox: Ensure LightDM drop-in directory exists"
+  ansible.builtin.file:
+    path: /etc/lightdm/lightdm.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "VirtualBox: Configure LightDM dynamic display resize hook"
+  ansible.builtin.copy:
+    dest: /etc/lightdm/lightdm.conf.d/30-virtualbox-display-resize.conf
+    content: |
+      [Seat:*]
+      display-setup-script=/usr/local/lib/bootstrap/virtualbox-lightdm-xrandr-auto
+    owner: root
+    group: root
+    mode: "0644"

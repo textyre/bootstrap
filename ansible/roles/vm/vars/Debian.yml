@@ -26,3 +26,6 @@ vm_vbox_lts_kernel_support: false
 # VirtualBox kernel headers: Debian packages headers per running kernel.
 vm_vbox_kernel_header_packages:
   - "linux-headers-{{ ansible_kernel }}"
+
+vm_vbox_lightdm_resize_packages:
+  - xdotool
