@@ -1,4 +1,21 @@
 ---
+- name: Resolve target user home directory
+  ansible.builtin.set_fact:
+    _chezmoi_target_home: "{{ ansible_facts['getent_passwd'][target_user][4] }}"
+
+- name: Ensure user XDG directories are writable by target user
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: "{{ item.mode | default(omit) }}"
+  loop:
+    - path: "{{ _chezmoi_target_home }}/.local"
+    - path: "{{ _chezmoi_target_home }}/.local/bin"
+    - path: "{{ _chezmoi_target_home }}/.local/share"
+      mode: "0750"
+
 - name: Initialize chezmoi configuration
   become: true
   become_user: "{{ target_user }}"
@@ -10,14 +27,14 @@
         + (['--branch', chezmoi_repo_ref] if chezmoi_repo_ref | length > 0 else [])
         + [chezmoi_repo_url]
       }}
-    chdir: "{{ getent_passwd[target_user][4] }}"
-    creates: "{{ getent_passwd[target_user][4] }}/.config/chezmoi/chezmoi.toml"
+    chdir: "{{ _chezmoi_target_home }}"
+    creates: "{{ _chezmoi_target_home }}/.config/chezmoi/chezmoi.toml"
 
 - name: Configure dotfiles theme
   become: true
   become_user: "{{ target_user }}"
   ansible.builtin.lineinfile:
-    path: "{{ getent_passwd[target_user][4] }}/.config/chezmoi/chezmoi.toml"
+    path: "{{ _chezmoi_target_home }}/.config/chezmoi/chezmoi.toml"
     regexp: '^\s*theme_name\s*='
     line: '  theme_name = "{{ chezmoi_theme_name }}"'
     insertafter: '^\[data\]$'
@@ -27,11 +44,11 @@
   become_user: "{{ target_user }}"
   ansible.builtin.command:
     argv:
-      - /usr/bin/chezmoi
-      - --force
-      - --no-tty
-      - --verbose
-      - apply
-    chdir: "{{ getent_passwd[target_user][4] }}"
+      - /usr/bin/bash
+      - -lc
+      - |
+        umask 022
+        exec /usr/bin/chezmoi --force --no-tty --verbose apply --parent-dirs
+    chdir: "{{ _chezmoi_target_home }}"
   register: _chezmoi_apply
   changed_when: _chezmoi_apply.stdout | trim | length > 0

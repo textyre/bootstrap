@@ -9,9 +9,10 @@ install, download, or select a chezmoi version.
 ## Execution flow
 
 1. **Detect** (`tasks/detect/main.yml`) - resolves the existing `target_user` account.
-2. **Configure** (`tasks/configure/main.yml`) - clones the dotfiles repository
-   and creates the chezmoi config on first use, sets the selected theme, and
-   applies the desired state.
+2. **Configure** (`tasks/configure/main.yml`) - repairs the target user's scoped
+   XDG directory ownership, clones the dotfiles repository and creates the
+   chezmoi config on first use, sets the selected theme, and applies the desired
+   state.
 3. **Report** (`tasks/main.yml`) - records the user, source, and theme.
 
 There is no init-system logic, service management, handlers, or role-level
@@ -50,6 +51,14 @@ The dotfiles repository owns the resulting user files, including wallpapers
 under `~/.local/share/wallpapers/`. Chezmoi applies executable helpers,
 desktop configuration, and shell configuration.
 
+Before initializing or applying chezmoi, the role ensures `~/.local`,
+`~/.local/bin`, and `~/.local/share` are owned by `target_user`. The apply step
+runs with an explicit `umask 022` and `--parent-dirs` so target permissions
+match the source tree synchronized by chezmoi (`0644` files and `0755`
+chezmoi-managed directories). `~/.local/share` is kept at `0750`. This is
+intentionally scoped to the directories the role writes through, not a recursive
+ownership reset of the whole home directory.
+
 The layout-constants script uses chezmoi's `run_onchange_after` attribute. It
 runs on first apply and when its rendered layout/theme input changes, rather
 than rewriting the generated file on every role run.
@@ -57,8 +66,8 @@ than rewriting the generated file on every role run.
 On the first run, `chezmoi init <repo-url>` clones the source into the user's
 default chezmoi source directory and generates
 `~/.config/chezmoi/chezmoi.toml`. Every run then sets the requested theme and
-runs `chezmoi apply --verbose`. The apply task reports `changed` only when
-chezmoi reports applied file changes.
+runs `chezmoi apply --verbose --parent-dirs`. The apply task reports `changed`
+only when chezmoi reports applied file changes.
 
 ## Platform boundary
 
@@ -77,6 +86,8 @@ and idempotence.
   point `chezmoi_repo_url` at it with a `file://` URL, and verify that its
   neutral marker is deployed to the target user's home. The tests need no
   network access.
+- Shared tests first create root-owned `~/.local` directories and then verify
+  the role repairs their ownership before running chezmoi as the user.
 - Docker checks the contract in a container; Vagrant checks the same contract
   with a normal VM user and filesystem.
 
@@ -93,5 +104,6 @@ CI.
 | Chezmoi binary is missing | The `packages` role did not provide chezmoi | Inspect the package stage before running this role. |
 | Source cannot be cloned | `chezmoi_repo_url` is unreachable from the target | Check network access and the repository URL; do not add a second source variable to the role. |
 | Target account is missing | `target_user` does not identify an existing user | Create the account in the `user` role before this role runs. |
+| `chezmoi apply` cannot rename into `~/.local/bin` | A prior privileged task created user XDG directories as root | Rerun the role; it repairs scoped XDG directory ownership before applying dotfiles. |
 | Template rendering fails | Source data and templates are inconsistent | Fix the source template or data reported by chezmoi, then rerun the role. |
 | Theme does not change | Value is not one of the choices in `.chezmoi.toml.tmpl` | Use `dracula` or `monochrome`, or update the source template and role documentation together. |
