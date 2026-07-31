@@ -37,5 +37,5 @@
           {{
             'fuse-overlayfs'
             if ansible_facts['os_family'] == 'Archlinux'
-            else docker_storage_driver
+            else 'overlay2'
           }}
