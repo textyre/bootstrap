@@ -35,7 +35,7 @@ hostname_name: "archbox"
 
 hostctl_hosts_entries:
   - ip: "127.0.0.1"
-    hosts: ["localhost"]
+    hosts: ["localhost", "vault.local"]
   - ip: "127.0.1.1"
     hosts: ["archbox"]
 
@@ -78,6 +78,12 @@ ssh_keys_authorized_keys: []
 ssh_keys_exclusive: false
 ssh_keys_generate_user_key: true
 ssh_keys_user_key_type: ed25519
+
+# ============================================================
+#  chezmoi — роль roles/chezmoi
+# ============================================================
+
+chezmoi_theme_name: "monochrome"
 
 # ============================================================
 #  git — роль roles/git
