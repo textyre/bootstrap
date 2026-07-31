@@ -18,5 +18,5 @@
     owner: root
     group: root
     mode: '0644'
-    unsafe_writes: "{{ ansible_virtualization_type | default('') == 'docker' }}"
+    unsafe_writes: "{{ ansible_facts['virtualization_type'] | default('') == 'docker' }}"
   tags: ['hostctl', 'hostctl:profiles']
