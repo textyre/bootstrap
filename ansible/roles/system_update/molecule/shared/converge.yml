@@ -81,14 +81,22 @@
         that:
           - "'Refresh package databases (pacman -Sy)' in _system_update_test_arch_source"
           - "'Update archlinux-keyring before full upgrade' in _system_update_test_arch_source"
+          - "'Capture installed OpenSSH version before full upgrade' in _system_update_test_arch_source"
           - "'Full system upgrade (pacman -Su)' in _system_update_test_arch_source"
+          - "'Capture installed OpenSSH version after full upgrade' in _system_update_test_arch_source"
+          - "'Validate OpenSSH daemon configuration before restart' in _system_update_test_arch_source"
+          - "'Restart OpenSSH daemon after package upgrade' in _system_update_test_arch_source"
           - _system_update_test_arch_source.find('Refresh package databases (pacman -Sy)') < _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade')
-          - _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade') < _system_update_test_arch_source.find('Full system upgrade (pacman -Su)')
+          - _system_update_test_arch_source.find('Update archlinux-keyring before full upgrade') < _system_update_test_arch_source.find('Capture installed OpenSSH version before full upgrade')
+          - _system_update_test_arch_source.find('Capture installed OpenSSH version before full upgrade') < _system_update_test_arch_source.find('Full system upgrade (pacman -Su)')
+          - _system_update_test_arch_source.find('Full system upgrade (pacman -Su)') < _system_update_test_arch_source.find('Capture installed OpenSSH version after full upgrade')
+          - _system_update_test_arch_source.find('Capture installed OpenSSH version after full upgrade') < _system_update_test_arch_source.find('Validate OpenSSH daemon configuration before restart')
+          - _system_update_test_arch_source.find('Validate OpenSSH daemon configuration before restart') < _system_update_test_arch_source.find('Restart OpenSSH daemon after package upgrade')
           - "'package_transaction_recovery' not in _system_update_test_arch_source"
           - "'pacman_recovery' not in _system_update_test_arch_source"
           - "'upgrade: true' in _system_update_test_arch_source"
-        fail_msg: "Arch backend must run pacman cache refresh, keyring update, then full system upgrade."
-        success_msg: "Arch backend order is pacman -Sy -> archlinux-keyring -> pacman -Su, with recovery owned by generic flow."
+        fail_msg: "Arch backend must run pacman cache refresh, keyring update, full system upgrade, and OpenSSH post-upgrade stabilization."
+        success_msg: "Arch backend order is pacman -Sy -> archlinux-keyring -> pacman -Su -> OpenSSH stabilization, with recovery owned by generic flow."
 
     - name: Assert Arch backend recovery contract
       ansible.builtin.assert:

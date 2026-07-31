@@ -11,6 +11,9 @@ Performs a full operating-system package upgrade before workstation configuratio
 - It runs package transaction recovery as a generic post-upgrade phase.
 - On Arch Linux, the recovery backend must leave `pacman` unlocked and the
   pacman database consistent for the next workflow step.
+- On Arch Linux, if `openssh` changes during the full upgrade, the role
+  validates `sshd` and restarts `sshd.service` so new SSH connections use the
+  upgraded daemon and helper binaries consistently.
 - A reboot boundary is required after a successful run and before `task workstation`.
 
 ## Workflow
@@ -34,7 +37,7 @@ the `bootloader` role. It is not exposed as a standalone public Taskfile entry.
 
 | OS family | Status | Backend |
 |-----------|--------|---------|
-| Archlinux | implemented | upgrade backend: `pacman -Sy` → `archlinux-keyring` → `pacman -Su`; recovery backend: pacman transaction recovery |
+| Archlinux | implemented | upgrade backend: `pacman -Sy` → `archlinux-keyring` → `pacman -Su` → OpenSSH stabilization when needed; recovery backend: pacman transaction recovery |
 | Debian | blocked | fail-fast diagnostic |
 | RedHat | blocked | fail-fast diagnostic |
 | Void | blocked | fail-fast diagnostic |
