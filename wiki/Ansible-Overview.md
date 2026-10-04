@@ -1,166 +1,54 @@
-# Ansible Workstation Bootstrap
+# Ansible Overview
 
-13 модульных ролей для полной настройки Arch Linux рабочей станции.
+Windows OpenStrap CLI управляет VirtualBox и загружает готовый образ проекта из GHCR. На Linux Docker host `ansible-control` работает контейнер с системным Ansible; Arch `bootstrap-target` — управляемая рабочая станция.
 
-## Быстрый старт
+## Кто что выполняет
 
-```bash
-# Из корня репозитория:
-task bootstrap   # Установить Python зависимости (один раз)
-task workstation # Применить все 14 ролей
+| Компонент | Ответственность |
+|---|---|
+| `openstrap.yaml` | VM source/image, headless запуск, Docker readiness, image pull/start и один workstation запуск |
+| `openstrap.config.mjs` | Provider, SSH identity и локальный read-only secret store |
+| `Dockerfile` / GitHub Actions | Готовый GHCR image с системным Ansible, dependencies и `/opt/bootstrap/ansible` |
+| `Taskfile.yml` / `compose.yml` | Необязательные команды выбранного опубликованного образа; checkout не монтируется |
+| `inventory/openstrap.yml` | Статический SSH inventory с runtime env lookups |
+| `workstation.yml` | Минимальный Python bootstrap, сбор facts и полный набор 31 роли |
+| ARA | История выполнения Ansible в persistent home контейнера |
+
+## Запуск
+
+```powershell
+Set-Location D:/projects/bootstrap
+openstrap run --local --host-port 2251
 ```
 
-## Команды
+`bootstrap-target` клонируется из `arch-base/base` в режиме `full`. Ubuntu 24.04 Docker host создаётся отдельно. Оба запускаются headless; source snapshots immutable. Cloud-init устанавливает только `docker.io` и `ca-certificates`. После `sudo -n docker info` OpenStrap загружает `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер и выполняет один workstation через Docker exec.
 
-| Команда | Описание |
-|---------|----------|
-| `task bootstrap` | Установить Python зависимости |
-| `task check` | Проверить синтаксис playbooks |
-| `task lint` | ansible-lint best practices |
-| `task test` | Все molecule тесты (14 ролей) |
-| `task test-<role>` | Тест конкретной роли |
-| `task dry-run` | Показать изменения без применения |
-| `task workstation` | Применить полный playbook |
-| `task all` | check + lint |
-| `task clean` | Удалить venv |
+GitHub Actions собирает образ Ubuntu 26.04 с Python, системным Ansible, ansible-lint и SSH tools из APT. ARA, Galaxy collections и Ansible source включаются при сборке; образ получает теги `latest` и `sha-<commit>`. VM использует готовый контейнер без checkout, сборки, повторной установки зависимостей или предварительной расшифровки Vault. Контейнер можно разместить на другом Linux Docker host.
+
+## Inventory и переменные
+
+`inventory/openstrap.yml` входит в репозиторий. Группа `workstations` содержит `bootstrap-target` с connection `ssh`; адрес, порт, пользователь и private key читаются из process environment. В текущем blueprint контейнер подключается к `172.28.51.10:22` в общей приватной сети `bootstrap`. Host SSH ports предназначены для Windows.
+
+`inventory/group_vars/all/` содержит параметры проекта и зашифрованный `vault.yml`; эти файлы входят в image. Runtime config разрешает секреты локально и передаёт target connection values и `BOOTSTRAP_VAULT_PASSWORD` только workstation Docker exec. `vault-pass.sh` — environment-only адаптер Vault. Native `ansible_private_key` и `ssh_agent = auto` загружают OpenSSH ключ в агент на время запуска; private key не сохраняется в файле. `StrictHostKeyChecking=accept-new` запоминает новый host key и отклоняет изменившийся. Named volume `bootstrap-control-plane-home:/root` сохраняет known hosts и ARA offline DB.
 
 ## Роли
 
-### System Foundation
-- **base_system** — локаль, таймзона, hostname, pacman.conf
-- **vm** — определение VM окружения, специфичные настройки
-- **reflector** — оптимизация зеркал (Arch only)
+Порядок читается непосредственно из `playbooks/workstation.yml`:
 
-### Package Infrastructure
-- **yay** — AUR helper (Arch only)
-- **packages** — установка всех пакетов
+`reflector` → `package_manager` → `packages` → `timezone` → `locale` → `hostname` → `hostctl` → `vconsole` → `ntp` → `ntp_audit` → `pam_hardening` → `vm` → `gpu_drivers` → `sysctl` → `power_management` → `user` → `ssh_keys` → `teleport` → `ssh` → `fail2ban` → `git` → `shell` → `docker` → `firewall` → `caddy` → `vaultwarden` → `xorg` → `greeter` → `lightdm` → `zen_browser` → `chezmoi`.
 
-### User & Access
-- **user** — локальные пользователи, sudo, password aging, umask
-- **ssh** — hardened OpenSSH server configuration, host keys, banner
+Существующие `prepare_system.yml` и `mirrors-update.yml` остаются отдельными playbooks вне стандартного запуска.
 
-### Development Tools
-- **git** — глобальная конфигурация git
-- **shell** — bash/zsh, алиасы, PATH
+## Проверки
 
-### Services
-- **docker** — daemon.json, сервис, группа
-- **firewall** — базовый nftables
+Optional development `task check` проверяет syntax workstation; `lint:openstrap` — workstation и роли `user`, `chezmoi`; `lint` — весь Ansible проект. Molecule работает в существующих CI workflows; Control Plane test aliases сообщают об этом и завершаются с ошибкой.
 
-### Desktop Environment
-- **xorg** — системная конфигурация клавиатуры и монитора X11
-- **lightdm** — display manager
-- **greeter** — деплой готового ctOS greeter для Nody/LightDM
-- **zen_browser** — XDG web-handler для пользователя рабочей станции
-- **chezmoi** — деплой дотфайлов
+Обычный запуск выполняет workstation один раз. Повторное применение на том же target и проверка на свежем клоне выбираются отдельно по задаче пользователя. Результат оценивается по фактически выполненной команде, recap и ARA.
 
-## Тестирование
+## Стандарты
 
-```bash
-# Настройка project-local bootstrap secrets (один раз)
-mkdir -p .local/bootstrap/archinstall
-cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
-scripts/setup-vault-pass.sh
+[Role Requirements](standards/role-requirements.md) определяет структуру, idempotency, portability и verification ролей; [Security Standards](standards/security-standards.md) — security controls; [Profiles](standards/workstation-profiles.md) — профили.
 
-# Запуск тестов
-task test                 # Все роли
-task test-base-system     # Конкретная роль
-```
+Поддерживаемые проектом дистрибутивы: Arch, Ubuntu, Fedora, Void, Gentoo. Приведённый blueprint использует Arch target и Ubuntu Docker host; успешный такой прогон не является подтверждением остальных distro/init combinations.
 
-**Внимание:** Molecule тесты изменяют систему! Создайте снапшот VM.
-
-## Переменные
-
-- `inventory/group_vars/all/packages.yml` — реестр пакетов
-- `inventory/group_vars/all/system.yml` — системные переменные
-- `inventory/group_vars/all/vault.yml` — зашифрованный sudo пароль
-
-## Теги
-
-```bash
-# Выборочный запуск
-task workstation -- --tags packages
-task workstation -- --tags "docker,ssh,firewall"
-task workstation -- --skip-tags firewall
-```
-
-## Структура проекта
-
-```
-ansible/
-├── ansible.cfg
-├── requirements.txt          # Python deps
-├── requirements.yml          # Galaxy collections
-├── vault-pass.sh             # Vault password resolver
-├── inventory/
-│   ├── hosts.ini
-│   └── group_vars/all/
-│       ├── packages.yml      # Реестр пакетов (data layer)
-│       ├── system.yml        # Системные переменные (9 ролей)
-│       └── vault.yml         # Encrypted sudo password (AES-256)
-├── playbooks/
-│   ├── workstation.yml       # 14 ролей в 7 фазах
-│   └── mirrors-update.yml    # Только зеркала
-└── roles/                    # 14 модульных ролей
-    ├── base_system/
-    ├── vm/
-    ├── reflector/
-    ├── yay/
-    ├── packages/
-    ├── user/
-    ├── ssh/
-    ├── git/
-    ├── shell/
-    ├── docker/
-    ├── firewall/
-    ├── xorg/
-    ├── lightdm/
-    ├── zen_browser/
-    └── chezmoi/
-```
-
-## Структура роли
-
-Каждая роль следует Galaxy-совместимой структуре:
-
-```
-roles/role_name/
-├── defaults/main.yml         # Переменные по умолчанию
-├── tasks/
-│   ├── main.yml              # Точка входа
-│   ├── archlinux.yml         # Arch-specific tasks
-│   └── debian.yml            # Debian-specific tasks (заглушки)
-├── handlers/main.yml         # Service handlers
-├── templates/                # Jinja2 templates
-├── meta/main.yml             # Galaxy metadata
-└── molecule/                 # Integration tests
-    └── default/
-        ├── converge.yml
-        ├── molecule.yml
-        └── verify.yml
-```
-
-## Добавление новой роли
-
-1. Создать структуру директорий
-2. Реализовать OS-specific tasks через `include_tasks`
-3. Добавить теги для selective execution
-4. Написать Molecule тесты
-5. Обеспечить идемпотентность
-
-## Мульти-дистро поддержка
-
-Паттерн для кроссплатформенных ролей:
-
-```yaml
-- name: Install packages (OS-specific)
-  include_tasks: "install-{{ ansible_os_family | lower }}.yml"
-```
-
-Текущая поддержка:
-- **Archlinux** — полная
-- **Debian** — заглушки (для будущего расширения)
-
----
-
-Назад к [[Home]]
+[Test VM Workflow](standards/test-vm-workflow.md) · [Bootstrap Secrets](../docs/bootstrap-secrets.md).

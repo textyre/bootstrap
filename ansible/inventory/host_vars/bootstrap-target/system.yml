@@ -1,0 +1,12 @@
+---
+# The disposable Arch target is separate from the Ubuntu Ansible controller.
+target_user: textyre
+hostname_name: bootstrap-target
+hostctl_hosts_entries:
+  - ip: "127.0.0.1"
+    hosts: [localhost, vault.local]
+  - ip: "127.0.1.1"
+    hosts: [bootstrap-target]
+user_groups: [wheel]
+ssh_allow_groups: [wheel]
+workstation_profiles: []

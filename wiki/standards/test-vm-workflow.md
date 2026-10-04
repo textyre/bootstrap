@@ -1,362 +1,70 @@
 # Test VM Workflow
 
-> Execution model, VM management, playbook testing, and hard rules for automated testing on VirtualBox VMs.
+OpenStrap управляет тестовыми VM, а системный Ansible в контейнере Control Plane применяет один `workstation.yml` к Arch target по SSH. Этот документ описывает запуск и границы работы с машинами.
 
----
+## Машины
 
-## Execution Model
+| Место | Действия |
+|---|---|
+| Windows | Редактирование проекта и OpenStrap CLI |
+| `ansible-control` Docker host | Docker pull, container start и Docker exec |
+| Control Plane container | Ansible, lint, Vault и ARA |
+| `bootstrap-target` | Применение ролей Ansible и явная диагностика |
 
-```
-┌─────────────────────┐         SSH (port 2223)         ┌─────────────────────┐
-│   Windows (local)   │ ──────────────────────────────▶  │   VirtualBox VM     │
-│                     │         scp (port 2223)          │   (Arch Linux)      │
-│  • Edit files       │ ──────────────────────────────▶  │                     │
-│  • git operations   │                                  │  • task workstation │
-│  • VBoxManage       │                                  │  • task check       │
-│                     │                                  │  • task lint        │
-│  d:\projects\       │   scp mirrors to:                │  ~/bootstrap/       │
-│    bootstrap\       │ ─────────────────────────────▶   │    ansible/         │
-│      ansible\       │                                  │      roles/         │
-│        roles\       │                                  │      inventory/     │
-│        inventory\   │                                  │      vault-pass.sh  │
-│        .local\      │                                  │      task bootstrap │
-└─────────────────────┘                                  └─────────────────────┘
-     LOCAL actions:                                           VM actions:
-     ✅ File editing                                          ✅ task workstation
-     ✅ VBoxManage                                            ✅ task check / lint
-     ✅ scp to VM (ssh-scp-to.sh)                             ✅ Verification commands
-     ✅ SSH to VM                                             ❌ Manual pacman/systemctl
-     ✅ git commit/push                                       ❌ Manual file editing
-                                                              ❌ Manual venv/pip setup
+`bootstrap-target` — полный клон `arch-base/base`. `arch-base` и snapshots `base`/`after-packages` immutable. Existing `arch` и `arch-test-clone` защищены и не являются тестовыми target этого проекта. Их нельзя изменять, перезагружать, восстанавливать или удалять.
+
+## Запуск
+
+```powershell
+Set-Location D:/projects/bootstrap
+openstrap run --local --host-port 2251
 ```
 
-**Key principle:** Ansible runs ON the VM targeting `localhost` with `ansible_connection=local`. The local Windows machine is only for editing, syncing, and VM management.
+Blueprint создаёт headless target и Ubuntu 24.04 `ansible-control`. Shared network `bootstrap` связывает target `172.28.51.10:22` и controller `172.28.51.11`; SSH с Windows доступен через порты `2251` и `2252`. Cloud-init устанавливает только `docker.io` и `ca-certificates`. OpenStrap ждёт его завершения и проверяет Docker через `sudo -n docker info`.
 
-### Inventory
+Далее выполняются три последовательных шага:
 
-The VM uses the **default inventory** `ansible/inventory/hosts.yml`:
-```yaml
-workstations:
-  hosts:
-    localhost:
-      ansible_connection: local
-      ansible_python_interpreter: /usr/bin/python3
+1. `docker pull ghcr.io/textyre/bootstrap/control-plane:latest`.
+2. Запуск постоянного контейнера с named volume `bootstrap-control-plane-home:/root`.
+3. `docker exec` системного Ansible — один полный `/opt/bootstrap/ansible/playbooks/workstation.yml`.
+
+В самом `workstation.yml` есть минимальная подготовка Python через native `raw` для bare Arch, затем сбор facts и исходные 31 роль. Остальные существующие playbooks, включая `prepare_system.yml` и `mirrors-update.yml`, находятся вне обычной цепочки.
+
+VM lifecycle выполняется через OpenStrap provider. Изменённый blueprint не перестраивает сеть уже существующих VM; пересоздание принадлежащих проекту машин выполняется отдельным явным действием. Локальные Windows изменения входят в deployment только после публикации нового образа. Коммит, push и публикация требуют разрешения пользователя; уже выданное разрешение действует в рамках согласованной задачи.
+
+## Контейнер и подключения
+
+GitHub Actions собирает корневой `Dockerfile` на Ubuntu 26.04 и публикует `ghcr.io/textyre/bootstrap/control-plane` с тегами `latest` и `sha-<commit>`. Python, системный Ansible, ansible-lint и SSH tools устанавливаются через APT; ARA через pip и Galaxy collections из `ansible/requirements.yml` — при сборке. Образ содержит `/opt/bootstrap/ansible`: playbooks, все роли, inventory, group vars и зашифрованный Vault. `ansible/requirements.txt` остаётся входным файлом существующего CI/Vagrant окружения.
+
+На `ansible-control` используются обычные Docker-команды, без checkout проекта, Task, Compose, сборки или повторной установки инструментов. Taskfile и Compose доступны отдельно как необязательные команды для опубликованного образа: `controller:prepare` делает pull и пересоздаёт контейнер, остальные Tasks используют исходники image. Checkout не монтируется; локальные изменения не влияют на эти проверки до выбора нового образа. Docker по умолчанию вызывается через non-interactive sudo; для optional Tasks root или пользователь с прямым Docker access может задать `CONTROL_PLANE_RUNTIME=docker`.
+
+Статический `ansible/inventory/openstrap.yml` читает target host, port, user и содержимое private key из env. Native `ansible_private_key` с `ssh_agent = auto` загружает OpenSSH ключ в память агента на время запуска. `StrictHostKeyChecking=accept-new` сохраняет первый host key и отклоняет изменившийся. OpenSSH создаёт обычный `known_hosts`; отдельная настройка controller через Ansible не нужна.
+
+Named volume `bootstrap-control-plane-home` сохраняет `/root/.ssh/known_hosts` и ARA offline DB в `/root/ara` при пересоздании контейнера. ARA server публикуется только на localhost Docker host, порт `8000`. Значения private key и пароля Vault в файлы не записываются.
+
+## Секреты
+
+OpenStrap передаёт `BOOTSTRAP_TARGET_HOST`, `BOOTSTRAP_TARGET_PORT`, `BOOTSTRAP_TARGET_USER`, `BOOTSTRAP_TARGET_PRIVATE_KEY` и `BOOTSTRAP_VAULT_PASSWORD` только workstation step. `docker exec --env NAME` получает разрешённые имена переменных; pull и container start не получают secrets. Значения не входят в container/Compose configuration, image build arguments или environment files.
+
+`ansible/vault-pass.sh` читает пароль из env; существующий `vault.yml` расшифровывает выполняемая команда Ansible. Private key, Vault password и локальные credential files не доставляются через Git. Не печатайте их и не помещайте в командную строку или shell history.
+
+Ручной `openstrap connect --run` сам не подставляет blueprint secrets. Для повторного применения через `docker exec` нужен тот же явно подготовленный runtime environment.
+
+## Проверки и повторный запуск
+
+При разработке `task check` выполняет syntax check workstation; `task lint:openstrap` проверяет workstation и роли `user`/`chezmoi`; `task lint` проверяет Ansible проект. Эти optional проверки используют контейнер и запускаются отдельно, когда нужны для изменения. Они не являются дополнительными стадиями обычного deployment.
+
+Molecule tests работают в существующих [.github/workflows/molecule.yml](../../.github/workflows/molecule.yml) и [.github/workflows/molecule-vagrant.yml](../../.github/workflows/molecule-vagrant.yml). Контейнер Control Plane их не устанавливает. `task test` и role aliases сообщают о CI и завершаются с ошибкой, не запуская workflows.
+
+Повторный `openstrap run` выполняет workstation на существующем target; ручной запуск использует `docker exec` с тем же runtime environment. Проверка идемпотентности на том же target или проверка на свежем клоне — отдельные задачи. Для свежего клона можно удалить только `bootstrap-target`:
+
+```powershell
+openstrap remove bootstrap-target --local --force
+openstrap run --local --host-port 2251
 ```
 
-The `become_password` (sudo) is stored encrypted in `ansible/inventory/group_vars/all/vault.yml` and decrypted automatically by `vault-pass.sh`.
+Controller можно сохранить. Protected/source VM никогда не включаются в cleanup. Ошибки исправляются в Ansible source; ручные package/service/file repairs не должны подменять результат применения ролей.
 
-**NEVER** hardcode `ansible_become_password` in inventory files. **NEVER** create custom inventory on the VM. The default `hosts.yml` + vault is the only correct configuration.
+Фактический результат — exit code и recap Ansible; ARA сохраняет подробности выполнения. SQLite читается read-only. В отчёте указываются выполненные проверки и ограничения, без объявления непроведённых tests успешными.
 
-### Vault
-
-```
-vault-pass.sh          ← resolver script (consumes BOOTSTRAP_* secret env)
-  └─▶ host bootstrap helper
-        └─▶ .local/bootstrap/vault-pass.gpg  ← GPG-encrypted local secret
-              └─▶ vault.yml                  ← encrypted vars (become_password, secrets)
-```
-
-The VM receives `vault-pass.sh`, but not a plaintext vault password file.
-Remote bootstrap/task runs that need vault access MUST be started through
-`scripts/ssh-run.sh --bootstrap-secrets ...`, which decrypts the local secret on
-the host and forwards it ephemerally into the remote shell environment. All
-`task` commands still keep the `_check-vault` dependency — they fail
-automatically if vault is misconfigured.
-
-**NEVER** use `--ask-vault-pass`. **NEVER** create a plaintext vault password
-file manually on the VM.
-
-### Taskfile Commands
-
-All playbook execution goes through the Taskfile. **NEVER** run `ansible-playbook` directly. **NEVER** activate venv manually.
-
-| Command | What it does |
-|---------|-------------|
-| `task prepare:system` | Bootloader maintenance + full OS package upgrade before reboot/workstation (`-v` auto) |
-| `task workstation` | Full workstation configuration playbook (`-v` auto) |
-| `task check` | Syntax check all playbooks |
-| `task lint` | ansible-lint on all roles |
-| `task bootstrap` | Install venv + galaxy deps (first-time setup) |
-
-The public execution surface is clone-only because agents must not mutate
-source VMs or source snapshots.
-
-The `task workstation` command has an interactive prompt. Bypass with:
-```bash
-task --yes workstation -- --skip-tags "..."
-```
-
----
-
-## VM Management
-
-### Snapshot Protocol
-
-The project uses VirtualBox snapshots for clean-state testing.
-
-**Source VM:** `arch-base`. **Sacred snapshots:** `initial`, `after-packages`, and any other source snapshots on `arch-base` are immutable. NEVER delete, modify, rebuild, restore in place, or take replacement snapshots on the source VM. Only clone from source snapshots.
-
-### Two Snapshots
-
-`arch-base` has two snapshots for different test scenarios:
-
-| Snapshot | Contents | Use for |
-|----------|----------|---------|
-| `initial` | Bare Arch install + SSH | Full fresh-install test (all roles) |
-| `after-packages` | Pre-baked package baseline used only as a clone source | Runs that assume package layer already exists |
-
-`after-packages` is a frozen clone source. Baseline automation, if needed, must
-live outside the agent execution path and must preserve source snapshot
-immutability.
-
-### Clone Workflow
-
-```
-                    ┌─────────────────────┐
-                    │   VM: arch-base      │
-                    │   snapshot: initial  │
-                    │  (NEVER TOUCH)       │
-                    └──────────┬──────────┘
-                               │ clone-test-vm.sh --from=initial
-                               ▼
-                    ┌─────────────────────┐
-                    │  "arch-test-clone"   │
-                    │  (disposable)        │──── test ──── delete
-                    └─────────────────────┘
-
-                    ┌─────────────────────┐
-                    │   VM: arch-base      │
-                    │ snapshot:            │
-                    │  after-packages      │
-                    └──────────┬──────────┘
-                               │ clone-test-vm.sh --from=after-packages
-                               ▼
-                    ┌─────────────────────┐
-                    │  "arch-test-clone"   │
-                    │  packages pre-baked  │──── test ──── delete
-                    └─────────────────────┘
-```
-
-### Step-by-Step: Create Clone
-
-All `VBoxManage` commands run LOCALLY on Windows, not via SSH.
-
-Use the helper script (preferred):
-```bash
-# Clone from initial on port 2223
-bash scripts/clone-test-vm.sh --from=initial
-
-# Clone from after-packages, replace if exists
-bash scripts/clone-test-vm.sh --from=after-packages --replace
-
-# Custom name and port
-bash scripts/clone-test-vm.sh --from=initial --name=arch-test-2 --port=2224
-```
-
-The helper performs one extra guard for disposable clones: after the first SSH
-boot, it checks whether the running kernel has a matching
-`/usr/lib/modules/<uname -r>` directory. If the clone came up on an old kernel
-while newer modules are already installed on disk (a common post-upgrade
-snapshot state), the helper triggers one local VirtualBox reboot of the clone
-before returning control. This reboot happens only on the disposable clone,
-never on `arch-base`.
-
-Or manually:
-```bash
-# 1. Stop any previous clone
-VBoxManage controlvm "arch-test-clone" poweroff 2>/dev/null || true
-VBoxManage unregistervm "arch-test-clone" --delete 2>/dev/null || true
-
-# 2. Clone from snapshot (linked = fast, ~seconds)
-VBoxManage clonevm "arch-base" \
-  --snapshot "initial" \
-  --name "arch-test-clone" \
-  --options link \
-  --register
-
-# 3. Configure port forwarding (SSH on 2223)
-VBoxManage modifyvm "arch-test-clone" --natpf1 "ssh,tcp,,2223,,22"
-
-# 4. Start clone headless
-VBoxManage startvm "arch-test-clone" --type headless
-
-# 5. Wait for SSH (max 60 seconds)
-for i in $(seq 1 12); do
-  ssh -p 2223 -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
-    -i ~/.ssh/id_rsa_127.0.0.1_2222 textyre@127.0.0.1 echo ok && break
-  sleep 5
-done
-```
-
-### Step-by-Step: Cleanup
-
-```bash
-# Stop and delete clone
-VBoxManage controlvm "arch-test-clone" poweroff
-VBoxManage unregistervm "arch-test-clone" --delete
-
-# Source VMs are not part of clone cleanup. Do not mutate source VM state here.
-```
-
-### SSH Connection
-
-```bash
-SSH_CMD="ssh -p 2223 -i ~/.ssh/id_rsa_127.0.0.1_2222 textyre@127.0.0.1"
-```
-
----
-
-## Playbook Testing Workflow
-
-### Pipeline: Sync → Check → Run → Verify → Idempotency
-
-```
-┌────────┐    ┌───────┐    ┌───────┐    ┌───────┐    ┌──────────┐    ┌────────┐
-│ 1.Sync │───▶│2.Check│───▶│3.Run 1│───▶│4.Verif│───▶│5.Run 2   │───▶│6.Verif │
-│ 1.Sync │    │syntax │    │fresh  │    │ state │    │idempotent│    │ final  │
-└────────┘    └───────┘    └───────┘    └───────┘    └──────────┘    └────────┘
-                              │                          │
-                              │ failed?                  │ changed>0?
-                              ▼                          ▼
-                        Fix role LOCALLY           BUG — no exceptions,
-                        sync + RESET VM            changed=0 required for ALL
-                        restart from step 1
-```
-
-### When to Reset VM
-
-| Scenario | Reset VM? |
-|----------|-----------|
-| Before Run 1 (fresh install test) | **YES** — always start from clean snapshot clone |
-| Before Run 2 (idempotency test) | **NO** — run on same VM as Run 1 |
-| After fixing a failed role | **YES** — reset before re-running |
-| Switching to a different role scope | **YES** — start clean |
-
-### Step 1: Sync Project to VM
-
-```bash
-SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-scp-to.sh --project
-```
-
-`ssh-scp-to.sh --project` deliberately excludes plaintext vault password files.
-Remote bootstrap/task runs must receive the vault secret through
-`ssh-run.sh --bootstrap-secrets`, not through synced plaintext artifacts.
-
-### Step 2: Syntax Check
-
-```bash
-SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
-  "cd ~/bootstrap && task check"
-```
-
-### Step 3: Prepare System
-
-Run the pre-workstation prepare entrypoint. This step prepares bootloader
-maintenance state, then performs the operating-system package upgrade. It must
-not install the workstation package set, AUR packages, Docker, VM integration,
-desktop roles, or dotfiles.
-
-```bash
-SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
-  "cd ~/bootstrap && task --yes prepare:system"
-```
-
-After a successful `task prepare:system`, reboot the disposable clone through the
-project-approved VM workflow. The reboot boundary deliberately starts a new
-runtime; no Ansible checkpoint or resume state is carried across it.
-
-After the VM returns, run the workstation entrypoint through the same
-secret-forwarding path:
-
-```bash
-SSH_HOST=arch-127.0.0.1-2223 bash scripts/ssh-run.sh --bootstrap-secrets \
-  "cd ~/bootstrap && task --yes workstation"
-```
-
-**If a role fails:**
-1. Record the full error output
-2. Identify root cause (not symptoms)
-3. Fix the role LOCALLY (file:line:change)
-4. RESET VM to clean state (clone workflow above)
-5. rsync and restart from Step 1
-
-**NEVER** fix issues manually on the VM. **NEVER** continue from the failure point. **NEVER** skip the failed role. Reset and re-run from scratch.
-
-### Step 4: Verification
-
-After Run 1 succeeds (`failed=0`), verify system state via SSH:
-
-```bash
-$SSH_CMD "
-  echo '=== fail2ban ===' && sudo systemctl status fail2ban --no-pager | head -5;
-  echo '=== sysctl ===' && sysctl vm.swappiness;
-  echo '=== root ===' && sudo passwd -S root;
-  echo '=== faillock ===' && faillock --user textyre;
-  echo '=== yay ===' && which yay && yay --version;
-"
-```
-
-Adapt verification commands to the roles being tested.
-
-### Step 5: Idempotency Run (Run 2)
-
-Run the EXACT SAME command as Step 3 on the SAME VM (**no reset**).
-
-**Expected result:** `changed=0` for ALL roles. No exceptions.
-
-Any role with `changed > 0` on Run 2 is a **BUG** that must be fixed. This includes `reflector` and `package_manager` — both must be idempotent.
-
-### Step 6: Final Verification
-
-Repeat Step 4 to confirm idempotency run didn't break anything.
-
----
-
-## Hard Rules
-
-### 1. No Manual Actions on VM
-
-The VM is a **target**, not a workbench. Every system change MUST come through Ansible roles.
-
-**FORBIDDEN on VM:**
-- `pacman -S`, `pacman -Syu`, `pacman -Rns` — manual package management
-- `systemctl start/stop/enable/disable` — manual service management (except `status` for verification)
-- `vim`, `nano`, `sed`, `echo >` — manual file editing
-- `reflector`, `curl`, `wget` — manual downloads
-- Manual venv creation, `pip install`, `ansible-galaxy install`
-- Writing inventory files or vault files manually
-- `ansible-playbook` directly (use `task` commands)
-
-**ALLOWED on VM (via SSH):**
-- `task` commands (`workstation`, `check`, `lint`, `bootstrap`)
-- Read-only verification commands (`systemctl status`, `cat`, `sysctl`, `which`, `passwd -S`, etc.)
-
-### 2. Fix Roles, Not Systems
-
-```
-WRONG: SSH to VM → manually fix the issue → re-run
-RIGHT: Identify root cause → fix role locally → rsync → reset VM → re-run from scratch
-```
-
-The fix must be **in the role code**, not in the VM state. Every manual fix is lost on the next VM reset.
-
-### 3. Evidence Rule
-
-Every claim about system state MUST include the command and its verbatim output.
-
-- "It works" without evidence = not verified
-- "The service is running" without `systemctl status` output = unproven
-- "The fix is applied" without `cat -n file:lines` = unconfirmed
-
-### 4. Portability Rule
-
-Roles support 5 distros: Arch, Ubuntu, Fedora, Void, Gentoo. Any fix that hardcodes a distro-specific path or command without an `ansible_facts['os_family']` guard is a bug.
-
-### 5. No Shortcuts
-
-- **NEVER** use `--ask-vault-pass` — vault-pass.sh handles it
-- **NEVER** use `--skip-tags` to work around a broken role — fix the role
-- **NEVER** use `ignore_errors: true` to hide failures
-- **NEVER** continue from failure point — reset and re-run from scratch
-- **NEVER** amend, rebuild, delete, or replace a source snapshot — it's the immutable baseline
-- **NEVER** mutate a source snapshot from an agent workflow
+В отчёте отдельно подтверждаются source checks, image build/publication и применение к VM. Bare-metal установка остаётся отдельным процессом и не используется как обход тестового VM запуска.

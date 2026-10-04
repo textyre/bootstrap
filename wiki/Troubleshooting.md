@@ -150,151 +150,75 @@ EndSection
 
 ## 2026-01-31: Initial Bootstrap Setup
 
-**Задача:** Настройка начального bootstrap окружения
+**Задача:** Настройка начального bootstrap окружения и локального источника Vault credentials.
 
-**Проблемы:**
-1. Ansible не установлен на свежей системе
-2. Vault password не настроен
-3. Python venv отсутствует
-
-**Решение:** bootstrap.sh автоматизация:
-```bash
-# Проверка Arch Linux
-# Установка ansible + go-task
-# Запрос vault password
-# Создание venv
-# Запуск playbook
-```
-
-**Vault setup:**
-```bash
-# Первый запуск
-mkdir -p .local/bootstrap/archinstall
-cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
-scripts/setup-vault-pass.sh
-```
+Ранние самостоятельные bootstrap scripts заменены текущим запуском OpenStrap и контейнерным Control Plane. Исторические команды не используются для deployment; актуальные инструкции находятся в [[Usage]] и [Bootstrap Secrets](../docs/bootstrap-secrets.md).
 
 ---
 
 ## Типичные проблемы и решения
 
-### SSH "Permission denied"
+Ниже — диагностика текущего OpenStrap/container запуска. Записи выше описывают историю проекта.
 
-**Проблема:** SSH отказывает в доступе
+### CLI или SSH недоступны
 
-**Решение:**
-```bash
-# Проверить права
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
+Из `D:/projects/bootstrap`:
 
-# Проверить ключ
-ssh-add -l
-
-# Проверить sshd config
-sudo systemctl status sshd
+```powershell
+openstrap plugins
+openstrap list --local
+openstrap connect ansible-control --local --run "cat /etc/os-release"
+openstrap connect bootstrap-target --local --run "id -un"
 ```
 
-### LightDM черный экран
+Проверьте установленный CLI, runtime plugin imports, явно выбранный target, SSH port и локальную identity. Target/controller используют Windows ports `2251`/`2252`; контейнер подключается к target через общую приватную сеть. Не назначайте protected `arch` default host и не меняйте source snapshot.
 
-**Проблема:** LightDM не запускается или черный экран
+Если после роли user пропал SSH, проверьте порядок установки login shell до назначения аккаунту. Исправьте роль локально; повторное применение или fresh target выбираются по задаче. Не ремонтируйте source VM вручную и не отключайте host key checking.
 
-**Решение:**
-```bash
-# Проверить логи
-sudo journalctl -u lightdm
-cat /var/log/Xorg.0.log | grep "(EE)"
+### Docker или контейнер недоступен
 
-# Проверить display-setup-script
-ls -la /etc/lightdm/lightdm.conf.d/
+Cloud-init должен завершить установку `docker.io` и `ca-certificates`. Проверка blueprint — `sudo -n docker info`. Далее выполняются pull готового `ghcr.io/textyre/bootstrap/control-plane:latest`, запуск постоянного контейнера и Docker exec workstation. Git, Task, Compose и сборка на VM не нужны.
 
-# Переключиться на TTY
-Ctrl + Alt + F2
+По умолчанию Docker вызывается через non-interactive sudo. Проверьте реальный exit code pull/start/exec: ошибка загрузки образа или запуска контейнера не является результатом применения ролей. Для optional development Tasks root или пользователь с прямым Docker access может использовать `CONTROL_PLANE_RUNTIME=docker`.
 
-# Перезапустить
-sudo systemctl restart lightdm
+### Ansible Vault: Decryption failed
+
+Проверьте локальный источник `BOOTSTRAP_VAULT_PASSWORD` / `BOOTSTRAP_VAULT_PASSWORD_FILE` / `BOOTSTRAP_VAULT_PASSWORD_GPG_FILE` без вывода значения. Явно выбранный GPG source должен быть доступен noninteractively. `setup-vault-pass.sh` остаётся optional host provisioning helper, а не этап VM deployment.
+
+Зашифрованный `vault.yml` входит в публикуемый image; пароль — только окружению workstation Docker exec. `ansible/vault-pass.sh` внутри image читает env. `connect --run` не добавляет blueprint secrets. Не выводите `bootstrap.env`, decrypted Vault, private keys или пароль для диагностики.
+
+### SSH agent или host key
+
+Inventory использует `ansible_private_key` с `ssh_agent = auto`; значение `BOOTSTRAP_TARGET_PRIVATE_KEY` должно содержать OpenSSH private key. Private key не записывается в проект или home контейнера. При ручном запуске убедитесь, что target host, port, user и key доступны в process environment.
+
+`StrictHostKeyChecking=accept-new` принимает новые host keys и отклоняет изменившиеся. Known hosts сохраняются в `/root/.ssh/known_hosts` внутри persistent home. При mismatch сначала подтвердите причину изменения и target identity; не отключайте проверку и не удаляйте файл для маскировки ошибки.
+
+### LightDM, containers или HTTPS
+
+Проверьте фактический recap и ARA. Дополнительная диагностика с явным target:
+
+```powershell
+openstrap connect bootstrap-target --local --run "systemctl is-active lightdm docker fail2ban sshd"
 ```
 
-### Polybar не отображается
+ARA и Ansible output доступны для progress и ошибок; SQLite читается read-only. Исправьте соответствующую роль в source. Ручной service restart не должен подменять результат применения Ansible.
 
-**Проблема:** Polybar не видим после login
+### Molecule или lint
 
-**Решение:**
-```bash
-# Проверить процессы
-ps aux | grep polybar
+Optional `task check` проверяет workstation syntax; `lint:openstrap` — workstation и роли `user`, `chezmoi`; `lint` — весь Ansible проект. Эти команды используют исходники опубликованного image, а не локальные изменения checkout, и не являются VM prerequisites.
 
-# Запустить вручную
-~/.config/polybar/launch.sh
+Molecule работает в существующих `.github/workflows/molecule.yml` и `molecule-vagrant.yml`. `task test` и role aliases сообщают об этом и завершаются с ошибкой. Они не устанавливают tools и не запускают CI. Проверка lint или полный deployment не подтверждают все Molecule scenarios.
 
-# Проверить логи
-tail -f ~/.local/share/polybar.log
+Сохраняйте полезный command/exit/error; unexecuted checks отмечайте unverified. Обычный запуск применяет workstation один раз. Повторное применение и проверка идемпотентности выбираются отдельно.
 
-# Проверить i3 config
-grep polybar ~/.config/i3/config
+## Полезные read-only проверки
+
+```powershell
+openstrap connect bootstrap-target --local --run "uname -r"
+openstrap connect ansible-control --local --run "sudo -n docker volume inspect bootstrap-control-plane-home"
 ```
 
-### Ansible vault ошибка
-
-**Проблема:** "Decryption failed" при запуске playbook
-
-**Решение:**
-```bash
-# Проверить vault-pass.sh
-ls -la ansible/vault-pass.sh
-chmod +x ansible/vault-pass.sh
-
-# Проверить project-local bootstrap env
-cat .local/bootstrap/bootstrap.env
-
-# Проверить local encrypted vault secret
-ls -la .local/bootstrap/vault-pass.gpg
-gpg --quiet --batch --decrypt .local/bootstrap/vault-pass.gpg >/dev/null
-```
-
-### Molecule тесты падают
-
-**Проблема:** Molecule тесты не проходят
-
-**Решение:**
-```bash
-# Очистить старые контейнеры
-molecule destroy
-
-# Проверить vault password
-scripts/setup-vault-pass.sh
-
-# Запустить с verbose
-molecule --debug test
-
-# Проверить специфичную роль
-molecule test -s default
-```
-
----
-
-## Полезные команды для отладки
-
-```bash
-# Проверить состояние системы
-systemctl status
-journalctl -xe
-
-# Проверить X-сервер
-cat ~/.local/share/xorg/Xorg.0.log
-xrandr --verbose
-
-# Проверить SSH
-ssh -vvv user@host
-
-# Проверить Ansible
-ansible-playbook --syntax-check playbooks/workstation.yml
-ansible-playbook --check playbooks/workstation.yml
-
-# Проверить i3
-i3-msg -t get_tree
-i3-msg -t get_workspaces
-```
+Подробнее — [[Usage]] и [Test VM Workflow](standards/test-vm-workflow.md).
 
 ---
 

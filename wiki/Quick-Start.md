@@ -1,148 +1,50 @@
 # Quick Start
 
-Быстрая настройка Arch Linux рабочей станции через Ansible.
+Запуск выполняется из PowerShell на Windows. OpenStrap создаёт Arch target и отдельный Docker host; системный Ansible работает внутри контейнера Control Plane.
 
-## Требования
+## До запуска
 
-- Arch Linux (свежая установка или существующая система)
-- Доступ к `sudo`
-- Интернет-соединение
+- Установлены OpenStrap CLI и VirtualBox.
+- `openstrap.config.mjs` подключает VirtualBox и SSH плагины; paths соответствуют установленным plugins.
+- `arch-base` имеет snapshot `base`; исходная VM не используется для применения ролей.
+- Runtime config указывает существующую SSH identity, уже разрешённую в source snapshot.
+- Доступен пароль существующего Ansible Vault через [локальный runtime secret store](../docs/bootstrap-secrets.md).
+- SSH ports `2251` и `2252` свободны для target и controller.
 
-## 3 шага
-
-```bash
-# 1. Клонировать репозиторий
-git clone <repo-url> bootstrap && cd bootstrap
-
-# 2. Подготовить локальную secret-директорию
-mkdir -p .local/bootstrap/archinstall
-cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
-
-# 3. Запустить bootstrap
-./bootstrap.sh
-
-# 4. Готово — перезагрузка в настроенную рабочую станцию
-```
-
-`bootstrap.sh` автоматически:
-- Проверит что система — Arch Linux
-- Установит Ansible и go-task если отсутствуют
-- Запросит vault пароль (sudo пароль, зашифрованный AES-256)
-- Создаст Python venv для тулинга
-- Запустит playbook с 14 ролями
-
-## Выборочный запуск
-
-```bash
-# Dry-run (показать изменения без применения)
-./bootstrap.sh --check
-
-# Только определённые роли
-./bootstrap.sh --tags packages
-./bootstrap.sh --tags "docker,ssh,firewall"
-
-# Пропустить роли
-./bootstrap.sh --skip-tags firewall
-
-# Переопределить переменные
-./bootstrap.sh -e '{"base_system_hostname": "mybox"}'
-```
-
-Все аргументы передаются напрямую в `ansible-playbook`.
-
-## Bootstrap secrets
-
-Bootstrap больше не хранит рабочие install/vault credentials в tracked tree.
-
-- tracked repo содержит только templates/examples
-- local secrets live in `.local/bootstrap/`
-- bootstrap scripts read `BOOTSTRAP_*` values from:
-  - shell environment
-  - `.local/bootstrap/bootstrap.env`
-
-Инициализация:
-
-```bash
-scripts/setup-vault-pass.sh
-```
-
-## Что устанавливается
-
-| # | Роль | Описание |
-|---|------|----------|
-| 1 | `base_system` | Локаль, таймзона, hostname, pacman.conf |
-| 2 | `vm` | Определение VM окружения |
-| 3 | `reflector` | Оптимизация зеркал pacman |
-| 4 | `yay` | Сборка AUR helper из исходников |
-| 5 | `packages` | Установка всех пакетов (pacman + AUR) |
-| 6 | `user` | Пользователь, sudo, группы |
-| 7 | `ssh` | SSH ключи Ed25519, hardening sshd |
-| 8 | `git` | Глобальная конфигурация git |
-| 9 | `shell` | Bash/Zsh конфигурация, алиасы |
-| 10 | `docker` | Docker daemon, сервис, группа |
-| 11 | `firewall` | nftables firewall |
-| 12 | `xorg` | Системная конфигурация клавиатуры и монитора X11 |
-| 13 | `lightdm` | Display manager |
-| 14 | `greeter` | Деплой готового ctOS greeter для Nody/LightDM |
-| 15 | `zen_browser` | Браузер по умолчанию для web-ссылок |
-| 16 | `chezmoi` | Деплой дотфайлов через chezmoi |
-
-## Доступные теги
-
-```bash
-# По роли
---tags base       # base_system
---tags vm         # vm
---tags mirrors    # reflector
---tags aur        # yay
---tags packages   # packages
---tags user       # user
---tags ssh        # ssh
---tags git        # git
---tags shell      # shell
---tags docker     # docker
---tags firewall   # firewall
---tags xorg       # xorg
---tags lightdm    # lightdm
---tags greeter    # greeter
---tags zen_browser # zen_browser
---tags chezmoi    # chezmoi
-
-# По категории
---tags security   # ssh + firewall
---tags display    # xorg + lightdm
---tags browser    # zen_browser
---tags dotfiles   # chezmoi
-```
-
-## Разработка
-
-```bash
-# Из корня репозитория:
-task bootstrap    # Установить Python зависимости (один раз)
-task check        # Проверить синтаксис
-task lint         # ansible-lint
-task test         # Все molecule тесты (14 ролей)
-task test-<role>  # Тест конкретной роли (например: task test-docker)
-task dry-run      # Показать изменения
-task workstation  # Применить playbook
-task clean        # Удалить venv
-```
-
-## Передача на сервер (с Windows)
-
-Если вы работаете с Windows и хотите перенести скрипты на Arch сервер:
+## Одна команда
 
 ```powershell
-# Настройка SSH ключа (один раз)
-.\windows\setup_ssh_key.ps1
-
-# Синхронизация
-.\windows\sync_to_server.ps1
+Set-Location D:/projects/bootstrap
+openstrap run --local --host-port 2251
 ```
 
-Подробнее см. [[Windows-Setup]].
+`bootstrap-target` — full clone `arch-base/base`, Arch Linux, SSH `127.0.0.1:2251`. `ansible-control` — Ubuntu 24.04 Docker host, SSH `127.0.0.1:2252`. Обе машины запускаются headless; shared network соединяет их напрямую.
 
----
+Cloud-init устанавливает только `docker.io` и `ca-certificates`. После `sudo -n docker info` OpenStrap загружает готовый `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер с volume `bootstrap-control-plane-home:/root` и выполняет один `workstation.yml` через Docker exec: Python bootstrap при необходимости, facts и исходные 31 роль. Управляющей VM не нужны Git, Task, Compose или сборка.
 
-Назад к [[Home]]
+Статический inventory получает target connection values через environment. Native SSH agent использует private key на время запуска; Vault password передаётся только workstation process. Обычный запуск не загружает зависимости повторно и не требует дополнительного Ansible playbook.
+
+GitHub Actions публикует образ с исходниками в `/opt/bootstrap/ansible`; изменения Windows попадут в deployment после новой публикации. Вывод команды, exit code и recap определяют результат применения. Сборка образа не подтверждает выполнение ролей.
+
+## Просмотр
+
+```powershell
+openstrap list --local
+openstrap connect ansible-control --local --run "cat /etc/os-release"
+openstrap connect bootstrap-target --local --run "id -un"
+```
+
+Эти команды — read-only диагностика. Обычный `connect --run` не подставляет blueprint secrets. Ansible выполняется внутри контейнера через native Docker exec; Taskfile и Compose остаются необязательными инструментами разработки.
+
+## Повторное применение или свежий target
+
+Повторный `openstrap run` применяет роли к существующему target. Ручной `docker exec` требует того же runtime environment. Для проверки на свежем клоне можно отдельно выполнить:
+
+```powershell
+openstrap remove bootstrap-target --local --force
+openstrap run --local --host-port 2251
+```
+
+Выбор зависит от задачи пользователя. Только `bootstrap-target` пересоздаётся; `arch-base`, snapshots, `arch` и `arch-test-clone` защищены. При проверке идемпотентности повторно применяйте роли к той же настроенной VM без reset.
+
+[Usage](Usage.md) и [Test VM Workflow](standards/test-vm-workflow.md) описывают Docker запуск, secrets, ARA и optional Tasks.

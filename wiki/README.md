@@ -19,8 +19,8 @@ Total: 16 wiki pages (240 KB)
 - **Ansible-Overview.md** (5.4 KB) — Ansible roles and architecture
 - **Ansible-Decisions.md** (4.7 KB) — Architecture decision log
 - **Chezmoi-Guide.md** (2.7 KB) — Dotfiles management with chezmoi
-- **SSH-Setup.md** (7.5 KB) — SSH configuration (Windows → Arch)
-- **Windows-Setup.md** (8.5 KB) — Windows utilities setup
+- **SSH-Setup.md** — SSH configuration (Windows → Ubuntu controller → Arch target)
+- **Windows-Setup.md** — Installed OpenStrap CLI, runtime plugins and two-VM workflow
 
 ### GUI Configuration
 - **Xorg-Configuration.md** (9.8 KB) — X11/Xorg setup (consolidated from 4 files)
@@ -79,7 +79,9 @@ All content was consolidated from existing documentation:
 - docs/roadmap/: ansible-roles.md → Roadmap.md
 - docs/troubleshooting/: 8 files merged into Troubleshooting.md
 - ansible/: README.md, decisions.md → Ansible pages
-- windows/: README.md, ssh/README.md → Windows-Setup.md, SSH-Setup.md
+- Windows-Setup.md and SSH-Setup.md are maintained current OpenStrap CLI pages.
+  Their former Windows helper manuals are historical consolidation sources,
+  not current execution instructions.
 
 ## Content Guidelines
 
@@ -92,9 +94,10 @@ All content was consolidated from existing documentation:
 ## Maintenance
 
 When updating documentation:
-1. Update source files in docs/
-2. Regenerate wiki pages from updated sources
-3. Deploy to GitHub Wiki
+1. Reconcile current active pages with openstrap.yaml, runtime config and the ready GHCR image's native Docker pull/start/exec flow. Taskfile and Compose are optional development conveniences.
+2. Preserve dated troubleshooting/postmortem/plan records as history.
+3. Promote migration drafts only after actual full deployment and same-target idempotency evidence.
+4. Publish to GitHub Wiki only when explicitly requested; never commit or push automatically.
 
 ---
 

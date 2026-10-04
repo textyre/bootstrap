@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=../openstrap/schemas/openstrap-blueprint.schema.json
+# OpenStrap prepares machines and runs the ready Control Plane image from GHCR.
+targets:
+  bootstrap-target:
+    displayName: Bootstrap workstation target
+    provider: virtualbox
+    transport: ssh
+    user: textyre
+    sudoPassword: { secret: BOOTSTRAP_TARGET_SUDO_PASSWORD }
+    source: { machine: arch-base, snapshot: base, mode: full }
+    network:
+      shared: { name: bootstrap, address: 172.28.51.10, cidr: 24 }
+    size: large
+    display: false
+  ansible-control:
+    displayName: Ansible Control Plane
+    provider: virtualbox
+    transport: ssh
+    image: cloud-image/ubuntu-24.04
+    size: large
+    display: false
+    network:
+      shared: { name: bootstrap, address: 172.28.51.11, cidr: 24 }
+    cloudInit:
+      packageUpdate: true
+      packages:
+        - docker.io
+        - ca-certificates
+    requirements:
+      - id: docker-ready
+        commands:
+          docker-daemon:
+            run: sudo --non-interactive docker info
+            timeoutMs: 60000
+            status: present
+            exitCode: 0
+    steps:
+      - id: pull-control-plane-image
+        run: sudo --non-interactive docker pull ghcr.io/textyre/bootstrap/control-plane:latest
+        timeoutMs: 1800000
+      - id: start-control-plane
+        run: >-
+          if sudo --non-interactive docker container inspect bootstrap-control-plane >/dev/null 2>&1;
+          then sudo --non-interactive docker container rm --force bootstrap-control-plane; fi &&
+          sudo --non-interactive docker run --detach --init --restart unless-stopped
+          --name bootstrap-control-plane
+          --mount type=volume,source=bootstrap-control-plane-home,target=/root
+          --publish 127.0.0.1:8000:8000 --pull never
+          ghcr.io/textyre/bootstrap/control-plane:latest
+        timeoutMs: 120000
+      - id: configure-workstation
+        run: >-
+          sudo --non-interactive --preserve-env=BOOTSTRAP_TARGET_HOST,BOOTSTRAP_TARGET_PORT,BOOTSTRAP_TARGET_USER,BOOTSTRAP_TARGET_PRIVATE_KEY,BOOTSTRAP_VAULT_PASSWORD
+          docker exec --env BOOTSTRAP_TARGET_HOST --env BOOTSTRAP_TARGET_PORT
+          --env BOOTSTRAP_TARGET_USER --env BOOTSTRAP_TARGET_PRIVATE_KEY
+          --env BOOTSTRAP_VAULT_PASSWORD
+          bootstrap-control-plane ansible-playbook playbooks/workstation.yml
+        environment:
+          BOOTSTRAP_TARGET_HOST: { target: bootstrap-target, field: host }
+          BOOTSTRAP_TARGET_PORT: { target: bootstrap-target, field: port }
+          BOOTSTRAP_TARGET_USER: { target: bootstrap-target, field: user }
+          BOOTSTRAP_TARGET_PRIVATE_KEY: { target: bootstrap-target, field: privateKey }
+          BOOTSTRAP_VAULT_PASSWORD: { secret: BOOTSTRAP_VAULT_PASSWORD }
+        timeoutMs: 21600000

@@ -2,32 +2,19 @@
 
 ## Bootstrap
 
-- `bootstrap.sh` полностью настраивает систему с нуля (Arch Linux)
-- Все секреты (sudo пароль) хранятся в Ansible Vault
-- Vault/install secrets живут в project-local `.local/bootstrap/` и
-  `BOOTSTRAP_*` env boundary
-- Без ручных шагов после `./bootstrap.sh`
+- Windows имеет установленный OpenStrap CLI, VirtualBox и подключённые provider/SSH plugins.
+- Entry command из `D:/projects/bootstrap`: `openstrap run --local --host-port 2251`.
+- `bootstrap-target` — disposable full clone `arch-base/base`; `ansible-control` — Ubuntu 24.04 Docker host.
+- Cloud-init устанавливает только `docker.io` и `ca-certificates`; `sudo -n docker info` подтверждает доступность Docker.
+- Docker host загружает готовый `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер и использует Docker exec. Git, Task, Compose и сборка на VM не нужны.
+- GHCR package опубликован с public visibility, чтобы Docker host загружал образ без registry credentials.
+- Ansible и lint выполняются внутри одного контейнера Control Plane; target управляется по SSH.
+- Vault password и target connection values передаются только workstation process environment.
+- Protected source VM и snapshots неизменны.
 
 ## Роли — порядок и зависимости
 
-- Полное обновление системы (`pacman -Syu`) перед установкой пакетов
-- **base_system**: locale, timezone, hostname, pacman.conf
-- **vm**: определение окружения VM, специфичные настройки
-- **reflector**: ранжирование зеркал (Arch)
-- **yay**: сборка AUR-хелпера из исходников
-- **packages**: все pacman + AUR пакеты рабочей станции
-- **user**: создание пользователя, sudoers, группы
-- **ssh**: генерация ключей, hardening sshd
-- **git**: per-user конфигурация (name, email, editor)
-- **shell**: окружение (bash/zsh)
-- **docker**: установка, сервис, группа
-- **firewall**: nftables, правила
-- **xorg**: системная конфигурация клавиатуры и монитора X11; сервер,
-  драйверы и утилиты устанавливает роль `packages`
-- **lightdm**: конфигурация и запуск display manager
-- **greeter**: деплой готового ctOS greeter
-- **zen_browser**: XDG web-handler для `target_user`; пакет устанавливает роль `packages`
-- **chezmoi**: dotfiles из репозитория
+Полный scope и порядок задаёт `ansible/playbooks/workstation.yml`; актуальное описание — [[Ansible-Overview]]. Playbook сам устанавливает Python через native `raw`, если его нет, затем собирает facts и выполняет исходные 31 роль. Runtime dependencies устанавливаются declaratively до роли/сервиса, которым они нужны. Существующие `prepare_system.yml` и `mirrors-update.yml` остаются отдельными playbooks вне обычного запуска.
 
 ## Пакеты
 
@@ -37,33 +24,36 @@
 - Конфликты AUR с pacman пакетами разрешаются автоматически
 - picom ставится из pacman (официальный upstream v12+ с анимациями и rules)
 - Обязательные AUR: i3lock-color, rofi-greenclip, dracula-gtk-theme, i3-rounded-border-patch-git
+- Arch mapping сохраняет явный `nodejs-lts-iron`: Node 20 совместим с build dependency Nody и runtime ctOS helper. Общая категория `nodejs` для Ubuntu не меняется.
 
-## Тестирование
+## Проверки
 
-- Molecule тест для каждой роли
-- `go-task test --yes` прогоняет lint + все molecule тесты
-- ansible-lint profile: production, 0 нарушений
-- Idempotence: повторный запуск не меняет состояние системы
-- Сервисы (docker, nftables, lightdm) включены и запущены в тестах
+- Optional development Tasks `check`, `lint:openstrap` и `lint` выполняют syntax check workstation, scoped lint workstation/user/chezmoi и lint всего проекта соответственно.
+- Molecule сценарии запускаются существующими CI workflows `.github/workflows/molecule.yml` и `molecule-vagrant.yml`, со своим окружением.
+- Control Plane test aliases завершаются с сообщением о CI; они не устанавливают test tools и не запускают workflows.
+- Повторное применение и тест на свежем клоне выбираются по задаче пользователя.
+- Реальный вывод подтверждает результат; наличие Tasks или VM не доказывает, что checks прошли.
 
-## Синхронизация Windows → VM
+## Доставка образа на controller
 
-- `sync_to_server.ps1` копирует проект на VM
-- Корректные права файлов после копирования (ansible.cfg 644, inventory go-w)
-- Line endings: CRLF → LF для .sh файлов
+GitHub Actions собирает и публикует `ghcr.io/textyre/bootstrap/control-plane` с тегами `latest` и `sha-<commit>`. Образ уже содержит `/opt/bootstrap/ansible`: playbooks, роли, static inventory, group vars и зашифрованный Vault. Локальные изменения входят в deployment после публикации нового image; credential files и runtime config Windows в image не входят. При сборке `ansible/vault-pass.sh` включается с executable mode и читает только environment.
 
 ## Инфраструктура
 
-- Inventory: `hosts.ini` (INI формат, плагин включён в ansible.cfg)
-- Vault password file: `vault-pass.sh`
-- Python venv: `ansible/.venv`
-- Taskfile.yml: bootstrap, check, lint, test, workstation, dry-run, vault-*
+- Корневой `Dockerfile` на Ubuntu 26.04 устанавливает Python, системный Ansible, ansible-lint и SSH tools через APT; ARA и Galaxy collections устанавливаются при сборке.
+- Blueprint напрямую выполняет image pull, container start и Docker exec одного playbook.
+- Taskfile и Compose — необязательные команды опубликованного образа на Docker host; они не устанавливаются на управляющую VM и не монтируют локальные исходники Ansible.
+- Inventory: статический `ansible/inventory/openstrap.yml`, `ansible_connection: ssh`, runtime env lookups для target.
+- Native `ansible_private_key` и `ssh_agent = auto` загружают OpenSSH identity в память агента на время запуска.
+- Known hosts и ARA offline DB сохраняются в named volume `bootstrap-control-plane-home:/root`; ARA server port `8000` доступен только на localhost Docker host.
+- Docker exec передаёт только разрешённые имена environment; secrets не хранятся в container/Compose settings и не используются при pull/start/build.
+- `ansible/requirements.txt` остаётся входным файлом существующего CI/Vagrant окружения.
 
 ## Идемпотентность
 
-- Каждая роль идемпотентна — повторный запуск = 0 changed
-- Временные файлы (SUDO_ASKPASS) не влияют на состояние системы
-- AUR пакеты: `--needed` предотвращает переустановку
+Chezmoi apply выполняется с `umask 027`, согласованным с mode `0750` для управляемой `.local/share`. Не ослабляйте этот baseline до `0755` ради устранения ложного изменения.
+
+Когда задача требует проверки идемпотентности, используйте фактическое повторное применение на той же VM. Временные файлы и dependency refresh не должны создавать ложные изменения. Частичные tags/skip-tags подтверждают только выбранный scope.
 
 ---
 

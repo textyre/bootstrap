@@ -44,6 +44,7 @@ full_dependencies.txt
 windows/config/config.ps1
 windows/.env
 .local/bootstrap/
+.local/control-plane/
 .codex/
 
 # ---- Sensitive keys ----
@@ -68,3 +69,9 @@ id_rsa*
 # ---- Local test inventory (contains usernames, SSH key paths) ----
 ansible/inventory/test.ini
 ansible/inventory/test.yml
+
+# ---- OpenStrap runtime state ----
+.openstrap-results/
+.openstrap/
+.tools/
+ansible/collections/

@@ -1,293 +1,45 @@
-# SSH Setup: Windows → Arch Linux
+# SSH: Windows → controller → target
 
-Полное руководство по настройке SSH для синхронизации проекта с Windows на Arch Linux VM/сервер.
+SSH plugin обеспечивает доступ Windows OpenStrap к обеим VM. Контейнер Control Plane использует обычный SSH client и статический Ansible inventory для target.
 
-## Требования
+## Соединения
 
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
+| Откуда | Куда | Адрес |
+|---|---|---|
+| Windows | `bootstrap-target` / `textyre` | `127.0.0.1:2251` |
+| Windows | `ansible-control` / `openstrap` | `127.0.0.1:2252` |
+| Control Plane container | `bootstrap-target` / `textyre` | `172.28.51.10:22` |
 
-## Быстрая настройка
+Общая приватная сеть `bootstrap` соединяет обе VM. Blueprint передаёт актуальные target references в environment workstation Docker exec; адрес и порт читаются статическим inventory внутри готового image.
 
-### 1. Настройка конфигурации
+## Identity
 
-Откройте `windows\config\config.ps1`:
+Source snapshot `arch-base/base` разрешает существующий публичный SSH ключ пользователя `textyre`. `openstrap.config.mjs` задаёт соответствующую локальную identity в `ssh({ identities: { "bootstrap-target": ... } })`. Не копируйте новый ключ в source VM и не меняйте её состояние для теста.
 
-```powershell
-$Global:SERVER_USER = "your_username"
-$Global:SERVER_HOST = "192.168.1.100"  # или 127.0.0.1 для VM
-$Global:SERVER_PORT = 22               # или 2222 для NAT forwarding
-$Global:REMOTE_PATH = "/home/your_username/bootstrap"
-```
+`ansible/inventory/openstrap.yml` читает host, port, user и содержимое private key из `BOOTSTRAP_TARGET_*` environment. Native `ansible_private_key` и заданный в образе `ANSIBLE_SSH_AGENT=auto` добавляют OpenSSH private key в память агента на время запуска. Private key не сохраняется в файлах проекта или контейнере. Системный пакет `openssh-client` предоставляет SSH client и agent.
 
-### 2. Настройка SSH ключа (один раз)
+## Host key trust
 
-```powershell
-cd windows
-.\ssh\setup_ssh_key.ps1
-```
+`StrictHostKeyChecking=accept-new` сохраняет новый public host key при первом SSH-соединении и отклоняет изменившийся. Это доверие при первом контакте в общей приватной сети, а не независимая attestation source. OpenSSH создаёт обычный `/root/.ssh/known_hosts`; named volume `bootstrap-control-plane-home:/root` сохраняет его при пересоздании контейнера.
 
-Скрипт выполнит 3 шага:
-1. Сгенерирует уникальный SSH ключ Ed25519
-2. Скопирует его на сервер (потребуется пароль ОДИН раз)
-3. Обновит SSH конфигурацию
+Не отключайте host key checking и не удаляйте known_hosts для маскировки ошибки. Сначала подтвердите identity и причину изменения, особенно при пересоздании target по тому же адресу.
 
-### 3. Синхронизация файлов
+## Диагностика
 
 ```powershell
-.\sync\sync_to_server.ps1
+Set-Location D:/projects/bootstrap
+openstrap connect bootstrap-target --local --run "id -un"
+openstrap connect ansible-control --local --run "cat /etc/os-release"
 ```
 
-## Структура Windows утилит
+Для Ansible операций используйте Docker exec с нужным runtime environment; Tasks доступны отдельно для разработки. Arbitrary `connect --run` сам по себе blueprint secrets не получает.
 
-```
-windows/
-├── config/
-│   ├── config.ps1              # Общая конфигурация (НАСТРОЙТЕ ЗДЕСЬ)
-│   └── show-config.ps1         # Просмотр текущей конфигурации
-├── ssh/
-│   ├── setup_ssh_key.ps1       # Полная настройка SSH
-│   ├── setup_ssh_key.bat       # Обертка для двойного клика
-│   ├── test-connection.ps1     # Проверка подключения
-│   └── modules/
-│       ├── ssh-keygen.ps1      # Генерация ключа
-│       ├── ssh-copy-id.ps1     # Копирование ключа
-│       └── ssh-config.ps1      # Обновление SSH config
-└── sync/
-    ├── sync_to_server.ps1      # Синхронизация (rsync/scp)
-    └── sync_to_server.bat      # Обертка для двойного клика
-```
+Если SSH не работает, проверьте правильный target, running state, recorded port, локальную identity и known_hosts. Не назначайте protected `arch` default host и не устанавливайте пакеты/sshd вручную на source.
 
-## Настройка VirtualBox NAT (для VM)
+## Файлы и секреты
 
-Если используете VirtualBox с NAT, нужно пробросить порт:
+OpenStrap загружает готовый image из GHCR. В `/opt/bootstrap/ansible` уже находятся статический inventory, роли, playbooks, group vars и зашифрованный Vault. Локальные private keys, Vault password files, `.local` и host runtime config в image не входят.
 
-### Через GUI
+Target connection values и пароль Vault предоставляются только workstation step environment. Docker exec передаёт разрешённые имена переменных; значения не входят в container configuration, image build или pull/start команды. Environment-only `ansible/vault-pass.sh` включается в образ при сборке. Пароли и private keys не выводятся в diagnostics, CLI arguments или history.
 
-`Settings` → `Network` → `Adapter 1 (NAT)` → `Advanced` → `Port Forwarding`
-
-Добавить правило:
-- Name: `guestssh`
-- Protocol: `TCP`
-- Host IP: `127.0.0.1`
-- Host Port: `2222`
-- Guest Port: `22`
-
-### Через CLI
-
-```powershell
-VBoxManage modifyvm "VM-name" --natpf1 "guestssh,tcp,,2222,,22"
-VBoxManage showvminfo "VM-name" --details
-```
-
-## SSH на Arch Linux (гостевая система)
-
-```bash
-# Установить и запустить SSH
-sudo pacman -Syu openssh
-sudo systemctl enable --now sshd
-sudo systemctl status sshd
-
-# Проверить что слушает порт 22
-ss -tlnp | grep ssh
-
-# Проверить firewall (если включен)
-sudo nft list ruleset
-```
-
-## Уникальные SSH ключи
-
-Скрипты создают отдельный ключ для каждого сервера:
-
-```
-id_rsa_<host>_<port>
-```
-
-Например: `id_rsa_127.0.0.1_2222`
-
-**Преимущества:**
-- Изоляция: компрометация одного ключа не влияет на другие
-- Управление: легко отозвать доступ к конкретному серверу
-- Безопасность: современный алгоритм Ed25519
-
-## SSH Config
-
-Автоматически создается запись в `~/.ssh/config`:
-
-```
-Host arch-127.0.0.1-2222
-    HostName 127.0.0.1
-    Port 2222
-    User textyre
-    IdentityFile C:\Users\user\.ssh\id_rsa_127.0.0.1_2222
-    IdentitiesOnly yes
-```
-
-Подключение:
-```bash
-ssh arch-127.0.0.1-2222
-```
-
-## Синхронизация (sync_to_server.ps1)
-
-### Режимы работы
-
-1. **rsync** (предпочтительный) — инкрементальная синхронизация
-2. **scp** (fallback) — полное копирование если rsync недоступен
-
-### Функции
-
-- Автоматическое создание удаленной директории
-- Исключение ненужных файлов (`.git/`, `.venv/`, `node_modules/`, и др.)
-- Конвертация line endings (CRLF → LF для `.sh`)
-- Установка прав выполнения на `.sh` файлы
-- Поддержка SSH ключей
-
-### Исключенные файлы
-
-```
-.git/
-.github/
-.venv/
-windows/
-.claude/
-.vscode/
-.idea/
-__pycache__/
-.molecule/
-.cache/
-*.pyc
-*.pyo
-```
-
-### Опции
-
-```powershell
-# Принудительно использовать scp вместо rsync
-.\sync_to_server.ps1 -ForceScp
-
-# Пропустить установку прав на .sh файлы
-.\sync_to_server.ps1 -SkipPermissions
-```
-
-## Утилиты
-
-### Просмотр конфигурации
-
-```powershell
-.\config\show-config.ps1
-```
-
-Показывает:
-- Параметры подключения
-- Статус SSH ключа
-- Результат проверки подключения
-- Настроенные SSH хосты
-
-### Проверка подключения
-
-```powershell
-.\ssh\test-connection.ps1
-```
-
-## Решение проблем
-
-### Скрипт запрашивает пароль каждый раз
-
-```powershell
-# Запустите настройку SSH ключа заново
-.\ssh\setup_ssh_key.ps1
-```
-
-### "Permission denied" при подключении
-
-1. Проверьте параметры в `config\config.ps1`
-2. Проверьте SSH сервер на Arch: `sudo systemctl status sshd`
-3. Проверьте права на `~/.ssh/authorized_keys` (должны быть 600)
-
-### "Connection refused"
-
-```bash
-# На Arch Linux проверьте SSH сервер
-sudo systemctl status sshd
-sudo systemctl start sshd
-```
-
-### Rsync недоступен
-
-```powershell
-# Установите rsync через winget
-winget install rsync
-```
-
-## Примеры использования
-
-### Первоначальная настройка
-
-```powershell
-# 1. Настройте config.ps1
-notepad .\config\config.ps1
-
-# 2. Посмотрите конфигурацию
-.\config\show-config.ps1
-
-# 3. Настройте SSH ключ
-.\ssh\setup_ssh_key.ps1
-
-# 4. Проверьте подключение
-.\ssh\test-connection.ps1
-
-# 5. Синхронизируйте файлы
-.\sync\sync_to_server.ps1
-```
-
-### Ежедневное использование
-
-```powershell
-# Просто синхронизируйте
-.\sync\sync_to_server.ps1
-
-# Или двойной клик на
-sync\sync_to_server.bat
-```
-
-## Ручное копирование ключа
-
-Если автоматическое копирование не сработало:
-
-```powershell
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh -p 2222 youruser@127.0.0.1 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
-```
-
-Или на госте:
-
-```bash
-mkdir -p ~/.ssh
-cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
-```
-
-## Отладка SSH
-
-```powershell
-# SSH с подробным логированием
-ssh -vvv -i C:\Users\<You>\.ssh\id_ed25519 -p 2222 youruser@127.0.0.1
-```
-
-На Arch:
-
-```bash
-# Проверить права
-ls -la ~/.ssh
-cat ~/.ssh/authorized_keys
-
-# Исправить права
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
-```
-
----
-
-Назад к [[Home]]
+[Windows Setup](Windows-Setup.md) · [Bootstrap Secrets](../docs/bootstrap-secrets.md) · [Test VM Workflow](standards/test-vm-workflow.md).

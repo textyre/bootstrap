@@ -1,210 +1,68 @@
 # Arch Linux Workstation Bootstrap
 
-Полностью автоматизированный bootstrap Arch Linux рабочей станции через Ansible.
-33 модульных роли в 7 фазах: от базовой настройки системы до desktop environment и dotfiles.
-Multi-distro (Archlinux, Debian, RedHat, Void, Gentoo), init-system agnostic.
+OpenStrap создаёт тестовую Arch VM и отдельный Docker host, загружает готовый образ из GHCR и запускает один `workstation.yml` по SSH. В контейнере Control Plane работает обычный системный Ansible. Контейнер можно разместить на Linux VM, в облаке или на VPS: нужен Docker и доступ к target.
 
-## Quick Start
+## Запуск
 
-```bash
-# 1. Клонировать репозиторий
-git clone <repo-url> bootstrap && cd bootstrap
+Из PowerShell в каталоге проекта:
 
-# 2. Подготовить локальное bootstrap-окружение
-mkdir -p .local/bootstrap/archinstall
-cp scripts/bootstrap.env.example .local/bootstrap/bootstrap.env
-scripts/setup-vault-pass.sh
-
-# 3. Запустить bootstrap
-./bootstrap.sh
-
-# 4. Готово — перезагрузка в настроенную рабочую станцию
+```powershell
+Set-Location D:/projects/bootstrap
+openstrap run --local --host-port 2251
 ```
 
-## Что делает
+Нужны OpenStrap CLI, VirtualBox, плагины из `openstrap.config.mjs`, snapshot `base` исходной `arch-base` и SSH identity для доступа к клону. Runtime config задаёт источник identity и пароль существующего Ansible Vault. Локальные credential files не входят в Git. Подробности — [Bootstrap Secrets](docs/bootstrap-secrets.md).
 
-### Phase 1: System Foundation
+## Что выполняется
 
-| Роль | Описание |
-|------|----------|
-| `timezone` | Часовой пояс |
-| `locale` | Локаль, LC_* |
-| `hostname` | Имя машины |
-| `hostctl` | /etc/hosts |
-| `vconsole` | Шрифт и клавиатура TTY |
-| `ntp` | Chrony + NTS серверы |
-| `ntp_audit` | Аудит NTP синхронизации |
-| `package_manager` | pacman.conf, зеркала |
-| `pam_hardening` | PAM faillock — защита от brute-force |
-| `vm` | Гостевые утилиты VirtualBox/VMware/Hyper-V/KVM |
+| VM | Назначение |
+|---|---|
+| `bootstrap-target` | Полный клон `arch-base/base`; Arch Linux, пользователь `textyre` |
+| `ansible-control` | Ubuntu 24.04 Docker host |
 
-### Phase 1.5: Hardware & Kernel
+Обе VM запускаются headless. Общая приватная сеть `bootstrap` соединяет target `172.28.51.10:22` и controller `172.28.51.11`. SSH с Windows доступен через порты `2251` и `2252`. Исходная VM и её snapshots остаются неизменными.
 
-| Роль | Описание |
-|------|----------|
-| `gpu_drivers` | Стек GPU-драйверов NVIDIA/AMD/Intel для поддержанных bare-metal и passthrough сценариев |
-| `sysctl` | Hardening ядра, сети, производительность |
-| `power_management` | TLP, управление питанием |
+Cloud-init устанавливает только `docker.io` и `ca-certificates` на `ansible-control`. После завершения cloud-init OpenStrap проверяет Docker командой `sudo -n docker info` и выполняет три шага по порядку:
 
-### Phase 2: Package Infrastructure
+1. Загружает `ghcr.io/textyre/bootstrap/control-plane:latest` через `docker pull`.
+2. Запускает постоянный контейнер Control Plane с named volume `bootstrap-control-plane-home:/root`.
+3. Через `docker exec` запускает системный `ansible-playbook` с `/opt/bootstrap/ansible/playbooks/workstation.yml` для target.
 
-| Роль | Описание |
-|------|----------|
-| `packages` | Установка всех пакетов (pacman + AUR) |
+[GitHub Actions workflow](.github/workflows/build-control-plane.yml) собирает корневой `Dockerfile` на Ubuntu 26.04 и публикует образ в GHCR с тегами `latest` и `sha-<commit>`. Python, системный Ansible, ansible-lint и SSH tools устанавливаются через APT; ARA через pip и Galaxy collections из `ansible/requirements.yml` — при сборке. В `/opt/bootstrap/ansible` уже находятся playbooks, все роли, статический inventory, group vars и зашифрованный Vault. На управляющей VM не нужны Git checkout, Task, Compose или сборка образа. Обычный запуск использует готовый контейнер без повторной установки зависимостей и предварительной расшифровки Vault.
 
-### Phase 3: User & Access
+`inventory/openstrap.yml` получает адрес, порт, пользователя и содержимое private key из runtime environment последнего шага. Native Ansible `ssh_agent = auto` загружает ключ в агент на время запуска. OpenSSH с `StrictHostKeyChecking=accept-new` сохраняет новые host keys и отклоняет изменившиеся. Named volume сохраняет `/root/.ssh/known_hosts` и ARA offline DB в `/root/ara`; private key и пароль Vault передаются только процессу `docker exec` и в файлы не записываются.
 
-| Роль | Описание |
-|------|----------|
-| `user` | Локальные пользователи, sudo, password aging, umask |
-| `ssh_keys` | Генерация и деплой SSH ключей |
-| `ssh` | sshd hardening, moduli, баннеры |
-| `teleport` | Teleport standalone-кластер или агент существующего кластера |
-| `fail2ban` | Jail для SSH brute-force |
+На минимальном Arch без Python `workstation.yml` сначала устанавливает Python через native `raw`, затем собирает facts и выполняет исходные 31 роль. Список и порядок ролей определены в [workstation.yml](ansible/playbooks/workstation.yml). Существующие `prepare_system.yml` и `mirrors-update.yml` остаются отдельными исходными playbooks вне этой цепочки.
 
-### Phase 4: Development Tools
+## Разработка и повторное применение
 
-| Роль | Описание |
-|------|----------|
-| `git` | Developer toolchain: signing, aliases, LFS, hooks, multi-user |
-| `shell` | Bash/Zsh, алиасы, PATH |
+`Taskfile.yml` и `compose.yml` — необязательные команды для Docker host, на котором доступны эти файлы и установлены Task/Compose. `task controller:prepare` загружает опубликованный образ и пересоздаёт контейнер; `check`, `lint`, `lint:openstrap`, `workstation`, `dry-run` и `ara` работают с исходниками внутри выбранного образа. Локальный checkout в контейнер не монтируется. Для root или пользователя с прямым доступом к Docker задайте `CONTROL_PLANE_RUNTIME=docker`; по умолчанию Task вызывает Docker через non-interactive sudo. Blueprint на `ansible-control` выполняет обычные Docker-команды напрямую.
 
-### Phase 5: Services
+Molecule выполняется в существующих [.github/workflows/molecule.yml](.github/workflows/molecule.yml) и [.github/workflows/molecule-vagrant.yml](.github/workflows/molecule-vagrant.yml). `task test` и role test aliases сообщают об этом и завершаются с ошибкой; запуск CI остаётся отдельным действием.
 
-| Роль | Описание |
-|------|----------|
-| `docker` | daemon.json, сервис, группа |
-| `firewall` | nftables firewall |
-| `caddy` | Reverse proxy |
-| `vaultwarden` | Password manager (self-hosted) |
+Повторный `openstrap run` применяет workstation к существующему target; при ручном запуске используется `docker exec` с тем же runtime environment. Для проверки на свежем клоне можно отдельно удалить только `bootstrap-target` через OpenStrap и снова запустить проект. Повторный прогон и пересоздание target выбираются по задаче пользователя.
 
-### Phase 6: Desktop Environment
+Изменённые роли доставляются новым опубликованным образом: локальные изменения Windows не входят в уже существующий image. Тег `sha-<commit>` позволяет выбрать конкретную ревизию; `latest` следует последней публикации. Изменение blueprint не перестраивает сеть уже существующих VM. Protected `arch-base`, `arch` и `arch-test-clone` не входят в очистку проекта.
 
-| Роль | Описание |
-|------|----------|
-| `xorg` | Конфигурация X11 мониторов |
-| `lightdm` | Display manager |
-| `greeter` | LightDM greeter |
-| `zen_browser` | Zen Browser (Arch only) |
+Результат deployment определяется exit code и recap Ansible. Сборка образа и проверки исходников сами по себе не подтверждают применение ролей к VM.
 
-### Phase 7: User Dotfiles
+## Структура
 
-| Роль | Описание |
-|------|----------|
-| `chezmoi` | Деплой дотфайлов через chezmoi |
-
-### Shared
-
-| Роль | Описание |
-|------|----------|
-| `common` | Shared tasks: report_phase, report_render |
-
-## Использование
-
-```bash
-# Полный bootstrap
-./bootstrap.sh
-
-# Dry-run (показать изменения без применения)
-./bootstrap.sh --check
-
-# Только определённые роли
-./bootstrap.sh --tags packages
-./bootstrap.sh --tags "docker,ssh,firewall"
-
-# Пропустить роли
-./bootstrap.sh --skip-tags firewall
-
-# Переопределить переменные
-./bootstrap.sh -e '{"ntp_enabled": false}'
+```text
+openstrap.yaml                     VM, image pull/start и один workstation запуск
+openstrap.config.mjs               provider, SSH и локальные секреты
+Taskfile.yml                       необязательные команды разработки
+Dockerfile                         публикуемый образ с Ansible и исходниками
+compose.yml                        необязательный development service control-plane
+ansible/playbooks/workstation.yml  полный workstation playbook
+ansible/roles/                     роли рабочей станции
+ansible/inventory/openstrap.yml    SSH inventory с env lookups
+ansible/inventory/group_vars/all/  настройки и зашифрованный Vault
+ansible/vault-pass.sh               environment-only адаптер Vault
 ```
 
-## Безопасный bootstrap boundary
-
-- tracked repo хранит только безопасные templates/examples
-- local bootstrap secrets live in `.local/bootstrap/`
-- bootstrap scripts resolve secrets only from:
-  - project-level `BOOTSTRAP_*` environment variables
-  - local GPG-encrypted runtime secret under `.local/bootstrap/`
-  - local install-only secret files under `.local/bootstrap/archinstall/`
-  - safe tracked templates/examples
-- remote VM bootstrap uses `scripts/ssh-run.sh --bootstrap-secrets ...` so the
-  vault/sudo secret is forwarded ephemerally and not synced to the VM as a
-  plaintext file
-
-Подробная инструкция: [bootstrap-secrets.md](D:/projects/bootstrap/docs/bootstrap-secrets.md)
-
-## Разработка
-
-```bash
-# Из корня репозитория:
-task bootstrap    # Установить Python зависимости (один раз)
-task check        # Проверить синтаксис
-task lint         # ansible-lint best practices
-task test         # Все molecule тесты
-task test-<role>  # Тест конкретной роли
-task dry-run      # Показать изменения
-task workstation  # Применить playbook
-task clean        # Удалить venv
-```
-
-## Структура проекта
-
-```
-bootstrap/
-├── bootstrap.sh                           # Единственная точка входа
-├── Taskfile.yml                           # Task runner (разработка)
-├── ansible/                               # Ansible project
-│   ├── ansible.cfg
-│   ├── requirements.txt                   # Python deps
-│   ├── vault-pass.sh                      # Vault password resolver
-│   ├── inventory/
-│   │   ├── hosts.ini
-│   │   └── group_vars/all/
-│   │       ├── packages.yml               # Реестр пакетов
-│   │       ├── system.yml                 # Системные переменные
-│   │       └── vault.yml                  # Encrypted (Ansible Vault)
-│   ├── playbooks/
-│   │   └── workstation.yml                # Полный bootstrap (7 фаз)
-│   └── roles/                             # 33 модульных роли
-├── wiki/                                  # Wiki + стандарты ролей
-│   ├── roles/                             # Документация по каждой роли
-│   └── standards/                         # Требования к ролям
-├── docs/plans/                            # Планы и дизайн-доки
-├── scripts/                               # Bootstrap скрипты
-├── dotfiles/                              # Исходные дотфайлы (chezmoi source)
-├── greeter/                               # LightDM greeter (Vite + TS)
-├── ci/                                    # CI скрипты
-└── windows/                               # Windows SSH/sync утилиты
-```
-
-## Стандарты ролей
-
-Каждая роль соответствует 11 требованиям (`wiki/standards/role-requirements.md`):
-
-- **ROLE-001** Distro-agnostic: `vars/` per distro
-- **ROLE-003** Five distros: Archlinux, Debian, RedHat, Void, Gentoo
-- **ROLE-005** In-role verification: `verify.yml`
-- **ROLE-006** Molecule tests
-- **ROLE-008** Dual logging: `common/report_phase.yml`
-- **ROLE-009** Profile-aware defaults: `workstation_profiles`
-- **ROLE-010** Modular config: per-subsystem toggles + `_overwrite` pattern
-- **ROLE-011** Ansible-native: FQCN modules only
-
-## Безопасность
-
-- Sudo пароль в Ansible Vault (AES-256)
-- Vault/sudo runtime secret: GPG-encrypted local secret in `.local/bootstrap/`
-  or exported `BOOTSTRAP_*` env vars
-- Install-time root/user passwords: local-only files in `.local/bootstrap/archinstall/`
-- SSH ключи Ed25519
-- sshd hardening (no root, no password auth)
-- nftables firewall (drop by default)
-- PAM faillock (brute-force protection)
-- Kernel hardening (sysctl: ASLR, ptrace, BPF, ARP)
-- Fail2ban SSH jail
-- Git commit signing (SSH/GPG)
+Bare-metal установщики, templates и `bootstrap-env.sh` сохраняются отдельно от VM запуска. Правила работы с тестовыми машинами — [Test VM Workflow](wiki/standards/test-vm-workflow.md); команды Ansible — [ansible/README.md](ansible/README.md).
 
 ## Лицензия
 
-MIT
+MIT.
