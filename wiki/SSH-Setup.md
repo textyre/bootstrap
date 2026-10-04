@@ -16,7 +16,7 @@ SSH plugin обеспечивает доступ Windows OpenStrap к обеим
 
 Source snapshot `arch-base/base` разрешает существующий публичный SSH ключ пользователя `textyre`. `openstrap.config.mjs` задаёт соответствующую локальную identity в `ssh({ identities: { "bootstrap-target": ... } })`. Не копируйте новый ключ в source VM и не меняйте её состояние для теста.
 
-`ansible/inventory/openstrap.yml` читает host, port, user и содержимое private key из `BOOTSTRAP_TARGET_*` environment. Native `ansible_private_key` и `[connection] ssh_agent = auto` добавляют OpenSSH private key в память агента на время запуска. Private key не сохраняется в файлах проекта или контейнере. Системный пакет `openssh-client` предоставляет SSH client и agent.
+`ansible/inventory/openstrap.yml` читает host, port, user и содержимое private key из `BOOTSTRAP_TARGET_*` environment. Native `ansible_private_key` и заданный в образе `ANSIBLE_SSH_AGENT=auto` добавляют OpenSSH private key в память агента на время запуска. Private key не сохраняется в файлах проекта или контейнере. Системный пакет `openssh-client` предоставляет SSH client и agent.
 
 ## Host key trust
 

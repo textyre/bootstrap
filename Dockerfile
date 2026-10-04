@@ -8,6 +8,7 @@ ENV LANG=C.UTF-8 \
     ANSIBLE_CONFIG=/opt/bootstrap/ansible/ansible.cfg \
     ANSIBLE_INVENTORY=/opt/bootstrap/ansible/inventory/openstrap.yml \
     ANSIBLE_VAULT_PASSWORD_FILE=/opt/bootstrap/ansible/vault-pass.sh \
+    ANSIBLE_SSH_AGENT=auto \
     ANSIBLE_COLLECTIONS_PATH=/opt/ansible/collections:/usr/share/ansible/collections \
     ARA_API_CLIENT=offline \
     ARA_BASE_DIR=/root/ara
