@@ -1,505 +1,102 @@
 version: '3'
 
 vars:
-  ANSIBLE_DIR: ansible
-  VENV: '{{.ANSIBLE_DIR}}/.venv'
-  PREFIX: 'env PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH"'
+  # Optional developer Tasks; OpenStrap calls Docker directly on its VM.
+  PUBLIC_ENV: COMPOSE_DISABLE_ENV_FILE,CONTROL_PLANE_IMAGE,CONTROL_PLANE_ARA_PORT
+  EXEC_ENV: BOOTSTRAP_TARGET_HOST,BOOTSTRAP_TARGET_PORT,BOOTSTRAP_TARGET_USER,BOOTSTRAP_TARGET_PRIVATE_KEY,BOOTSTRAP_VAULT_PASSWORD
+  DOCKER: '{{.CONTROL_PLANE_RUNTIME | default (printf "sudo --non-interactive --preserve-env=%s docker" .PUBLIC_ENV)}}'
+  EXEC_DOCKER: '{{.CONTROL_PLANE_RUNTIME | default (printf "sudo --non-interactive --preserve-env=%s,%s docker" .PUBLIC_ENV .EXEC_ENV)}}'
+  COMPOSE_ARGS: 'compose --project-directory "{{.TASKFILE_DIR}}" --file "{{.TASKFILE_DIR}}/compose.yml"'
+  COMPOSE: '{{.DOCKER}} {{.COMPOSE_ARGS}}'
+  EXEC: '{{.EXEC_DOCKER}} {{.COMPOSE_ARGS}} exec --env {{.EXEC_ENV | splitList "," | join " --env "}}'
+  PREFIX: '{{.EXEC}} -T control-plane'
   ANSIBLE: '{{.PREFIX}} ansible-playbook'
   PLAYBOOK: playbooks/workstation.yml
 
 env:
-  REPO_ROOT: '{{.TASKFILE_DIR}}'
-  ANSIBLE_CONFIG: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/ansible.cfg'
-  ANSIBLE_ROLES_PATH: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles:{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/playbooks/roles:~/.ansible/roles:/usr/share/ansible/roles'
-  ANSIBLE_INVENTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/inventory/hosts.yml'
-  ANSIBLE_VAULT_PASSWORD_FILE: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh'
-  ARA_API_CLIENT: offline
-  ANSIBLE_CALLBACK_PLUGINS:
-    sh: '{{.PREFIX}} python3 -c "import ara.setup; print(\"{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/callback_plugins:\" + ara.setup.callback_plugins)" 2>/dev/null || echo "{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/callback_plugins"'
+  COMPOSE_DISABLE_ENV_FILE: '1'
 
 tasks:
   default:
-    desc: "Show available commands"
+    desc: Show available commands
     cmds:
       - task --list
     silent: true
 
-  bootstrap:
-    desc: "Install all dependencies (run once on fresh system)"
+  controller:prepare:
+    aliases: [bootstrap]
+    desc: Pull and start the ready Ansible container
     cmds:
-      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh'
-      - '{{.TASKFILE_DIR}}/scripts/setup-galaxy.sh'
-      - echo "Bootstrap complete! Run 'task check' or 'task test'"
+      - '{{.COMPOSE}} pull control-plane'
+      - '{{.COMPOSE}} up --detach --force-recreate --no-build --pull never control-plane'
 
-  check:
-    desc: "Validate playbook syntax"
-    deps: [_ensure-venv]
-    dir: '{{.ANSIBLE_DIR}}'
+  workstation:
+    aliases: [run]
+    desc: Configure the target with the workstation playbook
     cmds:
-      - 'echo "==> Checking playbook syntax..."'
-      - "{{.ANSIBLE}} playbooks/mirrors-update.yml --syntax-check"
-      - "{{.ANSIBLE}} playbooks/prepare_system.yml --syntax-check"
-      - "{{.ANSIBLE}} playbooks/workstation.yml --syntax-check"
-      - 'echo "Syntax check passed"'
-
-  lint:
-    desc: "Run ansible-lint"
-    deps: [_ensure-venv]
-    dir: '{{.ANSIBLE_DIR}}'
-    cmds:
-      - '{{.PREFIX}} ansible-lint playbooks/ roles/'
-
-  test:
-    desc: "Run all tests (check + lint + molecule for all roles)"
-    prompt: "Molecule tests will modify your system. Create VM snapshot first?"
-    cmds:
-      - task: check
-      - task: lint
-      - task: test-timezone
-      - task: test-locale
-      - task: test-hostname
-      - task: test-hostctl
-      - task: test-vconsole
-      - task: test-ntp
-      - task: test-ntp-audit
-      - task: test-vm
-      - task: test-sysctl
-      - task: test-reflector
-      - task: test-yay
-      - task: test-bootloader
-      - task: test-limine
-      - task: test-system-update
-      - task: test-packages
-      - task: test-user
-      - task: test-ssh
-      - task: test-git
-      - task: test-shell
-      - task: test-docker
-      - task: test-firewall
-      - task: test-caddy
-      - task: test-vaultwarden
-      - task: test-xorg
-      - task: test-lightdm
-      - task: test-greeter
-      - task: test-chezmoi
-      - task: test-zen-browser
-      - 'echo "All tests passed!"'
-
-  # --- Individual role tests ---
-
-  test-timezone:
-    desc: "Run molecule tests for timezone"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/timezone'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing timezone role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-locale:
-    desc: "Run molecule tests for locale"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/locale'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing locale role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-hostname:
-    desc: "Run molecule tests for hostname"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/hostname'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing hostname role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-hostctl:
-    desc: "Run molecule tests for hostctl"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/hostctl'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing hostctl role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-vconsole:
-    desc: "Run molecule tests for vconsole"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/vconsole'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing vconsole role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-ntp:
-    desc: "Run molecule tests for ntp"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/ntp'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing ntp role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-ntp-audit:
-    desc: "Run molecule tests for ntp_audit"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/ntp_audit'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing ntp_audit role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-vm:
-    desc: "Run molecule tests for vm"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/vm'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing vm role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-sysctl:
-    desc: "Run molecule tests for sysctl"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/sysctl'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing sysctl role..."'
-      - '{{.PREFIX}} molecule test {{.CLI_ARGS}}'
-
-  test-reflector:
-    desc: "Run molecule tests for reflector"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/reflector'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing reflector role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-yay:
-    desc: "Run molecule tests for yay"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/yay'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing yay role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-bootloader:
-    desc: "Run molecule tests for bootloader"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/bootloader'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing bootloader role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-limine:
-    desc: "Run molecule tests for limine"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/limine'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing limine role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-system-update:
-    desc: "Run molecule tests for system_update"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/system_update'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing system_update role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-packages:
-    desc: "Run molecule tests for packages"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/packages'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing packages role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-user:
-    desc: "Run molecule tests for user"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/user'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing user role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-ssh:
-    desc: "Run molecule tests for ssh"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/ssh'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}'
-    cmds:
-      - 'echo "==> Testing ssh role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-git:
-    desc: "Run molecule tests for git"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/git'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/git'
-    cmds:
-      - 'echo "==> Testing git role..."'
-      - '{{.PREFIX}} molecule test'
-
-  test-shell:
-    desc: "Run Docker molecule tests for shell"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/shell'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/shell'
-    cmds:
-      - 'echo "==> Testing shell role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-
-  test-docker:
-    desc: "Run Docker molecule tests for docker"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/docker'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/docker'
-    cmds:
-      - 'echo "==> Testing docker role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-
-  test-firewall:
-    desc: "Run Docker molecule tests for firewall"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/firewall'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/firewall'
-    cmds:
-      - 'echo "==> Testing firewall role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-
-  test-caddy:
-    desc: "Run Docker and Vagrant molecule tests for caddy"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/caddy'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/caddy'
-    cmds:
-      - 'echo "==> Testing caddy role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
-
-  test-vaultwarden:
-    desc: "Run Docker and Vagrant molecule tests for vaultwarden"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/vaultwarden'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/vaultwarden'
-    cmds:
-      - 'echo "==> Testing vaultwarden role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
-
-  test-xorg:
-    desc: "Run molecule tests for xorg"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/xorg'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/xorg'
-    cmds:
-      - 'echo "==> Testing xorg role..."'
-      - '{{.PREFIX}} molecule test -s docker'
-
-  test-lightdm:
-    desc: "Run Docker and Vagrant molecule tests for lightdm"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/lightdm'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/lightdm'
-    cmds:
-      - 'echo "==> Testing lightdm role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
-
-  test-greeter:
-    desc: "Run molecule tests for greeter"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/greeter'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/greeter'
-    cmds:
-      - 'echo "==> Testing greeter role..."'
-      - '{{.PREFIX}} molecule test -s docker'
-
-  test-chezmoi:
-    desc: "Run molecule tests for chezmoi"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/chezmoi'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/chezmoi'
-    cmds:
-      - 'echo "==> Testing chezmoi role..."'
-      - '{{.PREFIX}} molecule test -s docker'
-
-  test-zen-browser:
-    desc: "Run Docker and Vagrant molecule tests for zen_browser"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}/roles/zen_browser'
-    env:
-      MOLECULE_PROJECT_DIRECTORY: '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/roles/zen_browser'
-    cmds:
-      - 'echo "==> Testing zen_browser role..."'
-      - '{{.PREFIX}} molecule test -s docker {{.CLI_ARGS}}'
-      - '{{.PREFIX}} molecule test -s vagrant {{.CLI_ARGS}}'
-
-  # --- Playbook execution ---
+      - '{{.ANSIBLE}} {{.PLAYBOOK}} {{.CLI_ARGS}}'
 
   dry-run:
-    desc: "Show what would change without applying"
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}'
+    desc: Preview workstation changes
     cmds:
       - '{{.ANSIBLE}} {{.PLAYBOOK}} --check --diff {{.CLI_ARGS}}'
 
-  run:
-    desc: "Apply playbook (real changes!). Use -- --tags 'foo,bar' to filter."
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}'
-    prompt: "This will modify your system. Continue?"
+  check:
+    desc: Check workstation playbook syntax
     cmds:
-      - 'echo "==> Running playbook..."'
-      - '{{.ANSIBLE}} {{.PLAYBOOK}} -v {{.CLI_ARGS}}'
+      - '{{.ANSIBLE}} {{.PLAYBOOK}} --syntax-check'
 
-  prepare:system:
-    desc: "Prepare bootloader maintenance and update OS packages before reboot/workstation."
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}'
-    prompt: "This will prepare bootloader maintenance and upgrade OS packages. Reboot before running workstation. Continue?"
+  lint:
+    desc: Run ansible-lint
     cmds:
-      - 'echo "==> Preparing system..."'
-      - '{{.ANSIBLE}} playbooks/prepare_system.yml -v {{.CLI_ARGS}}'
+      - '{{.PREFIX}} ansible-lint playbooks/ roles/'
 
-  workstation:
-    desc: "Setup full workstation. Use -- --tags 'foo,bar' to filter."
-    deps: [_ensure-venv, _check-vault]
-    dir: '{{.ANSIBLE_DIR}}'
-    prompt: "This will install all packages and configure your system. Continue?"
+  lint:openstrap:
+    desc: Lint the workstation entry point and changed user roles
     cmds:
-      - 'echo "==> Setting up workstation..."'
-      - '{{.ANSIBLE}} playbooks/workstation.yml -v {{.CLI_ARGS}}'
+      - '{{.PREFIX}} ansible-lint playbooks/workstation.yml roles/user/ roles/chezmoi/'
+
+  test:
+    aliases:
+      - test-timezone
+      - test-locale
+      - test-hostname
+      - test-hostctl
+      - test-vconsole
+      - test-ntp
+      - test-ntp-audit
+      - test-vm
+      - test-sysctl
+      - test-reflector
+      - test-yay
+      - test-bootloader
+      - test-limine
+      - test-system-update
+      - test-packages
+      - test-user
+      - test-ssh
+      - test-git
+      - test-shell
+      - test-docker
+      - test-firewall
+      - test-caddy
+      - test-vaultwarden
+      - test-xorg
+      - test-lightdm
+      - test-greeter
+      - test-chezmoi
+      - test-zen-browser
+    desc: Molecule role tests run in the existing CI workflows
+    cmds:
+      - 'echo "Molecule is not installed in the controller image. Role tests run in .github/workflows/molecule.yml and molecule-vagrant.yml." >&2'
+      - exit 2
 
   ara:
-    desc: "Start ARA web UI (browse playbook results at localhost:8000)"
-    deps: [_ensure-venv]
+    desc: Serve Ansible results at localhost:8000
     cmds:
       - '{{.PREFIX}} ara-manage runserver 0.0.0.0:8000'
 
-  # --- Deprecated snapshot mutation tasks ---
-
-  snapshot:build-after-packages:
-    internal: true
-    dir: '{{.TASKFILE_DIR}}'
-    cmds:
-      - |
-        echo "DEPRECATED: snapshot mutation on source VM 'arch-base' is disabled."
-        echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone."
-        exit 1
-
-  snapshot:rebuild-after-packages:
-    internal: true
-    dir: '{{.TASKFILE_DIR}}'
-    cmds:
-      - |
-        echo "DEPRECATED: snapshot mutation on source VM 'arch-base' is disabled."
-        echo "Use clone-only workflow: create a disposable clone from 'after-packages' and run playbooks on the clone."
-        exit 1
-
-  all:
-    desc: "Run check + lint"
-    cmds:
-      - task: check
-      - task: lint
-
-  clean:
-    desc: "Remove venv and cache"
-    cmds:
-      - rm -rf {{.VENV}} {{.ANSIBLE_DIR}}/.molecule {{.ANSIBLE_DIR}}/__pycache__
-
-  vault-create:
-    desc: "Create encrypted vault.yml with sudo password"
-    deps: [_ensure-venv, _ensure-vault-pass]
-    cmds:
-      - '{{.TASKFILE_DIR}}/scripts/setup-vault.sh'
-
-  vault-edit:
-    desc: "Edit encrypted vault.yml"
-    deps: [_ensure-venv, _ensure-vault-pass]
-    dir: '{{.ANSIBLE_DIR}}'
-    preconditions:
-      - sh: test -f inventory/group_vars/all/vault.yml
-        msg: "vault.yml not found. Run 'task vault-create' first"
-    cmds:
-      - '{{.PREFIX}} ansible-vault edit inventory/group_vars/all/vault.yml'
-
   vault-view:
-    desc: "View decrypted vault.yml contents"
-    deps: [_ensure-venv, _ensure-vault-pass]
-    dir: '{{.ANSIBLE_DIR}}'
-    preconditions:
-      - sh: test -f inventory/group_vars/all/vault.yml
-        msg: "vault.yml not found. Run 'task vault-create' first"
+    desc: View decrypted credentials
     cmds:
       - '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml'
-
-  # --- Internal tasks ---
-
-  _ensure-venv:
-    internal: true
-    status:
-      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh --check'
-    cmds:
-      - '{{.TASKFILE_DIR}}/scripts/setup-venv.sh'
-
-  _ensure-vault-pass:
-    internal: true
-    silent: true
-    status:
-      - '{{.TASKFILE_DIR}}/{{.ANSIBLE_DIR}}/vault-pass.sh >/dev/null 2>&1'
-    cmds:
-      - '{{.TASKFILE_DIR}}/scripts/setup-vault-pass.sh'
-
-  _check-vault:
-    internal: true
-    dir: '{{.ANSIBLE_DIR}}'
-    silent: true
-    preconditions:
-      - sh: test -f inventory/group_vars/all/vault.yml
-        msg: |
-          vault.yml not found. Create it:
-            task vault-create
-      - sh: '{{.PREFIX}} ansible-vault view inventory/group_vars/all/vault.yml >/dev/null 2>&1'
-        msg: |
-          Cannot decrypt vault. Setup vault password:
-            1. mkdir -p {{.TASKFILE_DIR}}/.local/bootstrap/archinstall
-            2. cp {{.TASKFILE_DIR}}/scripts/bootstrap.env.example {{.TASKFILE_DIR}}/.local/bootstrap/bootstrap.env
-            3. set BOOTSTRAP_VAULT_PASSWORD_GPG_FILE in {{.TASKFILE_DIR}}/.local/bootstrap/bootstrap.env
-            4. run {{.TASKFILE_DIR}}/scripts/setup-vault-pass.sh

@@ -1,0 +1,13 @@
+---
+all:
+  children:
+    workstations:
+      hosts:
+        bootstrap-target:
+          ansible_connection: ssh
+          ansible_host: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_HOST') }}"
+          ansible_port: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_PORT') | default('22', true) | int }}"
+          ansible_user: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_USER') }}"
+          ansible_private_key: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_PRIVATE_KEY') }}"
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'

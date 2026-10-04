@@ -4,21 +4,42 @@
 # Публичный запуск:
 #   task workstation
 #
-# Перед этим playbook система должна быть обновлена и перезагружена:
-#   task prepare:system
-#   reboot
-#   task workstation
-#
 # Dry-run:
 #   task dry-run
 #
 # Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault).
-# Vault bootstrap secrets resolve through .local/bootstrap/ and BOOTSTRAP_* vars.
+# OpenStrap provides target access and Vault credentials through the environment.
 
 - name: Setup workstation
   hosts: workstations
   become: true
-  gather_facts: true
+  gather_facts: false
+
+  pre_tasks:
+    # Bare Arch snapshots may have SSH but no Python for native modules yet.
+    - name: Probe Python without requiring Python
+      ansible.builtin.raw: test -x /usr/bin/python3
+      become: false
+      register: _workstation_python_probe
+      changed_when: false
+      failed_when: _workstation_python_probe.rc not in [0, 1]
+      check_mode: false
+      tags: [always]
+
+    # The keyring exception is immediately followed by a full Arch upgrade.
+    - name: Install Python on a bare Arch target
+      ansible.builtin.raw: >-
+        test -f /etc/arch-release &&
+        pacman -Sy --needed --noconfirm archlinux-keyring &&
+        pacman -Su --needed --noconfirm python inetutils
+      register: _workstation_python_install
+      when: _workstation_python_probe.rc == 1
+      changed_when: _workstation_python_install.rc == 0
+      tags: [always]
+
+    - name: Gather workstation facts
+      ansible.builtin.setup:
+      tags: [always]
 
   roles:
     # --- Phase -1: Mirror setup ---

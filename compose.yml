@@ -1,0 +1,16 @@
+name: bootstrap-control-plane
+
+services:
+  control-plane:
+    image: ${CONTROL_PLANE_IMAGE:-ghcr.io/textyre/bootstrap/control-plane:latest}
+    container_name: bootstrap-control-plane
+    init: true
+    restart: unless-stopped
+    volumes:
+      - control-plane-home:/root
+    ports:
+      - 127.0.0.1:${CONTROL_PLANE_ARA_PORT:-8000}:8000
+
+volumes:
+  control-plane-home:
+    name: bootstrap-control-plane-home

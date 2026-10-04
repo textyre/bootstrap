@@ -1,0 +1,147 @@
+---
+name: Build Control Plane Image
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - ansible/**
+      - .github/workflows/build-control-plane.yml
+  pull_request:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - ansible/**
+      - .github/workflows/build-control-plane.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: control-plane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test and publish Control Plane
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TEST_IMAGE: bootstrap-control-plane:test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Add ignored credential sentinels
+        run: |
+          printf 'ignored-local-credential\n' > ansible/.vault-pass
+          printf 'ignored-local-credential\n' > ansible/inventory/test.yml
+
+      - name: Build image for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.TEST_IMAGE }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=control-plane
+          cache-to: type=gha,mode=max,scope=control-plane
+
+      - name: Test the packaged playbook and native SSH connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_dir=$(mktemp -d)
+          cleanup() {
+            docker rm --force control-plane-smoke >/dev/null 2>&1 || true
+            if [[ -f "$fixture_dir/sshd.pid" ]]; then
+              sudo kill "$(cat "$fixture_dir/sshd.pid")" || true
+            fi
+            rm -rf "$fixture_dir"
+          }
+          trap cleanup EXIT
+
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends openssh-server
+          sudo useradd --create-home --shell /bin/sh --password \
+            "$(openssl passwd -6 control-plane-smoke)" control-plane-smoke
+          chmod 0755 "$fixture_dir"
+          ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/client_key"
+          ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host_key"
+          cp "$fixture_dir/client_key.pub" "$fixture_dir/authorized_keys"
+          chmod 0644 "$fixture_dir/authorized_keys"
+          sudo mkdir -p /run/sshd
+          sudo /usr/sbin/sshd -f /dev/null -h "$fixture_dir/host_key" -p 22222 \
+            -o "PidFile=$fixture_dir/sshd.pid" \
+            -o "AuthorizedKeysFile=$fixture_dir/authorized_keys" \
+            -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no \
+            -o UsePAM=no -o StrictModes=no -o AllowUsers=control-plane-smoke
+
+          cat > "$fixture_dir/inventory.yml" <<'YAML'
+          all:
+            hosts:
+              smoke-target:
+                ansible_host: 127.0.0.1
+                ansible_port: 22222
+                ansible_user: control-plane-smoke
+                ansible_private_key: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_PRIVATE_KEY') }}"
+                ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'
+          YAML
+          export BOOTSTRAP_TARGET_PRIVATE_KEY="$(cat "$fixture_dir/client_key")"
+          export BOOTSTRAP_VAULT_PASSWORD=control-plane-smoke
+
+          docker run --detach --init --network host --name control-plane-smoke "$TEST_IMAGE"
+          docker exec control-plane-smoke sh -ec '
+            test -d roles/common/tasks
+            test -f inventory/host_vars/bootstrap-target/system.yml
+            grep -q "^\$ANSIBLE_VAULT;" inventory/group_vars/all/vault.yml
+            test ! -e .vault-pass
+            test ! -e inventory/test.yml
+            test -z "$(find roles -path "*/molecule/*" -type f -print -quit)"
+          '
+          docker exec control-plane-smoke /usr/bin/ansible-playbook --version
+          docker exec --env BOOTSTRAP_VAULT_PASSWORD control-plane-smoke \
+            ansible-playbook --syntax-check --inventory localhost, playbooks/workstation.yml
+          docker cp "$fixture_dir/inventory.yml" control-plane-smoke:/tmp/smoke-inventory.yml
+          docker exec --env BOOTSTRAP_TARGET_PRIVATE_KEY --env BOOTSTRAP_VAULT_PASSWORD \
+            --env ANSIBLE_LOAD_CALLBACK_PLUGINS=true control-plane-smoke \
+            ansible all --inventory /tmp/smoke-inventory.yml \
+            --module-name ansible.builtin.raw --args 'id -un' | tee "$fixture_dir/result"
+          tr -d '\r' < "$fixture_dir/result" | grep -qx control-plane-smoke
+          docker exec control-plane-smoke ara playbook list -f json | jq -e 'length > 0'
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish the tested image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/control-plane"
+          docker tag "$TEST_IMAGE" "$image:sha-$GITHUB_SHA"
+          docker push "$image:sha-$GITHUB_SHA"
+          docker tag "$TEST_IMAGE" "$image:latest"
+          docker push "$image:latest"
+          printf 'Published `%s:sha-%s` and `%s:latest`.\n' \
+            "$image" "$GITHUB_SHA" "$image" >> "$GITHUB_STEP_SUMMARY"

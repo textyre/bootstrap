@@ -1,88 +1,62 @@
-# Краткое руководство
+# Использование
 
-## Для тех, кто спешит
-
-### Windows → Arch Linux
+## Развёртывание с Windows
 
 ```powershell
-# 1. Настройте SSH ключ (один раз)
-cd windows
-.\setup_ssh_key.ps1
-
-# 2. Отредактируйте настройки в sync_to_server.ps1:
-#    $SERVER_USER, $SERVER_HOST, $SERVER_PORT, $REMOTE_PATH
-
-# 3. Синхронизируйте
-.\sync_to_server.ps1
+Set-Location D:/projects/bootstrap
+openstrap run --local --host-port 2251
 ```
 
-### На Arch Linux
+Blueprint описывает `bootstrap-target` (full clone `arch-base/base`) и `ansible-control` (Ubuntu 24.04 Docker host). Cloud-init устанавливает только `docker.io` и `ca-certificates`. После `sudo -n docker info` OpenStrap загружает `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер и выполняет один workstation playbook через Docker exec по SSH.
 
-```bash
-cd ~/bootstrap
+## Необязательные Tasks для разработки
 
-# Показать пакеты и прямые зависимости
-./bin/show-installed-packages.sh
+Обычный VM запуск использует Docker напрямую и не требует Git, Task, Compose или сборки. Taskfile и Compose — optional команды на host, где доступны эти файлы; они используют исходники внутри выбранного образа, без bind mount checkout. Локальные изменения Ansible попадают в эти команды только с новым image. Docker по умолчанию вызывается через non-interactive sudo; для root или прямого Docker access можно задать `CONTROL_PLANE_RUNTIME=docker`.
 
-# Показать полное дерево всех зависимостей
-./bin/show-all-dependencies.sh
+| Действие | Task |
+|---|---|
+| Загрузить образ и пересоздать контейнер | `controller:prepare` / `bootstrap` |
+| Syntax check workstation | `check` |
+| Lint workstation и ролей `user`, `chezmoi` | `lint:openstrap` |
+| Lint проекта Ansible | `lint` |
+| Применить workstation | `workstation` / `run` |
+| Check/diff | `dry-run` |
+| ARA server | `ara` |
+| Посмотреть Vault выбранного образа | `vault-view` |
 
-# Сохранить в файл
-./bin/show-installed-packages.sh > packages.txt
+`workstation` и `dry-run` принимают native Ansible CLI args через `--` для выбранной задачи. Частичный запуск подтверждает только выбранные роли. Полный workstation выполняет исходные 31 роль; минимальная подготовка Python и facts находится в этом же playbook.
+
+Molecule tests работают в существующих CI workflows `.github/workflows/molecule.yml` и `molecule-vagrant.yml`. `task test` и role aliases сообщают об этом и завершаются с ошибкой, не устанавливая инструменты и не запуская CI.
+
+Native pull/run/exec команды для любого Linux Docker host приведены в [Ansible README](../ansible/README.md#native-docker-на-другом-host). Vault изменяется в исходниках до публикации образа; `vault-view` выводит расшифрованные secrets и не используется для обычной диагностики.
+
+## Runtime environment и повторное применение
+
+OpenStrap предоставляет `BOOTSTRAP_TARGET_HOST`, `BOOTSTRAP_TARGET_PORT`, `BOOTSTRAP_TARGET_USER`, `BOOTSTRAP_TARGET_PRIVATE_KEY` и `BOOTSTRAP_VAULT_PASSWORD` только workstation Docker exec. Для ручного `docker exec` или optional `task workstation` нужен тот же подготовленный process environment. `openstrap connect --run` не разрешает blueprint secrets автоматически.
+
+Static inventory читает target values из env, native SSH agent получает private key на время запуска. `docker exec --env NAME` передаёт разрешённые имена переменных. Пароли и private keys не записываются в shell history, CLI args, container/Compose settings или VM files; image pull/start/build не получают runtime secrets.
+
+Повторное применение к существующему target или проверка на свежем клоне выбираются по задаче пользователя. Чтобы создать свежий target, удалите только disposable VM проекта и запустите его снова:
+
+```powershell
+openstrap remove bootstrap-target --local --force
+openstrap run --local --host-port 2251
 ```
 
-## Структура проекта
+Для проверки идемпотентности используйте тот же настроенный target без удаления. Protected `arch-base`, её snapshots, `arch` и `arch-test-clone` не входят в cleanup.
 
-- **`ansible/`** - Ansible проект (роли, плейбуки, инвентарь)
-- **`dotfiles/`** - Исходные дотфайлы (chezmoi source)
-- **`bin/`** - Утилиты для анализа пакетов
-- **`windows/`** - PowerShell утилиты для синхронизации
-- **`docs/`** - Подробная документация
+## Диагностика
 
-## Dry-run
-
-```bash
-# Показать изменения без применения
-./bootstrap.sh --check
-
-# Через task runner
-task dry-run
+```powershell
+openstrap list --local
+openstrap connect ansible-control --local --run "cat /etc/os-release"
+openstrap connect bootstrap-target --local --run "id -un"
 ```
 
-## Основные команды
+Результат применения — exit code и recap Ansible. ARA offline DB и known hosts сохраняются в named volume `bootstrap-control-plane-home:/root`; SQLite читается read-only. ARA server port `8000` доступен только на localhost Docker host. Вывод Ansible и ARA можно использовать для progress и диагностики. Успешная публикация image не подтверждает применение ролей к VM.
 
-```bash
-# Полный bootstrap
-./bootstrap.sh
+## Анализ пакетов
 
-# Dry-run (показать изменения без применения)
-./bootstrap.sh --check
+`bin/show-installed-packages.sh` и `bin/show-all-dependencies.sh` — отдельные Arch read-only утилиты анализа установленных пакетов. Они не создают VM и не участвуют в orchestration.
 
-# Только определённые роли
-./bootstrap.sh --tags packages
-./bootstrap.sh --tags "docker,ssh,firewall"
-
-# Пропустить роли
-./bootstrap.sh --skip-tags firewall
-
-# Переопределить переменные
-./bootstrap.sh -e '{"base_system_hostname": "mybox"}'
-```
-
-## Разработка
-
-```bash
-# Из корня репозитория:
-task bootstrap    # Установить Python зависимости (один раз)
-task check        # Проверить синтаксис
-task lint         # ansible-lint best practices
-task test         # Все molecule тесты (14 ролей)
-task test-<role>  # Тест конкретной роли
-task dry-run      # Показать изменения
-task workstation  # Применить playbook
-task clean        # Удалить venv
-```
-
----
-
-Назад к [[Home]]
+[Ansible Overview](Ansible-Overview.md) · [SSH Setup](SSH-Setup.md) · [Test VM Workflow](standards/test-vm-workflow.md).
