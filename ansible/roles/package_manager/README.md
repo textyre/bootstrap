@@ -257,8 +257,12 @@ molecule test -s default
 
 Example: apply the package manager role:
 ```bash
-task workstation -- --tags package_manager
+ansible-playbook playbooks/workstation.yml --tags package_manager \
+  --become-password-file /run/secrets/sudo-password --private-key /run/secrets/ssh-key
 ```
+
+Run this inside the current Control Plane service task with the public target
+environment described in [Ansible README](../../README.md).
 
 ## File map
 

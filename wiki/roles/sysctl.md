@@ -135,9 +135,8 @@ groups:
 
 ## Проверка
 
-- `task test-sysctl` -- стандартная Taskfile-точка для Molecule-проверки роли
-- `task check` -- syntax check всех playbook
-- `task lint` -- ansible-lint по playbook/roles
+- Molecule-проверки роли выполняются в `.github/workflows/molecule.yml` и `molecule-vagrant.yml`
+- Native Docker exec выполняет workstation syntax check и ansible-lint; команды в [Ansible README](../../ansible/README.md)
 
 ## Источник правды
 

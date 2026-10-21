@@ -2,13 +2,13 @@
 # Полная настройка рабочей станции после установки ОС.
 #
 # Публичный запуск:
-#   task workstation
+#   openstrap run --local --host-port 2251
 #
 # Dry-run:
-#   task dry-run
+#   ansible-playbook playbooks/workstation.yml --check --diff
 #
-# Пароль sudo зашифрован в inventory/group_vars/all/vault.yml (Ansible Vault).
-# OpenStrap provides target access and Vault credentials through the environment.
+# Пароль sudo передаётся через --become-password-file /run/secrets/sudo-password.
+# OpenStrap mounts Docker Swarm secrets and passes public target connection values.
 
 - name: Setup workstation
   hosts: workstations

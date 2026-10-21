@@ -17,7 +17,7 @@
   ansible.builtin.user:
     name: "{{ user_owner.name }}"
     password_expire_max: "{{ user_owner.password_max_age }}"
-    password_expire_min: "{{ user_owner.password_min_age }}"
+    password_expire_min: "{{ user_owner.password_min_age if _user_password_min_age_supported else omit }}"
     password_expire_warn: "{{ user_owner.password_warn_age }}"
   when: user_manage_password_aging | bool
   tags: [user, cis_5.4.1, cis_5.5.1, cis_5.5.2]

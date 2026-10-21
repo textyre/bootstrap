@@ -1,3 +1,5 @@
+# Tool input for existing CI images and Vagrant workflows only.
+# The Control Plane uses APT Ansible and does not install this file.
 # Core Ansible
 ansible==13.2.0
 ansible-core==2.20.1

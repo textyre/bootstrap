@@ -6,11 +6,12 @@ Manages local workstation accounts, their sudo access, and account security poli
 
 1. **Validate** (`tasks/validate/main.yml`) -- stops before mutation unless the OS family is Archlinux, Debian, RedHat, Void, or Gentoo.
 2. **Load vars** (`tasks/load/main.yml`) -- loads the platform sudo group and sudo-log group from `vars/<os-family>.yml`.
-3. **Owner** (`tasks/owner.yml`) -- creates or updates the primary account and home directory, adds supplementary groups, optionally applies a supplied password hash on account creation, configures password aging, and deploys `/etc/profile.d/umask-<name>.sh`.
-4. **Additional users** (`tasks/additional_users.yml`) -- creates optional accounts and home directories, adds their supplementary and sudo groups, configures requested password aging, and deploys per-user umask profiles.
-5. **Sudo** (`tasks/sudo.yml`) -- deploys `/etc/sudoers.d/<wheel-or-sudo>` with `visudo` validation and optionally deploys `/etc/logrotate.d/sudo`.
-6. **Security** (`tasks/security.yml`) -- locks the root account password when `user_manage_root_lock` is enabled. It does not change SSH key access or `sshd_config`.
-7. **Report** (`tasks/report/main.yml`) -- renders the accumulated phase report. It does not calculate or change account state.
+3. **Prerequisites** (`tasks/prerequisites.yml`) -- verifies every requested login shell exists and is executable before changing accounts, then detects the installed `chage` capabilities. The workstation package list installs zsh before this role assigns it.
+4. **Owner** (`tasks/owner.yml`) -- creates or updates the primary account and home directory, adds supplementary groups, optionally applies a supplied password hash on account creation, configures password aging, and deploys `/etc/profile.d/umask-<name>.sh`.
+5. **Additional users** (`tasks/additional_users.yml`) -- creates optional accounts and home directories, adds their supplementary and sudo groups, configures requested password aging, and deploys per-user umask profiles.
+6. **Sudo** (`tasks/sudo.yml`) -- deploys `/etc/sudoers.d/<wheel-or-sudo>` with `visudo` validation and optionally deploys `/etc/logrotate.d/sudo`.
+7. **Security** (`tasks/security.yml`) -- locks the root account password when `user_manage_root_lock` is enabled. It does not change SSH key access or `sshd_config`.
+8. **Report** (`tasks/report/main.yml`) -- renders the accumulated phase report. It does not calculate or change account state.
 
 The role has no handlers and no in-role verification phase. Molecule performs
 behavioral verification after convergence and idempotence.
@@ -63,6 +64,12 @@ Each entry supports these fields:
 | `user_manage_password_aging` | `true` | careful | Applies configured max/min/warn ages. `false` preserves existing aging values |
 | `user_manage_umask` | `true` | safe | Deploys login-shell umask profiles. `false` skips management and does not remove existing profiles |
 | `user_manage_root_lock` | `true` | careful | Locks the root password. `false` does not unlock root |
+
+Minimum password age is applied only when the installed `chage --help` advertises
+`--mindays`. [Shadow 4.20](https://github.com/shadow-maint/shadow/releases/tag/4.20.0)
+removed this feature without replacement. The role reports its absence and keeps
+enforcing supported maximum-age and expiry-warning settings. It does not edit
+`/etc/shadow` to recreate a removed control.
 
 #### Sudo Policy
 
@@ -240,7 +247,7 @@ Do not run these scenarios directly on the local workstation.
 
 | Scenario | Sequence | Execution path | What it tests |
 |----------|----------|----------------|---------------|
-| Default | `syntax -> converge -> idempotence -> verify` | `task test-user` on a disposable remote clone | Prepared Arch host convergence, zero-change rerun, and behavioral verify |
+| Default | `syntax -> converge -> idempotence -> verify` | Native Molecule in a separately prepared test environment on a disposable clone | Prepared Arch host convergence, zero-change rerun, and behavioral verify |
 | Docker | `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy` | Changed-role Docker CI workflow | Arch/Ubuntu container convergence, zero-change rerun, and behavior |
 | Vagrant/libvirt | `syntax -> create -> prepare -> converge -> idempotence -> verify -> destroy` | Changed-role Vagrant CI workflow | Arch/Ubuntu VM convergence, zero-change rerun, and behavior |
 

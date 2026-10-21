@@ -31,7 +31,7 @@
   ansible.builtin.user:
     name: "{{ item.name }}"
     password_expire_max: "{{ item.password_max_age | default(omit) }}"
-    password_expire_min: "{{ item.password_min_age | default(omit) }}"
+    password_expire_min: "{{ item.password_min_age | default(omit) if _user_password_min_age_supported else omit }}"
     password_expire_warn: "{{ item.password_warn_age | default(7) }}"
   loop: "{{ user_additional_users }}"
   loop_control:

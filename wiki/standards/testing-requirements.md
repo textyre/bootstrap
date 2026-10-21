@@ -93,7 +93,6 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
@@ -131,7 +130,6 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
@@ -189,7 +187,6 @@ ansible/roles/<role_name>/
 │       ├── verify.yml             # → includes shared or standalone
 │       └── prepare.yml            # Pre-conditions (MUST for vagrant)
 ├── requirements.yml               # Role dependencies for molecule
-└── vault-pass.sh                  # Vault password helper (if needed)
 ```
 
 **Verification Criteria:**

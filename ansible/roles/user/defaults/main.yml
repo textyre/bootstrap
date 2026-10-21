@@ -9,7 +9,7 @@ user_owner:
   shell: "{{ user_shell | default('/bin/bash') }}"
   # Supplementary groups. Defaults to the platform sudo group.
   groups: "{{ user_groups | default([_user_sudo_group]) }}"
-  # Empty hash means no direct password login until a vaulted password hash is supplied.
+  # Empty hash preserves an existing password; a newly created user has no supplied password.
   password_hash: ""
   # Keep password idempotent when a hash is supplied.
   update_password: on_create
@@ -17,7 +17,7 @@ user_owner:
   umask: "027"
   # CIS 5.5.1: maximum password age in days.
   password_max_age: 365
-  # CIS 5.5.2: minimum password age in days.
+  # Minimum age in days, only on shadow builds that still support --mindays.
   password_min_age: 1
   # Password expiry warning age in days.
   password_warn_age: 7

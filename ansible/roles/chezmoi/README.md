@@ -53,9 +53,10 @@ desktop configuration, and shell configuration.
 
 Before initializing or applying chezmoi, the role ensures `~/.local`,
 `~/.local/bin`, and `~/.local/share` are owned by `target_user`. The apply step
-runs with an explicit `umask 022` and `--parent-dirs` so target permissions
-match the source tree synchronized by chezmoi (`0644` files and `0755`
-chezmoi-managed directories). `~/.local/share` is kept at `0750`. This is
+runs with an explicit `umask 027` and `--parent-dirs`, matching the workstation's
+owner umask and keeping ordinary managed files at `0640` and directories at
+`0750`. `~/.local/share` stays at `0750` through both ownership preparation and
+dotfile application; the two stages no longer reset each other's permissions. This is
 intentionally scoped to the directories the role writes through, not a recursive
 ownership reset of the whole home directory.
 
@@ -88,6 +89,8 @@ and idempotence.
   network access.
 - Shared tests first create root-owned `~/.local` directories and then verify
   the role repairs their ownership before running chezmoi as the user.
+- The source includes an ordinary `dot_local/share` directory, so convergence
+  and idempotence cover its permissions being managed by both stages.
 - Docker checks the contract in a container; Vagrant checks the same contract
   with a normal VM user and filesystem.
 

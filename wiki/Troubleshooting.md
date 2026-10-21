@@ -177,19 +177,19 @@ openstrap connect bootstrap-target --local --run "id -un"
 
 ### Docker или контейнер недоступен
 
-Cloud-init должен завершить установку `docker.io` и `ca-certificates`. Проверка blueprint — `sudo -n docker info`. Далее выполняются pull готового `ghcr.io/textyre/bootstrap/control-plane:latest`, запуск постоянного контейнера и Docker exec workstation. Git, Task, Compose и сборка на VM не нужны.
+Cloud-init устанавливает Docker, инициализирует single-node Swarm с route-local IP и создаёт host-network service `bootstrap-control-plane` с одной replica и persistent home. OpenStrap проверяет `1/1`, доставляет sudo и private key через stdin в native Docker secrets и выполняет один workstation Docker exec. Secret rotation заменяет service task, сохраняя home; новый образ выбирается отдельным действием.
 
-По умолчанию Docker вызывается через non-interactive sudo. Проверьте реальный exit code pull/start/exec: ошибка загрузки образа или запуска контейнера не является результатом применения ролей. Для optional development Tasks root или пользователь с прямым Docker access может использовать `CONTROL_PLANE_RUNTIME=docker`.
+Cloud-init работает от root, readiness/rotation/exec используют non-interactive sudo. Проверьте `docker service ps bootstrap-control-plane` и `docker service ls` replicas `1/1`. Existing VM не принимает changed cloud-init и не преобразует standalone container в Swarm; image/controller update выбирается явно.
 
-### Ansible Vault: Decryption failed
+### Native secret или sudo недоступен
 
-Проверьте локальный источник `BOOTSTRAP_VAULT_PASSWORD` / `BOOTSTRAP_VAULT_PASSWORD_FILE` / `BOOTSTRAP_VAULT_PASSWORD_GPG_FILE` без вывода значения. Явно выбранный GPG source должен быть доступен noninteractively. `setup-vault-pass.sh` остаётся optional host provisioning helper, а не этап VM deployment.
+Проверьте OS keychain service `bootstrap` и текущий target sudo-пароль. Замените `BOOTSTRAP_TARGET_SUDO_PASSWORD` через `openstrap secret set NAME` со скрытым вводом. Secret Service нужен на Linux, Keychain на macOS, Credential Manager на Windows.
 
-Зашифрованный `vault.yml` входит в публикуемый image; пароль — только окружению workstation Docker exec. `ansible/vault-pass.sh` внутри image читает env. `connect --run` не добавляет blueprint secrets. Не выводите `bootstrap.env`, decrypted Vault, private keys или пароль для диагностики.
+Ansible Vault и adapter удалены. Blueprint создаёт native Swarm secret через stdin и монтирует password/key `/run/secrets` mode `0400`. При update failure проверьте native service status/rollback; secret contents не выводите. См. [Bootstrap Secrets](../docs/bootstrap-secrets.md).
 
-### SSH agent или host key
+### SSH secret или host key
 
-Inventory использует `ansible_private_key` с `ssh_agent = auto`; значение `BOOTSTRAP_TARGET_PRIVATE_KEY` должно содержать OpenSSH private key. Private key не записывается в проект или home контейнера. При ручном запуске убедитесь, что target host, port, user и key доступны в process environment.
+Ansible читает `/run/secrets/ssh-key` через native `--private-key`. Проверьте наличие mount и root mode `0400` без вывода contents. Public host/port/user читаются из exec environment; private key env не используется.
 
 `StrictHostKeyChecking=accept-new` принимает новые host keys и отклоняет изменившиеся. Known hosts сохраняются в `/root/.ssh/known_hosts` внутри persistent home. При mismatch сначала подтвердите причину изменения и target identity; не отключайте проверку и не удаляйте файл для маскировки ошибки.
 
@@ -205,9 +205,9 @@ ARA и Ansible output доступны для progress и ошибок; SQLite �
 
 ### Molecule или lint
 
-Optional `task check` проверяет workstation syntax; `lint:openstrap` — workstation и роли `user`, `chezmoi`; `lint` — весь Ansible проект. Эти команды используют исходники опубликованного image, а не локальные изменения checkout, и не являются VM prerequisites.
+Syntax/lint и ARA выполняются native Docker exec внутри текущей service task; команды приведены в [Ansible README](../ansible/README.md). Корневые Taskfile и Compose wrappers удалены; target-role Compose остаётся. Molecule работает в существующих `.github/workflows/molecule.yml` и `molecule-vagrant.yml`; controller не устанавливает Molecule.
 
-Molecule работает в существующих `.github/workflows/molecule.yml` и `molecule-vagrant.yml`. `task test` и role aliases сообщают об этом и завершаются с ошибкой. Они не устанавливают tools и не запускают CI. Проверка lint или полный deployment не подтверждают все Molecule scenarios.
+Molecule работает в существующих `.github/workflows/molecule.yml` и `molecule-vagrant.yml`; запуск CI отдельный. Syntax/lint/full deployment не подтверждают все Molecule scenarios.
 
 Сохраняйте полезный command/exit/error; unexecuted checks отмечайте unverified. Обычный запуск применяет workstation один раз. Повторное применение и проверка идемпотентности выбираются отдельно.
 

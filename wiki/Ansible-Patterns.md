@@ -57,7 +57,6 @@
 
 - [ ] `driver: default` + `managed: false` (локальное тестирование)
 - [ ] `ansible_connection: local`
-- [ ] Vault: `vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/vault-pass.sh`
 - [ ] `ANSIBLE_ROLES_PATH` через `env`
 - [ ] Последовательность: `syntax → converge → verify`
 
@@ -65,7 +64,6 @@
 
 - [ ] `become: true`
 - [ ] `gather_facts: true`
-- [ ] Загрузка vault через `vars_files` + `lookup('env', 'MOLECULE_PROJECT_DIRECTORY')`
 - [ ] `pre_tasks` с `assert` для проверки среды
 - [ ] Одна роль в `roles`
 
@@ -121,13 +119,14 @@
 
 ## Архитектурные решения
 
-### Vault (sudo пароль)
+### Native runtime secrets
 
-- [ ] Зашифрованный файл: `inventory/group_vars/all/vault.yml`
-- [ ] Resolver `vault-pass.sh`: `BOOTSTRAP_VAULT_PASSWORD` →
-  `BOOTSTRAP_VAULT_PASSWORD_FILE` → ошибка
-- [ ] Molecule: `config_options.defaults.vault_password_file`
-- [ ] AES-256 шифрование, безопасен для git
+- [ ] Один sudo entry `BOOTSTRAP_TARGET_SUDO_PASSWORD` в OS keychain service `bootstrap`
+- [ ] Password/key payloads идут только stdin в native `docker secret create NAME -`
+- [ ] Root-owned memory-backed mounts `/run/secrets/sudo-password` и `/run/secrets/ssh-key`, mode `0400`
+- [ ] Ansible native `--become-password-file` и `--private-key`; env только public target values
+- [ ] ARA игнорирует `/run/secrets` и `.ansible/tmp`
+- [ ] Immutable secret rotation синхронно обновляет service; `flock` защищает активный Ansible
 
 ### Централизация пакетов
 
@@ -160,10 +159,11 @@
 - [ ] Без `--config` флага — параметры напрямую в команде
 - [ ] Конфиг только для systemd timer через `@file` синтаксис
 
-### Taskfile venv PATH
+### Ansible в контейнере
 
-- [ ] PREFIX переменная: `env PATH="{{.TASKFILE_DIR}}/{{.VENV}}/bin:$PATH"`
-- [ ] Все ansible-команды через `{{.PREFIX}}`
+- [ ] Обычный системный Ansible установлен в опубликованном Docker-образе
+- [ ] Запуск: native Docker exec текущей Swarm task с mounted native secrets; [Ansible README](../ansible/README.md)
+- [ ] Native Docker команды напрямую; root Task/Compose wrappers удалены, target-role Compose остаётся
 
 ---
 
@@ -173,7 +173,7 @@
 - [ ] Файлы с секретами: `mode: '0600'`, `no_log: true` в тасках
 - [ ] Сетевые сервисы: default deny, явные allow-правила
 - [ ] SSH hardening настройки вынесены в переменные (`defaults/main.yml`), не захардкожены
-- [ ] Vault для любых паролей/токенов — никогда plaintext в коде
+- [ ] Passwords/tokens вне public source; для текущего runtime — OS keychain и native Swarm secrets
 
 ---
 

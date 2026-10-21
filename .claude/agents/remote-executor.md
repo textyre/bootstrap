@@ -21,7 +21,7 @@ From `D:/projects/bootstrap`:
 openstrap run --local --host-port 2251
 ```
 
-Use OpenStrap CLI/provider for VM lifecycle. Cloud-init installs only `docker.io` and `ca-certificates`. The blueprint checks Docker readiness, pulls `ghcr.io/textyre/bootstrap/control-plane:latest`, starts a persistent container and runs one `/opt/bootstrap/ansible/playbooks/workstation.yml` through native Docker exec. Git, Task, Compose and image builds are not needed on the VM. Taskfile/Compose are optional commands for the selected image and do not mount a local checkout. Static SSH inventory reads target values from env. One workstation playbook contains the necessary raw Python bootstrap/fact gathering and the original 31 roles.
+Use OpenStrap CLI/provider for VM lifecycle. First-boot cloud-init initializes a single-node Swarm and creates the one-replica host-network `bootstrap-control-plane` service from the ready GHCR image. Readiness checks `1/1`; two stdin steps rotate native password/key secrets, then one Docker exec runs workstation with the original 31 roles and Python bootstrap. Rotation replaces the task and preserves its home volume; it does not select a new image. Existing VMs do not adopt changed cloud-init or convert standalone containers into Swarm automatically. Root Task/Compose wrappers are removed; native Docker commands are in `ansible/README.md`.
 
 Repeated application or a fresh disposable target is a user/task choice. When a fresh clone is required, remove only `bootstrap-target` through OpenStrap. Keep useful failure diagnostics before cleanup. Idempotency checks, when requested, apply to the same configured target without reset.
 
@@ -41,12 +41,12 @@ Limit output and avoid interactive commands. Standard SCP with explicit host/key
 
 ## Secrets and SSH
 
-Target host, port, user, private key and Vault password are supplied only to the workstation Docker exec environment. Forward names with `docker exec --env NAME`; pull/start/build receive no runtime secrets. Native `ansible_private_key` and `ssh_agent = auto` load the OpenSSH identity into agent memory for the run. Do not print secret values, persist them in image/files/container/Compose settings, or pass them in CLI arguments.
+Password/private key payloads travel via SSH stdin to native `docker secret create NAME -`; root-owned Swarm mounts `0400` are `/run/secrets/sudo-password` and `/run/secrets/ssh-key`. Ansible uses native `--become-password-file` and `--private-key`. Only public target host/port/user use Docker exec env. Ansible Vault and password adapter are removed. Do not print credentials or put them in environment, CLI arguments, image, persistent home or env files.
 
-`connect --run` does not implicitly resolve blueprint secrets. Manual Docker exec or optional Ansible Tasks need the established runtime environment. `StrictHostKeyChecking=accept-new` records first-contact host keys and rejects changed keys. Named volume `bootstrap-control-plane-home:/root` preserves known hosts and ARA offline DB; the ARA server binds to Docker host localhost only. Do not disable checking or delete known_hosts to hide an unexplained mismatch.
+`connect --run` does not inject blueprint secrets. Native flock protects secret rotation and the full Ansible exec; different-target or credential-changing shared-controller deployments must be serialized entirely. `accept-new` records first-contact host keys and rejects changed keys. Named home preserves known_hosts/ARA; ARA ignores `/run/secrets` and `.ansible/tmp`, and its explicit server listens on `127.0.0.1:8000` with no Swarm published port. Do not hide unexplained host-key mismatches.
 
 ## Monitoring and reporting
 
 Read ARA SQLite read-only; use ARA or Ansible output for progress and errors. Return actual commands, exit codes, useful recap and limitations. Do not claim full success from VM creation, SSH or Ansible installation. Mark checks that did not run unverified.
 
-Molecule executes in existing CI workflows; Control Plane test Tasks fail with workflow references. Do not install test tools or trigger CI. Do not commit or push without explicit user authorization.
+Molecule executes in existing CI workflows; do not install test tools or trigger CI implicitly. Do not commit or push without explicit user authorization.

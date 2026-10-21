@@ -13,6 +13,10 @@
       ansible.builtin.include_tasks:
         file: load/main.yml
 
+    - name: Verify login shells and password-aging capabilities
+      ansible.builtin.include_tasks:
+        file: prerequisites.yml
+
     - name: Configure owner account
       ansible.builtin.include_tasks:
         file: owner.yml

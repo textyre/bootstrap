@@ -87,7 +87,7 @@ explicitly on s6 or dinit when backups are requested.
 
 ## Tests
 
-`task test-vaultwarden` runs Docker and Vagrant scenarios on Arch and Ubuntu.
+The existing Molecule CI workflows run Docker and Vagrant scenarios on Arch and Ubuntu.
 Prepare installs and configures Docker as an external prerequisite. Converge
 applies Caddy followed by the complete Vaultwarden role and must be idempotent.
 Verify requests the real HTTPS web application, checks the Caddy security

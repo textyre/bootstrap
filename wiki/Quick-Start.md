@@ -5,10 +5,10 @@
 ## До запуска
 
 - Установлены OpenStrap CLI и VirtualBox.
-- `openstrap.config.mjs` подключает VirtualBox и SSH плагины; paths соответствуют установленным plugins.
+- `openstrap.config.mjs` подключает VirtualBox, SSH и keychain плагины; paths соответствуют установленным plugins.
 - `arch-base` имеет snapshot `base`; исходная VM не используется для применения ролей.
 - Runtime config указывает существующую SSH identity, уже разрешённую в source snapshot.
-- Доступен пароль существующего Ansible Vault через [локальный runtime secret store](../docs/bootstrap-secrets.md).
+- Sudo-пароль target сохранён через `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD`; SSH identity настроена локальным файлом. См. [Bootstrap Secrets](../docs/bootstrap-secrets.md).
 - SSH ports `2251` и `2252` свободны для target и controller.
 
 ## Одна команда
@@ -20,9 +20,9 @@ openstrap run --local --host-port 2251
 
 `bootstrap-target` — full clone `arch-base/base`, Arch Linux, SSH `127.0.0.1:2251`. `ansible-control` — Ubuntu 24.04 Docker host, SSH `127.0.0.1:2252`. Обе машины запускаются headless; shared network соединяет их напрямую.
 
-Cloud-init устанавливает только `docker.io` и `ca-certificates`. После `sudo -n docker info` OpenStrap загружает готовый `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер с volume `bootstrap-control-plane-home:/root` и выполняет один `workstation.yml` через Docker exec: Python bootstrap при необходимости, facts и исходные 31 роль. Управляющей VM не нужны Git, Task, Compose или сборка.
+Cloud-init устанавливает Docker, инициализирует single-node Swarm с route-local IP и создаёт host-network service `bootstrap-control-plane` с одной replica и persistent home. OpenStrap проверяет `1/1`, доставляет sudo и private key через stdin в native Docker secrets и выполняет один workstation Docker exec. Secret rotation заменяет service task, сохраняя home; новый образ выбирается отдельным действием.
 
-Статический inventory получает target connection values через environment. Native SSH agent использует private key на время запуска; Vault password передаётся только workstation process. Обычный запуск не загружает зависимости повторно и не требует дополнительного Ansible playbook.
+Keychain service `bootstrap` хранит один `BOOTSTRAP_TARGET_SUDO_PASSWORD`; он используется provider для сети клона и Ansible для sudo. SSH identity остаётся локальным файлом из config. Blueprint доставляет оба credentials через SSH stdin в native `docker secret create NAME -`, монтирует root-owned `0400` `/run/secrets/sudo-password` и `/run/secrets/ssh-key`. Ansible использует `--become-password-file` и `--private-key`; public target host/port/user передаются через env. [Bootstrap Secrets](../docs/bootstrap-secrets.md) описывает настройку и rotation.
 
 GitHub Actions публикует образ с исходниками в `/opt/bootstrap/ansible`; изменения Windows попадут в deployment после новой публикации. Вывод команды, exit code и recap определяют результат применения. Сборка образа не подтверждает выполнение ролей.
 
@@ -34,17 +34,17 @@ openstrap connect ansible-control --local --run "cat /etc/os-release"
 openstrap connect bootstrap-target --local --run "id -un"
 ```
 
-Эти команды — read-only диагностика. Обычный `connect --run` не подставляет blueprint secrets. Ansible выполняется внутри контейнера через native Docker exec; Taskfile и Compose остаются необязательными инструментами разработки.
+Эти команды — read-only диагностика. `connect --run` не подставляет blueprint secrets. Native Docker команды для Ansible приведены в [Ansible README](../ansible/README.md).
 
 ## Повторное применение или свежий target
 
-Повторный `openstrap run` применяет роли к существующему target. Ручной `docker exec` требует того же runtime environment. Для проверки на свежем клоне можно отдельно выполнить:
+Повторный `openstrap run` rotates secret references и service task, затем применяет workstation. Он не выбирает новый image. Existing standalone controller container не преобразуется в Swarm без явного действия. Fresh target выбирается отдельно:
 
 ```powershell
 openstrap remove bootstrap-target --local --force
 openstrap run --local --host-port 2251
 ```
 
-Выбор зависит от задачи пользователя. Только `bootstrap-target` пересоздаётся; `arch-base`, snapshots, `arch` и `arch-test-clone` защищены. При проверке идемпотентности повторно применяйте роли к той же настроенной VM без reset.
+Выбор зависит от задачи пользователя. Только `bootstrap-target` пересоздаётся; `arch-base`, snapshots, `arch` и `arch-test-clone` защищены. Для идемпотентности повторно применяют роли к той же VM.
 
-[Usage](Usage.md) и [Test VM Workflow](standards/test-vm-workflow.md) описывают Docker запуск, secrets, ARA и optional Tasks.
+[Usage](Usage.md) и [Test VM Workflow](standards/test-vm-workflow.md) описывают native Swarm, secrets и ARA.

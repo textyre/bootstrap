@@ -1,0 +1,47 @@
+---
+- name: Inspect the requested login shells before modifying any account
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: true
+  loop: >-
+    {{ ([user_owner.shell] +
+        (user_additional_users | map(attribute='shell', default='/bin/bash') | list)) | unique | list }}
+  register: _user_login_shells
+
+- name: Require an installed executable login shell for every managed account
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isreg | default(false)
+      - item.stat.executable | default(false)
+    fail_msg: >-
+      Login shell {{ item.item }} is missing or not executable.
+      Install its package before the user role; assigning it now would break logins.
+  loop: "{{ _user_login_shells.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect the installed password-aging utility
+  ansible.builtin.command:
+    argv: [chage, --help]
+  environment:
+    LC_ALL: C
+  register: _user_chage_help
+  changed_when: false
+  when: user_manage_password_aging | bool
+
+- name: Record support for minimum password age
+  ansible.builtin.set_fact:
+    _user_password_min_age_supported: "{{ '--mindays' in _user_chage_help.stdout }}"
+  when: user_manage_password_aging | bool
+
+# shadow 4.20 deliberately removed --mindays and PASS_MIN_DAYS:
+# https://github.com/shadow-maint/shadow/releases/tag/4.20.0
+- name: Report unavailable minimum password-age control
+  ansible.builtin.debug:
+    msg: >-
+      The installed chage does not support minimum password age.
+      Maximum age and expiry warnings remain enforced; minimum age is not applied.
+  when:
+    - user_manage_password_aging | bool
+    - not (_user_password_min_age_supported | default(false) | bool)

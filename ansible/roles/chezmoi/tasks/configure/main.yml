@@ -47,7 +47,7 @@
       - /usr/bin/bash
       - -lc
       - |
-        umask 022
+        umask 027
         exec /usr/bin/chezmoi --force --no-tty --verbose apply --parent-dirs
     chdir: "{{ _chezmoi_target_home }}"
   register: _chezmoi_apply

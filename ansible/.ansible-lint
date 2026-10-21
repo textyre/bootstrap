@@ -4,7 +4,6 @@ profile: production
 
 # Exclude paths
 exclude_paths:
-  - .venv/
   - .molecule/
   - .cache/
   - roles/*/molecule/*/vars.yml
@@ -31,4 +30,4 @@ warn_list:
   - key-order[task]           # purely stylistic ordering preference
 
 # Use offline mode to avoid external calls
-offline: false
+offline: true

@@ -60,7 +60,7 @@ system.
 
 ## Tests
 
-`task test-caddy` runs Docker and Vagrant scenarios on Arch and Ubuntu. The
+The existing Molecule CI workflows run Docker and Vagrant scenarios on Arch and Ubuntu. The
 Docker scenario provides privileged systemd containers with a real nested
 Docker daemon; Vagrant provides full VMs. Both prepare only the external Docker,
 Compose and CA-package prerequisites, then check syntax, convergence and

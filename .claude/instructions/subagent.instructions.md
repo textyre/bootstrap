@@ -20,21 +20,21 @@
 
 - проект `D:/projects/bootstrap`;
 - явные VM `ansible-control` и `bootstrap-target`;
-- разрешённую операцию, Docker exec или optional Task и критерий результата;
+- разрешённую операцию, native Docker exec и критерий результата;
 - protected `arch-base`/`arch`/`arch-test-clone` и immutable snapshots;
-- необходимость runtime environment без вывода secrets.
+- public target environment и mounted Swarm secrets без вывода contents.
 
-Windows OpenStrap создаёт full clone `arch-base/base` и Linux Docker host. Cloud-init устанавливает только `docker.io` и `ca-certificates`. Docker readiness → pull `ghcr.io/textyre/bootstrap/control-plane:latest` → постоянный контейнер → Docker exec workstation выполняются по порядку. Image уже содержит `/opt/bootstrap/ansible`, dependencies и зашифрованный Vault. Git, Task, Compose и сборка на VM не нужны. Optional Taskfile и Compose используют исходники выбранного image, а не локальные изменения checkout. Один workstation playbook управляет target по SSH; статический inventory использует env lookups и native SSH agent.
+Windows OpenStrap создаёт full clone `arch-base/base` и Linux Docker host. First-boot cloud-init создаёт single-node Swarm и host-network service готового GHCR image. OpenStrap проверяет `1/1`, передаёт password/private key через stdin в native Docker secrets и выполняет один workstation exec с original 31 roles. Rotation заменяет service task и сохраняет home, но не выбирает новый image. Existing VM не принимает changed cloud-init автоматически. Root Task/Compose wrappers удалены; target-role Compose остаётся. Ansible использует native credential-file flags, inventory env содержит только public target values.
 
 Native `openstrap connect --run` с явным target допускается для read-only диагностики. Source изменения исправляются локально. Повторное применение или fresh clone выбираются по задаче пользователя; при отдельно запрошенной проверке идемпотентности используется тот же настроенный target. Не подменяйте полный workstation сокращённым запуском для обхода ошибки.
 
-Molecule tests работают в существующих CI workflows. Control Plane test aliases завершаются с сообщением о CI; они не устанавливают инструменты и не запускают workflows.
+Molecule tests работают в существующих CI workflows; controller не устанавливает инструменты и не запускает workflows автоматически.
 
 ## Отчёт и безопасность
 
 - ARA SQLite читается read-only; ARA и Ansible output доступны для progress и ошибок.
 - Возвращайте реальные команды, exit codes и полезные findings; unexecuted checks отмечайте unverified.
-- Не печатайте secrets/decrypted Vault, не передавайте их через CLI args и не сохраняйте в container/Compose settings, image или VM files. Runtime secrets нужны только workstation Docker exec; pull/start/build их не получают.
+- Не печатайте credentials, не помещайте их в environment, CLI args, image или persistent home. Native Swarm mounts под `/run/secrets` root `0400`; ARA игнорирует этот путь. `flock` защищает rotation/Ansible; different-target/credential-changing shared deployments сериализуются целиком.
 - Не создавайте host wrappers/polling harness и не ремонтируйте target вручную.
 - Не выполняйте commit/push без явного разрешения пользователя.
 - При работе с внешними зависимостями проверяйте текущую первичную документацию.

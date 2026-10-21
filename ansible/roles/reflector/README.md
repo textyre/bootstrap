@@ -48,7 +48,7 @@ timer is for later background maintenance only.
 
 By default the drop-in sets `Persistent=false` so a missed calendar event does
 not fire immediately after boot and race with later `pacman` work in the same
-`task workstation` run.
+workstation playbook run.
 
 ## Supported platforms
 

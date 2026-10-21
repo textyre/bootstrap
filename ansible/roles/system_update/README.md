@@ -14,15 +14,21 @@ Performs a full operating-system package upgrade before workstation configuratio
 - On Arch Linux, if `openssh` changes during the full upgrade, the role
   validates `sshd` and restarts `sshd.service` so new SSH connections use the
   upgraded daemon and helper binaries consistently.
-- A reboot boundary is required after a successful run and before `task workstation`.
+- A reboot boundary is required after a successful run and before the workstation playbook.
 
 ## Workflow
 
 ```bash
-task prepare:system
+ansible-playbook playbooks/prepare_system.yml \
+  --become-password-file /run/secrets/sudo-password --private-key /run/secrets/ssh-key
 reboot
-task workstation
+ansible-playbook playbooks/workstation.yml \
+  --become-password-file /run/secrets/sudo-password --private-key /run/secrets/ssh-key
 ```
+
+Execute Ansible inside the current Control Plane service task with the public
+target environment from [Ansible README](../../README.md); reboot the explicit
+target through the authorized VM workflow between the two playbooks.
 
 After the OS-specific upgrade backend, the role runs a generic package
 transaction recovery phase. The phase dispatches to an OS-family backend. On

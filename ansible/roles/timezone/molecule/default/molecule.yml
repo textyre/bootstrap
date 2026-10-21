@@ -11,13 +11,11 @@ provisioner:
   name: ansible
   config_options:
     defaults:
-      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/../../vault-pass.sh
       callbacks_enabled: profile_tasks
   inventory:
     host_vars:
       Localhost:
         ansible_connection: local
-        ansible_become_password: "{{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'HOME') + '/.vault-pass') }}"
   playbooks:
     converge: ../shared/converge.yml
   env:

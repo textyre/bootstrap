@@ -7,11 +7,10 @@ ENV LANG=C.UTF-8 \
     REPO_ROOT=/opt/bootstrap \
     ANSIBLE_CONFIG=/opt/bootstrap/ansible/ansible.cfg \
     ANSIBLE_INVENTORY=/opt/bootstrap/ansible/inventory/openstrap.yml \
-    ANSIBLE_VAULT_PASSWORD_FILE=/opt/bootstrap/ansible/vault-pass.sh \
-    ANSIBLE_SSH_AGENT=auto \
     ANSIBLE_COLLECTIONS_PATH=/opt/ansible/collections:/usr/share/ansible/collections \
     ARA_API_CLIENT=offline \
-    ARA_BASE_DIR=/root/ara
+    ARA_BASE_DIR=/root/ara \
+    ARA_IGNORED_FILES=/run/secrets,.ansible/tmp
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -27,6 +26,5 @@ WORKDIR /opt/bootstrap/ansible
 COPY ansible/requirements.yml requirements.yml
 RUN ansible-galaxy collection install -r requirements.yml -p /opt/ansible/collections
 COPY ansible/ ./
-RUN chmod 0755 vault-pass.sh
 
 CMD ["sleep", "infinity"]

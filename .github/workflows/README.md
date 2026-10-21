@@ -47,11 +47,14 @@ build-control-plane.yml — standalone, produces the ready-to-run workstation de
 
 `build-control-plane.yml` builds one `linux/amd64` image containing the system
 Ansible executable, Python, ARA, Galaxy collections, workstation playbook, roles
-and public configuration. It starts that image, checks workstation syntax,
-connects to a disposable SSH fixture using Ansible's native private-key/agent
-support, and confirms that ARA recorded the run. The fixture uses a generated
-test key and dummy Vault password; it does not execute workstation roles or
-require deployment secrets. These checks run in CI before publication.
+and public configuration. It starts a single-node Swarm service with native
+secret mounts, checks workstation syntax, connects to a disposable SSH fixture,
+and performs password-required sudo through Ansible's native credential-file
+arguments. The fixture uses a generated test key and synthetic sudo password.
+It checks mount mode 0400, confirms ARA recorded the run and checks the database
+contains no credential contents. It does not execute workstation roles or
+require deployment secrets. These checks run in CI before publication. Buildx
+builds the image; runtime credentials use Swarm secrets and never enter Buildx.
 
 Pull requests only build and test. A successful push to `master`, or a manual run
 on `master`, publishes the exact tested image as:
@@ -64,8 +67,12 @@ ghcr.io/textyre/bootstrap/control-plane:sha-<full Git commit SHA>
 The workflow authenticates with the repository's `GITHUB_TOKEN` and
 `packages: write`. No separate publication token is required. The full commit
 tag identifies the source revision; use the image digest when a deployment must
-pin the exact published artifact. The Docker host downloads this image and
-runs it without checking out Git, installing Task or building dependencies.
+pin the exact published artifact. Bootstrap's native cloud-init downloads this
+image and creates the persistent single-node Swarm service on first boot,
+without checking out Git, installing Task or building dependencies. OpenStrap
+checks service replicas, rotates stdin-delivered secrets and executes one
+workstation playbook. Rotation replaces the service task and preserves its home
+volume; image updates and controller recreation are separate explicit actions.
 
 For anonymous Docker pulls, set the GHCR package visibility to **public** after
 the first publication. GitHub creates a new container package as private by

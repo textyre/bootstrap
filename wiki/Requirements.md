@@ -2,14 +2,15 @@
 
 ## Bootstrap
 
-- Windows имеет установленный OpenStrap CLI, VirtualBox и подключённые provider/SSH plugins.
+- Windows имеет установленный OpenStrap CLI, VirtualBox и подключённые provider/SSH/keychain plugins.
+- Sudo-пароль target сохранён в keychain service `bootstrap`; configured SSH identity остаётся локальным файлом. См. [Bootstrap Secrets](../docs/bootstrap-secrets.md).
 - Entry command из `D:/projects/bootstrap`: `openstrap run --local --host-port 2251`.
 - `bootstrap-target` — disposable full clone `arch-base/base`; `ansible-control` — Ubuntu 24.04 Docker host.
-- Cloud-init устанавливает только `docker.io` и `ca-certificates`; `sudo -n docker info` подтверждает доступность Docker.
-- Docker host загружает готовый `ghcr.io/textyre/bootstrap/control-plane:latest`, запускает постоянный контейнер и использует Docker exec. Git, Task, Compose и сборка на VM не нужны.
+- Native cloud-init использует `package_update`, `packages` и `runcmd`: устанавливает Docker, инициализирует single-node Swarm и создаёт service готового image на первом старте.
+- После cloud-init OpenStrap проверяет Swarm replicas `1/1`, rotates native secrets и выполняет один Docker exec workstation.
 - GHCR package опубликован с public visibility, чтобы Docker host загружал образ без registry credentials.
 - Ansible и lint выполняются внутри одного контейнера Control Plane; target управляется по SSH.
-- Vault password и target connection values передаются только workstation process environment.
+- Password/private key доставляются stdin и root-owned Swarm mounts `0400`; environment содержит только public target host/port/user.
 - Protected source VM и snapshots неизменны.
 
 ## Роли — порядок и зависимости
@@ -20,7 +21,7 @@
 
 - Единый реестр в `inventory/group_vars/all/packages.yml`
 - Роли содержат только логику, данные — в group_vars
-- AUR пакеты устанавливаются через yay с паролем из vault (SUDO_ASKPASS)
+- AUR пакеты устанавливаются через yay с текущим become-паролем (SUDO_ASKPASS).
 - Конфликты AUR с pacman пакетами разрешаются автоматически
 - picom ставится из pacman (официальный upstream v12+ с анимациями и rules)
 - Обязательные AUR: i3lock-color, rofi-greenclip, dracula-gtk-theme, i3-rounded-border-patch-git
@@ -28,25 +29,26 @@
 
 ## Проверки
 
-- Optional development Tasks `check`, `lint:openstrap` и `lint` выполняют syntax check workstation, scoped lint workstation/user/chezmoi и lint всего проекта соответственно.
+- Native Docker exec выполняет workstation syntax check и scoped/project ansible-lint; команды в [Ansible README](../ansible/README.md).
 - Molecule сценарии запускаются существующими CI workflows `.github/workflows/molecule.yml` и `molecule-vagrant.yml`, со своим окружением.
-- Control Plane test aliases завершаются с сообщением о CI; они не устанавливают test tools и не запускают workflows.
+- Controller не устанавливает Molecule и не запускает workflows автоматически.
 - Повторное применение и тест на свежем клоне выбираются по задаче пользователя.
-- Реальный вывод подтверждает результат; наличие Tasks или VM не доказывает, что checks прошли.
+- Реальный вывод подтверждает результат; наличие VM не доказывает, что checks прошли.
 
 ## Доставка образа на controller
 
-GitHub Actions собирает и публикует `ghcr.io/textyre/bootstrap/control-plane` с тегами `latest` и `sha-<commit>`. Образ уже содержит `/opt/bootstrap/ansible`: playbooks, роли, static inventory, group vars и зашифрованный Vault. Локальные изменения входят в deployment после публикации нового image; credential files и runtime config Windows в image не входят. При сборке `ansible/vault-pass.sh` включается с executable mode и читает только environment.
+GitHub Actions использует Buildx и публикует `ghcr.io/textyre/bootstrap/control-plane` (`latest`, `sha-<commit>`). Образ содержит public Ansible source; private key, пароль и host runtime config исключены. Runtime secrets предоставляются native Swarm, вне image build.
 
 ## Инфраструктура
 
 - Корневой `Dockerfile` на Ubuntu 26.04 устанавливает Python, системный Ansible, ansible-lint и SSH tools через APT; ARA и Galaxy collections устанавливаются при сборке.
-- Blueprint напрямую выполняет image pull, container start и Docker exec одного playbook.
-- Taskfile и Compose — необязательные команды опубликованного образа на Docker host; они не устанавливаются на управляющую VM и не монтируют локальные исходники Ansible.
+- First-boot cloud-init инициализирует Swarm и создаёт service; финальный runtime step выполняет один workstation playbook.
+- Повторный OpenStrap run rotates secrets/task, но не выбирает новый image. Existing VM не принимает changed cloud-init автоматически.
+- Native Docker commands используются напрямую; корневые Task/Compose wrappers удалены. Target roles сохраняют Compose dependencies.
 - Inventory: статический `ansible/inventory/openstrap.yml`, `ansible_connection: ssh`, runtime env lookups для target.
-- Native `ansible_private_key` и `ssh_agent = auto` загружают OpenSSH identity в память агента на время запуска.
-- Known hosts и ARA offline DB сохраняются в named volume `bootstrap-control-plane-home:/root`; ARA server port `8000` доступен только на localhost Docker host.
-- Docker exec передаёт только разрешённые имена environment; secrets не хранятся в container/Compose settings и не используются при pull/start/build.
+- Ansible читает `/run/secrets/ssh-key` через `--private-key` и `/run/secrets/sudo-password` через `--become-password-file`.
+- Named home volume сохраняет known_hosts/ARA. Host-network ARA server запускается явно на `127.0.0.1:8000`; no Swarm port published.
+- Docker exec env содержит только public target values. ARA игнорирует secret file contents под `/run/secrets` и `.ansible/tmp`.
 - `ansible/requirements.txt` остаётся входным файлом существующего CI/Vagrant окружения.
 
 ## Идемпотентность

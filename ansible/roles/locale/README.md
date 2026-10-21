@@ -109,8 +109,12 @@ Project rules require VM execution through the host-side workflow for real runs.
 Example:
 
 ```bash
-task workstation -- --tags locale
+ansible-playbook playbooks/workstation.yml --tags locale \
+  --become-password-file /run/secrets/sudo-password --private-key /run/secrets/ssh-key
 ```
+
+Run this inside the current Control Plane service task with the public target
+environment described in [Ansible README](../../README.md).
 
 ## File map
 

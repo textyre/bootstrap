@@ -94,7 +94,7 @@ All content was consolidated from existing documentation:
 ## Maintenance
 
 When updating documentation:
-1. Reconcile current active pages with openstrap.yaml, runtime config and the ready GHCR image's native Docker pull/start/exec flow. Taskfile and Compose are optional development conveniences.
+1. Reconcile current active pages with openstrap.yaml and runtime config: native cloud-init prepares the ready GHCR container on first boot; OpenStrap checks it and executes workstation. Repeated runs reuse that container. Taskfile and Compose are optional development conveniences.
 2. Preserve dated troubleshooting/postmortem/plan records as history.
 3. Promote migration drafts only after actual full deployment and same-target idempotency evidence.
 4. Publish to GitHub Wiki only when explicitly requested; never commit or push automatically.

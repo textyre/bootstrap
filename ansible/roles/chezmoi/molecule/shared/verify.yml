@@ -14,12 +14,17 @@
         path: "{{ item.path }}"
       loop:
         - path: /home/testuser/.local
-          mode: "0755"
+          mode: "0750"
         - path: /home/testuser/.local/bin
           mode: "0755"
         - path: /home/testuser/.local/share
           mode: "0750"
       register: _chezmoi_xdg_dirs
+
+    - name: Read the deployed XDG test file
+      ansible.builtin.slurp:
+        src: /home/testuser/.local/share/chezmoi_test_marker
+      register: _chezmoi_xdg_test_marker
 
     - name: Require deployed source content
       ansible.builtin.assert:
@@ -27,6 +32,9 @@
           - >-
             _chezmoi_test_marker.content | b64decode
             == "chezmoi-deployment-test\n"
+          - >-
+            _chezmoi_xdg_test_marker.content | b64decode
+            == "chezmoi-xdg-deployment-test\n"
 
     - name: Require target user ownership for XDG directories
       ansible.builtin.assert:

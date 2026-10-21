@@ -83,6 +83,22 @@
         mode: "0644"
         content: "chezmoi-deployment-test\n"
 
+    - name: Include a normal XDG directory in the dotfiles source
+      ansible.builtin.file:
+        path: /opt/dotfiles/dot_local/share
+        state: directory
+        owner: testuser
+        group: testuser
+        mode: "0755"
+
+    - name: Provide a managed XDG test file
+      ansible.builtin.copy:
+        dest: /opt/dotfiles/dot_local/share/chezmoi_test_marker
+        owner: testuser
+        group: testuser
+        mode: "0644"
+        content: "chezmoi-xdg-deployment-test\n"
+
     - name: Commit test source repository
       become: true
       become_user: testuser

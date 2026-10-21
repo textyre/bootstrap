@@ -314,9 +314,8 @@ Molecule scenarios prepare prerequisites, run the role, and check idempotence. T
 
 | Scenario | Command | When to use | What it tests |
 |----------|---------|-------------|---------------|
-| Role task | `task test-sysctl` | Standard project entrypoint for sysctl role checks | Molecule scenario sequence for the role |
-| Docker (fast) | `task test-sysctl -- --scenario-name docker` | After changing variables, templates, or task logic | Syntax, convergence, idempotence of the persistent policy |
-| Vagrant (cross-platform) | `task test-sysctl -- --scenario-name vagrant` | After changing OS-specific logic or security params | Syntax, convergence, idempotence on VM filesystems/package managers |
+| Docker (fast) | Existing `molecule.yml` CI workflow | After changing variables, templates, or task logic | Syntax, convergence, idempotence of the persistent policy |
+| Vagrant (cross-platform) | Existing `molecule-vagrant.yml` CI workflow | After changing OS-specific logic or security params | Syntax, convergence, idempotence on VM filesystems/package managers |
 
 ### Success criteria
 
@@ -328,9 +327,9 @@ Molecule scenarios prepare prerequisites, run the role, and check idempotence. T
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `procps-ng package not found` | Stale package cache in container | Rebuild through the project task: `task test-sysctl -- --scenario-name docker` |
+| `procps-ng package not found` | Stale package cache in container | Check CI prepare output and rerun the existing Docker Molecule workflow |
 | Idempotence failure on config deploy | Template output differs on the second run | Check for dynamic expressions in the template |
-| Vagrant: `Python not found` on Arch | prepare.yml didn't run or bootstrap failed | Check `prepare.yml` imports `prepare-vagrant.yml`. Run full `task test-sysctl -- --scenario-name vagrant` |
+| Vagrant: `Python not found` on Arch | prepare.yml didn't run or bootstrap failed | Check `prepare.yml` imports `prepare-vagrant.yml`, then rerun the existing Vagrant Molecule workflow |
 
 ## Tags
 
@@ -338,8 +337,12 @@ The role exposes the top-level `sysctl` tag for full role execution. Internal ph
 
 ```bash
 # Full apply
-task workstation -- --tags sysctl
+ansible-playbook playbooks/workstation.yml --tags sysctl \
+  --become-password-file /run/secrets/sudo-password --private-key /run/secrets/ssh-key
 ```
+
+Run this inside the current Control Plane service task with the public target
+environment described in [Ansible README](../../README.md).
 
 ## File map
 

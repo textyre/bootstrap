@@ -41,10 +41,7 @@ packages_tree.txt
 full_dependencies.txt
 
 # ---- Personal / local overrides ----
-windows/config/config.ps1
-windows/.env
-.local/bootstrap/
-.local/control-plane/
+.local/
 .codex/
 
 # ---- Sensitive keys ----

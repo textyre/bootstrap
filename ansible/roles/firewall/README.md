@@ -59,7 +59,7 @@ is assumed.
 
 ## Tests
 
-`task test-firewall` runs the Docker scenario on systemd-based Arch and Ubuntu
+The existing Molecule Docker CI workflow runs the scenario on systemd-based Arch and Ubuntu
 containers. Test preparation installs nftables because package installation is
 outside the role. The scenario runs the complete firewall contract, including
 service activation, and then proves idempotence.

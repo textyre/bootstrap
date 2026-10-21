@@ -62,13 +62,17 @@ jobs:
           cache-from: type=gha,scope=control-plane
           cache-to: type=gha,mode=max,scope=control-plane
 
-      - name: Test the packaged playbook and native SSH connection
+      - name: Test Swarm secrets, SSH, sudo and ARA
         shell: bash
         run: |
           set -euo pipefail
           fixture_dir=$(mktemp -d)
+          service=control-plane-smoke
+          sudo_secret=
+          ssh_secret=
           cleanup() {
-            docker rm --force control-plane-smoke >/dev/null 2>&1 || true
+            docker service rm "$service" >/dev/null 2>&1 || true
+            docker swarm leave --force >/dev/null 2>&1 || true
             if [[ -f "$fixture_dir/sshd.pid" ]]; then
               sudo kill "$(cat "$fixture_dir/sshd.pid")" || true
             fi
@@ -77,9 +81,12 @@ jobs:
           trap cleanup EXIT
 
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends openssh-server
-          sudo useradd --create-home --shell /bin/sh --password \
-            "$(openssl passwd -6 control-plane-smoke)" control-plane-smoke
+          sudo apt-get install --yes --no-install-recommends openssh-server sudo
+          sudo useradd --create-home --shell /bin/sh control-plane-smoke
+          printf 'control-plane-smoke:swarm-sudo-smoke-credential\n' | sudo chpasswd
+          printf 'control-plane-smoke ALL=(ALL) PASSWD: ALL\n' \
+            | sudo tee /etc/sudoers.d/control-plane-smoke >/dev/null
+          sudo chmod 0440 /etc/sudoers.d/control-plane-smoke
           chmod 0755 "$fixture_dir"
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/client_key"
           ssh-keygen -q -t ed25519 -N '' -f "$fixture_dir/host_key"
@@ -99,31 +106,106 @@ jobs:
                 ansible_host: 127.0.0.1
                 ansible_port: 22222
                 ansible_user: control-plane-smoke
-                ansible_private_key: "{{ lookup('ansible.builtin.env', 'BOOTSTRAP_TARGET_PRIVATE_KEY') }}"
                 ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'
           YAML
-          export BOOTSTRAP_TARGET_PRIVATE_KEY="$(cat "$fixture_dir/client_key")"
-          export BOOTSTRAP_VAULT_PASSWORD=control-plane-smoke
+          cat > "$fixture_dir/playbook.yml" <<'YAML'
+          - name: Verify synthetic Swarm credentials
+            hosts: all
+            gather_facts: false
+            tasks:
+              - name: Verify SSH without privilege escalation
+                ansible.builtin.raw: id -un
+                changed_when: false
+                register: ssh_result
+              - name: Assert SSH account
+                ansible.builtin.assert:
+                  that: ssh_result.stdout | trim == 'control-plane-smoke'
+              - name: Verify password-backed sudo
+                become: true
+                ansible.builtin.raw: id -un
+                changed_when: false
+                register: sudo_result
+              - name: Assert root account
+                ansible.builtin.assert:
+                  that: sudo_result.stdout | trim == 'root'
+              - name: Verify the synthetic loaded secret
+                ansible.builtin.assert:
+                  that: ara_synthetic_secret | length > 0
+                no_log: true
+          - name: Exercise ARA file cache on a later play
+            hosts: all
+            gather_facts: false
+            tasks:
+              - name: Verify the smoke play completed
+                ansible.builtin.assert:
+                  that: true
+          YAML
 
-          docker run --detach --init --network host --name control-plane-smoke "$TEST_IMAGE"
-          docker exec control-plane-smoke sh -ec '
+          advertise_addr=$(ip -4 route get 1.1.1.1 | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+          docker swarm init --advertise-addr "$advertise_addr"
+          sudo_secret=$(printf 'swarm-sudo-smoke-credential\n' | docker secret create smoke-sudo -)
+          ssh_secret=$(docker secret create smoke-ssh - < "$fixture_dir/client_key")
+          printf 'ara_synthetic_secret: swarm-ara-loaded-file-credential\n' \
+            | docker secret create smoke-ara - >/dev/null
+          docker service create --detach=false --no-resolve-image --name "$service" --replicas 1 --init \
+            --network host --secret source=smoke-sudo,target=sudo-password,mode=0400 \
+            --secret source=smoke-ssh,target=ssh-key,mode=0400 \
+            --secret source=smoke-ara,target=ara-loader-fixture,mode=0400 "$TEST_IMAGE"
+          container=$(docker ps --filter "label=com.docker.swarm.service.name=$service" \
+            --filter status=running --format '{{.ID}}')
+          test -n "$container"
+          test "$(docker service ls --filter "name=$service" --format '{{.Replicas}}')" = 1/1
+          docker exec "$container" sh -ec '
             test -d roles/common/tasks
             test -f inventory/host_vars/bootstrap-target/system.yml
-            grep -q "^\$ANSIBLE_VAULT;" inventory/group_vars/all/vault.yml
+            test ! -e inventory/group_vars/all/vault.yml
+            test ! -e vault-pass.sh
             test ! -e .vault-pass
             test ! -e inventory/test.yml
             test -z "$(find roles -path "*/molecule/*" -type f -print -quit)"
+            test "$(stat -c %a /run/secrets/sudo-password)" = 400
+            test "$(stat -c %a /run/secrets/ssh-key)" = 400
           '
-          docker exec control-plane-smoke /usr/bin/ansible-playbook --version
-          docker exec --env BOOTSTRAP_VAULT_PASSWORD control-plane-smoke \
+          docker exec "$container" /usr/bin/ansible-playbook --version
+          docker exec "$container" \
             ansible-playbook --syntax-check --inventory localhost, playbooks/workstation.yml
-          docker cp "$fixture_dir/inventory.yml" control-plane-smoke:/tmp/smoke-inventory.yml
-          docker exec --env BOOTSTRAP_TARGET_PRIVATE_KEY --env BOOTSTRAP_VAULT_PASSWORD \
-            --env ANSIBLE_LOAD_CALLBACK_PLUGINS=true control-plane-smoke \
-            ansible all --inventory /tmp/smoke-inventory.yml \
-            --module-name ansible.builtin.raw --args 'id -un' | tee "$fixture_dir/result"
-          tr -d '\r' < "$fixture_dir/result" | grep -qx control-plane-smoke
-          docker exec control-plane-smoke ara playbook list -f json | jq -e 'length > 0'
+          docker cp "$fixture_dir/inventory.yml" "$container":/tmp/smoke-inventory.yml
+          docker cp "$fixture_dir/playbook.yml" "$container":/tmp/smoke-playbook.yml
+          docker exec "$container" ansible-playbook /tmp/smoke-playbook.yml \
+            --inventory /tmp/smoke-inventory.yml --private-key /run/secrets/ssh-key \
+            --extra-vars @/run/secrets/ara-loader-fixture \
+            --become-password-file /run/secrets/sudo-password
+          docker exec "$container" ara playbook list -f json | jq -e 'length > 0'
+          docker exec -i "$container" python3 - <<'PY'
+          from pathlib import Path
+          import sqlite3
+          import zlib
+          secrets = [Path('/run/secrets/sudo-password').read_bytes().strip(),
+                     *Path('/run/secrets/ssh-key').read_bytes().splitlines()[1:-1],
+                     Path('/run/secrets/ara-loader-fixture').read_text().split(': ', 1)[1].strip().encode()]
+          database = Path('/root/ara/ansible.sqlite')
+          with sqlite3.connect(f'file:{database}?mode=ro', uri=True) as connection:
+              tables = connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+              checked_file_table = False
+              for (table,) in tables.fetchall():
+                  quoted = table.replace('"', '""')
+                  columns = [column[1] for column in connection.execute(f'PRAGMA table_info("{quoted}")')]
+                  if table == 'files' and 'path' in columns:
+                      checked_file_table = True
+                      paths = connection.execute(f'SELECT path FROM "{quoted}"')
+                      assert all(not path.startswith('/run/secrets/') for (path,) in paths), 'ARA recorded a secret file'
+                  for row in connection.execute(f'SELECT * FROM "{quoted}"'):
+                      for column_index, value in enumerate(row):
+                          data = value if isinstance(value, bytes) else str(value).encode()
+                          candidates = [data]
+                          if isinstance(value, bytes):
+                              try:
+                                  candidates.append(zlib.decompress(value))
+                              except zlib.error:
+                                  pass
+                          assert all(secret not in candidate for secret in secrets for candidate in candidates), f'ARA recorded a credential in {table}.{columns[column_index]}'
+              assert checked_file_table, 'ARA file table was not checked'
+          PY
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'

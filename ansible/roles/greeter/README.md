@@ -14,6 +14,11 @@ The artifact owns everything required by the ctOS greeter, including its theme,
 runtime configuration, metadata, and machine-information helper.
 The `packages` and `lightdm` roles remain responsible for installing the greeter
 runtime and managing the display manager.
+The ctOS system-information helper uses `/usr/bin/env node`; the workstation's
+`packages_session` list therefore includes `nodejs` before LightDM starts.
+On Arch the package registry maps this to explicitly installed
+`nodejs-lts-iron`, matching the Nody build dependency and retaining the runtime
+after AUR build dependencies are removed.
 
 ## Execution flow
 
