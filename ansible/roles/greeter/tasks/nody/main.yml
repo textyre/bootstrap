@@ -71,10 +71,11 @@
       register: _greeter_nody_build
       changed_when: true
 
+    # pacman -U by path: the pacman module took the file for an already present package and did nothing.
     - name: Install the built package
-      community.general.pacman:
-        name: "{{ _greeter_nody_build.stdout_lines | last }}"
-        state: present
+      ansible.builtin.command:
+        argv: [pacman, -U, --noconfirm, "{{ _greeter_nody_build.stdout_lines | last }}"]
+      changed_when: true
 
     - name: Remove the build's Node {{ greeter_nody_build_node }}
       ansible.builtin.shell: |
