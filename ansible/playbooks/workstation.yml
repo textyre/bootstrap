@@ -54,6 +54,11 @@
     - role: packages
       tags: [packages, install]
 
+    # The user's Node: the newest stable release through nvm. The distribution's nodejs-lts-iron
+    # stays for nody-greeter.
+    - role: nvm
+      tags: [nvm, development]
+
     # --- Phase 1: System foundation ---
     - role: timezone
       tags: [system, timezone]

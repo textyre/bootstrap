@@ -82,6 +82,9 @@ jobs:
 
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends openssh-server sudo
+          # Ubuntu 26.04 runners default to sudo-rs, whose password prompt Ansible does not recognize;
+          # the smoke target uses the classic sudo, as the Arch target does.
+          if [ -x /usr/bin/sudo.ws ]; then sudo update-alternatives --set sudo /usr/bin/sudo.ws; fi
           sudo useradd --create-home --shell /bin/sh control-plane-smoke
           printf 'control-plane-smoke:swarm-sudo-smoke-credential\n' | sudo chpasswd
           printf 'control-plane-smoke ALL=(ALL) PASSWD: ALL\n' \
