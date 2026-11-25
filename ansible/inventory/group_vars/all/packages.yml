@@ -180,7 +180,7 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
-  - ewwii-git                     # виджет-фреймворк для статус-бара (Ewwii/NBCL)
+  - ewwii-bin                     # виджет-фреймворк для статус-бара (Ewwii/NBCL), релизная сборка
 
 # npm 12 blocks dependency install scripts unless they are explicitly approved.
 # nody-greeter, which needed some, is built by the greeter role (greeter_nody_npm_allow_scripts).
