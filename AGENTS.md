@@ -66,11 +66,11 @@ Follow [Test VM Workflow](wiki/standards/test-vm-workflow.md).
 
 ## Runtime secrets
 
-`openstrap.config.mjs` registers OS `keychain` service `bootstrap`. Save
-`BOOTSTRAP_TARGET_SUDO_PASSWORD` once per host with `openstrap secret set NAME`
-(hidden input); normal runs fetch it automatically. The same entry supplies
-provider-owned clone network setup and Ansible sudo. The configured SSH identity
-remains an existing local key file. There is no Bootstrap Ansible Vault or Vault
+openstrap's `keychain` plugin (installed from npm) keeps the secrets in the OS
+credential store. Save `ARCH_BASE_SSH_KEY` and `BOOTSTRAP_TARGET_SUDO_PASSWORD`
+once per host with `openstrap secret set NAME` (hidden input); normal runs fetch
+them automatically. The sudo entry supplies provider-owned clone network setup
+and Ansible sudo; the blueprint names the SSH key with `identity`. There is no Bootstrap Ansible Vault or Vault
 password adapter. [Bootstrap Secrets](docs/bootstrap-secrets.md) describes the flow.
 
 Provider network preparation passes the password via SSH stdin to `sudo -S`.

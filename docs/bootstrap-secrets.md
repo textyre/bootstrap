@@ -2,18 +2,19 @@
 
 ## OS credential store
 
-`openstrap.config.mjs` connects the `keychain` plugin with service `bootstrap`.
-The backend is Windows Credential Manager, macOS Keychain or Linux Secret
-Service. Save the target's current sudo password once under the current OS user:
+openstrap's `keychain` plugin, installed from npm (`openstrap plugins install keychain`),
+keeps secrets in the Windows Credential Manager, macOS Keychain or Linux Secret
+Service. Save the target's SSH key and current sudo password once under the current OS user:
 
 ```powershell
 Set-Location D:/projects/bootstrap
+openstrap secret set ARCH_BASE_SSH_KEY
 openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD
 ```
 
 The command prompts with hidden input. `secret set NAME` replaces an entry;
 `secret forget NAME` removes it. Normal `openstrap run` fetches the saved value
-automatically. The configured SSH identity remains an existing local key file.
+automatically. The blueprint names the SSH key with `identity: { secret: ARCH_BASE_SSH_KEY }`.
 Linux requires an available Secret Service backend.
 
 The same sudo entry is used for provider-owned second NIC preparation on the

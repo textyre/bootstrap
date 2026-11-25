@@ -11,7 +11,7 @@ Set-Location D:/projects/bootstrap
 openstrap run --local --host-port 2251
 ```
 
-Нужны OpenStrap CLI с поддержкой step stdin, VirtualBox, плагины из `openstrap.config.mjs`, snapshot `base` исходной `arch-base` и существующий локальный SSH ключ. Sudo-пароль target сохраняется один раз через `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD` со скрытым вводом; обычный запуск получает его через keychain service `bootstrap`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
+Нужны OpenStrap CLI v0.1.10 или новее, VirtualBox, плагины из npm (`openstrap plugins install virtualbox`, `ssh`, `keychain` — из PowerShell) и snapshot `base` исходной `arch-base`. SSH-ключ и sudo-пароль target сохраняются один раз со скрытым вводом: `openstrap secret set ARCH_BASE_SSH_KEY` и `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD`; blueprint называет их в `identity` и `sudoPassword`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
 
 ## Общее состояние через OpenStrap Server
 
@@ -46,7 +46,7 @@ CLI сначала переносит локальную историю выбр
 повторная передача одной записи не дублирует её. Незавершённые операции остаются
 видны как `running`; успешный результат записывается после workstation.
 
-Sudo-пароль остаётся в keychain текущего пользователя с service `bootstrap`.
+SSH-ключ и sudo-пароль остаются в хранилище секретов ОС текущего пользователя (плагин `keychain`).
 Cloud-init, native Swarm secrets и единственный `docker exec` workstation
 исполняются на стороне CLI. Недоступность Server
 не переключает CLI в локальное состояние автоматически.
@@ -95,7 +95,7 @@ Molecule выполняется в существующих [.github/workflows/m
 
 ```text
 openstrap.yaml                     VM, cloud-init Swarm, stdin secrets и workstation
-openstrap.config.mjs               provider, SSH identity и системное хранилище секретов
+cloud-init/ansible-control.yaml    первая загрузка Docker host для Control Plane
 Dockerfile                         публикуемый образ с Ansible и исходниками
 ansible/playbooks/workstation.yml  полный workstation playbook
 ansible/roles/                     роли рабочей станции
