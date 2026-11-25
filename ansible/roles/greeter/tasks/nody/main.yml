@@ -63,7 +63,8 @@
         cd "{{ _greeter_nody_dir }}"
         rm -f ./*.pkg.tar.zst
         makepkg --nodeps --noconfirm --cleanbuild --force >/dev/null
-        ls "$PWD"/nody-greeter-*.pkg.tar.zst
+        # makepkg may also split off nody-greeter-debug; the greeter is the package of its own name.
+        ls "$PWD"/nody-greeter-[0-9]*.pkg.tar.zst
       args:
         executable: /bin/bash
       become: true
@@ -71,11 +72,15 @@
       register: _greeter_nody_build
       changed_when: true
 
-    # pacman -U by path: the pacman module took the file for an already present package and did nothing.
     - name: Install the built package
       ansible.builtin.command:
         argv: [pacman, -U, --noconfirm, "{{ _greeter_nody_build.stdout_lines | last }}"]
       changed_when: true
+
+    - name: Remove a debug package of an earlier build
+      community.general.pacman:
+        name: nody-greeter-debug
+        state: absent
 
     - name: Remove the build's Node {{ greeter_nody_build_node }}
       ansible.builtin.shell: |
