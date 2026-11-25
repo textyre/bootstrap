@@ -55,7 +55,7 @@
                | regex_replace('[^v0-9.].*$', '')) }}
   tags: [nvm]
 
-- name: Install Node {{ _nvm_node }} and make it the default
+- name: Install and make default Node {{ _nvm_node }}
   ansible.builtin.shell: |
     set -eu
     export NVM_DIR="$HOME/.nvm"

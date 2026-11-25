@@ -42,6 +42,7 @@
       ansible.builtin.git:
         repo: "{{ greeter_nody_aur_url }}"
         dest: "{{ _greeter_nody_dir }}"
+        version: "{{ greeter_nody_aur_ref }}"
         force: true
       become: true
       become_user: "{{ greeter_nody_build_user }}"
@@ -53,7 +54,7 @@
         owner: "{{ greeter_nody_build_user }}"
         mode: "0600"
 
-    - name: Build nody-greeter with Node {{ greeter_nody_build_node }} from nvm
+    - name: Build nody-greeter with nvm's Node {{ greeter_nody_build_node }}
       ansible.builtin.shell: |
         set -eu
         export NVM_DIR="$HOME/.nvm"

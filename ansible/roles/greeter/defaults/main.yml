@@ -7,9 +7,10 @@ greeter_artifact_checksum: "sha256:8f2429c7d82156f27a47d5363282baa01e38b6c2bc210
 # nody-greeter, the LightDM greeter engine (Arch): built from the AUR by the greeter role itself.
 # nody-greeter is no longer developed; it is Electron 27, which builds only with Node 20 or older.
 # That Node comes from nvm for the build alone and is removed after it; the system keeps none.
-greeter_nody_enabled: "{{ ansible_facts['os_family'] == 'Archlinux' }}"
+greeter_nody_enabled: "{{ (ansible_facts['os_family'] | default('')) == 'Archlinux' }}"
 greeter_nody_package_version: "1.6.2-2"          # pkgver-pkgrel of the AUR package
 greeter_nody_aur_url: "https://aur.archlinux.org/nody-greeter.git"
+greeter_nody_aur_ref: "fee5c14bf8dbf575b85d3d2c7a22ea39dbb147cb"   # the AUR commit of 1.6.2-2
 greeter_nody_build_user: "{{ yay_builder_user | default('aur_builder') }}"
 greeter_nody_build_node: "20"
 greeter_nody_nvm_version: "{{ nvm_version | default('v0.41.0') }}"
