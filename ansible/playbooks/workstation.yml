@@ -54,8 +54,8 @@
     - role: packages
       tags: [packages, install]
 
-    # The user's Node: the newest stable release through nvm. The distribution's nodejs-lts-iron
-    # stays for nody-greeter.
+    # Node: the newest stable release through nvm, also linked as /usr/local/bin/node for the ctOS
+    # greeter helper. The system keeps no Node package; nody-greeter's build Node is the greeter role's.
     - role: nvm
       tags: [nvm, development]
 

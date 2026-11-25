@@ -14,11 +14,19 @@ The artifact owns everything required by the ctOS greeter, including its theme,
 runtime configuration, metadata, and machine-information helper.
 The `packages` and `lightdm` roles remain responsible for installing the greeter
 runtime and managing the display manager.
-The ctOS system-information helper uses `/usr/bin/env node`; the workstation's
-`packages_session` list therefore includes `nodejs` before LightDM starts.
-On Arch the package registry maps this to explicitly installed
-`nodejs-lts-iron`, matching the Nody build dependency and retaining the runtime
-after AUR build dependencies are removed.
+The ctOS system-information helper uses `/usr/bin/env node`. On Arch that is the
+newest stable Node from nvm, linked as `/usr/local/bin/node` by the `nvm` role;
+elsewhere the `packages_session` list installs `nodejs`.
+
+## nody-greeter (Arch)
+
+The role builds nody-greeter from the AUR itself. nody-greeter is no longer
+developed and is Electron 27, which builds only with Node 20 or older (`nodejs<21`),
+and no pacman package provides that Node any more. The build user (`aur_builder`)
+gets Node `greeter_nody_build_node` (20) from nvm, `makepkg --nodeps` builds the
+package with it, pacman installs the result, and that Node is removed again
+(`greeter_nody_keep_build_node: false`). The installed greeter runs on Electron's
+own Node. A package already at `greeter_nody_package_version` is not rebuilt.
 
 ## Execution flow
 

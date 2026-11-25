@@ -111,8 +111,8 @@ packages_graphics:
 # --- Сессия / грифтер ---
 packages_session:
   - lightdm             # display manager
-  - nodejs              # Runtime for the ctOS greeter system-information helper
-  # nody-greeter (AUR) — устанавливается через packages_aur
+  - nodejs              # Runtime for the ctOS greeter helper; on Arch it is nvm's Node instead (role nvm)
+  # nody-greeter (AUR) — собирает роль greeter, с Node 20 из nvm только на время сборки
 
 # --- Терминал ---
 packages_terminal:
@@ -170,7 +170,7 @@ vm_packages_kvm_guest:
 packages_aur_remove_conflicts:
   - i3lock            # заменяется на i3lock-color из AUR
   - i3-wm             # заменяется на i3-rounded-border-patch-git из AUR
-  - lightdm-gtk-greeter # заменяется на nody-greeter из AUR
+  - lightdm-gtk-greeter # заменяется на nody-greeter (роль greeter)
 
 # --- AUR пакеты (только Arch Linux, через AUR backend) ---
 # roles/packages использует AUR backend для установки этих пакетов.
@@ -181,11 +181,7 @@ packages_aur:
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
   - ewwii-git                     # виджет-фреймворк для статус-бара (Ewwii/NBCL)
-  - nody-greeter                   # LightDM web-гритер (Electron) для ctOS темы
 
 # npm 12 blocks dependency install scripts unless they are explicitly approved.
-# These pinned scripts are required to build the selected nody-greeter release.
-packages_aur_npm_allow_scripts:
-  - electron@27.3.11
-  - esbuild@0.21.5
-  - node-gtk@0.14.0
+# nody-greeter, which needed some, is built by the greeter role (greeter_nody_npm_allow_scripts).
+packages_aur_npm_allow_scripts: []
