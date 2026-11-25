@@ -1,0 +1,114 @@
+---
+# nvm in the target user's home, the newest stable Node through it, and nvm on every shell's PATH.
+#
+# Shell start-up files are the dotfiles' (chezmoi); nvm is loaded from system files instead:
+# /etc/profile.d/nvm.sh for login shells, and the same file at the top of /etc/bash.bashrc and
+# /etc/zsh/zshrc for interactive and SSH command shells.
+
+- name: Remove the distribution's Node, npm and pnpm
+  ansible.builtin.package:
+    name: "{{ nvm_system_node_packages }}"
+    state: absent
+  when: nvm_remove_system_node | bool
+  tags: [nvm]
+
+- name: Install what nvm needs
+  ansible.builtin.package:
+    name: [git, curl]
+    state: present
+  tags: [nvm]
+
+- name: Read the target user's home
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ nvm_user }}"
+  tags: [nvm]
+
+- name: Clone nvm into the user's home
+  ansible.builtin.git:
+    repo: https://github.com/nvm-sh/nvm.git
+    dest: "{{ _nvm_home }}/.nvm"
+    version: "{{ nvm_version }}"
+    depth: 1
+  become: true
+  become_user: "{{ nvm_user }}"
+  vars:
+    _nvm_home: "{{ ansible_facts['getent_passwd'][nvm_user][4] }}"
+  tags: [nvm]
+
+- name: Find the newest stable Node release
+  ansible.builtin.uri:
+    url: "{{ nvm_node_index_url }}"
+    return_content: true
+  register: _nvm_index
+  when: nvm_node_version == 'latest'
+  check_mode: false
+  tags: [nvm]
+
+# index.tab lists the newest first; a pre-release (v27.0.0-alpha...) is not a release.
+- name: Choose the Node version
+  ansible.builtin.set_fact:
+    _nvm_node: >-
+      {{ nvm_node_version if nvm_node_version != 'latest'
+         else (_nvm_index.content.splitlines()[1:]
+               | select('match', 'v[0-9]+[.][0-9]+[.][0-9]+[^-0-9.]') | first
+               | regex_replace('[^v0-9.].*$', '')) }}
+  tags: [nvm]
+
+- name: Install Node {{ _nvm_node }} and make it the default
+  ansible.builtin.shell: |
+    set -eu
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    if nvm ls "{{ _nvm_node }}" >/dev/null 2>&1; then echo present; else nvm install "{{ _nvm_node }}" >/dev/null; echo installed; fi
+    nvm alias default "{{ _nvm_node }}" >/dev/null
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nvm_user }}"
+  register: _nvm_install
+  changed_when: "'installed' in _nvm_install.stdout"
+  tags: [nvm]
+
+- name: Install global npm packages into that Node
+  ansible.builtin.shell: |
+    set -eu
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm use --silent default
+    missing=""
+    for package in {{ nvm_global_packages | map('quote') | join(' ') }}; do
+      npm ls -g --depth=0 "$package" >/dev/null 2>&1 || missing="$missing $package"
+    done
+    if [ -n "$missing" ]; then npm install -g --no-fund --no-audit $missing >/dev/null; echo "installed:$missing"; fi
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nvm_user }}"
+  register: _nvm_globals
+  changed_when: "'installed:' in _nvm_globals.stdout"
+  when: nvm_global_packages | length > 0
+  tags: [nvm]
+
+- name: Load nvm in login shells
+  ansible.builtin.template:
+    src: nvm.sh.j2
+    dest: /etc/profile.d/nvm.sh
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [nvm]
+
+# Interactive shells and SSH commands do not read /etc/profile; the block goes first, before a
+# bashrc's early return for non-interactive shells.
+- name: Load nvm in interactive and SSH command shells
+  ansible.builtin.blockinfile:
+    path: "{{ item }}"
+    insertbefore: BOF
+    create: true
+    mode: "0644"
+    marker: "# {mark} nvm (role nvm)"
+    block: |
+      [ -r /etc/profile.d/nvm.sh ] && . /etc/profile.d/nvm.sh
+  loop: [/etc/bash.bashrc, /etc/zsh/zshrc]
+  tags: [nvm]
