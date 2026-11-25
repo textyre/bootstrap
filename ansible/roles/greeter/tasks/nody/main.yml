@@ -72,9 +72,11 @@
       register: _greeter_nody_build
       changed_when: true
 
+    # The ctOS artifact deployed next replaces nody-greeter's /etc/lightdm/web-greeter.yml with its
+    # own; on a reinstall or upgrade that file is already there, and the artifact puts it back after.
     - name: Install the built package
       ansible.builtin.command:
-        argv: [pacman, -U, --noconfirm, "{{ _greeter_nody_build.stdout_lines | last }}"]
+        argv: [pacman, -U, --noconfirm, --overwrite, /etc/lightdm/web-greeter.yml, "{{ _greeter_nody_build.stdout_lines | last }}"]
       changed_when: true
 
     - name: Remove a debug package of an earlier build
