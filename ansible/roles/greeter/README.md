@@ -17,8 +17,9 @@ runtime and managing the display manager.
 The ctOS system-information helper uses `/usr/bin/env node`; the workstation's
 `packages_session` list therefore includes `nodejs` before LightDM starts.
 On Arch the package registry maps this to explicitly installed
-`nodejs-lts-iron`, matching the Nody build dependency and retaining the runtime
-after AUR build dependencies are removed.
+`nodejs-lts-iron` (from the AUR since Node 20 left Arch's repositories), matching the
+Nody build dependency (`nodejs<21`) and retaining the runtime after AUR build
+dependencies are removed.
 
 ## Execution flow
 

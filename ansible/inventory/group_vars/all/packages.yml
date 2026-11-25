@@ -175,6 +175,10 @@ packages_aur_remove_conflicts:
 # --- AUR пакеты (только Arch Linux, через AUR backend) ---
 # roles/packages использует AUR backend для установки этих пакетов.
 packages_aur:
+  # nody-greeter builds with nodejs<21. Node 20 (nodejs-lts-iron) left Arch's repositories for the
+  # AUR; installed explicitly and before nody-greeter, so yay --removemake keeps it as the ctOS
+  # helper runtime after the build.
+  - nodejs-lts-iron
   - zen-browser-bin                # Zen Browser binary package
   - i3-rounded-border-patch-git   # i3 с патчем для скруглённых углов
   - i3lock-color                  # lock screen с кастомизацией цветов
