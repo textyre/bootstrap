@@ -26,10 +26,12 @@
       changed_when: false
       failed_when: vm_vbox_bundled_vboxvideo_build_step.rc not in [0, 1]
 
+    # Our patch's guard, or the installer's own: Guest Additions 7.2.8 and newer skip vboxvideo on
+    # Linux 7.0 and newer themselves (have_vboxvideo_build), and need no patch.
     - name: "VirtualBox: Detect existing bundled vboxvideo kernel guard"
       ansible.builtin.command:
         cmd: >-
-          grep -q -- 'Skipping the bundled graphics driver module'
+          grep -qE -- 'Skipping the bundled graphics driver module|^have_vboxvideo_build='
           {{ vm_vbox_ga_vboxadd_init }}
       register: vm_vbox_bundled_vboxvideo_kernel_guard
       changed_when: false
