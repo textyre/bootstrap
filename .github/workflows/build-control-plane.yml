@@ -156,6 +156,8 @@ jobs:
           test "$(docker service ls --filter "name=$service" --format '{{.Replicas}}')" = 1/1
           docker exec "$container" sh -ec '
             test -d roles/common/tasks
+            test -f playbooks/site.yml
+            test -f playbooks/prepare_system.yml
             test -f inventory/host_vars/bootstrap-target/system.yml
             test ! -e inventory/group_vars/all/vault.yml
             test ! -e vault-pass.sh
@@ -167,7 +169,7 @@ jobs:
           '
           docker exec "$container" /usr/bin/ansible-playbook --version
           docker exec "$container" \
-            ansible-playbook --syntax-check --inventory localhost, playbooks/workstation.yml
+            ansible-playbook --syntax-check --inventory localhost, playbooks/site.yml
           docker cp "$fixture_dir/inventory.yml" "$container":/tmp/smoke-inventory.yml
           docker cp "$fixture_dir/playbook.yml" "$container":/tmp/smoke-playbook.yml
           docker exec "$container" ansible-playbook /tmp/smoke-playbook.yml \
