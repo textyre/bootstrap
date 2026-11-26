@@ -11,7 +11,7 @@ Set-Location D:/projects/bootstrap
 openstrap run --local --host-port 2251
 ```
 
-Нужны OpenStrap CLI с поддержкой step stdin, VirtualBox, плагины из `openstrap.config.mjs`, snapshot `base` исходной `arch-base` и существующий локальный SSH ключ. Sudo-пароль target сохраняется один раз через `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD` со скрытым вводом; обычный запуск получает его через keychain service `bootstrap`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
+Нужны OpenStrap CLI v0.1.10 или новее, VirtualBox, плагины из npm (`openstrap plugins install virtualbox`, `ssh`, `keychain` — из PowerShell) и snapshot `base-2026-11` исходной `arch-base` (пароль `textyre` в нём должен быть моложе 365 дней: роль `user` проверяет это первым шагом). SSH-ключ и sudo-пароль target сохраняются один раз со скрытым вводом: `openstrap secret set ARCH_BASE_SSH_KEY` и `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD`; blueprint называет их в `identity` и `sudoPassword`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
 
 ## Общее состояние через OpenStrap Server
 
@@ -46,7 +46,7 @@ CLI сначала переносит локальную историю выбр
 повторная передача одной записи не дублирует её. Незавершённые операции остаются
 видны как `running`; успешный результат записывается после workstation.
 
-Sudo-пароль остаётся в keychain текущего пользователя с service `bootstrap`.
+SSH-ключ и sudo-пароль остаются в хранилище секретов ОС текущего пользователя (плагин `keychain`).
 Cloud-init, native Swarm secrets и единственный `docker exec` workstation
 исполняются на стороне CLI. Недоступность Server
 не переключает CLI в локальное состояние автоматически.
@@ -66,12 +66,12 @@ openstrap recover <run-id> --reason "CLI terminated; execution stopped" --confir
 
 | VM | Назначение |
 |---|---|
-| `bootstrap-target` | Полный клон `arch-base/base`; Arch Linux, пользователь `textyre` |
+| `bootstrap-target` | Полный клон `arch-base/base-2026-11`; Arch Linux, пользователь `textyre` |
 | `ansible-control` | Ubuntu 24.04 Docker host |
 
 Обе VM запускаются headless. Общая приватная сеть `bootstrap` соединяет target `172.28.51.10:22` и controller `172.28.51.11`. SSH с Windows доступен через порты `2251` и `2252`. Исходная VM и её snapshots остаются неизменными.
 
-Cloud-init устанавливает `docker.io` и `ca-certificates`, инициализирует single-node Swarm с route-local IP и запускает service `bootstrap-control-plane` из готового `ghcr.io/textyre/bootstrap/control-plane:latest`. Service использует host networking и volume `bootstrap-control-plane-home:/root`. OpenStrap ждёт cloud-init до 30 минут и проверяет `1/1` replicas. Два stdin шага создают и монтируют native Docker secrets для sudo и SSH; последний шаг выполняет один `docker exec` системного Ansible с полным `workstation.yml`.
+Cloud-init устанавливает `docker.io` и `ca-certificates`, инициализирует single-node Swarm с route-local IP и запускает service `bootstrap-control-plane` из готового `ghcr.io/textyre/bootstrap/control-plane:latest` (образ `master`). Образ другой ветки выбирается без мёржа: CI публикует каждую ветку как `branch-<ветка>` и `sha-<коммит>`, а `BOOTSTRAP_IMAGE_TAG` задаёт тег при запуске, например `$env:BOOTSTRAP_IMAGE_TAG = "branch-feature-x"; openstrap run --local --host-port 2251`. Service использует host networking и volume `bootstrap-control-plane-home:/root`. OpenStrap ждёт cloud-init до 30 минут и проверяет `1/1` replicas. Два stdin шага создают и монтируют native Docker secrets для sudo и SSH; последний шаг выполняет один `docker exec` системного Ansible с полным `workstation.yml`.
 
 [GitHub Actions workflow](.github/workflows/build-control-plane.yml) использует Buildx для сборки корневого `Dockerfile` на Ubuntu 26.04 и публикации GHCR tags `latest`/`sha-<commit>`. Python, системный Ansible, ansible-lint и SSH tools устанавливаются через APT; ARA и Galaxy collections — при сборке. Public `/opt/bootstrap/ansible` уже содержит playbooks, все роли, inventory и group vars. Runtime secrets не входят в build; Buildx build secrets не заменяют Swarm runtime secrets. Controller не требует Git checkout, Task, Compose или сборки.
 
@@ -95,7 +95,7 @@ Molecule выполняется в существующих [.github/workflows/m
 
 ```text
 openstrap.yaml                     VM, cloud-init Swarm, stdin secrets и workstation
-openstrap.config.mjs               provider, SSH identity и системное хранилище секретов
+cloud-init/ansible-control.yaml    первая загрузка Docker host для Control Plane
 Dockerfile                         публикуемый образ с Ansible и исходниками
 ansible/playbooks/workstation.yml  полный workstation playbook
 ansible/roles/                     роли рабочей станции

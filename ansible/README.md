@@ -25,10 +25,10 @@ service из готового `ghcr.io/textyre/bootstrap/control-plane:latest`. 
 
 ## Inventory и секреты
 
-Keychain service `bootstrap` хранит `BOOTSTRAP_TARGET_SUDO_PASSWORD` текущего
-target; скрытый ввод выполняется один раз через `openstrap secret set NAME`.
-Этот пароль нужен и provider для сети клона, и Ansible для sudo. SSH identity
-остаётся локальным файлом из config. [Bootstrap Secrets](../docs/bootstrap-secrets.md)
+Хранилище секретов ОС (плагин `keychain` из npm) хранит `ARCH_BASE_SSH_KEY` и
+`BOOTSTRAP_TARGET_SUDO_PASSWORD` текущего target; скрытый ввод выполняется один раз
+через `openstrap secret set NAME`. Пароль нужен и provider для сети клона, и Ansible
+для sudo; SSH-ключ blueprint называет в `identity`. [Bootstrap Secrets](../docs/bootstrap-secrets.md)
 описывает весь поток, rotation и ограничения shared-controller concurrency.
 
 Пароль и private key передаются через SSH stdin в `docker secret create NAME -`

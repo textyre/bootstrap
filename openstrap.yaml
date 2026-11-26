@@ -6,8 +6,9 @@ targets:
     provider: virtualbox
     transport: ssh
     user: textyre
+    identity: { secret: ARCH_BASE_SSH_KEY }
     sudoPassword: { secret: BOOTSTRAP_TARGET_SUDO_PASSWORD }
-    source: { machine: arch-base, snapshot: base, mode: full }
+    source: { machine: arch-base, snapshot: base-2026-11, mode: full }
     network:
       shared: { name: bootstrap, address: 172.28.51.10, cidr: 24 }
     size: large
@@ -22,12 +23,10 @@ targets:
     network:
       shared: { name: bootstrap, address: 172.28.51.11, cidr: 24 }
     cloudInit:
+      file: cloud-init/ansible-control.yaml
       timeoutMs: 1800000
-      package_update: true
-      packages:
-        - docker.io
-        - ca-certificates
     ansible:
       target: bootstrap-target
-      image: ghcr.io/textyre/bootstrap/control-plane:latest
-      playbook: playbooks/workstation.yml
+      # master's image by default; another branch's with BOOTSTRAP_IMAGE_TAG=branch-<branch> (or sha-<commit>).
+      image: ghcr.io/textyre/bootstrap/control-plane:${BOOTSTRAP_IMAGE_TAG:-latest}
+      playbook: playbooks/site.yml

@@ -5,7 +5,8 @@
 Windows edits project files and runs OpenStrap CLI. `ansible-control` is a Linux
 Docker host. Native cloud-init installs `docker.io`/`ca-certificates`, initializes
 a single-node Swarm using the route's local IP, and creates the persistent
-`bootstrap-control-plane` service from `ghcr.io/textyre/bootstrap/control-plane:latest`.
+`bootstrap-control-plane` service from `ghcr.io/textyre/bootstrap/control-plane:latest`
+(master's), or a branch's image with `BOOTSTRAP_IMAGE_TAG=branch-<branch>` before it is merged.
 The service has one replica, host networking and named volume
 `bootstrap-control-plane-home:/root`. The Ubuntu 26.04 image contains system
 APT Ansible/lint, ARA 1.7.3, collections and public `/opt/bootstrap/ansible` source.
@@ -15,7 +16,7 @@ Set-Location D:/projects/bootstrap
 openstrap run --local --host-port 2251
 ```
 
-`bootstrap-target` is a disposable full clone of `arch-base/base`;
+`bootstrap-target` is a disposable full clone of `arch-base/base-2026-11`;
 `ansible-control` uses Ubuntu 24.04. Both VMs run headless. Shared network
 `bootstrap` connects target `172.28.51.10:22` to controller `172.28.51.11`;
 Windows SSH ports are `2251` and `2252`. Cloud-init runs once on first boot as
@@ -66,11 +67,11 @@ Follow [Test VM Workflow](wiki/standards/test-vm-workflow.md).
 
 ## Runtime secrets
 
-`openstrap.config.mjs` registers OS `keychain` service `bootstrap`. Save
-`BOOTSTRAP_TARGET_SUDO_PASSWORD` once per host with `openstrap secret set NAME`
-(hidden input); normal runs fetch it automatically. The same entry supplies
-provider-owned clone network setup and Ansible sudo. The configured SSH identity
-remains an existing local key file. There is no Bootstrap Ansible Vault or Vault
+openstrap's `keychain` plugin (installed from npm) keeps the secrets in the OS
+credential store. Save `ARCH_BASE_SSH_KEY` and `BOOTSTRAP_TARGET_SUDO_PASSWORD`
+once per host with `openstrap secret set NAME` (hidden input); normal runs fetch
+them automatically. The sudo entry supplies provider-owned clone network setup
+and Ansible sudo; the blueprint names the SSH key with `identity`. There is no Bootstrap Ansible Vault or Vault
 password adapter. [Bootstrap Secrets](docs/bootstrap-secrets.md) describes the flow.
 
 Provider network preparation passes the password via SSH stdin to `sudo -S`.

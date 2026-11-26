@@ -1,0 +1,6 @@
+#cloud-config
+# The Ansible Control Plane's Docker host: OpenStrap runs the control plane image on it as a Swarm service.
+package_update: true
+packages:
+  - docker.io
+  - ca-certificates
