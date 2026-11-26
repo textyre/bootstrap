@@ -56,7 +56,7 @@ packages_xorg:
 packages_wm:
   - picom             # композитор (анимации, тени, размытие, rules)
   - dmenu             # минимальный лаунчер (фолбэк)
-  # - polybar         # ОТКЛЮЧЕНО: заменено на eww (ewwii)
+  # - polybar         # ОТКЛЮЧЕНО: заменено на eww (ewwii, собирает роль ewwii из main)
   - gtk4              # runtime/build dependency for Ewwii widgets
   - gtk4-layer-shell  # Ewwii layer-shell integration
   - graphene          # GTK4/Ewwii rendering dependency
@@ -180,7 +180,6 @@ packages_aur:
   - i3lock-color                  # lock screen с кастомизацией цветов
   - rofi-greenclip                # менеджер буфера обмена для rofi
   - dracula-gtk-theme             # Dracula GTK тема
-  - ewwii-bin                     # виджет-фреймворк для статус-бара (Ewwii/NBCL), релизная сборка
 
 # npm 12 blocks dependency install scripts unless they are explicitly approved.
 # nody-greeter, which needed some, is built by the greeter role (greeter_nody_npm_allow_scripts).

@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: ewwii
+  author: textyre
+  description: ewwii, the status bar's widget system, built from the head of its main branch.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: ArchLinux
+      versions: [all]
+  galaxy_tags: [desktop, statusbar, ewwii]
+dependencies: []

@@ -1,0 +1,17 @@
+---
+# ewwii, the status bar's widget system, built from the head of its main branch (Arch).
+#
+# The AUR's ewwii-git cannot build it as published: its pkgver() asks `git describe --tags`, and
+# main no longer shares history with any tag. The role builds that AUR package with a pkgver()
+# that needs no tag: the crate's version, the commit count and the commit, e.g. 0.10.0.r412.g84eb7a1.
+ewwii_enabled: "{{ (ansible_facts['os_family'] | default('')) == 'Archlinux' }}"
+ewwii_repository: "https://github.com/Ewwii-sh/ewwii.git"
+ewwii_branch: main
+ewwii_aur_url: "https://aur.archlinux.org/ewwii-git.git"
+ewwii_aur_ref: "3a21c490139e25df25117458204f0fc25297360c"   # the AUR commit of the PKGBUILD used
+ewwii_build_user: "{{ yay_builder_user | default('aur_builder') }}"
+# makedepends of the AUR package, and the GTK it runs on.
+ewwii_packages: [rust, gtk4, pkgconf, gtk-layer-shell, graphene, git, base-devel]
+# The body of pkgver(), run in the source: crate version, commit count, commit.
+ewwii_pkgver: |-
+  printf "%s.r%s.g%s" "$(grep -m1 '^version' crates/ewwii/Cargo.toml | cut -d '"' -f 2)" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"

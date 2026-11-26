@@ -59,6 +59,10 @@
     - role: nvm
       tags: [nvm, development]
 
+    # The status bar's widget system, from the head of its main branch.
+    - role: ewwii
+      tags: [ewwii, desktop]
+
     # --- Phase 1: System foundation ---
     - role: timezone
       tags: [system, timezone]
