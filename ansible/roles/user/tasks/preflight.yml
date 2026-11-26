@@ -1,0 +1,39 @@
+---
+# === Preflight: the owner's password must outlive the expiry this role sets ===
+# Run before anything else changes the machine (site.yml, workstation.yml):
+#   include_role: { name: user, tasks_from: preflight.yml }
+#
+# The role sets a maximum password age (CIS 5.5.1). A password changed longer ago than that is
+# expired the moment the age is set, and sudo, which Ansible runs every task through, stops: the run
+# breaks half-way and the next one cannot start. This stops the run before any change instead.
+
+- name: Read when the owner's password was last changed
+  ansible.builtin.getent:
+    database: shadow
+    key: "{{ user_owner.name }}"
+  when: user_manage_password_aging | bool
+  tags: [always]
+
+- name: Check that the owner's password outlives the maximum age set for it
+  vars:
+    _user_preflight_changed: "{{ ansible_facts['getent_shadow'][user_owner.name][1] | default('', true) }}"
+    _user_preflight_today: "{{ (now(utc=true).timestamp() | int) // 86400 }}"
+    _user_preflight_age: >-
+      {{ (_user_preflight_today | int) - (_user_preflight_changed | int)
+         if _user_preflight_changed | length > 0 else 0 }}
+  ansible.builtin.assert:
+    that:
+      - _user_preflight_changed != '0'
+      - (_user_preflight_age | int) < (user_owner.password_max_age | int)
+    fail_msg: >-
+      The password of {{ user_owner.name }} was last changed {{ _user_preflight_age }} days ago
+      {{ '(it is marked for a forced change)' if _user_preflight_changed == '0' else '' }}; this role
+      sets a maximum age of {{ user_owner.password_max_age }} days, which would expire it at once and
+      cut off sudo mid-run. Change the password on the machine (passwd {{ user_owner.name }}), then
+      run again. Nothing has been changed.
+    success_msg: >-
+      The password of {{ user_owner.name }} is {{ _user_preflight_age }} days old, within the
+      {{ user_owner.password_max_age }} days set for it.
+    quiet: true
+  when: user_manage_password_aging | bool
+  tags: [always]

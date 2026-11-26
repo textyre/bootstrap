@@ -30,6 +30,17 @@
       when: _site_python_probe.rc == 1
       changed_when: _site_python_install.rc == 0
 
+    # Before the bootloader, the upgrade and the packages: a password the user role would expire
+    # at once cuts off sudo mid-run, so the run stops here, having changed nothing.
+    - name: Gather the facts the user role reads
+      ansible.builtin.setup:
+        gather_subset: [min]
+
+    - name: Preflight the owner's password age
+      ansible.builtin.include_role:
+        name: user
+        tasks_from: preflight.yml
+
 - name: Prepare system
   ansible.builtin.import_playbook: prepare_system.yml
 

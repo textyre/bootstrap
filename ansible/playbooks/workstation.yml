@@ -41,6 +41,15 @@
       ansible.builtin.setup:
       tags: [always]
 
+    # Before any change: a password the user role would expire at once cuts off sudo mid-run.
+    - name: Preflight the owner's password age
+      ansible.builtin.include_role:
+        name: user
+        tasks_from: preflight.yml
+        apply:
+          tags: [always]
+      tags: [always]
+
   roles:
     # --- Phase -1: Mirror setup ---
     - role: reflector
