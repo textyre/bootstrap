@@ -5,7 +5,8 @@
 Windows edits project files and runs OpenStrap CLI. `ansible-control` is a Linux
 Docker host. Native cloud-init installs `docker.io`/`ca-certificates`, initializes
 a single-node Swarm using the route's local IP, and creates the persistent
-`bootstrap-control-plane` service from `ghcr.io/textyre/bootstrap/control-plane:latest`.
+`bootstrap-control-plane` service from `ghcr.io/textyre/bootstrap/control-plane:latest`
+(master's), or a branch's image with `BOOTSTRAP_IMAGE_TAG=branch-<branch>` before it is merged.
 The service has one replica, host networking and named volume
 `bootstrap-control-plane-home:/root`. The Ubuntu 26.04 image contains system
 APT Ansible/lint, ARA 1.7.3, collections and public `/opt/bootstrap/ansible` source.
