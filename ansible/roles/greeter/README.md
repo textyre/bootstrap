@@ -42,7 +42,7 @@ The role has no handlers, platform branches, or init-system branches.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `greeter_version` | `1.0.1-rc.1` | Released ctos-greeter version to deploy. |
+| `greeter_version` | `1.0.1-rc.2` | Released ctos-greeter version to deploy. |
 | `greeter_artifact_url` | GitHub Release URL derived from `greeter_version` | Download location of `ctos-greeter.tar`. |
 | `greeter_artifact_checksum` | pinned `sha256:...` | Checksum the downloaded artifact must match. |
 | `greeter_theme_dir` | `/usr/share/web-greeter/themes/ctos` | The theme directory, replaced whole when the artifact changes. |

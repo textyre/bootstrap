@@ -1,8 +1,8 @@
 ---
 # Released ctOS greeter artifact deployed to the workstation.
-greeter_version: "1.0.1-rc.1"
+greeter_version: "1.0.1-rc.2"
 greeter_artifact_url: "https://github.com/textyre/ctos-greeter/releases/download/v{{ greeter_version }}/ctos-greeter.tar"
-greeter_artifact_checksum: "sha256:feb436de940a7db70dca5c4b4d9f82a8377f63bd55fafa3ed32f3310d0ac035b"
+greeter_artifact_checksum: "sha256:449531489be5629a42ec07673efafbc1d0ec96851957b49a129d833dfb35a986"
 greeter_theme_dir: /usr/share/web-greeter/themes/ctos
 greeter_artifact_marker: /usr/lib/ctos-greeter/artifact    # the checksum of the deployed artifact
 
