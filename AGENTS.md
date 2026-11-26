@@ -16,7 +16,7 @@ Set-Location D:/projects/bootstrap
 openstrap run --local --host-port 2251
 ```
 
-`bootstrap-target` is a disposable full clone of `arch-base/base`;
+`bootstrap-target` is a disposable full clone of `arch-base/base-2026-11`;
 `ansible-control` uses Ubuntu 24.04. Both VMs run headless. Shared network
 `bootstrap` connects target `172.28.51.10:22` to controller `172.28.51.11`;
 Windows SSH ports are `2251` and `2252`. Cloud-init runs once on first boot as

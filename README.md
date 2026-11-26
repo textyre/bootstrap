@@ -11,7 +11,7 @@ Set-Location D:/projects/bootstrap
 openstrap run --local --host-port 2251
 ```
 
-Нужны OpenStrap CLI v0.1.10 или новее, VirtualBox, плагины из npm (`openstrap plugins install virtualbox`, `ssh`, `keychain` — из PowerShell) и snapshot `base` исходной `arch-base`. SSH-ключ и sudo-пароль target сохраняются один раз со скрытым вводом: `openstrap secret set ARCH_BASE_SSH_KEY` и `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD`; blueprint называет их в `identity` и `sudoPassword`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
+Нужны OpenStrap CLI v0.1.10 или новее, VirtualBox, плагины из npm (`openstrap plugins install virtualbox`, `ssh`, `keychain` — из PowerShell) и snapshot `base-2026-11` исходной `arch-base` (пароль `textyre` в нём должен быть моложе 365 дней: роль `user` проверяет это первым шагом). SSH-ключ и sudo-пароль target сохраняются один раз со скрытым вводом: `openstrap secret set ARCH_BASE_SSH_KEY` и `openstrap secret set BOOTSTRAP_TARGET_SUDO_PASSWORD`; blueprint называет их в `identity` и `sudoPassword`. Этот же пароль используется provider и Ansible. [Bootstrap Secrets](docs/bootstrap-secrets.md) описывает доставку через stdin и native Docker Swarm secrets.
 
 ## Общее состояние через OpenStrap Server
 
@@ -66,7 +66,7 @@ openstrap recover <run-id> --reason "CLI terminated; execution stopped" --confir
 
 | VM | Назначение |
 |---|---|
-| `bootstrap-target` | Полный клон `arch-base/base`; Arch Linux, пользователь `textyre` |
+| `bootstrap-target` | Полный клон `arch-base/base-2026-11`; Arch Linux, пользователь `textyre` |
 | `ansible-control` | Ubuntu 24.04 Docker host |
 
 Обе VM запускаются headless. Общая приватная сеть `bootstrap` соединяет target `172.28.51.10:22` и controller `172.28.51.11`. SSH с Windows доступен через порты `2251` и `2252`. Исходная VM и её snapshots остаются неизменными.

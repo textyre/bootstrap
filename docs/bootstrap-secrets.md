@@ -18,7 +18,7 @@ automatically. The blueprint names the SSH key with `identity: { secret: ARCH_BA
 Linux requires an available Secret Service backend.
 
 The same sudo entry is used for provider-owned second NIC preparation on the
-clone of `arch-base/base` and for Ansible privilege escalation. The provider
+clone of `arch-base/base-2026-11` and for Ansible privilege escalation. The provider
 passes it through SSH stdin to `sudo -S`. Bootstrap no longer uses Ansible Vault
 or a separate Vault password. An old saved `BOOTSTRAP_VAULT_PASSWORD` entry is
 unused and can be removed explicitly with `openstrap secret forget NAME`.
