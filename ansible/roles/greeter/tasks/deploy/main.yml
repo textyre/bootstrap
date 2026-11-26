@@ -6,8 +6,31 @@
     checksum: "{{ greeter_artifact_checksum }}"
     mode: "0644"
 
+# The artifact unpacks over /, so the files of an older theme (its hashed assets) would stay
+# beside the new ones. A marker records which artifact the theme directory holds.
+- name: Read which artifact the theme came from
+  ansible.builtin.slurp:
+    src: "{{ greeter_artifact_marker }}"
+  register: _greeter_marker
+  failed_when: false
+
+- name: Remove the theme of another artifact
+  ansible.builtin.file:
+    path: "{{ greeter_theme_dir }}"
+    state: absent
+  when: >-
+    (_greeter_marker.content | default('') | b64decode | trim) != greeter_artifact_checksum
+
 - name: Deploy ctOS greeter artifact
   ansible.builtin.unarchive:
     src: "/var/tmp/ctos-greeter-{{ greeter_version }}.tar"
     dest: /
     remote_src: true
+
+- name: Record which artifact the theme came from
+  ansible.builtin.copy:
+    dest: "{{ greeter_artifact_marker }}"
+    content: "{{ greeter_artifact_checksum }}\n"
+    owner: root
+    group: root
+    mode: "0644"

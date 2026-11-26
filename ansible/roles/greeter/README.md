@@ -31,7 +31,9 @@ own Node. A package already at `greeter_nody_package_version` is not rebuilt.
 ## Execution flow
 
 1. **Deploy** - download the release tar (checksum-verified) and extract it
-   onto the target filesystem.
+   onto the target filesystem. When the theme directory came from another
+   artifact (the checksum in `greeter_artifact_marker` differs), it is removed
+   first, so no files of the older theme stay behind.
 2. **Report** - record that the ctOS greeter artifact was deployed.
 
 The role has no handlers, platform branches, or init-system branches.
@@ -40,9 +42,11 @@ The role has no handlers, platform branches, or init-system branches.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `greeter_version` | `1.0.0` | Released ctos-greeter version to deploy. |
+| `greeter_version` | `1.0.1-rc.1` | Released ctos-greeter version to deploy. |
 | `greeter_artifact_url` | GitHub Release URL derived from `greeter_version` | Download location of `ctos-greeter.tar`. |
 | `greeter_artifact_checksum` | pinned `sha256:...` | Checksum the downloaded artifact must match. |
+| `greeter_theme_dir` | `/usr/share/web-greeter/themes/ctos` | The theme directory, replaced whole when the artifact changes. |
+| `greeter_artifact_marker` | `/usr/lib/ctos-greeter/artifact` | File holding the checksum of the deployed artifact. |
 
 Bumping the version requires updating both `greeter_version` and
 `greeter_artifact_checksum` together.
