@@ -29,4 +29,4 @@ targets:
       target: bootstrap-target
       # master's image by default; another branch's with BOOTSTRAP_IMAGE_TAG=branch-<branch> (or sha-<commit>).
       image: ghcr.io/textyre/bootstrap/control-plane:${BOOTSTRAP_IMAGE_TAG:-latest}
-      playbook: playbooks/workstation.yml
+      playbook: playbooks/site.yml
