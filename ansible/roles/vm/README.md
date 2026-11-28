@@ -50,7 +50,8 @@ Additions packages.
 Flow:
 
 1. Detect existing ISO Guest Additions under `/opt`.
-2. Detect host version from `journalctl -k` / `dmesg`, or use `vm_vbox_host_version_override`.
+2. Detect host version from the guest property `/VirtualBox/HostInfo/VBoxVer`, then from
+   `journalctl -k` / `dmesg`, or use `vm_vbox_host_version_override`.
 3. Detect guest version from `VBoxControl --version` or `/opt/VBoxGuestAdditions-*`.
 4. Install Guest Additions from ISO only when host and guest versions differ.
 5. Configure `/dev/vboxguest` access and `vboxsf` user membership.
