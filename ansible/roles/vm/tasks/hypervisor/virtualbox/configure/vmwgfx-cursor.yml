@@ -1,0 +1,155 @@
+---
+# Linux vmwgfx since commit d5ed8749168a ("enforce cursor size limits for MOB cursors", Linux 7.2)
+# reads SVGA_REG_CURSOR_MAX_DIMENSION for cursors on devices without SVGA_CAP2_CURSOR_MOB too. Such
+# a device (VirtualBox before 7.2.8) leaves that register at zero, so every cursor image is
+# rejected ("Cursor dimensions (64, 64) exceed device max 0") and Xorg draws a software cursor
+# into each frame, which lags behind any animation on the screen.
+# Mainline commit 6baeb251d709 ("validate GB-only cursor command limits", Linux 7.4, Cc: stable)
+# fixes it. Until the running kernel carries it, the role builds vmwgfx from that kernel's stable
+# tag with the fix and installs it under updates/, which depmod searches first. Once the kernel
+# carries the fix the patch no longer applies forward, and the role removes its module.
+# Sources:
+# - https://github.com/torvalds/linux/commit/6baeb251d709d5f31f2a0ae89ca5ca054d0e04e7
+# - https://github.com/torvalds/linux/commit/d5ed8749168a
+# - Arch builds linux from the stable tag plus linux-v<ver>-arch<N>.patch
+#   (https://gitlab.archlinux.org/archlinux/packaging/packages/linux PKGBUILD); that patch leaves
+#   drivers/gpu/drm/vmwgfx untouched (checked for 7.3.6-arch1), so the stable tag's vmwgfx is Arch's.
+- name: "VirtualBox: Patched vmwgfx for the hardware cursor"
+  vars:
+    _vm_vmwgfx_kernel: "{{ ansible_facts['kernel'] }}"
+    # 7.3.6-arch1-1 -> v7.3.6; 7.4.0-arch1-1 -> v7.4 (stable tags drop a zero patch level).
+    _vm_vmwgfx_tag: >-
+      v{{ ansible_facts['kernel'] | regex_replace('-.*$', '') | regex_replace('\.0$', '') }}
+    _vm_vmwgfx_updates: "/usr/lib/modules/{{ ansible_facts['kernel'] }}/updates"
+    _vm_vmwgfx_stamp: "{{ _vm_vmwgfx_tag }} {{ vm_vbox_vmwgfx_patches | join(' ') }}"
+    _vm_vmwgfx_src: "{{ vm_vbox_vmwgfx_build_dir }}/src"
+  block:
+    - name: "VirtualBox: Read which vmwgfx build is installed"
+      ansible.builtin.slurp:
+        src: "{{ _vm_vmwgfx_updates }}/vmwgfx.bootstrap"
+      register: _vm_vmwgfx_stamp_file
+      failed_when: false
+
+    - name: "VirtualBox: Build vmwgfx with the cursor fix"
+      when: (_vm_vmwgfx_stamp_file.content | default('') | b64decode | trim) != _vm_vmwgfx_stamp
+      block:
+        - name: "VirtualBox: Install vmwgfx build dependencies"
+          ansible.builtin.package:
+            name: "{{ ['git', 'gcc', 'make'] + vm_vbox_kernel_header_packages }}"
+            state: present
+
+        - name: "VirtualBox: Start from an empty vmwgfx build directory"
+          ansible.builtin.file:
+            path: "{{ vm_vbox_vmwgfx_build_dir }}"
+            state: absent
+
+        - name: "VirtualBox: Create the vmwgfx build and module directories"
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: "0755"
+          loop:
+            - "{{ vm_vbox_vmwgfx_build_dir }}/patches"
+            - "{{ _vm_vmwgfx_updates }}"
+
+        # Only drivers/gpu/drm/vmwgfx is checked out: a blobless shallow sparse clone of one tag.
+        - name: "VirtualBox: Fetch vmwgfx of the running kernel"
+          ansible.builtin.command:
+            argv: [git, clone, --quiet, --depth, "1", --filter=blob:none, --sparse,
+                   --branch, "{{ _vm_vmwgfx_tag }}", "{{ vm_vbox_vmwgfx_stable_repo }}", "{{ _vm_vmwgfx_src }}"]
+          changed_when: true
+
+        - name: "VirtualBox: Check out drivers/gpu/drm/vmwgfx"
+          ansible.builtin.command:
+            argv: [git, -C, "{{ _vm_vmwgfx_src }}", sparse-checkout, set, drivers/gpu/drm/vmwgfx]
+          changed_when: true
+
+        - name: "VirtualBox: Copy the vmwgfx fixes"
+          ansible.builtin.copy:
+            src: "vmwgfx/{{ item }}"
+            dest: "{{ vm_vbox_vmwgfx_build_dir }}/patches/{{ item }}"
+            mode: "0644"
+          loop: "{{ vm_vbox_vmwgfx_patches }}"
+
+        - name: "VirtualBox: Check whether the kernel still lacks each fix"
+          ansible.builtin.command:
+            argv: [git, -C, "{{ _vm_vmwgfx_src }}", apply, --check, "{{ vm_vbox_vmwgfx_build_dir }}/patches/{{ item }}"]
+          loop: "{{ vm_vbox_vmwgfx_patches }}"
+          register: _vm_vmwgfx_forward
+          changed_when: false
+          failed_when: false
+
+        - name: "VirtualBox: Check that a fix which does not apply is already in the kernel"
+          ansible.builtin.command:
+            argv: [git, -C, "{{ _vm_vmwgfx_src }}", apply, -R, --check, "{{ vm_vbox_vmwgfx_build_dir }}/patches/{{ item.item }}"]
+          loop: "{{ _vm_vmwgfx_forward.results | selectattr('rc', 'ne', 0) | list }}"
+          loop_control:
+            label: "{{ item.item }}"
+          changed_when: false
+
+        - name: "VirtualBox: Apply the fixes the kernel lacks"
+          ansible.builtin.command:
+            argv: [git, -C, "{{ _vm_vmwgfx_src }}", apply, "{{ vm_vbox_vmwgfx_build_dir }}/patches/{{ item.item }}"]
+          loop: "{{ _vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | list }}"
+          loop_control:
+            label: "{{ item.item }}"
+          changed_when: true
+
+        - name: "VirtualBox: Build vmwgfx against the running kernel"
+          ansible.builtin.command:
+            argv: [make, -C, "/usr/lib/modules/{{ _vm_vmwgfx_kernel }}/build",
+                   "M={{ _vm_vmwgfx_src }}/drivers/gpu/drm/vmwgfx", modules,
+                   "-j{{ ansible_facts['processor_vcpus'] | default(2) }}"]
+          when: _vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | list | length > 0
+          changed_when: true
+
+        - name: "VirtualBox: Install the built vmwgfx under updates"
+          ansible.builtin.copy:
+            src: "{{ _vm_vmwgfx_src }}/drivers/gpu/drm/vmwgfx/vmwgfx.ko"
+            dest: "{{ _vm_vmwgfx_updates }}/"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0644"
+          when: _vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | list | length > 0
+
+        - name: "VirtualBox: Remove the vmwgfx build the kernel no longer needs"
+          ansible.builtin.file:
+            path: "{{ _vm_vmwgfx_updates }}/vmwgfx.ko"
+            state: absent
+          when: _vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | list | length == 0
+
+        - name: "VirtualBox: Record which vmwgfx build is installed"
+          ansible.builtin.copy:
+            dest: "{{ _vm_vmwgfx_updates }}/vmwgfx.bootstrap"
+            content: "{{ _vm_vmwgfx_stamp }}\n"
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: "VirtualBox: Update module dependencies"
+          ansible.builtin.command:
+            argv: [depmod, -a, "{{ _vm_vmwgfx_kernel }}"]
+          changed_when: true
+
+        # mkinitcpio's kms hook puts vmwgfx into the initramfs; the module loaded at boot is the
+        # one the initramfs carries.
+        - name: "VirtualBox: Rebuild the initramfs"
+          ansible.builtin.command:
+            argv: [mkinitcpio, -P]
+          changed_when: true
+
+        - name: "VirtualBox: Report that vmwgfx takes effect after a reboot"
+          ansible.builtin.debug:
+            msg: >-
+              vmwgfx for {{ _vm_vmwgfx_kernel }}:
+              {{ 'built with ' ~ (_vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | map(attribute='item') | join(', '))
+                 if (_vm_vmwgfx_forward.results | selectattr('rc', 'eq', 0) | list | length > 0)
+                 else 'the kernel already carries the fixes; the role build was removed' }}.
+              The running module changes after the next reboot.
+
+      always:
+        - name: "VirtualBox: Remove the vmwgfx build directory"
+          ansible.builtin.file:
+            path: "{{ vm_vbox_vmwgfx_build_dir }}"
+            state: absent

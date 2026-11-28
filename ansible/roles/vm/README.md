@@ -57,12 +57,28 @@ Flow:
 6. Configure XDG autostart for `VBoxClient-all`.
 7. Configure a LightDM XRandR resize hook for VirtualBox VMSVGA display hints.
 8. Configure time-sync policy for the active init system.
+8a. On Arch, build `vmwgfx` with the hardware-cursor fix while the running kernel lacks it
+   (see [vmwgfx hardware cursor](#vmwgfx-hardware-cursor)).
 9. Start `vboxadd-service`.
 10. Verify `vboxguest` and `vboxsf`; report optional `vboxvideo`.
 10. Report version when `vm_vbox_version_check` is enabled.
 
 ISO install cleanup lives in the ISO install flow. If ISO install fails, rescue
 collects diagnostics and the role fails; there is no package-manager fallback.
+
+### vmwgfx hardware cursor
+
+Linux vmwgfx since commit `d5ed8749168a` (Linux 7.2) rejects every cursor image on a
+VMSVGA device without cursor-MOB support, such as VirtualBox before 7.2.8: the kernel log
+shows `Cursor dimensions (64, 64) exceed device max 0`, and Xorg draws a software cursor
+into each frame. Mainline commit `6baeb251d709` (Linux 7.4) fixes it.
+
+While the running kernel lacks that fix, the role builds `vmwgfx` from the kernel's stable
+tag (`7.3.6-arch1-1` -> `v7.3.6`) with the patch in `files/vmwgfx/`, installs it as
+`/usr/lib/modules/<kernel>/updates/vmwgfx.ko`, records the build in `vmwgfx.bootstrap` next
+to it, runs `depmod` and `mkinitcpio -P`. The new module is loaded after the next reboot.
+When the kernel already carries the fix, the patch only applies in reverse and the role
+removes its module. Each new kernel gets its own build on the next run.
 
 ### VMware
 
@@ -165,6 +181,14 @@ watches the XRandR preferred mode exposed by VirtualBox resize hints and applies
 it to the active LightDM X server. It does not start `VBoxClient` in the greeter
 process tree.
 
+Chromium's GPU blocklist entry "VMware is buggy on Linux" (vendor `0x15ad`) also
+matches the VirtualBox VMSVGA device, so an Electron greeter renders in software
+and hands Xorg a full-window copy of every frame. The role installs
+`/usr/local/lib/bootstrap/virtualbox-lightdm-greeter-gpu` and
+`/etc/lightdm/lightdm.conf.d/31-virtualbox-greeter-gpu.conf`
+(`greeter-wrapper=`): the wrapper starts `nody-greeter` with
+`--ignore-gpu-blocklist` and any other greeter unchanged.
+
 ## Variables
 
 ### External Contract
@@ -178,6 +202,7 @@ Variables in `defaults/main.yml` are the supported external role contract.
 | `vm_packages_kvm_guest` | `['qemu-guest-agent']` | Default KVM guest package list for distros that consume the generic value |
 | `vm_vbox_host_version_override` | `""` | Explicit VirtualBox host version when kernel log detection is unavailable |
 | `vm_vbox_version_check` | `true` | Detect and enforce VirtualBox host/guest Guest Additions version alignment |
+| `vm_vbox_vmwgfx_cursor_fix` | `true` | On Arch, build `vmwgfx` with the hardware-cursor fix while the running kernel lacks it |
 | `vm_vmware_version_report` | `true` | Report VMware Tools version |
 | `vm_hyperv_version_report` | `true` | Report Hyper-V VMBus kernel metadata |
 | `vm_kvm_version_report` | `true` | Report QEMU Guest Agent version |
