@@ -214,3 +214,33 @@
     owner: root
     group: root
     mode: "0644"
+
+# Chromium's GPU blocklist (entry "VMware is buggy on Linux", vendor 0x15ad) also matches the
+# VirtualBox VMSVGA device, so an Electron greeter renders in software (SwiftShader) and hands
+# Xorg a full-window copy of every frame; with an animated theme that fills the VMSVGA command
+# queue and delays input and cursor changes. --ignore-gpu-blocklist lets it render on the
+# device. LightDM runs the greeter through greeter-wrapper (documented in lightdm.conf); the
+# wrapper adds the switch only to nody-greeter, other greeters run unchanged.
+- name: "VirtualBox: Install the LightDM greeter GPU wrapper"
+  ansible.builtin.copy:
+    dest: /usr/local/lib/bootstrap/virtualbox-lightdm-greeter-gpu
+    content: |
+      #!/bin/sh
+      # Managed by Ansible role vm: runs nody-greeter on the VMSVGA GPU.
+      case "$(basename "${1:-}")" in
+        nody-greeter) exec "$@" --ignore-gpu-blocklist ;;
+        *) exec "$@" ;;
+      esac
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "VirtualBox: Configure the LightDM greeter GPU wrapper"
+  ansible.builtin.copy:
+    dest: /etc/lightdm/lightdm.conf.d/31-virtualbox-greeter-gpu.conf
+    content: |
+      [Seat:*]
+      greeter-wrapper=/usr/local/lib/bootstrap/virtualbox-lightdm-greeter-gpu
+    owner: root
+    group: root
+    mode: "0644"

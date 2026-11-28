@@ -1,0 +1,105 @@
+---
+# nody-greeter from the AUR, built with Node 20 from nvm instead of a system Node.
+#
+# Its PKGBUILD asks for nodejs<21 to build (Electron 27); at run time it carries Electron's own Node.
+# makepkg runs with --nodeps, since no pacman package provides that Node any more: the build user's
+# nvm gives it, and the package's runtime dependencies are installed by pacman first.
+
+- name: Read the installed nody-greeter
+  ansible.builtin.command: pacman -Q nody-greeter
+  register: _greeter_nody_installed
+  changed_when: false
+  failed_when: false
+
+- name: Build and install nody-greeter
+  when: _greeter_nody_installed.stdout != 'nody-greeter ' ~ greeter_nody_package_version
+  block:
+    - name: Install nody-greeter's runtime and build dependencies
+      community.general.pacman:
+        name: [lightdm, gobject-introspection, cairo, xorg-xsetroot, git, python, base-devel]
+        state: present
+
+    - name: Read the build user's home
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ greeter_nody_build_user }}"
+
+    - name: Set the build paths
+      ansible.builtin.set_fact:
+        _greeter_nody_home: "{{ ansible_facts['getent_passwd'][greeter_nody_build_user][4] }}"
+        _greeter_nody_dir: "{{ ansible_facts['getent_passwd'][greeter_nody_build_user][4] }}/build/nody-greeter"
+
+    - name: Clone nvm for the build user
+      ansible.builtin.git:
+        repo: https://github.com/nvm-sh/nvm.git
+        dest: "{{ _greeter_nody_home }}/.nvm"
+        version: "{{ greeter_nody_nvm_version }}"
+        depth: 1
+      become: true
+      become_user: "{{ greeter_nody_build_user }}"
+
+    - name: Clone the AUR package afresh
+      ansible.builtin.git:
+        repo: "{{ greeter_nody_aur_url }}"
+        dest: "{{ _greeter_nody_dir }}"
+        version: "{{ greeter_nody_aur_ref }}"
+        force: true
+      become: true
+      become_user: "{{ greeter_nody_build_user }}"
+
+    - name: Allow the install scripts the build needs
+      ansible.builtin.copy:
+        dest: "{{ _greeter_nody_home }}/.npmrc"
+        content: "allow-scripts={{ greeter_nody_npm_allow_scripts | join(',') }}\n"
+        owner: "{{ greeter_nody_build_user }}"
+        mode: "0600"
+
+    - name: Build nody-greeter with nvm's Node {{ greeter_nody_build_node }}
+      ansible.builtin.shell: |
+        set -eu
+        export NVM_DIR="$HOME/.nvm"
+        . "$NVM_DIR/nvm.sh"
+        nvm install "{{ greeter_nody_build_node }}" >/dev/null
+        nvm use "{{ greeter_nody_build_node }}" >/dev/null
+        cd "{{ _greeter_nody_dir }}"
+        rm -f ./*.pkg.tar.zst
+        makepkg --nodeps --noconfirm --cleanbuild --force >/dev/null
+        # makepkg may also split off nody-greeter-debug; the greeter is the package of its own name.
+        ls "$PWD"/nody-greeter-[0-9]*.pkg.tar.zst
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ greeter_nody_build_user }}"
+      register: _greeter_nody_build
+      changed_when: true
+
+    # The ctOS artifact deployed next replaces nody-greeter's /etc/lightdm/web-greeter.yml with its
+    # own; on a reinstall or upgrade that file is already there, and the artifact puts it back after.
+    - name: Install the built package
+      ansible.builtin.command:
+        argv: [pacman, -U, --noconfirm, --overwrite, /etc/lightdm/web-greeter.yml, "{{ _greeter_nody_build.stdout_lines | last }}"]
+      changed_when: true
+
+    - name: Remove a debug package of an earlier build
+      community.general.pacman:
+        name: nody-greeter-debug
+        state: absent
+
+    - name: Remove the build's Node {{ greeter_nody_build_node }}
+      ansible.builtin.shell: |
+        set -eu
+        export NVM_DIR="$HOME/.nvm"
+        . "$NVM_DIR/nvm.sh"
+        nvm deactivate >/dev/null 2>&1 || true
+        nvm uninstall "{{ greeter_nody_build_node }}" >/dev/null
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ greeter_nody_build_user }}"
+      when: not (greeter_nody_keep_build_node | bool)
+      changed_when: true
+
+    - name: Remove the build directory
+      ansible.builtin.file:
+        path: "{{ _greeter_nody_dir }}"
+        state: absent

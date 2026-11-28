@@ -5,6 +5,9 @@ nvm_version: "v0.41.0"            # a tag of github.com/nvm-sh/nvm
 nvm_node_version: latest          # latest: the newest stable release; or an exact version, e.g. v26.13.1
 nvm_node_index_url: "https://nodejs.org/dist/index.tab"
 nvm_global_packages: [pnpm]       # npm packages installed into that Node
+# /usr/local/bin/node: the default Node for programs that run outside the user's shell and ask
+# for `/usr/bin/env node` (the ctOS greeter helper, run by LightDM before anyone logs in).
+nvm_link_node: true
 # Remove the distribution's Node, npm and pnpm, so only nvm's Node is on PATH.
 nvm_remove_system_node: false
 nvm_system_node_packages: [nodejs, nodejs-lts-iron, nodejs-lts-jod, nodejs-lts-krypton, npm, pnpm]

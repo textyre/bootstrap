@@ -1,0 +1,57 @@
+---
+# What OpenStrap runs: the documented order in one playbook, since OpenStrap runs one.
+#   prepare_system.yml  -> bootloader and full upgrade (system_update)
+#   reboot boundary     -> system_update requires it: an upgraded kernel's modules are not loadable
+#                          until the machine boots it (the vm role's Guest Additions need them)
+#   workstation.yml     -> the workstation itself
+#
+#   openstrap run --local --host-port 2251
+
+# prepare_system.yml gathers facts, which needs Python; a bare Arch clone may not have it yet.
+- name: Python for Ansible
+  hosts: workstations
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Probe Python without requiring Python
+      ansible.builtin.raw: test -x /usr/bin/python3
+      become: false
+      register: _site_python_probe
+      changed_when: false
+      failed_when: _site_python_probe.rc not in [0, 1]
+      check_mode: false
+
+    - name: Install Python on a bare Arch target
+      ansible.builtin.raw: >-
+        test -f /etc/arch-release &&
+        pacman -Sy --needed --noconfirm archlinux-keyring &&
+        pacman -Su --needed --noconfirm python inetutils
+      register: _site_python_install
+      when: _site_python_probe.rc == 1
+      changed_when: _site_python_install.rc == 0
+
+    # Before the bootloader, the upgrade and the packages: a password the user role would expire
+    # at once cuts off sudo mid-run, so the run stops here, having changed nothing.
+    - name: Gather the facts the user role reads
+      ansible.builtin.setup:
+        gather_subset: [min]
+
+    - name: Preflight the owner's password age
+      ansible.builtin.include_role:
+        name: user
+        tasks_from: preflight.yml
+
+- name: Prepare system
+  ansible.builtin.import_playbook: prepare_system.yml
+
+- name: Reboot boundary
+  hosts: workstations
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Reboot after the system upgrade
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+
+- name: Workstation
+  ansible.builtin.import_playbook: workstation.yml

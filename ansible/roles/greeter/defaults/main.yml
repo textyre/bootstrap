@@ -1,5 +1,24 @@
 ---
 # Released ctOS greeter artifact deployed to the workstation.
-greeter_version: "1.0.0"
+greeter_version: "1.0.1-rc.2"
 greeter_artifact_url: "https://github.com/textyre/ctos-greeter/releases/download/v{{ greeter_version }}/ctos-greeter.tar"
-greeter_artifact_checksum: "sha256:8f2429c7d82156f27a47d5363282baa01e38b6c2bc210e818d5945e9de82f266"
+greeter_artifact_checksum: "sha256:449531489be5629a42ec07673efafbc1d0ec96851957b49a129d833dfb35a986"
+greeter_theme_dir: /usr/share/web-greeter/themes/ctos
+greeter_artifact_marker: /usr/lib/ctos-greeter/artifact    # the checksum of the deployed artifact
+
+# nody-greeter, the LightDM greeter engine (Arch): built from the AUR by the greeter role itself.
+# nody-greeter is no longer developed; it is Electron 27, which builds only with Node 20 or older.
+# That Node comes from nvm for the build alone and is removed after it; the system keeps none.
+greeter_nody_enabled: "{{ (ansible_facts['os_family'] | default('')) == 'Archlinux' }}"
+greeter_nody_package_version: "1.6.2-2"          # pkgver-pkgrel of the AUR package
+greeter_nody_aur_url: "https://aur.archlinux.org/nody-greeter.git"
+greeter_nody_aur_ref: "fee5c14bf8dbf575b85d3d2c7a22ea39dbb147cb"   # the AUR commit of 1.6.2-2
+greeter_nody_build_user: "{{ yay_builder_user | default('aur_builder') }}"
+greeter_nody_build_node: "20"
+greeter_nody_nvm_version: "{{ nvm_version | default('v0.41.0') }}"
+greeter_nody_keep_build_node: false
+# npm 12 blocks dependency install scripts unless they are approved; the build needs these.
+greeter_nody_npm_allow_scripts:
+  - electron@27.3.11
+  - esbuild@0.21.5
+  - node-gtk@0.14.0

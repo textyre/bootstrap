@@ -1,0 +1,94 @@
+---
+# ewwii from the head of main, through the AUR's ewwii-git with a pkgver() that needs no tag.
+# Built only when the installed package is not of main's current commit.
+
+- name: Build ewwii from main
+  when: ewwii_enabled | bool
+  tags: [ewwii]
+  block:
+    - name: Read main's current commit
+      ansible.builtin.command:
+        argv: [git, ls-remote, "{{ ewwii_repository }}", "refs/heads/{{ ewwii_branch }}"]
+      register: _ewwii_remote
+      changed_when: false
+      check_mode: false
+
+    - name: Read the installed ewwii
+      ansible.builtin.command: pacman -Q ewwii-git
+      register: _ewwii_installed
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Decide whether to build
+      ansible.builtin.set_fact:
+        _ewwii_head: "{{ (_ewwii_remote.stdout.split() | first)[:7] }}"
+        _ewwii_current: "{{ _ewwii_installed.rc == 0 and _ewwii_installed.stdout.endswith('.g' ~ (_ewwii_remote.stdout.split() | first)[:7] ~ '-1') }}"
+
+    - name: Build and install ewwii {{ _ewwii_head }}
+      when: not (_ewwii_current | bool)
+      block:
+        - name: Install ewwii's build and runtime dependencies
+          community.general.pacman:
+            name: "{{ ewwii_packages }}"
+            state: present
+
+        - name: Remove other ewwii packages it conflicts with
+          community.general.pacman:
+            name: [ewwii-bin, ewwii]
+            state: absent
+
+        - name: Read the build user's home
+          ansible.builtin.getent:
+            database: passwd
+            key: "{{ ewwii_build_user }}"
+
+        - name: Set the build directory
+          ansible.builtin.set_fact:
+            _ewwii_dir: "{{ ansible_facts['getent_passwd'][ewwii_build_user][4] }}/build/ewwii-git"
+
+        - name: Clone the AUR package afresh
+          ansible.builtin.git:
+            repo: "{{ ewwii_aur_url }}"
+            dest: "{{ _ewwii_dir }}"
+            version: "{{ ewwii_aur_ref }}"
+            force: true
+          become: true
+          become_user: "{{ ewwii_build_user }}"
+
+        # The published pkgver() runs `git describe --tags`, which main can no longer answer.
+        - name: Give the package a pkgver() that needs no tag
+          ansible.builtin.replace:
+            path: "{{ _ewwii_dir }}/PKGBUILD"
+            regexp: '^  git describe --long --tags .*$'
+            replace: "  {{ ewwii_pkgver }}"
+
+        - name: Build ewwii with makepkg
+          ansible.builtin.shell: |
+            set -eu
+            cd "{{ _ewwii_dir }}"
+            rm -f ./*.pkg.tar.zst
+            makepkg --noconfirm --cleanbuild --force >/dev/null
+            # makepkg may also split off ewwii-git-debug; ewwii is the package of its own name.
+            ls "$PWD"/ewwii-git-[0-9]*.pkg.tar.zst
+          args:
+            executable: /bin/bash
+          become: true
+          become_user: "{{ ewwii_build_user }}"
+          register: _ewwii_build
+          changed_when: true
+
+        - name: Install the built package
+          ansible.builtin.command:
+            argv: [pacman, -U, --noconfirm, "{{ _ewwii_build.stdout_lines | last }}"]
+          changed_when: true
+
+        - name: Remove a debug package of the build
+          community.general.pacman:
+            name: ewwii-git-debug
+            state: absent
+
+        - name: Remove the build directory
+          ansible.builtin.file:
+            path: "{{ _ewwii_dir }}"
+            state: absent

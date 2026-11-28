@@ -31,6 +31,14 @@ _vm_supported_hypervisors:
 #   https://docs.oracle.com/en/virtualization/virtualbox/7.0/user/AdvancedTopics.html
 vm_vbox_guest_service_name: vboxadd-service
 
+# vmwgfx hardware-cursor fix: mainline commits (files/vmwgfx/) applied to the running kernel's
+# stable tag until that kernel carries them.
+# Source: https://github.com/torvalds/linux/commit/6baeb251d709d5f31f2a0ae89ca5ca054d0e04e7
+vm_vbox_vmwgfx_patches:
+  - 0001-drm-vmwgfx-validate-GB-only-cursor-command-limits.patch
+vm_vbox_vmwgfx_stable_repo: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+vm_vbox_vmwgfx_build_dir: /var/tmp/bootstrap-vmwgfx
+
 # Host/guest time must have a single authority. These are the system services
 # the role treats as an existing time-sync authority before disabling
 # hypervisor-provided time sync.

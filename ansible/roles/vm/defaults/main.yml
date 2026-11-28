@@ -29,6 +29,10 @@ vm_vbox_host_version_override: ""
 # VBox version check: detect host version and enforce GA alignment via ISO
 vm_vbox_version_check: true
 
+# Build vmwgfx with the hardware-cursor fix from Linux 7.4 while the running kernel lacks it
+# (Arch only). See tasks/hypervisor/virtualbox/configure/vmwgfx-cursor.yml.
+vm_vbox_vmwgfx_cursor_fix: true
+
 # VMware version reporting: show vmware-toolbox-cmd version
 vm_vmware_version_report: true
 

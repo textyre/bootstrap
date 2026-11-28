@@ -1,6 +1,14 @@
 ---
 # === ctOS greeter ===
-# deploy -> report
+# nody-greeter (Arch) -> deploy -> report
+
+- name: Build and install nody-greeter
+  ansible.builtin.include_tasks:
+    file: nody/main.yml
+    apply:
+      tags: [greeter, display]
+  when: greeter_nody_enabled | bool
+  tags: [greeter, display]
 
 - name: Deploy ctOS greeter
   ansible.builtin.include_tasks:

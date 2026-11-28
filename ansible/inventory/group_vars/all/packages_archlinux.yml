@@ -26,8 +26,5 @@ packages_archlinux_pacman_only:
   - base-devel       # компиляция, makepkg
   - pacman-contrib   # paccache, checkupdates, pacdiff
   - perl             # pod2man и др., нужен для сборки AUR пакетов (i3, etc.)
-  # nody-greeter builds with this LTS variant. Keep it explicitly installed so
-  # yay --removemake does not remove the ctOS helper runtime after the build.
-  - nodejs-lts-iron
 
 packages_archlinux: "{{ packages_archlinux_from_packages + packages_archlinux_pacman_only }}"

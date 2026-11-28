@@ -52,6 +52,14 @@
   ansible.builtin.include_tasks:
     file: "hypervisor/virtualbox/configure/timesync/{{ ansible_facts['service_mgr'] }}.yml"
 
+# Arch only: the build maps the running kernel to its stable tag, which is how Arch builds linux.
+- name: "VirtualBox: Configure the vmwgfx hardware cursor"
+  ansible.builtin.include_tasks:
+    file: hypervisor/virtualbox/configure/vmwgfx-cursor.yml
+  when:
+    - vm_vbox_vmwgfx_cursor_fix | bool
+    - ansible_facts['os_family'] == 'Archlinux'
+
 # ---- Phase 4: Start guest service ----
 
 - name: "VirtualBox: Start guest service"

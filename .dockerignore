@@ -11,6 +11,8 @@ ansible/**
 !ansible/playbooks/
 ansible/playbooks/**
 !ansible/playbooks/workstation.yml
+!ansible/playbooks/prepare_system.yml
+!ansible/playbooks/site.yml
 !ansible/roles/
 !ansible/roles/**
 !ansible/callback_plugins/

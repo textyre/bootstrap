@@ -1,13 +1,28 @@
 ---
 # Keep parsing close to the read-only probe so the enforcement step receives
 # a plain version string instead of kernel log text.
-- name: "VirtualBox: Detect host version from kernel log"
+#
+# Order: the override; the guest property /VirtualBox/HostInfo/VBoxVer, which the host
+# publishes to installed Guest Additions; then the vboxguest "host-version:" kernel line.
+# vboxguest 7.2.22 no longer logs that line (measured on an Arch guest: its boots only show
+# "Successfully loaded version 7.2.22"), so with it installed the kernel log alone cannot say
+# which host the guest now runs on, for example after the host was downgraded.
+- name: "VirtualBox: Detect host version"
   ansible.builtin.shell: |
     set -o pipefail
 
     if [ -n {{ vm_vbox_host_version_override | quote }} ]; then
       printf '%s\n' {{ vm_vbox_host_version_override | quote }}
       exit 0
+    fi
+
+    if command -v VBoxControl >/dev/null 2>&1; then
+      version="$(VBoxControl --nologo guestproperty get /VirtualBox/HostInfo/VBoxVer 2>/dev/null \
+        | sed -n 's/^Value:[[:space:]]*\([0-9][0-9.]*\).*/\1/p')"
+      if [ -n "${version}" ]; then
+        printf '%s\n' "${version}"
+        exit 0
+      fi
     fi
 
     {

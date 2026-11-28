@@ -1,7 +1,7 @@
 ---
 # Подготовка системы перед workstation.
 #
-# Отдельная ручная операция вне стандартного запуска OpenStrap:
+# Через OpenStrap входит в site.yml (prepare, перезагрузка, workstation); вручную:
 #   ansible-playbook playbooks/prepare_system.yml
 #
 # Этот playbook сначала приводит состояние обслуживания загрузчика к

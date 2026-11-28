@@ -41,6 +41,15 @@
       ansible.builtin.setup:
       tags: [always]
 
+    # Before any change: a password the user role would expire at once cuts off sudo mid-run.
+    - name: Preflight the owner's password age
+      ansible.builtin.include_role:
+        name: user
+        tasks_from: preflight.yml
+        apply:
+          tags: [always]
+      tags: [always]
+
   roles:
     # --- Phase -1: Mirror setup ---
     - role: reflector
@@ -54,10 +63,14 @@
     - role: packages
       tags: [packages, install]
 
-    # The user's Node: the newest stable release through nvm. The distribution's nodejs-lts-iron
-    # stays for nody-greeter.
+    # Node: the newest stable release through nvm, also linked as /usr/local/bin/node for the ctOS
+    # greeter helper. The system keeps no Node package; nody-greeter's build Node is the greeter role's.
     - role: nvm
       tags: [nvm, development]
+
+    # The status bar's widget system, from the head of its main branch.
+    - role: ewwii
+      tags: [ewwii, desktop]
 
     # --- Phase 1: System foundation ---
     - role: timezone

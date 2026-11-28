@@ -1,16 +1,12 @@
 ---
 name: Build Control Plane Image
 
+# Every branch publishes its own image, so a control plane can run a pull request's Ansible before it
+# is merged: sha-<commit> and branch-<branch> for every push, latest for master alone. A pull
+# request's check is this run on its head commit.
 on:
   push:
-    branches: [master]
-    paths:
-      - Dockerfile
-      - .dockerignore
-      - ansible/**
-      - .github/workflows/build-control-plane.yml
-  pull_request:
-    branches: [master]
+    branches: ["**"]
     paths:
       - Dockerfile
       - .dockerignore
@@ -160,6 +156,8 @@ jobs:
           test "$(docker service ls --filter "name=$service" --format '{{.Replicas}}')" = 1/1
           docker exec "$container" sh -ec '
             test -d roles/common/tasks
+            test -f playbooks/site.yml
+            test -f playbooks/prepare_system.yml
             test -f inventory/host_vars/bootstrap-target/system.yml
             test ! -e inventory/group_vars/all/vault.yml
             test ! -e vault-pass.sh
@@ -171,7 +169,7 @@ jobs:
           '
           docker exec "$container" /usr/bin/ansible-playbook --version
           docker exec "$container" \
-            ansible-playbook --syntax-check --inventory localhost, playbooks/workstation.yml
+            ansible-playbook --syntax-check --inventory localhost, playbooks/site.yml
           docker cp "$fixture_dir/inventory.yml" "$container":/tmp/smoke-inventory.yml
           docker cp "$fixture_dir/playbook.yml" "$container":/tmp/smoke-playbook.yml
           docker exec "$container" ansible-playbook /tmp/smoke-playbook.yml \
@@ -211,7 +209,6 @@ jobs:
           PY
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -219,14 +216,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish the tested image
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         shell: bash
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY,,}/control-plane"
-          docker tag "$TEST_IMAGE" "$image:sha-$GITHUB_SHA"
-          docker push "$image:sha-$GITHUB_SHA"
-          docker tag "$TEST_IMAGE" "$image:latest"
-          docker push "$image:latest"
-          printf 'Published `%s:sha-%s` and `%s:latest`.\n' \
-            "$image" "$GITHUB_SHA" "$image" >> "$GITHUB_STEP_SUMMARY"
+          # A branch name as a tag: lowercase, and what a tag cannot hold (/ among it) made -.
+          branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | cut -c1-120)
+          tags="sha-$GITHUB_SHA branch-$branch"
+          if [ "$GITHUB_REF" = refs/heads/master ]; then tags="$tags latest"; fi
+          for tag in $tags; do
+            docker tag "$TEST_IMAGE" "$image:$tag"
+            docker push "$image:$tag"
+            printf 'Published `%s:%s`.\n' "$image" "$tag" >> "$GITHUB_STEP_SUMMARY"
+          done

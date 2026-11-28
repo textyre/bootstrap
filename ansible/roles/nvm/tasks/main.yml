@@ -55,7 +55,7 @@
                | regex_replace('[^v0-9.].*$', '')) }}
   tags: [nvm]
 
-- name: Install Node {{ _nvm_node }} and make it the default
+- name: Install and make default Node {{ _nvm_node }}
   ansible.builtin.shell: |
     set -eu
     export NVM_DIR="$HOME/.nvm"
@@ -88,6 +88,31 @@
   register: _nvm_globals
   changed_when: "'installed:' in _nvm_globals.stdout"
   when: nvm_global_packages | length > 0
+  tags: [nvm]
+
+# The link names the version's own binary, so it is updated when the default version changes.
+- name: Find the default Node's binary
+  ansible.builtin.shell: |
+    set -eu
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm which default
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nvm_user }}"
+  register: _nvm_default_binary
+  changed_when: false
+  when: nvm_link_node | bool
+  tags: [nvm]
+
+- name: Link the default Node for programs outside the user's shell
+  ansible.builtin.file:
+    src: "{{ _nvm_default_binary.stdout | trim }}"
+    dest: /usr/local/bin/node
+    state: link
+    force: true
+  when: nvm_link_node | bool
   tags: [nvm]
 
 - name: Load nvm in login shells
