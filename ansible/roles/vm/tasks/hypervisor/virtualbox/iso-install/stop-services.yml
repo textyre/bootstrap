@@ -2,18 +2,14 @@
 - name: "VirtualBox: Gather service facts"
   ansible.builtin.service_facts:
 
-- name: "VirtualBox: Stop vboxservice"
+# systemd keeps listing a unit whose file is gone (status not-found), for example after an
+# uninstall that did not finish; such a unit has nothing to stop.
+- name: "VirtualBox: Stop the Guest Additions services"
   ansible.builtin.service:
-    name: vboxservice
+    name: "{{ item }}"
     state: stopped
+  loop: [vboxservice, vboxadd-service]
   when: >-
-    'vboxservice' in ansible_facts['services'] or
-    'vboxservice.service' in ansible_facts['services']
-
-- name: "VirtualBox: Stop vboxadd-service"
-  ansible.builtin.service:
-    name: vboxadd-service
-    state: stopped
-  when: >-
-    'vboxadd-service' in ansible_facts['services'] or
-    'vboxadd-service.service' in ansible_facts['services']
+    (ansible_facts['services'][item ~ '.service']
+     | default(ansible_facts['services'][item] | default({'status': 'not-found'})))
+    .get('status', 'unknown') != 'not-found'
